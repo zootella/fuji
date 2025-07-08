@@ -13,7 +13,7 @@ async function greet() {
 
 <template>
   <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
+    <h1>Welcome to Fuji, built with Tauri + Vue</h1>
 
     <div class="row">
       <a href="https://vitejs.dev" target="_blank">
@@ -27,6 +27,7 @@ async function greet() {
       </a>
     </div>
     <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
+    <p>and, live reload works! this is 2025jul8, v5</p>
 
     <form class="row" @submit.prevent="greet">
       <input id="greet-input" v-model="name" placeholder="Enter a name..." />

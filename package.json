@@ -4,8 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "local": "tauri dev",
+    "build": "tauri build",
     "dev": "vite",
-    "build": "vite build",
+    "vite-build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
