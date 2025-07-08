@@ -1,43 +1,39 @@
-<script setup>
+<script setup>//./components/Viewer.vue
 
 import {ref, onMounted} from 'vue'
+import {readFile} from '@tauri-apps/plugin-fs'
 
-const imageSrc = ref('')
+const hardPath = '/Users/kevin/Downloads/example.png'
+
+const sourceRef = ref('')
 
 onMounted(() => {
-
-	const filePath = '/Users/kevin/Downloads/example.png'
-
-	imageSrc.value = `file://${filePath}`
+	loadImage()
 })
 
-/*
-i see script setup above, but below, should this be style scoped
-can i use tailwind styles in here instead of vanilla css?
-*/
+async function loadImage() {
+	// read the raw bytes from disk
+	const bytes = await readFile(hardPath)
+	// convert to a Base64 Data URL
+	let s = ''
+	for (const b of bytes) {
+		s += String.fromCharCode(b)
+	}
+	sourceRef.value = `data:image/png;base64,${btoa(s)}`
+}
 
 </script>
 <template>
 
-<div class="image-container">
-	<img :src="imageSrc" />
+<div class="w-full h-full flex items-center justify-center bg-black">
+	<img
+			v-if="sourceRef"
+			:src="sourceRef"
+		class="max-w-full max-h-full object-contain"
+	/>
 </div>
 
 </template>
 <style scoped>
-
-.image-container {
-	width: 100%;
-	height: 100%;
-	display: flex;
-	background: black;
-	justify-content: center;
-	align-items: center;
-}
-.image-container img {
-	max-width: 100%;
-	max-height: 100%;
-	object-fit: contain;
-}
 
 </style>
