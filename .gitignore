@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+#logs and diffs
+logs
+*.log
+*.diff
+diff*.txt
+
+#os and other
+.DS_Store
+Thumbs.db
+.fleet
+.idea

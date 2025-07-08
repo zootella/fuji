@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "fuji",
+  "productName": "Fuji",
   "version": "0.1.0",
   "identifier": "com.zootella.fuji",
   "build": {
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "fuji",
-        "width": 800,
-        "height": 600
+        "title": "Fuji",
+        "width": 1200,
+        "height": 1200
       }
     ],
     "security": {
