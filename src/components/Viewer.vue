@@ -25,7 +25,7 @@ async function loadImage() {
 </script>
 <template>
 
-<div class="w-full h-full flex items-center justify-center bg-black">
+<div class="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
 	<img
 			v-if="sourceRef"
 			:src="sourceRef"
