@@ -16,10 +16,10 @@ pub fn run() {
 		.invoke_handler(//register all the commands JS can invoke…
 			tauri::generate_handler![
 				greet,          //example greeting function above
-				io::fs_readdir, //functions we've written in io.rs
-				io::fs_stat,
-				io::fs_read,
-				io::fs_copy,
+				io::io_readdir, //functions we've written in io.rs
+				io::io_stat,
+				io::io_read,
+				io::io_copy,
 			]
 		)                                                     
 		.run(tauri::generate_context!())//launch the app with the generated config (tauri.conf.json)

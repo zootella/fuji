@@ -28,7 +28,7 @@ pub struct FileStat {
 
 /// POSIX-like `readdir`, shallow only
 #[command]
-pub fn fs_readdir(path: String) -> Result<Vec<DirEntry>, String> {
+pub fn io_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 	let mut results = Vec::new();
 	for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
 		let entry = entry.map_err(|e| e.to_string())?;
@@ -47,7 +47,7 @@ pub fn fs_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 
 /// POSIX-like `stat(2)` metadata
 #[command]
-pub fn fs_stat(path: String) -> Result<FileStat, String> {
+pub fn io_stat(path: String) -> Result<FileStat, String> {
 	let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
 	let ft    = meta.file_type();
 	let atime = meta
@@ -81,7 +81,7 @@ pub fn fs_stat(path: String) -> Result<FileStat, String> {
 
 /// POSIX-like `open` + `read` + `close`
 #[command]
-pub fn fs_read(path: String) -> Result<Vec<u8>, String> {
+pub fn io_read(path: String) -> Result<Vec<u8>, String> {
 	std::fs::read(&path).map_err(|e| e.to_string())
 }
 /*
@@ -95,8 +95,8 @@ so this will be fine for images, but for big files, you'll have to use plugin-fs
 
 /// “cp” (shallow, files only)  
 #[tauri::command]
-pub fn fs_copy(src: String, dst: String) -> Result<(), String> {
-	fs::copy(&src, &dst).map(|_| ()).map_err(|e| e.to_string())
+pub fn io_copy(source: String, destination: String) -> Result<(), String> {
+	fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string())
 }
 /*
 here's our copy command, also great for small files
@@ -112,31 +112,31 @@ more to add later...
 
 /// POSIX `open` with `O_TRUNC|O_CREAT` + `write` + `close`  
 #[tauri::command]
-pub fn fs_write(path: String, data: Vec<u8>) -> Result<(), String> {
+pub fn io_write(path: String, data: Vec<u8>) -> Result<(), String> {
 	fs::write(&path, data).map_err(|e| e.to_string())
 }
 
 /// POSIX `rename(2)`  
 #[tauri::command]
-pub fn fs_rename(src: String, dst: String) -> Result<(), String> {
-	fs::rename(&src, &dst).map_err(|e| e.to_string())
+pub fn io_rename(source: String, destination: String) -> Result<(), String> {
+	fs::rename(&source, &destination).map_err(|e| e.to_string())
 }
 
 /// POSIX `unlink(2)` for files  
 #[tauri::command]
-pub fn fs_unlink(path: String) -> Result<(), String> {
+pub fn io_unlink(path: String) -> Result<(), String> {
 	fs::remove_file(&path).map_err(|e| e.to_string())
 }
 
 /// POSIX `rmdir(2)` (fails if non-empty)  
 #[tauri::command]
-pub fn fs_rmdir(path: String) -> Result<(), String> {
+pub fn io_rmdir(path: String) -> Result<(), String> {
 	fs::remove_dir(&path).map_err(|e| e.to_string())
 }
 
 /// POSIX `mkdir(2)` (single level only)  
 #[tauri::command]
-pub fn fs_mkdir(path: String) -> Result<(), String> {
+pub fn io_mkdir(path: String) -> Result<(), String> {
 	fs::create_dir(&path).map_err(|e| e.to_string())
 }
 */
