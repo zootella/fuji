@@ -4,7 +4,6 @@ import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {readFile} from '@tauri-apps/plugin-fs'
 
-
 const sourceRef = ref('')
 
 onMounted(async () => {
@@ -12,6 +11,7 @@ onMounted(async () => {
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type === 'drop' && event.payload.paths.length) {
 			let p = event.payload.paths[0]
+			console.log(`dropped path "${p}"`)
 			loadImage(p)
 		}
 	})

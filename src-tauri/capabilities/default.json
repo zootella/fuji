@@ -7,6 +7,14 @@
 		"core:default",
 		"opener:default",
 		"fs:default",
-		"fs:scope-home-recursive"
+		"fs:scope-home-recursive",
+		{
+			"identifier": "fs:allow-home-meta-recursive",
+			"allow": [
+				{
+					"path": "$HOME/**/*"
+				}
+			]
+		}
 	]
 }
