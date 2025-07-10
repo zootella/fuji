@@ -1,8 +1,8 @@
-<script setup>//./components/Viewer2.vue
+<script setup>//./components/Viewer4.vue
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
-import {readFile} from '@tauri-apps/plugin-fs'
+import {ioRead} from '../io.js'
 
 const sourceRef = ref('')
 
@@ -31,8 +31,9 @@ function asyncBlobToDataUrl(blob) {
 }
 
 async function loadImage(p) {
-	const bytes = await readFile(p)// Uint8Array
-	const blob = new Blob([bytes.buffer], {type: 'image/png'})
+	const bytes = new Uint8Array(await ioRead(p))// Uint8Array
+	console.log(typeof bytes)//says "object"
+	const blob = new Blob([bytes.buffer], {type: 'image/png'})//ttd july, set this correctly from file extension
 	sourceRef.value = await asyncBlobToDataUrl(blob)
 }
 
@@ -46,7 +47,7 @@ async function loadImage(p) {
 		class="max-w-full max-h-full object-contain"
 	/>
 	<div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 italic select-none pointer-events-none">
-		Viewer2 - using FileReader and Blob instead of base64 for a 4/3rds memory saving, still no potential resource leak
+		Viewer4 - switched from img src to canvas for gamma and lightweight thumbnails
 	</div>
 </div>
 

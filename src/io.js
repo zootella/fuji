@@ -1,6 +1,6 @@
 //./src/io.js
 
-import {invoke} from '@tauri-apps/api'
+import {invoke} from '@tauri-apps/api/core'
 
 export function ioRead(path)                { return invoke('io_read',    {path})                }
 export function ioReadDir(path)             { return invoke('io_readdir', {path})                }
