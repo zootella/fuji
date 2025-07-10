@@ -12,6 +12,6 @@ const name = ref('')
 </script>
 <template>
 
-<Lister />
+<Viewer />
 
 </template>

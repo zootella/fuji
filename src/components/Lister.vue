@@ -76,6 +76,16 @@ dropped in path "/Volumes/DriveK/folder1/folder2/cat.jpg"...
 
 so, more fiddling with permissions will be necessary
 but this enough of a proof of concept to move on to neighboring functionality tests
+
+
+
+also, if you need to drop down to Rust to get plugin-fs to allow more paths
+maybe just write all your own I/O io in Rust,
+as there might be more plugin-fs limitations after this one
+and as there aren't really many different things you need to do with I/O
+
+
+
 */
 
 </script>
