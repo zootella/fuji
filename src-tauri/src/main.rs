@@ -1,6 +1,11 @@
 //./src-tauri/src/main.rs
 
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+/*
+this is the single entrypoint of our Rust binary
+on Windows, the line below supresses a console window which would otherwise pop up
+all it does is call lib.rs's run() function
+*/
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {

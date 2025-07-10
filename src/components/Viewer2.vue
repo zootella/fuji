@@ -1,5 +1,9 @@
 <script setup>//./components/Viewer2.vue
 
+/*
+here in Viewer2, we'll switch from reading the image using plugin-fs to instead using our new, wider permission, io.rs functions we wrote ourselves!
+*/
+
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {readFile} from '@tauri-apps/plugin-fs'
