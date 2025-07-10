@@ -1,4 +1,4 @@
-<script setup>//./components/Viewer.vue
+<script setup>//./components/SimpleImage.vue
 
 import {ref, onMounted} from 'vue'
 import {readFile} from '@tauri-apps/plugin-fs'
@@ -11,20 +11,15 @@ onMounted(() => {
 	loadImage()
 })
 
-async function blobToDataUrl(blob) {
-	let p = new Promise((resolve, reject) => {
-		const reader = new FileReader()
-		reader.onerror   = () => reject(reader.error)
-		reader.onloadend = () => resolve(reader.result)
-		reader.readAsDataURL(blob)
-	})
-	return await p
-}
-
 async function loadImage() {
-	const bytes = await readFile(hardPath)// Uint8Array
-	const blob = new Blob([bytes.buffer], { type: 'image/png' })
-	sourceRef.value = await blobToDataUrl(blob)
+	// read the raw bytes from disk
+	const bytes = await readFile(hardPath)
+	// convert to a Base64 Data URL
+	let s = ''
+	for (const b of bytes) {
+		s += String.fromCharCode(b)
+	}
+	sourceRef.value = `data:image/png;base64,${btoa(s)}`
 }
 
 </script>
