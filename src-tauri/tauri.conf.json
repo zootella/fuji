@@ -14,7 +14,8 @@
       {
         "title": "Fuji",
         "width": 1200,
-        "height": 1200
+        "height": 1200,
+        "dragDropEnabled": true
       }
     ],
     "security": {
