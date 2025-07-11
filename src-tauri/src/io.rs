@@ -99,12 +99,73 @@ pub fn io_copy(source: String, destination: String) -> Result<(), String> {
 	fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string())
 }
 /*
-here's our copy command, also great for small files
-no file contents come into memory, this is us telling the system to do the copy
-but, there's no way to see progress or cancel partway through
-plugin-fs only does copies one way: by connecting read streams and write streams
-this way you can see progress and cancel partway through
-but for small files, this may be faster!
+a block of memory in a Tauri app like Fuji can exist in these layers:
+2. WebView renderer process (JS heap, JSON RPC strings)
+1. Rust backend process (fallback 8 KiB buffer, IPC deserialization)
+0. Kernel mode (page cache, zero‐copy)
+
+when io_read above gets the bytes of an image onto the screen, the memory is copied many times:
+disk -> kernel page cache -> Rust heap buffer -> Rust JSON buffer -> WebView IPC buffer -> JS heap
+
+io_copy, on the other hand is far more efficient
+On Windows 10 and later, io_copy (via std::fs::copy) invokes the Win32 CopyFileEx API,
+which performs the entire copy inside the kernel’s page cache
+no user-mode buffer is ever allocated in your Tauri process 
+On modern macOS, it uses the kernel’s fclonefileat/fcopyfile primitives
+to clone or copy the file data entirely in kernel space,
+so again no bytes of the file ever enter your Rust or JS heaps
+
+io_copy is as fast and efficient as the hardware allows for files of any size
+but is a fire and forget pattern--there's no way for an app above to know that it's halfway done
+or pause or cancel its operation
+
+Tauri's plugin-fs offers copyFile, which works the same as our io_copy above
+to enable progress and cancel copying a huge file, a developer using plugin-fs would use the streaming apis for read and write
+When you use plugin-fs's file handle methods (open(), file.read(), file.write(),
+the Rust plugin reads or writes in fixed-size chunks (by default 64 KiB at a time) via std::fs or tokio::fs 
+Those chunks are pushed into a Tauri IPC “response” whose body is a streaming iterator
+On the JS side that becomes a standard ReadableStream<Uint8Array>, so your frontend can pull each 64 KiB chunk,
+report progress, and even cancel by aborting the stream.
+
+each streamed chunk makes a round trip through all three layers!
+
+so what if we wanted to design a copy api which would report progress and allow pause and cancel
+but did not need to see the bytes (just count them) as they moved across, far below?
+we could write rust code which:
+- On Windows we call CopyFileExW with a progress callback—no user-mode buffers.
+- On macOS we use copyfile + a status callback—again all in kernel mode.
+- Everywhere else we fall back to a 64 KiB async read/write loop, checking a shared AtomicBool for cancellation, and emitting progress after each chunk.
+which comes to about two screenfuls of Rust
+and could result in js code on top that's as simple as this:
+
+import { copyWithProgress } from 'fuji-io';
+let controller; // will hold the AbortController
+async function runCopy() {
+  controller = new AbortController();
+  const source      = '/path/to/large-file.bin';
+  const destination = '/path/to/destination.bin';
+  try {
+    await copyWithProgress(
+      source,
+      destination,
+      // onProgress: called with total bytes copied so far
+      copiedBytes => {
+        console.log(`Copied ${copiedBytes} bytes`);
+      },
+      controller.signal, // pass the signal so we can abort
+    );
+    console.log('✅ Copy complete!');
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.log('⏸ Copy cancelled by user');
+    } else {
+      console.error('❌ Copy failed:', err);
+    }
+  }
+}
+
+for compare, the rust function will have to bring blocks of both files into its memory,
+the OS doesn't have an api like copy-on-clone
 */
 
 /*
