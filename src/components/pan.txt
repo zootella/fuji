@@ -1,0 +1,239 @@
+
+
+
+
+
+
+
+
+
+/*
+ok, here's my current draft of this new file
+you can see that below in the templat ei have two sections
+the first is what was here before, a guide that matches neighboring experiments that i want to keep close to
+the second is your draft of what the template should be for panning
+
+for this example, let's make the tabletop 2500x2500
+in the center, let's do make a canvas. it should be a cyan background with a one device pixel circle in the center
+the circle should be red
+the canvas should be rendered with device pixels
+its a size of 1000x1000
+my goal is that jaggies at the edges of the red circle are visible, the circle is not rendered anti-alised
+and then this canvas appears in the center of the tabletop
+also, the canvas renders to a size in device pixels (adjusted) so it's smaller than it would be if it were rendered to 1000 compared to 2500 tabletop dimension
+
+keeping in mind that we are goign to add panning next, let's right now focus on the tabletop and canvas on top
+let's draw this so that it's pinned to the upper left corner of the page--the edge of the viewport is the edge of the page
+
+oh, tehre are red +s every 500 css px on the tabletop. the tabletop background is black
+
+ok, show me what to change in the script, template, and style parts of this vue file to get us to this next waypoint
+*/
+
+/*
+
+<!-- replacement for new panning example -->
+<div
+	ref="wrapper"
+	class="relative w-screen h-screen overflow-hidden bg-black"
+	@pointerdown="startDrag"
+	@pointermove="onDrag"
+	@pointerup="endDrag"
+	@pointerleave="endDrag"
+>
+	<!-- “Tabletop” layer -->
+	<div
+		class="absolute top-0 left-0 grid-bg"
+		:style="{
+			width:  tabletop.width  + 'px',
+			height: tabletop.height + 'px',
+			transform: `translate(${offset.x}px, ${offset.y}px)`,
+			cursor: isDragging ? 'grabbing' : 'grab'
+		}"
+	>
+		<!-- Placeholder for the centered image-canvas -->
+		<canvas
+			ref="canvasRef"
+			class="absolute"
+		/>
+		<!-- ^add CSS bindings to size & center this later -->
+	</div>
+</div>
+
+*/
+
+
+
+
+
+
+
+
+
+/*
+ok, so i just ran this, and it all works, except the circle is still big and fuzzy. we need to do something, the right thing, in the right place, so that the canvas renders onto device pixels on the page in tauri, not css pixels
+
+my guess is that we do this by setting the css dimensiosn of the canvas html dom object smaller
+by exactly the right amount so that each and every exact canvas pixel ends up drawing to a real and single device pixel on my retina monitor
+but let's think about this task and correct patterns and simplicity to do this in the right place, the right way!
+
+  //Keep the CSS display size in CSS pixels
+  canvas.style.width  = imageSize + 'px'
+  canvas.style.height = imageSize + 'px'
+
+
+
+  ttd july, what happens when you change the monitor pixel resolution on mac? when you change the zoom 1.25 1.5 on windows??
+  lots of testing out to do here now even with this little example, and even before panning
+
+  also, what happens when the image has odd or even dimensions, and the right answer is actually a 0.5?
+*/
+
+
+. thinking about a wide variety of monitors from different vendors our user could have connected to their windows, mac, and raspberry pi computers, our goal here is simple: to make sure that always, every single exactly one pixel of image data gets drawn to exactly one pixel of hardware display. sure, there's CSS and smoothing and sizing and different units along the pipeline from disk to display, but our goal is to connect the disk and display pixels exactly and correctly
+
+
+
+
+
+
+oh, you're going to be able to confirm that there isn't a single missing or stretched pixel by loading images that are 1x1, 2x2, 3x3, and 4x4, like small paintbrush made pngs
+
+
+
+
+ok so i have a mac attached to a 4k monitor from a smaller manufacturer
+in Settings, Displays, there's a list
+
+3840x2160 (these are the numbers on the 4K label)
+2560x1440 (current setting that i like)
+2048x1152 (bigger setting that i've tried out as part of this testing)
+1920x1080 (Default)
+1600x900
+1152x648
+
+there are more, but i have left Show all resolutions off
+
+ok so our solution isn't actually good enough
+i've been checking for jaggies in the red circle by taking a screenshot and then opening it in figma and zooming in
+and with that text, the circle looks great
+
+but then i started changing the resolution in settings, displays
+and also holding a physical ruler up to my screen to measure the diameter of the circle
+and also taking pictures zoomed into the pixels of my screen with my phone, and then looking at them zoomed in on my phone, to see individual pixels
+
+right away i can tell that we have not achieved our goal because as i change the "resolution" in settings, the diameter of the circle on my physical screen changes!!
+we need to be correctly putting canvas pixels to hardware pixels
+so no matter the resolution setting, the physical ruler diameter of the circle should always be the same!!
+
+also, i can see antialiasing on the photos of the pixels of the screen on my phone
+
+so, let's take a step back and think about this deeply
+what's the right way to really render a canvas onto hardware pixels on the user's display??
+
+
+
+so which of these actually map to device pixels? so that one pixel for an app on my mac becomes one pixel in the hardware of my screen??
+
+
+
+
+
+
+
+
+
+
+2 console; 128mm physical
+
+
+
+nope, doesn't fucking work
+you've been taking screenshots, which are correct, but fake
+if this worked, you'd measure the same physical diameter to the circle even as you change the fake-ass "resolution" in mac os settings
+and yet also--even as you
+
+
+
+
+
+
+yes, theres' another thing, OS scale, ugh ugh ugh
+
+
+
+import { invoke } from '@tauri-apps/api/tauri'
+
+async function fixCanvas(canvas) {
+  const dpr     = window.devicePixelRatio || 1
+  const osScale = await invoke('get_os_scale') // e.g. 1.5, 2.0, etc.
+
+  console.log(`DPR=${dpr}, OS scale=${osScale}`)
+
+  // Compute CSS size so that
+  //    1 image pixel → 1 canvas pixel → 1 browser backing‑store pixel
+  // → then divided by (dpr * osScale) to land on one physical pixel
+  const cssSizeX = canvas.width  / (dpr * osScale)
+  const cssSizeY = canvas.height / (dpr * osScale)
+
+  canvas.style.width  = `${cssSizeX}px`
+  canvas.style.height = `${cssSizeY}px`
+}
+
+and then in rust:
+
+use tauri::{Manager, Window};
+
+#[tauri::command]
+fn get_os_scale(window: Window) -> f64 {
+  // Ask the window for its current monitor
+  if let Ok(Some(monitor)) = window.current_monitor() {
+    // wry / winit’s `scale_factor` gives you backing-pixel-to-physical-pixel ratio
+    monitor.scale_factor()
+  } else {
+    1.0
+  }
+}
+
+fn main() {
+  tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![get_os_scale])
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
+}
+
+
+
+ok but to test that this actually works, you need a square stupid black and white test pattern
+alternating zebra stripes horizontal and vertical
+- and then on dell and sceptre monitors
+- on mac and windows
+with different scales and resolutions playing in settings
+a - you need to always see only black and white stripes
+b - and always measure with a physical ruler the same physical size
+you think you will be able to do (b) but not be able to do (a)
+and if that's the case, then drop back to the solution you've got now
+
+
+
+and confirm that at least you get 1:1 pixels on an old fashioned monitor
+where the hdardware is not retina
+and the os scale is 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
