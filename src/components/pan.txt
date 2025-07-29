@@ -225,7 +225,7 @@ and the os scale is 1
 
 
 
-
+ok so let's say rust can get you the monitor
 
 
 

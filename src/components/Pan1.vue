@@ -4,6 +4,7 @@ const imageSize = 900//counted in raster image file pixels which render 1:1 to d
 const tableSize = 2500//counted in CSS pixels, which make sense to the user
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
+import {invoke} from '@tauri-apps/api/core'
 
 const tableRef = ref(null)//background yellow on black grid the user will be able to drag to pan around
 const canvasRef = ref(null)//on top of that, centered, rendered to device pixels, the canvas where we render the image
@@ -84,7 +85,15 @@ onMounted(async () => {
 
 	drawCanvas(canvasRef.value)//pass declared canvas ref for the function to draw into
 	fixCanvas(canvasRef.value)//fix canvas pixels to hardware display physical pixels
+
+	await snippet()
 })
+
+async function snippet() {
+
+  let [w, h, scale] = await invoke('count_pixels')
+  console.log(`hi in snippet, the screen resolution is: ${w} × ${h} with a scale factor of ${scale}`)
+}
 
 </script>
 <template>

@@ -12,9 +12,6 @@ import Viewer4 from './components/Viewer4.vue'
 
 import Pan1 from './components/Pan1.vue'
 
-const greetMsg = ref('')
-const name = ref('')
-
 </script>
 <template>
 
