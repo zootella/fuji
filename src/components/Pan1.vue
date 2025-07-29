@@ -22,11 +22,11 @@ function drawCanvas(canvas) {//passing the ref value because we must draw into d
 	ctx.imageSmoothingEnabled = false
 
 	//cyan fill
-	ctx.fillStyle = 'cyan'
+	ctx.fillStyle = '#fff'
 	ctx.fillRect(0, 0, imageSize, imageSize)
 
 	//red 1px circle
-	drawCircle(canvas, ctx, 'red')
+	drawStripes(canvas, ctx, '#000', 1)
 }
 
 function drawCircle(canvas, ctx, color) {
@@ -71,14 +71,39 @@ function drawCircle(canvas, ctx, color) {
 	}
 }
 
+function drawStripes(canvas, ctx, color, stripeWidth) {
+	const width  = canvas.width
+	const height = canvas.height
+	ctx.fillStyle = color
+	for (let x = 0; x < width; x += stripeWidth * 2) {
+		// draw a stripe of given width, but clip at canvas edge
+		const w = Math.min(stripeWidth, width - x)
+		ctx.fillRect(x, 0, w, height)
+	}
+}
+
 function fixCanvas(canvas) {//ensure the given canvas ref draws to device pixels on the screen, not css pixels
 
-	const dpr = window.devicePixelRatio || 1//likely 1.0, 1.25, 1.5, 2.0; possible 1.3333333333333333, 1.6666666666666667, 2.25, 2.5, 3.0
-	console.log(`the device pixel ratio here is: ${dpr} 🖥️`)
+	let actual = {width: 3840, height: 2160}//imagine we can get this from rust somehow, no known way yet!!
+	let mistake = 5//bump slightly wider like 5 to see beats
+
+	/*
+	actual, known,   real pixels, whole screen, from rust
+	screen, known,   fake pixels, whole screen, from window.screen.height
+	canvas, known,   real pixels, just image, from canvas.height
+	style,  compute, fake pixels, just image, set canvas.style.height
+
+	style * actual = canvas * screen
+	style = canvas * (screen / actual)
+	style = canvas * scale
+	*/
+
+	let scale = window.screen.height / actual.height
+	console.log(`🖥️ ${window.devicePixelRatio} device pixel ratio, ${window.screen.height} window screen height. ${actual.height} known actual height, ${scale} computed scale`)
 
 	// 2) CSS size = imageSize / dpr → 1 buffer px → 1 device px
-	canvas.style.width  = (canvas.width / dpr) + 'px'
-	canvas.style.height = (canvas.height / dpr) + 'px'
+	canvas.style.width  = ((canvas.width  * scale) + mistake) + 'px'
+	canvas.style.height = ((canvas.height * scale) + 0)       + 'px'
 }
 
 onMounted(async () => {
@@ -91,8 +116,12 @@ onMounted(async () => {
 
 async function snippet() {
 
-  let [w, h, scale] = await invoke('count_pixels')
-  console.log(`hi in snippet, the screen resolution is: ${w} × ${h} with a scale factor of ${scale}`)
+	let [w1, h1, s1] = await invoke('count_pixels_1')
+	let [w2, h2, s2] = await invoke('count_pixels_2')
+	/*
+	console.log(`${w1} × ${h1} scale ${s1}, from rust 1`)
+	console.log(`${w2} × ${h2} scale ${s2}, from rust 2`)
+	*/
 }
 
 </script>

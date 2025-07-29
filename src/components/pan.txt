@@ -233,6 +233,256 @@ ok so let's say rust can get you the monitor
 
 
 
+correct answer is 3840 × 2160
+
+setting looks like to 2560x1440 (your daily driver)
+[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
+[Log] 5120 × 2880 scale 2, from rust 1 (Pan1.vue, line 101)
+[Log] 2560 × 1440 scale 2, from rust 2 (Pan1.vue, line 102)
+
+setting looks like to 2048x1152 (strange middle road)
+[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
+[Log] 4096 × 2304 scale 2, from rust 1 (Pan1.vue, line 101)
+[Log] 2048 × 1152 scale 2, from rust 2 (Pan1.vue, line 102)
+
+
+
+
+correct answer is 3840 × 2160, our goal is to get this either directly or from math
+
+setting looks like to 2560x1440 (your daily driver)
+[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
+[Log] 5120 × 2880 scale 2, from rust 1 (Pan1.vue, line 101)
+[Log] ?? × ?? scale ??, from rust 2 (Pan1.vue, line 102)
+
+setting looks like to 2048x1152 (strange middle road)
+[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
+[Log] 4096 × 2304 scale 2, from rust 1 (Pan1.vue, line 101)
+[Log] ?? × ?? scale ??, from rust 2 (Pan1.vue, line 102)
+
+
+
+
+
+ok, so it's really ahrd to get the real resolution
+but even if you had it, would it work?
+so hard code in your real ersolution, which you know for this monitor
+and fill the square with black and white stripes
+and you think that it's going to look bad
+and then you can abandon this trail
+and if you really want true resolution using fuji, switch to 4k in settings
+
+
+
+
+function fixCanvas(canvas) {//ensure the given canvas ref draws to device pixels on the screen, not css pixels
+
+	let dpr = window.devicePixelRatio || 1//likely 1.0, 1.25, 1.5, 2.0; possible 1.3333333333333333, 1.6666666666666667, 2.25, 2.5, 3.0
+
+	let actual = {width: 3840, height: 2160}
+
+	let actual = 2160//maybe there is some way to get this from rust; haven't found it yet, though
+	let mistake = 0//bump slightly wider like 5 or 10 to see beats
+
+	console.log(`all from js 🖥️ ${window.devicePixelRatio} device pixel ratio, ${window.screen.height} window screen height`)
+
+	let scale = window.screen.height / actualHeight
+	console.log(`calculated manual dpr ${dpr}`)
+
+	/*
+	ok, we know that the vertical hardware pixels are 2160
+
+	2160 true hardware pixels, height
+	1440 what css tells us
+
+	ok, so to draw a square to hit 900 pixels
+	*/
+
+	// 2) CSS size = imageSize / dpr → 1 buffer px → 1 device px
+	canvas.style.width  = (((canvas.width * window.screen.width) / actual) + 0) + 'px'
+	canvas.style.height = (((canvas.height * window.screen.height) / actual) + 0) + 'px'
+}
+
+
+
+
+
+
+ok, so the real pixels are a boondoggle you've spent two summer days in
+you can sorta get zebra lines to stick to them, but only sorta
+if it's an old school display where the pixels are one to one top to bottom, plan one behavior
+if it's something else, something retina, plan a second behavior
+except both of those are X by the thumbnail view and the lightbox view, also
+also all those X big images and small images
+
+
+simple pixels, thumbnail: render image into thumbnail size canvas
+simple pixels, lightbox: render image into display size canvas
+
+modern pixels, thumbnail: render image into thumbnail size canvas
+modern pixels, lightbox: 
+ok, so here, if you render image into
+
+what if you always rendered the image into a canvas so file format pixels equaled canvas pixels
+and then to zoom in and out in lightbox, you don't rerender, rather you just css position
+so there you're trusting the browser stretcher to be as good or better than canvas' renderer, which is fine, you think
+you're also gaining some benefit about how the looks like pixels on mac get stretched adn composited
+
+and so all of that is fine except done that way for lots of thumbnails, you'll run out of memory
+so for there, you need to use the canvas renderer
+
+
+
+
+
+wait now chat is saying i can do true gamma in img src like this:
+
+<svg height="0">
+  <filter id="gamma">
+    <feComponentTransfer>
+      <feFuncR type="gamma" exponent="2.2" />
+      <feFuncG type="gamma" exponent="2.2" />
+      <feFuncB type="gamma" exponent="2.2" />
+    </feComponentTransfer>
+  </filter>
+</svg>
+<img src="your-image.jpg" style="filter: url(#gamma);" />
+
+
+
+<template>
+  <div>
+    <svg height="0">
+      <filter id="gamma">
+        <feComponentTransfer>
+          <feFuncR ref="gammaR" type="gamma" :exponent="gamma" />
+          <feFuncG ref="gammaG" type="gamma" :exponent="gamma" />
+          <feFuncB ref="gammaB" type="gamma" :exponent="gamma" />
+        </feComponentTransfer>
+      </filter>
+    </svg>
+
+    <img src="your-image.jpg" style="filter: url(#gamma);" />
+
+    <button @click="increaseGamma">Increase Gamma</button>
+    <button @click="resetGamma">Reset Gamma</button>
+    <p>Gamma: {{ gamma.toFixed(2) }}</p>
+  </div>
+</template>
+<script setup>
+import { ref, watch } from 'vue';
+
+const gamma = ref(2.2);
+const gammaR = ref(null);
+const gammaG = ref(null);
+const gammaB = ref(null);
+
+function increaseGamma() {
+  gamma.value = Math.min(5.0, gamma.value + 0.2);
+}
+
+function resetGamma() {
+  gamma.value = 2.2;
+}
+
+watch(gamma, (newVal) => {
+  if (gammaR.value) gammaR.value.setAttribute('exponent', newVal);
+  if (gammaG.value) gammaG.value.setAttribute('exponent', newVal);
+  if (gammaB.value) gammaB.value.setAttribute('exponent', newVal);
+});
+</script>
+
+
+
+
+
+ok, so then leaning on regular img all the way, you
+-zoom by styling the regular img bigger or smaller
+-do gamma with svg so there's no canvas at all
+
+but, you can't use this for thumbnails because you'll run out of memory with all those big images
+so that's what headed you to canvas--you can render into a smaller canvas, taking less memory
+except if you have hundreds of those, that's still a lot of memory
+and then there' sthe issue of do you still make them larger, to get under the retina, and how do those size
+
+ok, so what if instead you either do the flipbook thumbnails, which you like, no scrolling
+or, you do viewport optimization so as soon as you're done with a scroll, existing thumbnails far offscreen keep their shape but lose their image
+then, you can really use img src for everything, there's no canvas at all anymore!
+
+so then there's the minimap
+which is sorta theoretical
+what if it's a single canvas you squash images into
+like it's cropped squares
+so you can see when color change
+you click on an image on the minimap, and it pages up thumbnails that surround that image
+it's not exact, not one to one, not a zoom out
+
+
+so here's what the application looks like, the layout of the main view, windowed
+
+toolbar
+path box
+tree, with prev and next buttons for next folder that has images <--really good idea
+thumbnail contact sheet, no scroll, flip back and forward through folder boundaries
+minimap, squashed squares, vibes
+preview 
+
+
+full screen is just the lightbox view, or just the thumbnail flipbook, only
+when you make the window bigger you get more thumbnails, not bigger thumbnails
+the first one stays first, more or less come in after, all the page numbers and contents change
+js, not layout, must decide how many images go on each row, probably?
+
+ok so this lean forward design never shows a scrollbar
+there are no memory concerns
+it is easy to know what it should load ahead, just getting image tags ready
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
