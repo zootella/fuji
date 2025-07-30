@@ -10,25 +10,32 @@ const tableRef = ref(null)//background yellow on black grid the user will be abl
 const imageRef = ref(null)//on top of that, centered, rendered to device pixels, the img tag that holds the image
 
 /*
-ok, starting appearance looks correct, and there are never any errors
-but clicking and dragging doesn't move anything!
+ok, here im saving the dragging pointer id--all look simple correct good?
 */
 
 let tablePosition = {x: 0, y: 0}
 let dragStart = {x: 0, y: 0}
+let draggingPointer = null
 
 onMounted(() => {
 
 	tableRef.value.style.transformOrigin = '0 0'
 	tableRef.value.style.transform = `translate(${tablePosition.x}px, ${tablePosition.y}px)`
-	tableRef.value.addEventListener('pointerdown', panDown)
+	tableRef.value.addEventListener('pointerdown', panDown)//start listening for drags
 })
 onBeforeUnmount(() => {
 
+	tableRef.value.removeEventListener('pointermove', panMove)//remove any remaining drag listeners
+	tableRef.value.removeEventListener('pointerup', panUp)
 	tableRef.value.removeEventListener('pointerdown', panDown)
+	if (draggingPointer) {
+		tableRef.value.releasePointerCapture(draggingPointer)
+		draggingPointer = null
+	}
 })
 
 function panDown(panEvent) {
+	draggingPointer = panEvent.pointerId
 
 	dragStart.x = panEvent.clientX//remember where the drag started
 	dragStart.y = panEvent.clientY
@@ -47,13 +54,14 @@ function panMove(panEvent) {
 
 	tableRef.value.style.transform = `translate(${tablePosition.x}px, ${tablePosition.y}px)`//tell the GPU
 }
-
 function panUp(panEvent) {
 
-	tableRef.value.releasePointerCapture(panEvent.pointerId)//stop watching the mouse
 	tableRef.value.removeEventListener('pointermove', panMove)
-	tableRef.value.removeEventListener('pointerup', panUp)
+	tableRef.value.removeEventListener('pointerup',   panUp)
+	tableRef.value.releasePointerCapture(panEvent.pointerId)
+	draggingPointer = null
 }
+
 
 </script>
 <template>
@@ -78,6 +86,7 @@ function panUp(panEvent) {
 
 .myTable {
 	will-change: transform; /* pan with the compositor thread; no layout or paint; buttery-smooth 🧈 */
+	touch-action: none; /* tell the browser to not try to scroll or zoom behind a drag that we are handling */
 
 	/* temporary grid lines so we can see panning */
 	background-image:
