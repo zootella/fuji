@@ -12,9 +12,11 @@ import Viewer4 from './components/Viewer4.vue'
 
 import Pixel1 from './components/Pixel1.vue'
 
+import Pan1 from './components/Pan1.vue'
+
 </script>
 <template>
 
-<Pixel1 />
+<Pan1 />
 
 </template>
