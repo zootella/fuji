@@ -1,4 +1,4 @@
-<script setup>//./components/Pan1.vue
+<script setup>//./components/Pixel1.vue - a boondoggle trying to draw a raster image to hardware pixels
 
 const imageSize = 900//counted in raster image file pixels which render 1:1 to device pixels
 const tableSize = 2500//counted in CSS pixels, which make sense to the user

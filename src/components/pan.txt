@@ -437,6 +437,11 @@ ok so this lean forward design never shows a scrollbar
 there are no memory concerns
 it is easy to know what it should load ahead, just getting image tags ready
 
+think about what could happen as the user scrolls the scroll wheel over each of these areas
+over the tree view, flips through the folders - and remember there's no scroll in the tree view!
+over the contact sheet, flips through pages
+doesn't do anything over the minimap column
+over the preview, flips through the image, maybe
 
 
 
@@ -444,22 +449,49 @@ it is easy to know what it should load ahead, just getting image tags ready
 
 
 
+on the all img tag design
+your js can count how many pixels we've asked the renderer to keep in memory
+this is not the byte size of the images loaded
+rather it's the number of rendered pixels
+and then when that gets too big, it throws away some distant ones
+
+
+
+you want full screen lightbox, of course
+and also full screen contact sheet flipbook
+there needs to be a subtle visual representation when you flip over the edge of a folder
+
+
+
+
+v-show display none, all vue, should be correct to make it appear, all ready, all at once
+
+also, you can get the raster dimensions from the img tag like this
+<template>
+  <img ref="imgRef" :src="dataUrl" alt="Loaded image" />
+</template>
+<script setup>
+import { ref, onMounted } from 'vue';
+const imgRef = ref(null);
+onMounted(() => {
+  const img = imgRef.value;
+  console.log('Raster dimensions:', img.naturalWidth, img.naturalHeight);
+});
+</script>
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+ok but you forgot the prompt to try to make something useful to you in just a few sessions!
+how about
+[]drag file into window, works from many paths and drives
+[]roll mouse wheel to flip forward and back in that folder, uses smart ordering
+[]zoom in and out of an image and drag it around in lightbox view
+[]fullscreen
+[]contact sheet view, does scroll, constant height, no concerns on memory
+at this point, no concerns on ui, settings, speed, or memory, or image fidelity
+see how good it is when coded really simple
 
 
 
