@@ -502,7 +502,22 @@ see how good it is when coded really simple
 
 
 
+what if the flip plan were this
+if the greatest dimension of the image is the same, the zoom and viewport is the same
+if not, then it returns to default placement, which is
+- small images are 2x zoom, centered
+- large images are fit width or height, exactly
 
+ok so what's the fastest route to useful:
+[]run from source on both mac and windows
+[]drag in file to start in folder
+[]list everything in that folder, confirm works on mac and windows c and usb drives
+[]flip next and forward, control flip to zoom in and out
+[]default ordering by correct date, with name1234 numbering that way, groups of those in sort by most recent
+[]fullscreen with tauri
+
+
+default placement is
 
 
 
