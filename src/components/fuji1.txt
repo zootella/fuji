@@ -508,23 +508,24 @@ if not, then it returns to default placement, which is
 - small images are 2x zoom, centered
 - large images are fit width or height, exactly
 
-ok so what's the fastest route to useful:
-[]run from source on both mac and windows
-[]drag in file to start in folder
-[]list everything in that folder, confirm works on mac and windows c and usb drives
-[]flip next and forward, control flip to zoom in and out
-[]default ordering by correct date, with name1234 numbering that way, groups of those in sort by most recent
-[]fullscreen with tauri
 
-
-default placement is
+ok, so done that way, that means
+you never have to resize the tabletop in place, it stays the same square dimensions
 
 
 
+keyboard commands
+r - reset to center, size and zoom; turn off lock
+h - view help hud box, toggle on and off
+w - size to width, tabletop is width, cannot pan image beyond width, this is for doujinshi pages
+d - drag lock, now you don't have to click to pan around
+1,2,3,4 - size to those levels of zoom, based on hardware pixels
 
-
-
-
+cool ideas
+ctrl mouse wheel to 
+what if you do a stretch grab zoom that may be really smooth where you hold down a key and drag the mouse
+and then the point you drag stays that distance from the center
+you can pretty easily experiment with ideas like this in fuji, you realize!
 
 
 
