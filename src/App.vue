@@ -13,10 +13,11 @@ import Viewer4 from './components/Viewer4.vue'
 import Pixel1 from './components/Pixel1.vue'
 
 import Pan1 from './components/Pan1.vue'
+import Table from './components/Table.vue'
 
 </script>
 <template>
 
-<Pan1 />
+<Table />
 
 </template>
