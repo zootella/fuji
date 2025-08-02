@@ -16,6 +16,7 @@ let draggingPointer = null
 onMounted(() => {
 
 	window.addEventListener('keydown', myKey)
+	frameRef.value.addEventListener('wheel', myWheel, {passive: false})
 
 	tableRef.value.style.transformOrigin = '0 0'
 	tableRef.value.style.transform = `translate(${tablePosition.x}px, ${tablePosition.y}px)`
@@ -24,6 +25,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
 
 	window.removeEventListener('keydown', myKey)
+	frameRef.value.removeEventListener('wheel', myWheel)
 
 	tableRef.value.removeEventListener('pointermove', panMove)//remove any remaining drag listeners
 	tableRef.value.removeEventListener('pointerup', panUp)
@@ -46,16 +48,26 @@ function myKey(e) {
 		console.log('my key Q')
 
 	} else if ((e.ctrlKey || e.metaKey) && e.key == 's') {
-		e.preventDefault()
+		e.preventDefault()//tell the browser not to show the file save dialog box
 
 		console.log('my key Ctrl+S')
 
-	} else if (e.key == 'Escape') {
+	} else if (e.key == 'Escape') { console.log('my key Escape') }
+	else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
+	else if (e.key == 'ArrowRight') { console.log('my key ArrowRight') }
+	else if (e.key == 'ArrowUp')    { console.log('my key ArrowUp')    }
+	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown')  }
+	else if (e.key == 'PageUp')     { console.log('my key PageUp')     }
+	else if (e.key == 'PageDown')   { console.log('my key PageDown')   }
+}
+function myWheel(e) {
+	e.preventDefault()//tell the browser not to scroll
 
-		console.log('my key Escape')
+	if (e.deltaY < 0) {
+		console.log('my wheel back')
+	} else if (e.deltaY > 0) {
+		console.log('my wheel forward')
 	}
-
-
 }
 
 function panDown(panEvent) {
