@@ -1,19 +1,21 @@
 
 
-
-
-
-
-
-
+MVP vision, 2025aug1, goal is to be using this because it's useful in <3 more sessions
+drag image into window, any folder
+shows image, any format
+scroll wheel flip through images in folder
+zoom with persistant viewport
+exit full screen and scroll through thumbnail flow
 
 ok so what's the fastest route to useful:
-[]run from source on both mac and windows
-[]drag in file to start in folder
-[]list everything in that folder, confirm works on mac and windows c and usb drives
-[]flip next and forward, control flip to zoom in and out
-[]default ordering by correct date, with name1234 numbering that way, groups of those in sort by most recent
-[]fullscreen with tauri
+code[x] mac[x] win[ ] run from source on both mac and windows
+code[x] mac[x] win[ ] drag in file to start in folder
+code[ ] mac[ ] win[ ] list everything in that folder, confirm works on mac and windows c and usb drives
+code[ ] mac[ ] win[ ] flip next and forward, control flip to zoom in and out
+code[ ] mac[ ] win[ ] default ordering by correct date, with name1234 numbering that way, groups of those in sort by most recent
+code[ ] mac[ ] win[ ] fullscreen with tauri, and back again
+code[ ] mac[ ] win[ ] keyboard commands
+
 
 
 default placement is
@@ -22,56 +24,6 @@ default placement is
 
 
 ok, how do you quickly get to useable
-
-
-
-
-
-
-
-/*
-watch for changes to the frame size--you need to keep the table over the frame, like dragging the upper left corner bigger
-
-with this design as a starting point, how hard will it be to...
-- during a drag, show the pointer with the os's grabbing hand?
-- when the pointer is at rest above the tabletop, hiding it entirely?
-
-grab and grabbing are a mac only thing, and look weird
-ok so here's what you want
-over the tabletop, pointer disappears when it falls to rest
-during a drag, pointer is also off
-*/
-
-/*
-ok, my work today is done, in that we've got the tabletop dragging around!
-
-now, let's peek at what i have to do tomorrow
-ill add an img tag below
-the img will always be smaller than the tabletop (and the tabletop will always be larger than the screen!)
-is this going to mess up anything with the clicks and drags?
-my hope is that no, the html components that i put within the two divs will just stay where they are on the tabletop
-even while the user pans the tabletop around
-and that won't slow down gpu or negatively impact the current achievement of buttery smoothness at all!
-
-after that, ill add a HUD--just a few lines of text that float above the tabletop and image
-they'll be pinned to one corner or edge of the frame
-they are just information, they should not be nor need to be clickable, selectable, anything
-for instance, it might be text that shows information about the image in the lightbox
-is that going to require or indicate any changes into how we've coded panning here?
-my expectation and hope is no, it's not
-
-and as to buttery smoothness, while the text may be antialiased, or on a rectangular panel that is translucent
-GPUs are ready for this, so if the user flips the info hud on, they can still pan the image around below with the same experience
-
-but let's take a step back and check now, ahead of more coding, for potential issues with this waypoint's design
-looking now ahead at these two new features we'll work on tomorrow
-1 image sitting on tabletop
-2 hud in frame
-
-on, in full screen mode, hide the mouse pointer entirely, likely
-*/
-
-
 
 
 
