@@ -618,6 +618,18 @@ and those three are all left hand keys, which is great
 
 
 
+crazy ideas section
+have late 90s web-style background options, like paper, marble
+easy to do as you just use css to tile an image on the table
+also do drop shadows that don't affect layout, for instance
+
+and things like there's a single pixel focus glow line that appears as you move the mouse over controls and images
+so you can click the moment you see the thing you want to click on highlighted
+this is so so usable and so underused
+
+
+
+
 
 should you code going into and out of fullscreen mode with the pan?
 right now, you think no
