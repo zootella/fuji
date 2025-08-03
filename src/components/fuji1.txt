@@ -606,7 +606,8 @@ gamma like
 2.20γ
 no, not tied together, and yes tied to the mouse; and controlled just with vertical distance gained or lost
 zoom is right click drag, or control left drag, or control mouse wheel
-gamma is right or left drag, or mouse wheel, with L pressed (for light)
+gamma is right or left drag, or mouse wheel, with shift pressed
+L locks the pan, this returns to 1993 DOS mode, fuckyeah
 
 also shortcut keys for reset
 d - diamond, or r for reset
@@ -618,7 +619,9 @@ and those three are all left hand keys, which is great
 
 
 
-
+should you code going into and out of fullscreen mode with the pan?
+right now, you think no
+but there are errors related to the frame not matching the window
 
 
 

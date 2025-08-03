@@ -22,21 +22,31 @@ onMounted(() => {
 
 	tableRef.value.style.transformOrigin = '0 0'
 	tableRef.value.style.transform = `translate(${tablePosition.x}px, ${tablePosition.y}px)`
-	tableRef.value.addEventListener('pointerdown', panDown)//start listening for drags
+	tableRef.value.addEventListener('pointerdown', myPointerDown)
+	tableRef.value.addEventListener('dblclick', myDoubleClick)
+//	tableRef.value.addEventListener('contextmenu', myContextMenu)
 })
 onBeforeUnmount(() => {
 
 	window.removeEventListener('keydown', myKey)
 	frameRef.value.removeEventListener('wheel', myWheel)
 
-	tableRef.value.removeEventListener('pointermove', panMove)//remove any remaining drag listeners
-	tableRef.value.removeEventListener('pointerup', panUp)
-	tableRef.value.removeEventListener('pointerdown', panDown)
+	tableRef.value.removeEventListener('pointermove', myPointerMove)//remove any remaining drag listeners
+	tableRef.value.removeEventListener('pointerup', myPointerUp)
+	tableRef.value.removeEventListener('pointerdown', myPointerDown)
+	tableRef.value.removeEventListener('dblclick', myDoubleClick)
+//	tableRef.value.removeEventListener('contextmenu', myContextMenu)
 	if (draggingPointer) {
 		tableRef.value.releasePointerCapture(draggingPointer)
 		draggingPointer = null
 	}
 })
+
+/*
+function myContextMenu(e) {
+	e.preventDefault()//don't show a context menu; you think tauri only shows one in development mode; chat says this won't mess things up
+}
+*/
 
 async function myKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
@@ -82,23 +92,61 @@ function myWheel(e) {
 	}
 }//ttd august, see how this flips out on a touchpad, though
 
-function panDown(panEvent) {
-	draggingPointer = panEvent.pointerId
+function myDoubleClick(e) {}//not using because detecting with pointer down
+function myPointerDown(e) {
 
-	dragStart.x = panEvent.clientX//remember where the drag started
-	dragStart.y = panEvent.clientY
+  if (e.button == 2) e.preventDefault()//tell the browser not to show the context menu; tauri shows it but probably only for local development
 
-	tableRef.value.setPointerCapture(panEvent.pointerId)//watch the mouse
-	tableRef.value.addEventListener('pointermove', panMove)
-	tableRef.value.addEventListener('pointerup', panUp)
-}
-function panMove(panEvent) {
-	const segment = {//how far did the mouse move in this segment of the drag?
-		x: panEvent.clientX - dragStart.x,
-		y: panEvent.clientY - dragStart.y,
+	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
+		console.log('pointer down: double click')
+		return
 	}
-	dragStart.x = panEvent.clientX//get ready for the next segment if the drag continues
-	dragStart.y = panEvent.clientY
+
+	// 2) Double‐secondary click (right button, two taps)
+	if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
+		console.log('pointer down: right double click')
+		return
+	}
+
+	// 3) Chord: primary held, then secondary pressed
+	if (e.button === 2 && (e.buttons & 1) === 1) {
+		console.log('pointer down: primary chord')
+		return
+	}
+
+	// 4) Chord: secondary held, then primary pressed
+	if (e.button === 0 && (e.buttons & 2) === 2) {
+		console.log('pointer down: secondary chord')
+		return
+	}
+
+	//otherwise it's a drag
+	draggingPointer = e.pointerId
+
+	dragStart.x = e.clientX//remember where the drag started
+	dragStart.y = e.clientY
+
+	tableRef.value.setPointerCapture(e.pointerId)//watch the mouse
+	tableRef.value.addEventListener('pointermove', myPointerMove)
+	tableRef.value.addEventListener('pointerup', myPointerUp)
+}
+function myStartDrag(e) {
+
+}
+
+
+
+
+
+
+
+function myPointerMove(e) {
+	const segment = {//how far did the mouse move in this segment of the drag?
+		x: e.clientX - dragStart.x,
+		y: e.clientY - dragStart.y,
+	}
+	dragStart.x = e.clientX//get ready for the next segment if the drag continues
+	dragStart.y = e.clientY
 
 	const candidate = {//what would our new table position be?
 		x: tablePosition.x + segment.x,
@@ -116,11 +164,11 @@ function panMove(panEvent) {
 
 	tableRef.value.style.transform = `translate(${tablePosition.x}px, ${tablePosition.y}px)`//push to the GPU
 }
-function panUp(panEvent) {
+function myPointerUp(e) {
 
-	tableRef.value.removeEventListener('pointermove', panMove)
-	tableRef.value.removeEventListener('pointerup',   panUp)
-	tableRef.value.releasePointerCapture(panEvent.pointerId)
+	tableRef.value.removeEventListener('pointermove', myPointerMove)
+	tableRef.value.removeEventListener('pointerup',   myPointerUp)
+	tableRef.value.releasePointerCapture(e.pointerId)
 	draggingPointer = null
 }
 
