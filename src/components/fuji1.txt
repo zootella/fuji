@@ -595,5 +595,50 @@ in fuji do 4x zoom, by pressing 4, and then: linnen test for sharp pixels
 
 
 
+crazy ideas section
+what if right drag up and down is zoom
+and left and right is gamma
+so both are really really granular
+
+hud popup show the zoom like
+125%
+gamma like
+2.20γ
+no, not tied together, and yes tied to the mouse; and controlled just with vertical distance gained or lost
+zoom is right click drag, or control left drag, or control mouse wheel
+gamma is right or left drag, or mouse wheel, with L pressed (for light)
+
+also shortcut keys for reset
+d - diamond, or r for reset
+f - fit to screen, or s for fit to screen
+w - fit to width, with 
+123456 - that level of zoom, with coarse pixel sizing, also; all above are smooth default sizing
+and those three are all left hand keys, which is great
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
