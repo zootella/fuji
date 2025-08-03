@@ -1,7 +1,9 @@
 <script setup>//./components/Table.vue - mvp lighttable for full screen
 
+import {getCurrentWindow} from '@tauri-apps/api/window'
+
 const imageSize = 900
-const tableSize = 2500
+const tableSize = 3000
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 
@@ -36,29 +38,39 @@ onBeforeUnmount(() => {
 	}
 })
 
-function myKey(e) {
+async function myKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
 
 	if (e.key == 'f') {
-
 		console.log('my key F')
+		await myFullscreen(true)
 
 	} else if (e.key == 'q') {
-
 		console.log('my key Q')
+		await myFullscreen(false)
 
 	} else if ((e.ctrlKey || e.metaKey) && e.key == 's') {
 		e.preventDefault()//tell the browser not to show the file save dialog box
-
 		console.log('my key Ctrl+S')
 
-	} else if (e.key == 'Escape') { console.log('my key Escape') }
-	else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
+	} else if (e.key == 'Escape') {
+		console.log('my key Escape')
+		await myFullscreen(false)//macos will also exit fullscreen, but this call doesn't mess anything up with that
+
+	} else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
 	else if (e.key == 'ArrowRight') { console.log('my key ArrowRight') }
 	else if (e.key == 'ArrowUp')    { console.log('my key ArrowUp')    }
 	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown')  }
 	else if (e.key == 'PageUp')     { console.log('my key PageUp')     }
 	else if (e.key == 'PageDown')   { console.log('my key PageDown')   }
+}
+async function myFullscreen(set) {
+	let w = getCurrentWindow()
+	let current = await w.isFullscreen()
+	if (set != current) {
+		console.log(`setting fullscreen ${set}`)
+		w.setFullscreen(set)
+	}
 }
 function myWheel(e) {
 	e.preventDefault()//tell the browser not to scroll
@@ -68,7 +80,7 @@ function myWheel(e) {
 	} else if (e.deltaY > 0) {
 		console.log('my wheel forward')
 	}
-}
+}//ttd august, see how this flips out on a touchpad, though
 
 function panDown(panEvent) {
 	draggingPointer = panEvent.pointerId
