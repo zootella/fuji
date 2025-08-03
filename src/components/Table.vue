@@ -14,6 +14,7 @@ const imageRef = ref(null)//on top of that, centered, rendered to device pixels,
 let tablePosition = {x: 0, y: 0}
 let dragStart = {x: 0, y: 0}
 let draggingPointer = null
+let draggingButton = -1//which button is dragging, 0 primary or 2 secondary
 
 onMounted(() => {
 
@@ -24,7 +25,7 @@ onMounted(() => {
 	tableRef.value.style.transform = `translate(${tablePosition.x}px, ${tablePosition.y}px)`
 	tableRef.value.addEventListener('pointerdown', myPointerDown)
 	tableRef.value.addEventListener('dblclick', myDoubleClick)
-//	tableRef.value.addEventListener('contextmenu', myContextMenu)
+	tableRef.value.addEventListener('contextmenu', myContextMenu)
 })
 onBeforeUnmount(() => {
 
@@ -35,18 +36,16 @@ onBeforeUnmount(() => {
 	tableRef.value.removeEventListener('pointerup', myPointerUp)
 	tableRef.value.removeEventListener('pointerdown', myPointerDown)
 	tableRef.value.removeEventListener('dblclick', myDoubleClick)
-//	tableRef.value.removeEventListener('contextmenu', myContextMenu)
+	tableRef.value.removeEventListener('contextmenu', myContextMenu)
 	if (draggingPointer) {
 		tableRef.value.releasePointerCapture(draggingPointer)
 		draggingPointer = null
 	}
 })
 
-/*
 function myContextMenu(e) {
 	e.preventDefault()//don't show a context menu; you think tauri only shows one in development mode; chat says this won't mess things up
 }
-*/
 
 async function myKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
@@ -91,36 +90,21 @@ function myWheel(e) {
 		console.log('my wheel forward')
 	}
 }//ttd august, see how this flips out on a touchpad, though
-
-function myDoubleClick(e) {}//not using because detecting with pointer down
+function myDoubleClick(e) {
+	console.log('double click event')
+}
 function myPointerDown(e) {
-
-  if (e.button == 2) e.preventDefault()//tell the browser not to show the context menu; tauri shows it but probably only for local development
 
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
 		console.log('pointer down: double click')
-		return
-	}
-
-	// 2) Double‐secondary click (right button, two taps)
-	if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
+	} else if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
 		console.log('pointer down: right double click')
-		return
+	} else {
+		myStartDrag(e)
 	}
-
-	// 3) Chord: primary held, then secondary pressed
-	if (e.button === 2 && (e.buttons & 1) === 1) {
-		console.log('pointer down: primary chord')
-		return
-	}
-
-	// 4) Chord: secondary held, then primary pressed
-	if (e.button === 0 && (e.buttons & 2) === 2) {
-		console.log('pointer down: secondary chord')
-		return
-	}
-
-	//otherwise it's a drag
+}
+function myStartDrag(e) {
+	draggingButton = e.button
 	draggingPointer = e.pointerId
 
 	dragStart.x = e.clientX//remember where the drag started
@@ -130,16 +114,6 @@ function myPointerDown(e) {
 	tableRef.value.addEventListener('pointermove', myPointerMove)
 	tableRef.value.addEventListener('pointerup', myPointerUp)
 }
-function myStartDrag(e) {
-
-}
-
-
-
-
-
-
-
 function myPointerMove(e) {
 	const segment = {//how far did the mouse move in this segment of the drag?
 		x: e.clientX - dragStart.x,
