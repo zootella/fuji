@@ -10,8 +10,8 @@
 		"vite-build": "vite build",
 		"preview": "vite preview",
 		"tauri": "tauri",
-		"upgrade-wash": "yarn wash && rimraf yarn.lock",
-		"wash": "rimraf dist node_modules src-tauri/target src-tauri/gen/schemas"
+		"upgrade-wash": "yarn wash && rimraf yarn.lock src-tauri/Cargo.lock",
+		"wash": "rimraf dist node_modules src-tauri/target src-tauri/gen"
 	},
 	"packageManager": "yarn@1.22.22",
 	"dependencies": {
