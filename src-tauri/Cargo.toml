@@ -17,14 +17,12 @@ name = "fuji_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = {version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = {version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-fs = "2.4.0"
-serde = { version = "1", features = ["derive"] }
+serde = {version = "1", features = ["derive"] }
 serde_json = "1"
 display-info = "0.5"
-# core-graphics = "0.22"
-# hi from windows, which may have a problem with core-graphics, above; plan is to confirm builds and runs fine without on mac, and then try again on windows

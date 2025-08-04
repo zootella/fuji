@@ -1,30 +1,33 @@
 {
-  "name": "fuji",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "local": "tauri dev",
-    "build": "tauri build",
-    "dev": "vite",
-    "vite-build": "vite build",
-    "preview": "vite preview",
-    "tauri": "tauri"
-  },
-  "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-fs": "^2.4.0",
-    "@tauri-apps/plugin-opener": "^2",
-    "path-browserify": "^1.0.1",
-    "vue": "^3.5.13"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.1.11",
-    "@tauri-apps/cli": "^2",
-    "@vitejs/plugin-vue": "^5.2.1",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.11",
-    "vite": "^6.0.3"
-  }
+	"name": "fuji",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"local": "tauri dev",
+		"build": "tauri build",
+		"dev": "vite",
+		"vite-build": "vite build",
+		"preview": "vite preview",
+		"tauri": "tauri",
+		"upgrade-wash": "yarn wash && rimraf yarn.lock",
+		"wash": "rimraf dist node_modules src-tauri/target src-tauri/gen/schemas"
+	},
+	"dependencies": {
+		"@tauri-apps/api": "^2",
+		"@tauri-apps/plugin-dialog": "^2.3.2",
+		"@tauri-apps/plugin-fs": "^2.4.0",
+		"@tauri-apps/plugin-opener": "^2",
+		"path-browserify": "^1.0.1",
+		"vue": "^3.5.13"
+	},
+	"devDependencies": {
+		"@tailwindcss/vite": "^4.1.11",
+		"@tauri-apps/cli": "^2",
+		"@vitejs/plugin-vue": "^5.2.1",
+		"autoprefixer": "^10.4.21",
+		"postcss": "^8.5.6",
+		"tailwindcss": "^4.1.11",
+		"vite": "^6.0.3"
+	}
 }

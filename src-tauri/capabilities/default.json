@@ -9,15 +9,6 @@
 		"core:default",
 		"core:window:allow-set-fullscreen",
 		"opener:default",
-		"fs:default",
-		"fs:scope-home-recursive",
-		{
-			"identifier": "fs:allow-home-meta-recursive",
-			"allow": [
-				{
-					"path": "$HOME/**/*"
-				}
-			]
-		}
+		"fs:default"
 	]
 }
