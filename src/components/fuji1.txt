@@ -637,17 +637,49 @@ but there are errors related to the frame not matching the window
 
 
 
+looks like ways to get the resize are
+window.addEventListener('resize', onResize), or
+ResizeObserver
+those two ways
+
+
+but keep in mind that lightbox will only be fullscreen, so then there won't be 
+really useful mvp has
+- drag in an image, it goes fullscreen
+- flick the wheel forward and ack through images
+- zoom and pan
+- esc or double click out of fullscreen to a window
+- scroll through a same size flow of all the images in that folder
+- double-click one to go back lightbox fullscreen and see it
+and then after that you add
+- filename and path, anything to be able find it in the shell after looking at it in fuji
+- gamma
+- smart ordering, saved date with sequences grouped together and ordered properly
+
+so there are two components, and they switch
+and lightbox is always fullscreen, and
+
+
+2 esc or double click out of fullscreen
+
+
+
+Light.vue
+Flow.vue
 
 
 
 
+ok but also how do you see what version of rust you have
+and what version of tauri is installed
 
 
 
+optional, lock the toolchain
 
-
-
-
+[toolchain]
+channel = "1.88.0"
+components = ["rustc", "cargo"]
 
 
 

@@ -1,10 +1,15 @@
 notes:
 
 ```
-first, once, on a new computer:
+## setup development workstation
+
+### mac
 
 $ xcode-select -p
 /Library/Developer/CommandLineTools
+
+or install with the command below if not there yet
+$ xcode-select --install
 
 $ gcc --version
 Apple clang version 17.0.0 (clang-1700.0.13.5)
@@ -35,6 +40,37 @@ executable and installer on mac:
 executable and installer on windows:
 ./fuji/src-tauri/target/release/fuji.exe
 ./fuji/src-tauri/target/release/bundle/windows/fuji-0.1.0-x86_64.exe
+
+### windows 10
+
+
+from that above, on mac, check the rust version
+
+
+
+
+
+
+
+on windows, we want an older version, from late 2024, the last version of rust that builds executables that run for sure on windows 7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```
 
 from scaffolding:

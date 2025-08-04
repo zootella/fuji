@@ -1,4 +1,9 @@
-<script setup>//./components/Viewer3.vue - still img tag, our own rust io module
+<script setup>//./components/Viewer5.vue - io module, FileReader, Blob, img tag, going to confirm gamma works
+
+/*
+confirm gamma works
+switch between raster and smooth sizing
+*/
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
@@ -39,6 +44,20 @@ async function loadImage(p) {
 
 </script>
 <template>
+<div>
+
+<!-- SVG filter definition, hidden -->
+<svg aria-hidden="true" width="0" height="0" class="absolute overflow-hidden w-0 h-0 pointer-events-none">
+	<defs>
+		<filter id="gamma-correct">
+			<feComponentTransfer>
+				<feFuncR type="gamma" exponent="2.2"/>
+				<feFuncG type="gamma" exponent="2.2"/>
+				<feFuncB type="gamma" exponent="2.2"/>
+			</feComponentTransfer>
+		</filter>
+	</defs>
+</svg>
 
 <div class="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
 	<img
@@ -47,10 +66,11 @@ async function loadImage(p) {
 		class="max-w-full max-h-full object-contain"
 	/>
 	<div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 italic select-none pointer-events-none">
-		Viewer3 - replaced plugin-fs with our own Rust io module
+		Viewer5 - io module, FileReader, Blob, img tag, going to confirm gamma works
 	</div>
 </div>
 
+</div>
 </template>
 <style scoped>
 

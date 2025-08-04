@@ -1,4 +1,4 @@
-<script setup>//./components/Viewer2.vue
+<script setup>//./components/Viewer2.vue - FileReader and Blob, img tag
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'

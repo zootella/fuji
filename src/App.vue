@@ -9,6 +9,7 @@ import Viewer1 from './components/Viewer1.vue'
 import Viewer2 from './components/Viewer2.vue'
 import Viewer3 from './components/Viewer3.vue'
 import Viewer4 from './components/Viewer4.vue'
+import Viewer5 from './components/Viewer5.vue'
 
 import Pixel1 from './components/Pixel1.vue'
 
@@ -19,6 +20,6 @@ import Table2 from './components/Table2.vue'
 </script>
 <template>
 
-<Table2 />
+<Viewer5 />
 
 </template>
