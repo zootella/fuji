@@ -1,35 +1,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-	/* temporary grid lines so we can see panning */
-	background-image:
-		linear-gradient(to right, yellow 1px, transparent 1px),
-		linear-gradient(to bottom, yellow 1px, transparent 1px);
-	background-size: 500px 500px;
-
-
-
-
-.myHud {
-	pointer-events: none; /* the HUD is information, only--no buttons, no selectable text */
-}
-
-
-
-
-
-
-
-
 onMounted(() => {
 
 	//register listeners for input devices that are not related to position; those will go on the table in the template
@@ -62,99 +33,21 @@ onBeforeUnmount(() => {
 
 
 
-async function onKey(e) {
-	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
-
-	if (e.key == 'f') {
-		console.log('my key F, which goes full screen')
-		await setFullscreen(true)
-
-	} else if (e.key == 'q') {
-		console.log('my key Q, which quits full screen')
-		await setFullscreen(false)
-
-	} else if ((e.ctrlKey || e.metaKey) && e.key == 's') {
-		e.preventDefault()//tell the browser not to show the file save dialog box
-		console.log('my key Ctrl+S')
-
-	} else if (e.key == 'Escape') {
-		console.log('my key Escape, which causes both us and macos to leave full screen')
-		await setFullscreen(false)//macos will also exit fullscreen, but this call doesn't mess anything up with that
-
-	} else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
-	else if (e.key == 'ArrowRight') { console.log('my key ArrowRight') }
-	else if (e.key == 'ArrowUp')    { console.log('my key ArrowUp')    }
-	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown')  }
-	else if (e.key == 'PageUp')     { console.log('my key PageUp')     }
-	else if (e.key == 'PageDown')   { console.log('my key PageDown')   }
-}
-async function setFullscreen(set) { let w = getCurrentWindow(); let current = await w.isFullscreen()
-	if (set != current) w.setFullscreen(set)
-}
-async function toggleFullscreen() { let w = getCurrentWindow(); let current = await w.isFullscreen()
-	w.setFullscreen(!current)
-}
-
-function onWheel(e) {
-	e.preventDefault()//tell the browser not to scroll
-
-	if      (e.deltaY < 0) { console.log('my wheel back')    }
-	else if (e.deltaY > 0) { console.log('my wheel forward') }
-}//ttd august, see how this flips out on a touchpad, though
-
-async function onDoubleClick(e) {
-	await toggleFullscreen()
-}
-
-function onPointerDown(e) {
-
-	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
-		console.log('pointer down: double click')
-	} else if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
-		console.log('pointer down: right double click')
-	} else {
-		dragStart(e)
-	}
-}
-function dragStart(e) {
-	drag = {
-		button: e.button,//0 primary or 2 secondary mouse button
-		start: {x: e.clientX, y: e.clientY},//record where this drag started
-		pointer: e.pointerId,
-	}
-	imageRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
-}
-function onMove(e) { if (!drag) return
-
-	const segment = {//how far did the mouse move in this segment of the drag?
-		x: e.clientX - drag.start.x,
-		y: e.clientY - drag.start.y,
-	}
-	drag.start.x = e.clientX//get ready for the next segment if the drag continues
-	drag.start.y = e.clientY
-
-	const candidate = {//what would our new table position be?
-		x: spacePosition.x + segment.x,
-		y: spacePosition.y + segment.y,
-	}
-	let bound = {//what are the bounds of possible new positions, keeping the frame entirely on top of the table
-		minimum: {
-			x: frameRef.value.clientWidth  - tableSize,
-			y: frameRef.value.clientHeight - tableSize,
-		},
-		maximum: {x: 0, y: 0},//don't let the table move to the right or below the upper left corner of the frame!
-	}
-	spacePosition.x = Math.min(bound.maximum.x, Math.max(bound.minimum.x, candidate.x))//clamp to those bounds
-	spacePosition.y = Math.min(bound.maximum.y, Math.max(bound.minimum.y, candidate.y))
-
-	imageRef.value.style.transform = `translate(${spacePosition.x}px, ${spacePosition.y}px)`//have the GPU move the table and image
-}
-function onUp(e) {
-	imageRef.value.releasePointerCapture(e.pointerId)//should be the same as drag.pointer
-	drag = null//discard the drag object, getting things ready for the next drag
-}
 
 
+
+
+
+
+/*
+[]zoom with mouse wheel
+[]hud
+[]marble tile
+[]shadows on image
+[]continuity with window move, resize, fullscreen; do that last
+
+
+*/
 
 
 

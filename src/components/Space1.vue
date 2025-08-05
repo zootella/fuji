@@ -8,8 +8,6 @@ import {ref, onMounted, onBeforeUnmount} from 'vue'
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
-let spacePosition = {x: 0, y: 0}//where we are in space; also sorta where the card is related to the viewport
-let drag//an object of positions and ids during a left or right click drag
 
 onMounted(() => {
 
@@ -22,26 +20,88 @@ onBeforeUnmount(() => {
 	//remove the listeners; there shouldn't be a danglign pointer but release one if there is
 	window.removeEventListener('keydown', onKey)
 	frameRef.value.removeEventListener('wheel', onWheel)
-	if (drag?.pointer) { cardRef.value.releasePointerCapture(drag.pointer); drag.pointer = null }
+	if (drag?.pointer) { frameRef.value.releasePointerCapture(drag.pointer); drag.pointer = null }
 })
 
 async function onKey(e) {
+	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
+
+	if (e.key == 'f') {
+		console.log('my key F, which goes full screen')
+		await setFullscreen(true)
+
+	} else if (e.key == 'q') {
+		console.log('my key Q, which quits full screen')
+		await setFullscreen(false)
+
+	} else if ((e.ctrlKey || e.metaKey) && e.key == 's') {
+		e.preventDefault()//tell the browser not to show the file save dialog box
+		console.log('my key Ctrl+S')
+
+	} else if (e.key == 'Escape') {
+		console.log('my key Escape, which causes both us and macos to leave full screen')
+		await setFullscreen(false)//macos will also exit fullscreen, but this call doesn't mess anything up with that
+
+	} else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
+	else if (e.key == 'ArrowRight') { console.log('my key ArrowRight') }
+	else if (e.key == 'ArrowUp')    { console.log('my key ArrowUp')    }
+	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown')  }
+	else if (e.key == 'PageUp')     { console.log('my key PageUp')     }
+	else if (e.key == 'PageDown')   { console.log('my key PageDown')   }
 }
 async function setFullscreen(set) { let w = getCurrentWindow(); let current = await w.isFullscreen()
+	if (set != current) w.setFullscreen(set)
 }
 async function toggleFullscreen() { let w = getCurrentWindow(); let current = await w.isFullscreen()
+	w.setFullscreen(!current)
 }
 function onWheel(e) {
+	e.preventDefault()//tell the browser not to scroll
+
+	if      (e.deltaY < 0) { console.log('my wheel back')    }
+	else if (e.deltaY > 0) { console.log('my wheel forward') }
 }//ttd august, see how this flips out on a touchpad, though
 async function onDoubleClick(e) {
+	await toggleFullscreen()
 }
+
+let pan = {x: 0, y: 0}//where we are panned to space; also sorta where the card is related to the viewport
+let drag//an object of positions and ids during a left or right click drag
 function onPointerDown(e) {
+	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
+		console.log('pointer down: double click')
+	} else if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
+		console.log('pointer down: right double click')
+	} else {
+		dragStart(e)
+	}
 }
 function dragStart(e) {
+	drag = {
+		button: e.button,//0 primary or 2 secondary mouse button
+		start: {x: e.clientX, y: e.clientY},//record where this drag started
+		pointer: e.pointerId,
+	}
+	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
 }
 function onMove(e) { if (!drag) return
+	let segment = {//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
+		x: e.clientX - drag.start.x,
+		y: e.clientY - drag.start.y
+	}
+	drag.start = {//get ready for the next drag segment
+		x: e.clientX,
+		y: e.clientY
+	}
+	pan = {
+		x: pan.x + segment.x,
+		y: pan.y + segment.y
+	}
+	cardRef.value.style.transform = `translate(${pan.x}px, ${pan.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
 }
 function onUp(e) {
+	frameRef.value.releasePointerCapture(e.pointerId)//should be the same as drag.pointer
+	drag = null//discard the drag object, getting things ready for the next drag
 }
 
 </script>
@@ -61,11 +121,27 @@ function onUp(e) {
 	<!-- inner div image the user drags in the frame to pan the card and its contents around in the infinite space -->
 	<div
 		ref="cardRef"
-		class="myCard myDry bg-gray-200 border border-cyan-500"
+		class="myCard myDry bg-gray-200 border border-cyan-500 will-change-transform"
 		:style="{width: cardSize.w+'px', height: cardSize.h+'px'}"
 	>
 
-		<!-- the img tag will go here, where we expect it will "ride along" with the drag to pan tabletop -->
+		<!-- orange-bordered inner box -->
+		<div class="border border-orange-500 m-4 h-32"></div>
+
+		<!-- caption lives inside the card, but sits below its border -->
+		<div
+			class="absolute bottom-0 translate-y-full text-gray-600 py-2 whitespace-nowrap"
+		>
+			<p>
+				This paragraph, and the next, demonstrate a caption beneath the card.
+				They don't affect the dimensions of the card.
+			</p>
+			<p>
+				Here's a second line, another paragraph tag.
+				They do pan with the card.
+				If the card size changes, such as a zoom in, the text stays the same size and spot beneath the card.
+			</p>
+		</div>
 
 	</div>
 
