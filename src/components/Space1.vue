@@ -9,35 +9,15 @@ import {ref, onMounted, onBeforeUnmount} from 'vue'
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
-let unlistenMove
-onMounted(async () => { const w = getCurrentWindow()
-
-	const p = await w.innerPosition()
-	arrow2 = {
-		x: p.x,
-		y: p.y
-	}
-
-	unlistenMove = await w.onMoved(onWindowMoved)//tauri tells us the user moved the window on the screen
-	window.addEventListener('resize', onWindowResized)//standard web resize event notices full screen and drag larger or smaller
+onMounted(async () => {
 	window.addEventListener('keydown', onKey)
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
 })
 onBeforeUnmount(() => {
-
-	unlistenMove?.()
-	window.removeEventListener('resize', onWindowResized)
 	window.removeEventListener('keydown', onKey); if (drag?.pointer) {
 		frameRef.value.releasePointerCapture(drag.pointer); drag.pointer = null }
 	frameRef.value.removeEventListener('wheel', onWheel)
 })
-
-
-
-
-
-
-
 
 async function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
@@ -107,7 +87,6 @@ function onUp(e) {
 
 
 let arrow1 = {x: 0, y: 0}//frame to card
-let arrow2 = {x: 0, y: 0}//screen to frame
 
 function move(segment) {//move the card under the frame by the given segment
 	arrow1 = {
@@ -128,32 +107,6 @@ function onPointerMove(e) { if (!drag) return
 	}
 	move(segment)
 }
-function onWindowMoved(e) {
-	let segment = {//calculate the distance the window moved
-		x: e.payload.x - arrow2.x,
-		y: e.payload.y - arrow2.y
-	}
-	arrow2 = {//make hole the new location of the window on the screen
-		x: e.payload.x,
-		y: e.payload.y
-	}
-	let ratio = 0.6
-	move({//reverse pan to keep the card in the same place on the screen
-		x: -(segment.x * ratio),
-		y: -(segment.y * ratio)
-	})
-}
-function onWindowResized() {
-	console.log('on window resized')
-
-}
-
-
-
-
-
-
-
 
 
 
