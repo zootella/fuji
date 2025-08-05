@@ -7,6 +7,7 @@ const frameRef = ref(null)//frame around boundaries of this component, likely th
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
 onMounted(async () => {
+	moveStartup()
 	window.addEventListener('keydown', onKey)
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
 })
@@ -57,16 +58,6 @@ function onWheel(e) {
 	else if (e.deltaY > 0) { zoom(false) }
 }//ttd august, see how this flips out on a touchpad, though
 
-const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
-let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
-const zoomStep = 1.1
-function zoom(direction) {
-	zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
-
-	cardRef.value.style.width  = `${cardSize.w * zoomAmount}px`
-	cardRef.value.style.height = `${cardSize.h * zoomAmount}px`
-}
-
 async function onDoubleClick(e) { await toggleFullscreen() }
 function onPointerDown(e) {
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
@@ -91,14 +82,36 @@ function onUp(e) {
 	drag = null//discard the drag object, getting things ready for the next drag
 }
 
-let arrow1 = {x: 0, y: 0}//frame to card
+let arrow1 = {x: 0, y: 0}//arrow1 points from the corner of the frame to the center of the pannable space; changes when the user drags to pan
+let arrow2 = {x: 0, y: 0}//arrow2 points from the center of the pannable space to corner of the card; changes when we zoom
+function moveStartup() {//called once on mounted
+	arrow2 = {
+		x: -(cardSize.w / 2),
+		y: -(cardSize.h / 2)
+	}
+	move({
+		x: frameRef.value.clientWidth / 2,
+		y: frameRef.value.clientHeight / 2
+	})
+}
 function move(segment) {//move the card under the frame by the given segment
 	arrow1 = {
 		x: arrow1.x + segment.x,
 		y: arrow1.y + segment.y
 	}
-	cardRef.value.style.transform = `translate(${arrow1.x}px, ${arrow1.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
+	cardRef.value.style.transform = `translate(${arrow1.x + arrow2.x}px, ${arrow1.y + arrow2.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
 }
+
+const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
+let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
+const zoomStep = 1.1
+function zoom(direction) {
+	zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
+
+	cardRef.value.style.width  = `${cardSize.w * zoomAmount}px`
+	cardRef.value.style.height = `${cardSize.h * zoomAmount}px`
+}
+
 function onPointerMove(e) { if (!drag) return
 	let segment = {//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
 		x: e.clientX - drag.start.x,
