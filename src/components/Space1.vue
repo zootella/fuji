@@ -1,8 +1,5 @@
 <script setup>//./components/Space1.vue - mvp infinite lighttable for full screen
 
-const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
-const actualScreenHeight = 2160//hardware pixels, not os nor css! todo get this from tauri
-
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 
@@ -44,6 +41,8 @@ async function onKey(e) {
 	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown')  }
 	else if (e.key == 'PageUp')     { console.log('my key PageUp')     }
 	else if (e.key == 'PageDown')   { console.log('my key PageDown')   }
+	else if (e.key == '+')          { zoom(true)  }
+	else if (e.key == '-')          { zoom(false) }
 }
 async function setFullscreen(set) { let w = getCurrentWindow(); let current = await w.isFullscreen()
 	if (set != current) w.setFullscreen(set)
@@ -54,13 +53,21 @@ async function toggleFullscreen() { let w = getCurrentWindow(); let current = aw
 function onWheel(e) {
 	e.preventDefault()//tell the browser not to scroll
 
-	if      (e.deltaY < 0) { console.log('my wheel back')    }
-	else if (e.deltaY > 0) { console.log('my wheel forward') }
+	if      (e.deltaY < 0) { zoom(true)  }
+	else if (e.deltaY > 0) { zoom(false) }
 }//ttd august, see how this flips out on a touchpad, though
-async function onDoubleClick(e) {
-	await toggleFullscreen()
+
+const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
+let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
+const zoomStep = 1.1
+function zoom(direction) {
+	zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
+
+	cardRef.value.style.width  = `${cardSize.w * zoomAmount}px`
+	cardRef.value.style.height = `${cardSize.h * zoomAmount}px`
 }
 
+async function onDoubleClick(e) { await toggleFullscreen() }
 function onPointerDown(e) {
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
 		//ignoring this because listening for browser double click event
@@ -84,10 +91,7 @@ function onUp(e) {
 	drag = null//discard the drag object, getting things ready for the next drag
 }
 
-
-
 let arrow1 = {x: 0, y: 0}//frame to card
-
 function move(segment) {//move the card under the frame by the given segment
 	arrow1 = {
 		x: arrow1.x + segment.x,
@@ -95,7 +99,6 @@ function move(segment) {//move the card under the frame by the given segment
 	}
 	cardRef.value.style.transform = `translate(${arrow1.x}px, ${arrow1.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
 }
-
 function onPointerMove(e) { if (!drag) return
 	let segment = {//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
 		x: e.clientX - drag.start.x,
@@ -107,8 +110,6 @@ function onPointerMove(e) { if (!drag) return
 	}
 	move(segment)
 }
-
-
 
 </script>
 <template>
