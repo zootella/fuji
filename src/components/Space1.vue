@@ -1,6 +1,7 @@
 <script setup>//./components/Space1.vue - mvp infinite lighttable for full screen
 
 const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
+const actualScreenHeight = 2160//hardware pixels, not os nor css! todo get this from tauri
 
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ref, onMounted, onBeforeUnmount} from 'vue'
@@ -8,20 +9,35 @@ import {ref, onMounted, onBeforeUnmount} from 'vue'
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
+let unlistenMove
+onMounted(async () => { const w = getCurrentWindow()
 
-onMounted(() => {
+	const p = await w.innerPosition()
+	arrow2 = {
+		x: p.x,
+		y: p.y
+	}
 
-	//register listeners for input devices that are not related to position; those will go on the table in the template
+	unlistenMove = await w.onMoved(onWindowMoved)//tauri tells us the user moved the window on the screen
+	window.addEventListener('resize', onWindowResized)//standard web resize event notices full screen and drag larger or smaller
 	window.addEventListener('keydown', onKey)
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
 })
 onBeforeUnmount(() => {
 
-	//remove the listeners; there shouldn't be a danglign pointer but release one if there is
-	window.removeEventListener('keydown', onKey)
+	unlistenMove?.()
+	window.removeEventListener('resize', onWindowResized)
+	window.removeEventListener('keydown', onKey); if (drag?.pointer) {
+		frameRef.value.releasePointerCapture(drag.pointer); drag.pointer = null }
 	frameRef.value.removeEventListener('wheel', onWheel)
-	if (drag?.pointer) { frameRef.value.releasePointerCapture(drag.pointer); drag.pointer = null }
 })
+
+
+
+
+
+
+
 
 async function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
@@ -65,8 +81,6 @@ async function onDoubleClick(e) {
 	await toggleFullscreen()
 }
 
-let pan = {x: 0, y: 0}//where we are panned to space; also sorta where the card is related to the viewport
-let drag//an object of positions and ids during a left or right click drag
 function onPointerDown(e) {
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
 		console.log('pointer down: double click')
@@ -76,6 +90,7 @@ function onPointerDown(e) {
 		dragStart(e)
 	}
 }
+let drag//an object of positions and ids during a left or right click drag
 function dragStart(e) {
 	drag = {
 		button: e.button,//0 primary or 2 secondary mouse button
@@ -84,7 +99,25 @@ function dragStart(e) {
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
 }
-function onMove(e) { if (!drag) return
+function onUp(e) {
+	frameRef.value.releasePointerCapture(e.pointerId)//should be the same as drag.pointer
+	drag = null//discard the drag object, getting things ready for the next drag
+}
+
+
+
+let arrow1 = {x: 0, y: 0}//frame to card
+let arrow2 = {x: 0, y: 0}//screen to frame
+
+function move(segment) {//move the card under the frame by the given segment
+	arrow1 = {
+		x: arrow1.x + segment.x,
+		y: arrow1.y + segment.y
+	}
+	cardRef.value.style.transform = `translate(${arrow1.x}px, ${arrow1.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
+}
+
+function onPointerMove(e) { if (!drag) return
 	let segment = {//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
 		x: e.clientX - drag.start.x,
 		y: e.clientY - drag.start.y
@@ -93,16 +126,36 @@ function onMove(e) { if (!drag) return
 		x: e.clientX,
 		y: e.clientY
 	}
-	pan = {
-		x: pan.x + segment.x,
-		y: pan.y + segment.y
+	move(segment)
+}
+function onWindowMoved(e) {
+	let segment = {//calculate the distance the window moved
+		x: e.payload.x - arrow2.x,
+		y: e.payload.y - arrow2.y
 	}
-	cardRef.value.style.transform = `translate(${pan.x}px, ${pan.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
+	arrow2 = {//make hole the new location of the window on the screen
+		x: e.payload.x,
+		y: e.payload.y
+	}
+	let ratio = 0.6
+	move({//reverse pan to keep the card in the same place on the screen
+		x: -(segment.x * ratio),
+		y: -(segment.y * ratio)
+	})
 }
-function onUp(e) {
-	frameRef.value.releasePointerCapture(e.pointerId)//should be the same as drag.pointer
-	drag = null//discard the drag object, getting things ready for the next drag
+function onWindowResized() {
+	console.log('on window resized')
+
 }
+
+
+
+
+
+
+
+
+
 
 </script>
 <template>
@@ -114,7 +167,7 @@ function onUp(e) {
 	@contextmenu.prevent
 	@dblclick.prevent="onDoubleClick"
 	@pointerdown="onPointerDown"
-	@pointermove="onMove"
+	@pointermove="onPointerMove"
 	@pointerup="onUp" @pointercancel="onUp" @lostpointercapture="onUp"
 >
 
@@ -154,7 +207,7 @@ function onUp(e) {
 
 .myDry,
 .myDry * { /* on the div with this class and everything deep inside it */
-  pointer-events: none; /* none of those elements need to know about clicks */
+	pointer-events: none; /* none of those elements need to know about clicks */
 	user-select: none; /* none of those elements have text the user should be able to select */
 }
 
