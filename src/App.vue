@@ -16,10 +16,11 @@ import Pixel1 from './components/Pixel1.vue'
 import Pan1 from './components/Pan1.vue'
 import Table1 from './components/Table1.vue'
 import Table2 from './components/Table2.vue'
+import Marble3 from './components/Marble3.vue'
 
 </script>
 <template>
 
-<Viewer5 />
+<Marble3 />
 
 </template>

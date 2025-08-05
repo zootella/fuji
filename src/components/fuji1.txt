@@ -684,6 +684,138 @@ components = ["rustc", "cargo"]
 
 
 
+css pixelated works
+make it the only way to turn that on is through 123456789x, those number keys
+and then you're in a pixel mode--rolling the wheel goes up and down those numbers
+and for all that to be right you do need to get the real hardware resolution from the operating system
+if you do anything else, like zoom with a drag, or flip forward or back to a neighboring image
+or of course if you press d to return to diamond sizing, pixel mode turns off
+so it's not a toggle that can stay on, it's a fleeting thing you get through true pixel sizing, and then bump out of automatically easily
+
+ok but then what about really small images
+like you roll into a 16x16 bmp
+maybe hard code it so if the image is 64x64 or smaller, then instead of diamond placement,
+
+
+
+how diamond placement works with the scroll wheel
+the diamond, it's size and location, persists through flipping through different images
+so then the table has a diamond, and an image, and needs to put the image in the diamond
+if having it touch the sides of the diamond would mean that the zoom would be >4x, then it just shows it at 4x, centered in the diamond
+if the image is 
+it does this
+it blows the im
+
+
+big images are shown
+
+
+images 64x64 or smaller are shown centered
+
+
+yeah, lots to figure out here
+there are
+(a) really small images, like windows icons from the 90s, png screenshots, stuff like that
+(b) small images, like web thumbnails you couldn't find the bigger version of, or pictures from the 90s
+(c) big images, like everything today
+
+so when you flip from big, to small, to big again
+what happens to the diamond?
+maybe, nothing, it persists
+so then if you're in an area where all the images are small, you zoom out or choose f fit, and then that also fits the diamond small, and you keep scrolling from there
+this is the idea that the diamond always persists, and that the image always touches the edges of the diamond
+yeah, lean on good controls to let the user drive, rather than complex rules to deal with transitions; there are too many previous image to next image transitions possible!!
+
+ok but then if you choose f fit, and roll to the next one ,it's not fit, because we're back to the diamond
+yeah, for now, that should be how it works
+the benefit there is if the next image is the same resolution and aspect ratio, but 
+
+
+
+now if the user presses w for width, now there isn't a diamond at all
+instead, every image is fit to full width, and scrolling can only move up and down
+this is commic book page mode
+
+
+
+oh at the start make p pixelated a manual toggle
+because you don't know when you're going to want it on or off
+yeah, probably always do that
+
+what if dfw are three boundary shapes
+d - diamond default
+f - fit to screen
+w - fit width
+ok, so you press any of those, and then roll through images of various sizes, and the boundary shape persists
+and d lets you pan horiz or vert, f doesn't let you pan at all, and w only lets you pan up and down
+if you zoom at all, in or out, it switches to diamond boundary
+yeah, this plan looks good; it's reason-able
+
+12345789 also should be a zoom lock, in that if you go into 4x, then you scroll through images at 4x
+but as soon as you zoom in or out, then it changes to that diamond from there on
+but not the same as if you press d, which is centered, sized diamond
+
+
+
+
+oh, what if you automatically turn on pixelated when the zoom is bigger than something
+so you can have a large dimension screenshot, and ctrl+wheel zoom all the way in
+and instead of getting those grayscale pyramids, it naturally switches to pixelated
+
+ok, sure, does that rule widely applied solve other problems
+like, let's say you always fit the image, any size, to the diamond
+and the diamond, of course, persists through wheel flips
+
+
+there could be a hud, which you toggle with spacebar
+or move the pointer to the bottom of the screen, and it appears
+while you're zooming or gamma-ing with a drag, the zoom and gamma shows; just during the drag
+
+there couuld also be a hud in text beneath the image itself
+this is a really cool idea, there you can show
+super long hash values
+super verbose image information
+a whole long usb drive path
+
+but with all this hud and popups, also remember to make Fuji immersive
+let the user exist entirely within the codex of images, without being distracted by information in text at all
+
+
+
+
+
+
+
+in the crazy ideas section, the zoom world tabletop, where you pan from one image to the next
+it's as though there are always 8 images around the center one, or something
+
+
+
+
+
+
+
+[]get these styles from table2 into marble3 as needed
+<style scoped>
+.myTable {
+	will-change: transform; /* pan with the compositor thread; no layout or paint; buttery-smooth 🧈 */
+	touch-action: none; /* tell the browser to not try to scroll or zoom behind a drag that we are handling */
+}
+.myHud {
+	pointer-events: none; /* the HUD is information, only--no buttons, no selectable text */
+}
+</style>
+
+
+
+
+
+
+
+
+
+
+
 
 
 
