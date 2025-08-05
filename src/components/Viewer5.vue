@@ -1,15 +1,13 @@
-<script setup>//./components/Viewer5.vue - io module, FileReader, Blob, img tag, going to confirm gamma works
-
-/*
-confirm gamma works
-switch between raster and smooth sizing
-*/
+<script setup>//./components/Viewer5.vue - io module, FileReader, Blob, img tag, SVG gamma filter option, CSS pixelated option
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ioRead} from '../io.js'
 
-const sourceRef = ref('')
+const imageRef = ref(null)//ref of the img tag that shows the image
+const sourceRef = ref('')//ref of the src attribute in that image tag, keeping both right now as we decide which to use!
+const gammaRef = ref(1)//1 no change, 0.9 slight shadow boost, 0.5 strong boost, 0 whiteout; a UI that lowers this number linearly should work well to first allow for subtle change and then drastic exploration
+const roughRef = ref(false)//false for the high quality scaling which we get by default, true for pixel art and blocky pixels at high zoom
 
 onMounted(async () => {
 	const w = getCurrentWindow()
@@ -37,7 +35,6 @@ function asyncBlobToDataUrl(blob) {
 
 async function loadImage(p) {
 	const bytes = new Uint8Array(await ioRead(p))// Uint8Array
-	console.log(typeof bytes)//says "object"
 	const blob = new Blob([bytes.buffer], {type: 'image/png'})//ttd july, set this correctly from file extension
 	sourceRef.value = await asyncBlobToDataUrl(blob)
 }
@@ -49,11 +46,11 @@ async function loadImage(p) {
 <!-- SVG filter definition, hidden -->
 <svg aria-hidden="true" width="0" height="0" class="absolute overflow-hidden w-0 h-0 pointer-events-none">
 	<defs>
-		<filter id="gamma-correct">
+		<filter id="my-gamma">
 			<feComponentTransfer>
-				<feFuncR type="gamma" exponent="2.2"/>
-				<feFuncG type="gamma" exponent="2.2"/>
-				<feFuncB type="gamma" exponent="2.2"/>
+				<feFuncR type="gamma" :exponent="gammaRef"/>
+				<feFuncG type="gamma" :exponent="gammaRef"/>
+				<feFuncB type="gamma" :exponent="gammaRef"/>
 			</feComponentTransfer>
 		</filter>
 	</defs>
@@ -61,17 +58,24 @@ async function loadImage(p) {
 
 <div class="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
 	<img
+		ref="imageRef"
 		v-if="sourceRef"
 		:src="sourceRef"
-		class="max-w-full max-h-full object-contain"
+		class="w-full h-full object-contain"
+		:class="{'my-rough': roughRef}"
+		:style="{filter: gammaRef == 1 ? 'none' : 'url(#my-gamma)'}"
 	/>
 	<div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 italic select-none pointer-events-none">
-		Viewer5 - io module, FileReader, Blob, img tag, going to confirm gamma works
+		Viewer5 - io module, FileReader, Blob, img tag, SVG gamma filter option, CSS pixelated option
 	</div>
 </div>
 
 </div>
 </template>
 <style scoped>
+
+.my-rough {
+	image-rendering: pixelated; /* use nearest-neighbor upsampling instead of the default high quality smooth interpolation algorithm */
+}
 
 </style>

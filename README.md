@@ -43,34 +43,7 @@ executable and installer on windows:
 
 ### windows 10
 
-
-from that above, on mac, check the rust version
-
-
-
-
-
-
-
-on windows, we want an older version, from late 2024, the last version of rust that builds executables that run for sure on windows 7
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ttd august, you installed rust globally and then the project coded cross platform builds and runs fine
 ```
 
 from scaffolding:
