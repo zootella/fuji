@@ -63,7 +63,7 @@ async function onDoubleClick(e) {
 
 function onPointerDown(e) {
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
-		console.log('pointer down: double click')
+		//ignoring this because listening for browser double click event
 	} else if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
 		console.log('pointer down: right double click')
 	} else {

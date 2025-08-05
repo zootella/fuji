@@ -44,7 +44,7 @@ onBeforeUnmount(() => {
 []hud
 []marble tile
 []shadows on image
-[]continuity with window move, resize, fullscreen; do that last
+[~]continuity with window move, resize, fullscreen; do that last (and, of course, you do it first. and, of course, it doesn't work and takes most of the middle of the day)
 
 
 */
