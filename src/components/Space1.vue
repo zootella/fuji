@@ -6,37 +6,32 @@ import {ref, onMounted, onBeforeUnmount} from 'vue'
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
-onMounted(async () => {
-	moveStartup()
-	window.addEventListener('keydown', onKey)
+onMounted(() => {
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
+	window.addEventListener('keydown', onKey)
+	window.addEventListener('resize', onResize); onResize()//and call right away to look at the starting size
 })
 onBeforeUnmount(() => {
-	window.removeEventListener('keydown', onKey); if (drag?.pointer) {
-		frameRef.value.releasePointerCapture(drag.pointer); drag.pointer = null }
 	frameRef.value.removeEventListener('wheel', onWheel)
+	window.removeEventListener('keydown', onKey)
+	window.removeEventListener('resize', onResize)
+	if (drag?.pointer && frameRef.value.hasPointerCapture(drag.pointer)) {
+		frameRef.value.releasePointerCapture(drag.pointer)
+		drag.pointer = null
+	}
 })
 
 async function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
 
-	if (e.key == 'f') {
-		console.log('my key F, which goes full screen')
-		await setFullscreen(true)
-
-	} else if (e.key == 'q') {
-		console.log('my key Q, which quits full screen')
-		await setFullscreen(false)
-
-	} else if ((e.ctrlKey || e.metaKey) && e.key == 's') {
+	if      (e.key == 'f') { console.log('my key F') }
+	else if (e.key == 'q') { console.log('my key Q') }
+	else if ((e.ctrlKey || e.metaKey) && e.key == 's') { console.log('my key Ctrl+S')
 		e.preventDefault()//tell the browser not to show the file save dialog box
-		console.log('my key Ctrl+S')
-
 	} else if (e.key == 'Escape') {
-		console.log('my key Escape, which causes both us and macos to leave full screen')
 		await setFullscreen(false)//macos will also exit fullscreen, but this call doesn't mess anything up with that
-
-	} else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
+	}
+	else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
 	else if (e.key == 'ArrowRight') { console.log('my key ArrowRight') }
 	else if (e.key == 'ArrowUp')    { console.log('my key ArrowUp')    }
 	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown')  }
@@ -53,6 +48,12 @@ async function toggleFullscreen() { let w = getCurrentWindow(); let current = aw
 }
 function onWheel(e) {
 	e.preventDefault()//tell the browser not to scroll
+
+	let s = `wheel ${e.deltaX} Δx, ${e.deltaY} Δy`
+	if (e.ctrlKey)  s += ' +Ctrl'
+	if (e.shiftKey) s += ' +Shift'//with shift held on mac, delta y is 0 and x is positive or negative
+	if (e.metaKey)  s += ' +Meta'//testing on mac with karabiner elements and the microsoft keyboard, always seeing meta, never ctrl
+	console.log(s)
 
 	if      (e.deltaY < 0) { zoom(true)  }
 	else if (e.deltaY > 0) { zoom(false) }
@@ -84,16 +85,13 @@ function onUp(e) {
 
 let arrow1 = {x: 0, y: 0}//arrow1 points from the corner of the frame to the center of the pannable space; changes when the user drags to pan
 let arrow2 = {x: 0, y: 0}//arrow2 points from the center of the pannable space to corner of the card; changes when we zoom
-function moveStartup() {//called once on mounted
-	arrow2 = {//set the starting arrow2 based on the card size with no zoom
-		x: -(cardSize.w / 2),
-		y: -(cardSize.h / 2)
-	}
-	move(arrowFrameMiddle())//set arrow1 and pan there to put the middle of the card in the middle of the frame
+function onResize() {//called once on mounted and whenever the viewport size changes
+	console.log('on resize! ↘️')
+	//...
 }
 function move(segment) {//move the card under the frame by the given segment
-	arrow1 = arrowMath(arrow1, '+', segment)
-	let a12 = arrowMath(arrow1, '+', arrow2)
+	arrow1 = math(arrow1, '+', segment)
+	let a12 = math(arrow1, '+', arrow2)
 	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
 }
 
@@ -102,50 +100,7 @@ let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
 const zoomStep = 1.1
 function zoom(direction) {
 	zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
-
-	let m = arrowFrameMiddle()//m points from frame corner to frame middle
-	let a12 = arrowMath(arrow1, '+', arrow2)//a12 points from frame corner to card corner
-
-	//calculate the arrows which will grow or shrink with this zoom, all pointing from the frame center
-	let f1 = arrowMath(arrow1, '-', m)//f1 points from frame center to card center
-	let f2 = arrowMath(a12,    '-', m)//f2 points from frame center to card corner
-
-	console.log(zoomAmount)
-
-
-	/*
-	clear off the drafting table
-	code just diamond now, but have a plan to do all of them
-
-	what changes at startup?
-	what changes on drag?
-	what changes on flip to next image?
-	what changes on 
-
-	what are the minimal arrows that need to be kept in state?
-	what arrows can derive from what?
-
-	have a single function place(a1, a2)
-	which is the only place that sets the arrows (but you can read them elsewhere)
-	and is the only place that does the transform and size
-
-	*/
-
-
-	//zoom them
-	f1 = arrowMath(f1, '*', zoomAmount)
-	f2 = arrowMath(f2, '*', zoomAmount)
-
-	//calculate new arrows 1 and 2, and new card with and height
-	arrow1 = arrowMath(m,  '+', f1)
-	arrow2 = arrowMath(f2, '-', f1)
-	a12 = arrowMath(arrow1, '+', arrow2)
-	a12.w = -2*arrow2.x
-	a12.h = -2*arrow2.y
-
-	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`
-	cardRef.value.style.width  = `${a12.w}px`
-	cardRef.value.style.height = `${a12.h}px`
+	//...
 }
 
 function onPointerMove(e) { if (!drag) return
@@ -160,22 +115,12 @@ function onPointerMove(e) { if (!drag) return
 	move(segment)
 }
 
-function arrowCardCorner() {//based on the image dimensions and zoom amount, points from the card center to corner
-	return {
-		x: ,
-		y: 
-	}
-}
-function arrowFrameMiddle() {//based on how big the window is right now, get the arrow from the frame corner to the frame middle
-	return {
-		x: frameRef.value.clientWidth  / 2,
-		y: frameRef.value.clientHeight / 2
-	}
-}
-function arrowMath(a1, operator, a2) {
-	if      (operator == '+') { return {x: a1.x + a2.x, y: a1.y + a2.y} }
+function arrow(x, y) { return {x, y} }
+function math(a1, operator, a2) {
+	if      (operator == '+') { return {x: a1.x + a2.x, y: a1.y + a2.y} }//use with two {x, y} objects
 	else if (operator == '-') { return {x: a1.x - a2.x, y: a1.y - a2.y} }
-	else if (operator == '*') { return {x: a1.x * a2,   y: a1.y * a2  } }
+	else if (operator == '*') { return {x: a1.x * a2,   y: a1.y * a2  } }//use with ane xy object and a number, like 2
+	else if (operator == '/') { return {x: a1.x / a2,   y: a1.y / a2  } }
 }
 
 </script>

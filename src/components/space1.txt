@@ -1,0 +1,67 @@
+
+
+
+
+
+
+
+
+
+	//todo
+
+	/*
+	let m = arrowFrameMiddle()//m points from frame corner to frame middle
+	let a12 = arrowMath(arrow1, '+', arrow2)//a12 points from frame corner to card corner
+
+	//calculate the arrows which will grow or shrink with this zoom, all pointing from the frame center
+	let f1 = arrowMath(arrow1, '-', m)//f1 points from frame center to card center
+	let f2 = arrowMath(a12,    '-', m)//f2 points from frame center to card corner
+
+	console.log(zoomAmount)
+
+	//zoom them
+	f1 = arrowMath(f1, '*', zoomAmount)
+	f2 = arrowMath(f2, '*', zoomAmount)
+
+	//calculate new arrows 1 and 2, and new card with and height
+	arrow1 = arrowMath(m,  '+', f1)
+	arrow2 = arrowMath(f2, '-', f1)
+	a12 = arrowMath(arrow1, '+', arrow2)
+	a12.w = -2*arrow2.x
+	a12.h = -2*arrow2.y
+
+	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`
+	cardRef.value.style.width  = `${a12.w}px`
+	cardRef.value.style.height = `${a12.h}px`
+	*/
+
+
+
+/*
+function arrowCardCorner() {//based on the image dimensions and zoom amount, points from the card center to corner
+	return {
+		x: ,
+		y: 
+	}
+}
+function arrowFrameMiddle() {//based on how big the window is right now, get the arrow from the frame corner to the frame middle
+	return {
+		x: frameRef.value.clientWidth  / 2,
+		y: frameRef.value.clientHeight / 2
+	}
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
