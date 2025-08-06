@@ -85,21 +85,16 @@ function onUp(e) {
 let arrow1 = {x: 0, y: 0}//arrow1 points from the corner of the frame to the center of the pannable space; changes when the user drags to pan
 let arrow2 = {x: 0, y: 0}//arrow2 points from the center of the pannable space to corner of the card; changes when we zoom
 function moveStartup() {//called once on mounted
-	arrow2 = {
+	arrow2 = {//set the starting arrow2 based on the card size with no zoom
 		x: -(cardSize.w / 2),
 		y: -(cardSize.h / 2)
 	}
-	move({
-		x: frameRef.value.clientWidth / 2,
-		y: frameRef.value.clientHeight / 2
-	})
+	move(arrowFrameMiddle())//set arrow1 and pan there to put the middle of the card in the middle of the frame
 }
 function move(segment) {//move the card under the frame by the given segment
-	arrow1 = {
-		x: arrow1.x + segment.x,
-		y: arrow1.y + segment.y
-	}
-	cardRef.value.style.transform = `translate(${arrow1.x + arrow2.x}px, ${arrow1.y + arrow2.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
+	arrow1 = arrowMath(arrow1, '+', segment)
+	let a12 = arrowMath(arrow1, '+', arrow2)
+	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
 }
 
 const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
@@ -108,8 +103,49 @@ const zoomStep = 1.1
 function zoom(direction) {
 	zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
 
-	cardRef.value.style.width  = `${cardSize.w * zoomAmount}px`
-	cardRef.value.style.height = `${cardSize.h * zoomAmount}px`
+	let m = arrowFrameMiddle()//m points from frame corner to frame middle
+	let a12 = arrowMath(arrow1, '+', arrow2)//a12 points from frame corner to card corner
+
+	//calculate the arrows which will grow or shrink with this zoom, all pointing from the frame center
+	let f1 = arrowMath(arrow1, '-', m)//f1 points from frame center to card center
+	let f2 = arrowMath(a12,    '-', m)//f2 points from frame center to card corner
+
+	console.log(zoomAmount)
+
+
+	/*
+	clear off the drafting table
+	code just diamond now, but have a plan to do all of them
+
+	what changes at startup?
+	what changes on drag?
+	what changes on flip to next image?
+	what changes on 
+
+	what are the minimal arrows that need to be kept in state?
+	what arrows can derive from what?
+
+	have a single function place(a1, a2)
+	which is the only place that sets the arrows (but you can read them elsewhere)
+	and is the only place that does the transform and size
+
+	*/
+
+
+	//zoom them
+	f1 = arrowMath(f1, '*', zoomAmount)
+	f2 = arrowMath(f2, '*', zoomAmount)
+
+	//calculate new arrows 1 and 2, and new card with and height
+	arrow1 = arrowMath(m,  '+', f1)
+	arrow2 = arrowMath(f2, '-', f1)
+	a12 = arrowMath(arrow1, '+', arrow2)
+	a12.w = -2*arrow2.x
+	a12.h = -2*arrow2.y
+
+	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`
+	cardRef.value.style.width  = `${a12.w}px`
+	cardRef.value.style.height = `${a12.h}px`
 }
 
 function onPointerMove(e) { if (!drag) return
@@ -122,6 +158,24 @@ function onPointerMove(e) { if (!drag) return
 		y: e.clientY
 	}
 	move(segment)
+}
+
+function arrowCardCorner() {//based on the image dimensions and zoom amount, points from the card center to corner
+	return {
+		x: ,
+		y: 
+	}
+}
+function arrowFrameMiddle() {//based on how big the window is right now, get the arrow from the frame corner to the frame middle
+	return {
+		x: frameRef.value.clientWidth  / 2,
+		y: frameRef.value.clientHeight / 2
+	}
+}
+function arrowMath(a1, operator, a2) {
+	if      (operator == '+') { return {x: a1.x + a2.x, y: a1.y + a2.y} }
+	else if (operator == '-') { return {x: a1.x - a2.x, y: a1.y - a2.y} }
+	else if (operator == '*') { return {x: a1.x * a2,   y: a1.y * a2  } }
 }
 
 </script>
