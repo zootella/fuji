@@ -125,10 +125,24 @@ function math(a1, operator, a2) {
 	else if (operator == '/') { return {x: a1.x / a2,   y: a1.y / a2  } }
 }
 
+const hud1Ref = ref('upper left')
+const hud2Ref = ref('System operating according to normal parameters')
+const hud3Ref = ref(`lower left, this one is longer
+and could involve a second line of text, which could be quite long; text that grows to the width of the frame does wrap
+or even a third line`)
+const hud4Ref = ref(`middle of frame
+this HUD will likely be a card showing the user all the
+keyboard shortcuts the app supports, and be really easy to
+show and hide, such as by pressing the [H]elp or just [Spacebar]
+and here is yet another line`)
+
+const captionRef = ref(`This paragraph, and the next, demonstrate a caption beneath the card. They don't affect the dimensions of the card.
+Here's a second line, another paragraph tag. They do pan with the card. If the card size changes, such as a zoom in, the text stays the same size and spot beneath the card.`)//no terminating newline, if that matters
+
 </script>
 <template>
 
-<!-- outer div frame sized to component, often the tauri window renderer viewport, frequently the full screen -->
+<!-- Frame: single outer div sized to component; handles clicks and has repeating background we'll translate along with the card below -->
 <div
 	ref="frameRef"
 	class="myFrame myDots myWillChangeBackgroundPosition relative w-screen h-screen overflow-hidden select-none touch-none"
@@ -139,40 +153,39 @@ function math(a1, operator, a2) {
 	@pointerup="onUp" @pointercancel="onUp" @lostpointercapture="onUp"
 >
 
-	<!-- inner div image the user drags in the frame to pan the card and its contents around in the infinite space -->
+	<!-- Card: rectangular image; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div
 		ref="cardRef"
 		class="myCard myShadow myDry myWillChangeTransform bg-gray-200 border border-cyan-500"
 		:style="{width: cardSize.w+'px', height: cardSize.h+'px'}"
 	>
 
-		<!-- orange-bordered inner box -->
+		<!-- we could also put stuff inside the card box, like this orange box -->
 		<div class="border border-orange-500 m-4 h-32"></div>
-
 		<!-- caption lives inside the card, but sits below its border -->
-		<div
-			class="absolute bottom-0 translate-y-full text-gray-600 py-2 whitespace-nowrap myEmbossed"
-		>
-			<p>
-				This paragraph, and the next, demonstrate a caption beneath the card.
-				They don't affect the dimensions of the card.
-			</p>
-			<p>
-				Here's a second line, another paragraph tag.
-				They do pan with the card.
-				If the card size changes, such as a zoom in, the text stays the same size and spot beneath the card.
-			</p>
-		</div>
+		<div class="absolute bottom-0 translate-y-full text-gray-600 py-2 whitespace-nowrap myEmbossed">{{captionRef}}</div>
 
 	</div>
 
-	<!-- hud text will go here, inside the frame, alongside the tabletop; maybe put all that in a new glassRef div -->
+	<!-- hud text here, inside the frame, next to the card -->
+	<div v-if="hud1Ref" class="myHud myDry absolute top-4 left-4">{{hud1Ref}}</div>
+	<div v-if="hud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
+	<div v-if="hud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
+	<div v-if="hud4Ref" class="myHud myDry absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">{{hud4Ref}}</div>
 
 </div>
 
 </template>
 <style scoped>
 
+.myHud {
+	color: rgba(255, 255, 255, 0.8); /* transparent text */
+	background-color: rgba(0, 0, 0, 0.4); /* smokey plastic from 1980 */
+	padding: 0.1rem 0.4rem; /* square corners */
+	font-family: monospace;
+	font-size: 0.875rem;
+	white-space: pre-wrap; /* honor \n and wrap at the container width */
+}
 .myFrame {
 }
 .myCard {
@@ -195,6 +208,7 @@ function math(a1, operator, a2) {
 	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
 }
 .myEmbossed {
+	white-space: pre; /* honor \n and overflow the container */
 	text-shadow:
 		-1px -1px 0 rgba(255,255,255,0.8),
 		1px 1px 2px rgba(0,0,0,0.3);
