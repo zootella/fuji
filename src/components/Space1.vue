@@ -182,4 +182,14 @@ function math(a1, operator, a2) {
 .myCard {
 }
 
+.myDots {
+	background-color: #ffffff;
+	background-image: radial-gradient(
+		circle at center,
+		#ff69b4 8px,
+		transparent 8px
+	);
+	background-size: 40px 40px;
+}
+
 </style>

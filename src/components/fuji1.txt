@@ -755,6 +755,15 @@ yeah, this plan looks good; it's reason-able
 but as soon as you zoom in or out, then it changes to that diamond from there on
 but not the same as if you press d, which is centered, sized diamond
 
+there is also (planning out the whole keyboard draft here)
+l - lock the drag. any mouse click releases it, as does another l
+h - show help, separate area on the hud
+spacebar - show or hide details at the bottom
+Ctrl+C - copy the path to the current image
+
+
+areas where text can appear on fullscreen mode
+caption, on card, beneath the image. this is a crazy idea and you like it
 
 
 
