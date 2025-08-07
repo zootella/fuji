@@ -73,9 +73,9 @@ const img7Ref = ref(null)
 const img8Ref = ref(null)
 const img9Ref = ref(null)//our template contains these three img tags
 //we change where these module variables point to indicate how we're using them right now; consider flipping through a long list:
-let imagePrev = {imgRef: img7Ref, state: 'Blank.', details: null, error: null}//hidden, but keeping around to make a flip back instant
-let imageMain = {imgRef: img8Ref, state: 'Blank.', details: null, error: null}//only one of the three that's visible
-let imageNext = {imgRef: img9Ref, state: 'Blank.', details: null, error: null}//preloading or preloaded to flip forward without a delay
+let imagePrev = {imgRef: img7Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//hidden, but keeping around to make a flip back instant
+let imageMain = {imgRef: img8Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//only one of the three that's visible
+let imageNext = {imgRef: img9Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//preloading or preloaded to flip forward without a delay
 
 function blankImage(i) {
 	i.imgRef.value.src = ''//free the big base64 string
@@ -85,6 +85,7 @@ function blankImage(i) {
 	i.state = 'Blank.'
 	i.details = null
 	i.error = null
+	i.loadingPromise = Promise.resolve()
 }
 async function loadImage(i, path) {
 	if (i.state != 'Blank.') throw new Error()
@@ -102,6 +103,27 @@ async function loadImage(i, path) {
 	i.state = 'Ready.'
 	i.details = details
 }
+
+async function flipImage(forward) {
+	let behind, here, ahead
+	if (forward) { behind = imagePrev; here = imageMain; ahead = imageNext; }//flip forward to next, ahead; previous is behind
+	else         { behind = imageNext; here = imageMain; ahead = imagePrev; }//flip back, so previous is ahead and next is behind
+
+	blankImage(behind)
+	//todo, start the preload of the next next image now, in the behind slot which will be double ahead! 🤯 and don't await it
+	await ahead.loadingPromise//set a resolved promise here if nothing to wait for
+	//what happens if another flip command comes in here? discarded? queued? either is fine, but make sure you can spin the wheel to cause a race condition that breaks state!
+
+	await raf()//pause here until right before the next repaint, so both display toggles apply in the same frame
+	here.imgRef.value.style.display = 'none'//hide the currently visible image to move beyond it
+	ahead.imgRef.value.style.display = ''//show the preloaded image ahead to move to it
+	//and rewire our pointers to reflect the just changed state
+	imagePrev = here//go back to get where we were
+	imageMain = ahead//we moved ahead
+	imageNext = behind//for double ahead, reuse behind which fell off the horizon
+}
+
+const raf = () => new Promise(r => requestAnimationFrame(r))
 
 </script>
 <template>
