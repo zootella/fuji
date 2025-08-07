@@ -8,9 +8,10 @@ onMounted(async () => {
 	const w = getCurrentWindow()
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type === 'drop' && event.payload.paths.length) {
-			let p = event.payload.paths[0]
-			console.log(`dropped path "${p}"`)
-			loadImage(p)
+			let path = event.payload.paths[0]
+			console.log(`dropped path "${path}"`)
+
+			loadImagePathToRef(img8Ref, path)//right now we just load everything into img8!
 		}
 	})
 })
@@ -28,54 +29,88 @@ function asyncBlobToDataUrl(blob) {
 	})
 }
 
-let loaded//details about the image we last loaded
-async function loadImage(p) {//takes a path to an image on the disk
-	loaded = {}
-	loaded.t1 = performance.now()//start time
-	loaded.path = p
+async function loadImagePathToRef(imgRef, path) {//load the image at path into the given vue image reference
+	let details = {}
+	details.t1 = performance.now()//start time
+	details.path = path
 
 	//read file and convert to data url
-	let bytes = new Uint8Array(await ioRead(p))
-	loaded.t2 = performance.now()//time spent in io from disk
+	let bytes = new Uint8Array(await ioRead(path))
+	details.t2 = performance.now()//time spent in io from disk
 	let blob = new Blob([bytes.buffer], {type: 'image/png'})
 	let data = await asyncBlobToDataUrl(blob)
-	loaded.t3 = performance.now()//time converting formats in memory
-	loaded.size = bytes.length//byte size of file
-	loaded.data = data//keep a reference to the data url even though we don't use it yet
+	details.t3 = performance.now()//time converting formats in memory
+	details.size = bytes.length//byte size of file
+	details.data = data//keep a reference to the data url even though we don't use it yet
 
-	//make a new img tag and render the image into it
-	let img = image1Ref.value//instead of new Image(), get the existing vue reference from the template
-	img.src = data
-	await nextTick()
-	try {
-		await img.decode()//throws on problem with the image data
-	} catch (e) { loaded.e = e; console.error(e); return }
-	loaded.t4 = performance.now()//time rendering image to bitmap
-	loaded.w = img.naturalWidth//and now we can get its pixel dimensions
-	loaded.h = img.naturalHeight
-	console.log(loaded)
+	//load the data url into the given img tag and decode it
+	imgRef.value.src = data
+	await nextTick()//chat says this won't slow us down, and without it the decode could still be the previous src!
+	await imgRef.value.decode()//throws on problem with the image data
+
+	//success if there wasn't an exception from that
+	details.t4 = performance.now()//time rendering image to bitmap
+	details.w = imgRef.value.naturalWidth//and now we can get its pixel dimensions
+	details.h = imgRef.value.naturalHeight
 
 	//style the img so it fills the container div, which will be the correct aspect ratio
-	img.style.position = 'absolute'
-	img.style.top = '0'
-	img.style.left = '0'
-	img.style.width = '100%'
-	img.style.height = '100%'
-	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
-	img.style.display = ''//set to blank to show the img, replacing display none
+	imgRef.value.style.position = 'absolute'
+	imgRef.value.style.top = '0'
+	imgRef.value.style.left = '0'
+	imgRef.value.style.width = '100%'
+	imgRef.value.style.height = '100%'
+	imgRef.value.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
 
-	console.log('JPV')
+	imgRef.value.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
+
+	console.log(details)
+	return details
 }
 
 const containerRef = ref(null)
-const image1Ref = ref(null)
+
+const img7Ref = ref(null)
+const img8Ref = ref(null)
+const img9Ref = ref(null)//our template contains these three img tags
+//we change where these module variables point to indicate how we're using them right now; consider flipping through a long list:
+let imagePrev = {imgRef: img7Ref, state: 'Blank.', details: null, error: null}//hidden, but keeping around to make a flip back instant
+let imageMain = {imgRef: img8Ref, state: 'Blank.', details: null, error: null}//only one of the three that's visible
+let imageNext = {imgRef: img9Ref, state: 'Blank.', details: null, error: null}//preloading or preloaded to flip forward without a delay
+
+function blankImage(i) {
+	i.imgRef.value.src = ''//free the big base64 string
+	i.imgRef.value.style.width = 0
+	i.imgRef.value.style.height = 0//keep out of layout
+
+	i.state = 'Blank.'
+	i.details = null
+	i.error = null
+}
+async function loadImage(i, path) {
+	if (i.state != 'Blank.') throw new Error()
+	i.state = 'Loading.'
+
+	let details
+	try {
+		details = await loadImagePathToRef(i.imgRef, path)
+	} catch (e) {
+		i.state = 'Error.'
+		i.error = e
+		i.details = details
+		return
+	}
+	i.state = 'Ready.'
+	i.details = details
+}
 
 </script>
 <template>
 <div>
 
 <div ref="containerRef" class="relative w-screen h-screen bg-black overflow-hidden">
-	<img ref="image1Ref" style="display: none;" />
+	<img ref="img7Ref" style="display: none;" />
+	<img ref="img8Ref" style="display: none;" />
+	<img ref="img9Ref" style="display: none;" />
 </div>
 
 </div>
