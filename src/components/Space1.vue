@@ -129,7 +129,7 @@ function math(a1, operator, a2) {
 <!-- outer div frame sized to component, often the tauri window renderer viewport, frequently the full screen -->
 <div
 	ref="frameRef"
-	class="myFrame relative w-screen h-screen overflow-hidden select-none touch-none"
+	class="myFrame relative w-screen h-screen overflow-hidden select-none touch-none myDots"
 	@contextmenu.prevent
 	@dblclick.prevent="onDoubleClick"
 	@pointerdown="onPointerDown"
@@ -183,13 +183,19 @@ function math(a1, operator, a2) {
 }
 
 .myDots {
-	background-color: #ffffff;
-	background-image: radial-gradient(
-		circle at center,
-		#ff69b4 8px,
-		transparent 8px
-	);
-	background-size: 40px 40px;
+	/* an off-white that still reads white but lets layers below peek through */
+	background-color: #fdfdfd;
+
+	/* two identical pastel-pink dot layers, centered in each 40×40 cell */
+	background-image:
+		radial-gradient(circle at center, #ffd1dc 6px, transparent 6px),
+		radial-gradient(circle at center, #ffd1dc 6px, transparent 6px);
+
+	/* make each “tile” big enough that the full 16px-diameter dot never hits an edge */
+	background-size: 60px 60px;
+
+	/* offset the second layer by half a cell → diamond pattern */
+	background-position: 0 0, 30px 30px;
 }
 
 </style>

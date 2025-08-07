@@ -156,7 +156,20 @@ function arrowFrameMiddle() {//based on how big the window is right now, get the
 
 
 
+	<div
+		ref="cardRef"
+		class="myCard myDry bg-gray-200 border border-cyan-500 will-change-transform"
+		:style="{width: cardSize.w+'px', height: cardSize.h+'px'}"
+	>
 
+maybe you should not start this out here, and instead hide it in the template
+and then in script as part of the flip to next image logic, you load it, give it the rigth dimension
+and then flip the old one and show the new one
+
+also for this v0.01 maybe when  you scroll through a file that th eimg tag cannot load
+then just the embossed text shows, with the path, or something
+you still need to figure that out, too
+surprising how much there is to do in this simple app using a high level and perfectly matched framework!
 
 
 
