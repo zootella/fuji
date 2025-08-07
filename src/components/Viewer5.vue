@@ -45,15 +45,11 @@ async function loadImage(p) {
 
 <!-- SVG filter definition, hidden -->
 <svg aria-hidden="true" width="0" height="0" class="absolute overflow-hidden w-0 h-0 pointer-events-none">
-	<defs>
-		<filter id="my-gamma">
-			<feComponentTransfer>
-				<feFuncR type="gamma" :exponent="gammaRef"/>
-				<feFuncG type="gamma" :exponent="gammaRef"/>
-				<feFuncB type="gamma" :exponent="gammaRef"/>
-			</feComponentTransfer>
-		</filter>
-	</defs>
+	<defs><filter id="my-gamma"><feComponentTransfer>
+		<feFuncR type="gamma" :exponent="gammaRef"/>
+		<feFuncG type="gamma" :exponent="gammaRef"/>
+		<feFuncB type="gamma" :exponent="gammaRef"/>
+	</feComponentTransfer></filter></defs>
 </svg>
 
 <div class="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">

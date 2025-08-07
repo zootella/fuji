@@ -871,22 +871,45 @@ onBeforeUnmount(() => {
 
 
 
+for flicker free performance
+and acdsee's delay image flip until ready
+looks like a simple design is:
+
+you have two img tags, 0 and 1
+in the template they're wired up with v-show, not v-if
+you can define @load="onImageLoad(0 or 1)" and @error="onImageError"
+
+before the user click flip:
+read the file from disk and make the data url string (if you don't already have it because this is a flip back)
+load the url string into the hidden img tag
+set the size and location of the hidden img tag correctly for the image, using css
+watch for the on loaded event to arrive
+
+then it's a race between the loaded event, and the user's click to flip
+if its click before loaded, wait
+if it's loaded and now click, do:
+    requestAnimationFrame(() => {
+      showImage1.value = true
+    })
+
+so then what do you do if the flip commands come in faster than the animation frames?
+1 ignore a click when we're already about to do a flip
+2 skip and image to keep up
+3 queue each click and flip as fast as the frames afterwards
+just ignore them, duh; this won't actually happen
+
+earlier you were permutating all the possible next images
+previous/next
+zoom in/out
+gamma brighter/dimmer
+and you thought maybe there's another one?
+but now zoom is CSS, and gamma is SVG
+so really it's previous and next
+
+for the disk -> data url string; you can just keep the string around (you could make a pretty complex application cache of these, actually!) or just keep the previous one around
+and so then it's just about next/previous image
 
 
-
-/*
-[]zoom with mouse wheel
-[]hud
-[]marble tile
-[]shadows on image
-[~]continuity with window move, resize, fullscreen; do that last (and, of course, you do it first. and, of course, it doesn't work and takes most of the middle of the day)
-
-
-*/
-
-
-
-today in fuji
 
 
 
