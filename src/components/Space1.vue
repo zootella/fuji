@@ -92,7 +92,9 @@ function onResize() {//called once on mounted and whenever the viewport size cha
 function move(segment) {//move the card under the frame by the given segment
 	arrow1 = math(arrow1, '+', segment)
 	let a12 = math(arrow1, '+', arrow2)
-	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`//have the GPU move the card to the new pan location; the stuff within it rides along
+	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`
+	frameRef.value.style.backgroundPosition = `${a12.x % 60}px ${a12.y % 60}px`
+	//^the GPU moves the card to the new pan position, elements nested within the card automatically move along; the second line of code makes the frame's repeating background stay in the same place underneath
 }
 
 const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
@@ -129,7 +131,7 @@ function math(a1, operator, a2) {
 <!-- outer div frame sized to component, often the tauri window renderer viewport, frequently the full screen -->
 <div
 	ref="frameRef"
-	class="myFrame relative w-screen h-screen overflow-hidden select-none touch-none myDots"
+	class="myFrame myDots myWillChangeBackgroundPosition relative w-screen h-screen overflow-hidden select-none touch-none"
 	@contextmenu.prevent
 	@dblclick.prevent="onDoubleClick"
 	@pointerdown="onPointerDown"
@@ -140,7 +142,7 @@ function math(a1, operator, a2) {
 	<!-- inner div image the user drags in the frame to pan the card and its contents around in the infinite space -->
 	<div
 		ref="cardRef"
-		class="myCard myDry bg-gray-200 border border-cyan-500 will-change-transform"
+		class="myCard myShadow myDry myWillChangeTransform bg-gray-200 border border-cyan-500"
 		:style="{width: cardSize.w+'px', height: cardSize.h+'px'}"
 	>
 
@@ -149,7 +151,7 @@ function math(a1, operator, a2) {
 
 		<!-- caption lives inside the card, but sits below its border -->
 		<div
-			class="absolute bottom-0 translate-y-full text-gray-600 py-2 whitespace-nowrap"
+			class="absolute bottom-0 translate-y-full text-gray-600 py-2 whitespace-nowrap myEmbossed"
 		>
 			<p>
 				This paragraph, and the next, demonstrate a caption beneath the card.
@@ -171,31 +173,31 @@ function math(a1, operator, a2) {
 </template>
 <style scoped>
 
-.myDry,
-.myDry * { /* on the div with this class and everything deep inside it */
-	pointer-events: none; /* none of those elements need to know about clicks */
-	user-select: none; /* none of those elements have text the user should be able to select */
-}
-
 .myFrame {
 }
 .myCard {
 }
 
+.myDry, .myDry * { /* on the div with this class and everything deep inside it */
+	pointer-events: none; /* none of those elements need to know about clicks */
+	user-select: none; /* none of those elements have text the user should be able to select */
+}
+.myWillChangeTransform          { will-change: transform;           }
+.myWillChangeBackgroundPosition { will-change: background-position; } /* with the styles, you get 2 layers in dev tools Layers */
+
 .myDots {
-	/* an off-white that still reads white but lets layers below peek through */
-	background-color: #fdfdfd;
-
-	/* two identical pastel-pink dot layers, centered in each 40×40 cell */
-	background-image:
-		radial-gradient(circle at center, #ffd1dc 6px, transparent 6px),
-		radial-gradient(circle at center, #ffd1dc 6px, transparent 6px);
-
-	/* make each “tile” big enough that the full 16px-diameter dot never hits an edge */
-	background-size: 60px 60px;
-
-	/* offset the second layer by half a cell → diamond pattern */
-	background-position: 0 0, 30px 30px;
+	background-color: #fdfdfd; /* an off-white that still reads white but lets layers below peek through */
+	background-image: radial-gradient(circle at center, #ffd1dc 6px, transparent 6px); /* a pastel-pink dot layer, centered in each cell */
+	background-size: 60px 60px; /* make each “tile” big enough that the full 16px-diameter dot never hits an edge */
+	background-position: 0 0, 30px 30px; /* offset the second layer by half a cell → diamond pattern */
+}
+.myShadow {
+	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+}
+.myEmbossed {
+	text-shadow:
+		-1px -1px 0 rgba(255,255,255,0.8),
+		1px 1px 2px rgba(0,0,0,0.3);
 }
 
 </style>
