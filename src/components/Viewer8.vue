@@ -7,7 +7,7 @@ import {ioRead} from '../io.js'
 onMounted(async () => {
 	const w = getCurrentWindow()
 	unlistenFileDrop = await w.onDragDropEvent(event => {
-		if (event.payload.type === 'drop' && event.payload.paths.length) {
+		if (event.payload.type == 'drop' && event.payload.paths.length) {
 			let path = event.payload.paths[0]
 			console.log(`dropped path "${path}"`)
 

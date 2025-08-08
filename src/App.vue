@@ -3,7 +3,8 @@
 import {ref} from 'vue'
 import {invoke} from '@tauri-apps/api/core'
 
-import Lister1 from './components/Lister1.vue'
+import Lister1 from './components/Lister1.vue'//early proof of concept
+import Lister2 from './components/Lister2.vue'//getting the list capability ready for mvpersonal use
 
 import Viewer1 from './components/Viewer1.vue'
 import Viewer2 from './components/Viewer2.vue'
@@ -25,6 +26,6 @@ import Space1 from './components/Space1.vue'//pink polka dots
 </script>
 <template>
 
-<Viewer8 />
+<Lister2 />
 
 </template>
