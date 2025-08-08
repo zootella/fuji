@@ -64,6 +64,7 @@ async function loadImagePathToRef(imgRef, path) {//load the image at path into t
 	imgRef.value.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
 
 	console.log(details)
+	console.log(`${details.t2 - details.t1}ms disk + ${details.t3 - details.t2}ms memory + ${details.t4 - details.t3}ms render`)
 	return details
 }
 
@@ -86,9 +87,10 @@ function blankImage(i) {
 	i.details = null
 	i.error = null
 	i.loadingPromise = Promise.resolve()
-}
+}//ok if the only place you call blank is at the start of the next async load, then combine them
+//and now you see that you want loadImage below to make an internal promise another invocation can look for and await
 async function loadImage(i, path) {
-	if (i.state != 'Blank.') throw new Error()
+	if (i.state != 'Blank.') throw new Error()//won't need this because you're going to blank it
 	i.state = 'Loading.'
 
 	let details
@@ -104,12 +106,14 @@ async function loadImage(i, path) {
 	i.details = details
 }
 
-async function flipImage(forward) {
-	let behind, here, ahead
+async function flipImage(forward) {//direction forward true, reverse false
+	let behind, here, ahead//we're here; this flip will cause us to step to ahead; we'll reuse behind as two notches ahead
 	if (forward) { behind = imagePrev; here = imageMain; ahead = imageNext; }//flip forward to next, ahead; previous is behind
 	else         { behind = imageNext; here = imageMain; ahead = imagePrev; }//flip back, so previous is ahead and next is behind
 
 	blankImage(behind)
+	/*no await*/loadImage(behind, )
+
 	//todo, start the preload of the next next image now, in the behind slot which will be double ahead! 🤯 and don't await it
 	await ahead.loadingPromise//set a resolved promise here if nothing to wait for
 	//what happens if another flip command comes in here? discarded? queued? either is fine, but make sure you can spin the wheel to cause a race condition that breaks state!
