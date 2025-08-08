@@ -15,8 +15,8 @@ onMounted(async () => {
 	const w = getCurrentWindow()
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
-			let path = event.payload.paths[0]
-			
+			let path = forwardize(event.payload.paths[0])
+
 			await lookPath(path)
 		}
 	})
@@ -26,15 +26,30 @@ onBeforeUnmount(() => {
 	if (unlistenFileDrop) unlistenFileDrop()
 })
 
+//forwardize all new paths that come into the system, and backize them for display to the user
+function forwardize(path) {
+	//rotate backslashes forward given what looks like a windows drive letter path; the forwardized path will still work with path-browserify and our rust io module code
+	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\\/g, '/') : path
+}
+function backize(path) {
+	//but will look weird on windows, so use this in template code before showing to a Windows user
+	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
+}
+
 async function lookPath(path) {//given a path, return text all about it
 
+	/*
+	ok, you're right, this works on mac, but not windows
+	ok so i want to write a little helper function which leaves unix style paths the same, but converts windows style paths into a format so that my code after this function can be cross platform
+	i need these converted windows paths to still work as we use them, both with js here, with path-browserify, and with the rust functions in the style as i've showed them to you. i do not want to convert back and forth, for instance
+	also, in scope is mac and windows paths, but we can leave windows network share style paths out of scope for now; we'll worry about supporting and testing those at a much later time
+	*/
 
-	let folder = parse.dirname(path)              // parent folder of the dragged file
-	let raw = await ioReadDir(folder)          // Rust readdir
+	let folder = parse.dirname(path)
+	let raw = await ioReadDir(folder)
 
-	log(`${path} <- path
-${folder} <- folder
-${''} <- third line
+	log(`${path} <- path, backized to ${backize(path)}
+${folder} <- folder, backized to ${backize(folder)}
 `)
 
 
