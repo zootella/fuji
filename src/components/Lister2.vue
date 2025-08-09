@@ -36,32 +36,44 @@ function backize(path) {
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
 }
 
-async function listImages(path) {//given a path to a folder, return a sorted list of complete paths to all the images
 
-	/*
-	ok chat, let's write this
-	i ithink the array from ioReadDir we'll
-	- just look at is_file true items
-	- use browserify-path, here named parse, to get the file extension
-	- and also to assemble the complete path
-	- have a hardcoded whitelist of common image file extensions (for this, i'd like y ou to think deeply, seraching as necessary. let's consider computing since the start of the web, windows mac and unix, to list )
-	*/
+const imageTypes = {
+	'.bmp': 'image/bmp',//1986, Microsoft: Simple uncompressed raster format for Windows graphics, easy to decode
+	'.gif': 'image/gif',//1987, CompuServe: 256-color palette with animation support, early web staple, now 😺🍔
 
+	'.jpg':  'image/jpeg',//1992, Joint Photographic Experts Group: Lossy compression for photographs
+	'.jpeg': 'image/jpeg',
+	'.jpe':  'image/jpeg',
+	'.jfif': 'image/jpeg',
+
+	'.png':  'image/png',//1996, PNG Development Group/W3C: lossless compression and full alpha transparency
+	'.svg':  'image/svg+xml',//2001, W3C: Scalable vector graphics for resolution-independent diagrams and icons
+	'.avif': 'image/avif',//2019, Alliance for Open Media: from AV1 codec, supports HDR and wide color gamut
+	'.webp': 'image/webp',//2010, Google: recent format for smaller file size
 }
-
 async function lookPath(path) {//given a path, return text all about it
 
 	let folder = parse.dirname(path)
-	let raw = await ioReadDir(folder)
-	console.log(raw)
+	let contents = await ioReadDir(folder)
+	let files = contents.filter(f => f.is_file && !f.is_dir && !f.is_symlink)//only include files
+	files = files.map(f => ({...f,
+		path: parse.join(folder, f.name),
+		extension: parse.extname(f.name).toLowerCase(),
+	}))
+	let images = files
+		.filter(f => !f.name.startsWith('.'))//skip the .name.ext files macos makes for every file on a removable drive
+		.filter(f => imageTypes[f.extension])//only include known extensions
+		.map(f => ({
+		...f,
+		mime: imageTypes[f.extension],//include the mime type that goes with that extension
+	}))
 
-	/*
-	rudimentary here is .name "1red.jpg", .is_file true
-	*/
-
-	log(`${path} <- path, backized to ${backize(path)}
-${folder} <- folder, backized to ${backize(folder)}
+	log(`
+${path} <- path
+${folder} <- folder
+found ${images.length} images
 `)
+	console.log(images)
 
 
 
