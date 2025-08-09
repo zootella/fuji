@@ -26,7 +26,7 @@ onBeforeUnmount(() => {
 	if (unlistenFileDrop) unlistenFileDrop()
 })
 
-//forwardize all new paths that come into the system, and backize them for display to the user
+//forwardize all new paths that come into the system, then backize to show on the page
 function forwardize(path) {
 	//rotate backslashes forward given what looks like a windows drive letter path; the forwardized path will still work with path-browserify and our rust io module code
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\\/g, '/') : path
@@ -36,17 +36,28 @@ function backize(path) {
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
 }
 
-async function lookPath(path) {//given a path, return text all about it
+async function listImages(path) {//given a path to a folder, return a sorted list of complete paths to all the images
 
 	/*
-	ok, you're right, this works on mac, but not windows
-	ok so i want to write a little helper function which leaves unix style paths the same, but converts windows style paths into a format so that my code after this function can be cross platform
-	i need these converted windows paths to still work as we use them, both with js here, with path-browserify, and with the rust functions in the style as i've showed them to you. i do not want to convert back and forth, for instance
-	also, in scope is mac and windows paths, but we can leave windows network share style paths out of scope for now; we'll worry about supporting and testing those at a much later time
+	ok chat, let's write this
+	i ithink the array from ioReadDir we'll
+	- just look at is_file true items
+	- use browserify-path, here named parse, to get the file extension
+	- and also to assemble the complete path
+	- have a hardcoded whitelist of common image file extensions (for this, i'd like y ou to think deeply, seraching as necessary. let's consider computing since the start of the web, windows mac and unix, to list )
 	*/
+
+}
+
+async function lookPath(path) {//given a path, return text all about it
 
 	let folder = parse.dirname(path)
 	let raw = await ioReadDir(folder)
+	console.log(raw)
+
+	/*
+	rudimentary here is .name "1red.jpg", .is_file true
+	*/
 
 	log(`${path} <- path, backized to ${backize(path)}
 ${folder} <- folder, backized to ${backize(folder)}
