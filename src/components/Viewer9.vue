@@ -3,15 +3,16 @@
 import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ioRead} from '../io.js'
+import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
+
+import {hello1} from './library.js'
 
 onMounted(async () => {
 	const w = getCurrentWindow()
-	unlistenFileDrop = await w.onDragDropEvent(event => {
+	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
 			let path = event.payload.paths[0]
-			console.log(`dropped path "${path}"`)
-
-			loadImagePathToRef(img8Ref, path)//right now we just load everything into img8!
+			await onDroppedPath(path)
 		}
 	})
 })
@@ -20,23 +21,19 @@ onBeforeUnmount(() => {
 	if (unlistenFileDrop) unlistenFileDrop()
 })
 
-function asyncBlobToDataUrl(blob) {
-	return new Promise((resolve, reject) => {
-		const reader = new FileReader()
-		reader.onerror   = () => reject(reader.error)
-		reader.onloadend = () => resolve(reader.result)
-		reader.readAsDataURL(blob)
-	})
+async function onDroppedPath(path) {
+	console.log(`dropped path "${path}"`)
+
+	let details = await loadImage1(path)
+	await loadImage2(img8Ref.value, details)//right now we just load everything into img8!
+
+	console.log(details)
+	console.log(`${details.t2 - details.t1}ms disk + ${details.t3 - details.t2}ms memory + ${details.t4 - details.t3}ms render`)
+
+	console.log(`also, from the new library: ${hello1()}`)
 }
 
-/*
-the pipeline from storage bytes to panel pixels
-path - string, identifies a file on the disk
-bytes - Uint8Array, the bytes from the file up here in js memory land
-
-*/
-
-async function loadImagePathToRef(imgRef, path) {//load the image at path into the given vue image reference
+async function loadImage1(path) {//read the file at path and get a data url string ready to render
 	let details = {}
 	details.t1 = performance.now()//start time
 	details.path = path
@@ -45,34 +42,32 @@ async function loadImagePathToRef(imgRef, path) {//load the image at path into t
 	let bytes = new Uint8Array(await ioRead(path))
 	details.t2 = performance.now()//time spent in io from disk
 	let blob = new Blob([bytes.buffer], {type: 'image/png'})
-	let data = await asyncBlobToDataUrl(blob)
+	let data = await blobToDataUrl(blob)//alternatively, URL.createObjectURL saves memory, but creates a resource that could leak
 	details.t3 = performance.now()//time converting formats in memory
 	details.size = bytes.length//byte size of file
 	details.data = data//keep a reference to the data url even though we don't use it yet
+	return details
+}
+async function loadImage2(img, details) {//render the data url string details.data into the given hidden img tag
 
 	//load the data url into the given img tag and decode it
-	imgRef.value.src = data
-	await nextTick()//chat says this won't slow us down, and without it the decode could still be the previous src!
-	await imgRef.value.decode()//throws on problem with the image data
+	img.src = details.data//setting this should cause an earlier call awaiting decode to throw, and this new call to work fine
+	await img.decode()//throws on problem with the image data
 
 	//success if there wasn't an exception from that
 	details.t4 = performance.now()//time rendering image to bitmap
-	details.w = imgRef.value.naturalWidth//and now we can get its pixel dimensions
-	details.h = imgRef.value.naturalHeight
+	details.w = img.naturalWidth//and now we can get its pixel dimensions
+	details.h = img.naturalHeight
 
 	//style the img so it fills the container div, which will be the correct aspect ratio
-	imgRef.value.style.position = 'absolute'
-	imgRef.value.style.top = '0'
-	imgRef.value.style.left = '0'
-	imgRef.value.style.width = '100%'
-	imgRef.value.style.height = '100%'
-	imgRef.value.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
+	img.style.position = 'absolute'
+	img.style.top = '0'
+	img.style.left = '0'
+	img.style.width = '100%'
+	img.style.height = '100%'
+	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
 
-	imgRef.value.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
-
-	console.log(details)
-	console.log(`${details.t2 - details.t1}ms disk + ${details.t3 - details.t2}ms memory + ${details.t4 - details.t3}ms render`)
-	return details
+	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
 }
 
 const containerRef = ref(null)
@@ -134,7 +129,17 @@ async function flipImage(forward) {//direction forward true, reverse false
 	imageNext = behind//for double ahead, reuse behind which fell off the horizon
 }
 
+//promise helpers
 const raf = () => new Promise(r => requestAnimationFrame(r))
+function blobToDataUrl(blob) {//promisifed wrapper of FileReader's .readAsDataURL method
+	let reader = new FileReader()
+	let p = new Promise((resolve, reject) => {
+		reader.onload  = () => resolve(reader.result)
+		reader.onerror = () => reject(reader.error)
+	})
+	reader.readAsDataURL(blob)
+	return p
+}
 
 </script>
 <template>
@@ -142,7 +147,7 @@ const raf = () => new Promise(r => requestAnimationFrame(r))
 
 <div ref="containerRef" class="relative w-screen h-screen bg-black overflow-hidden">
 	<img ref="img7Ref" style="display: none;" />
-	<img ref="img8Ref" style="display: none;" />
+	<img ref="img8Ref" style="display: none;" /><!-- three img tags for current (shown), previous (cached), and next (preloaded) -->
 	<img ref="img9Ref" style="display: none;" />
 </div>
 

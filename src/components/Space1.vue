@@ -105,6 +105,70 @@ function zoom(direction) {
 	//...
 }
 
+
+
+
+const _dimension = {//our complete set of state variables, from which we can position everything
+	dhp: 0,//diamond half permimiter, screen width + height, set on startup and upon entering full screen
+	arrow1: {x: 0, y: 0},//frame corner to frame middle, set on startup and upon entering full screen
+	arrow2: {x: 0, y: 0},//frame middle to space origin, set during pan on each drag segment
+	zoom: 1,//zoom multiplier, set on zoom step or drag
+	image: {w: 0, h: 0},//image file width and height, set on image load or flip to next image
+	tile: {}
+}
+
+function displayCompute(dimension) {//from the given dimension information, calculate display styles
+
+	//going to look at dhp, arrow1, arrow2, zoom, image width and height
+	//to then compute translate and card
+
+
+	return {
+		translate:'',
+		card:'',
+	}
+
+}
+
+
+function displayUpdate(d) {//given a new display request, change style only if necessary, and save it as official current state
+	if (!(
+		_displayed.translate.x == d.translate.x &&
+		_displayed.translate.y == d.translate.y)) {
+
+		cardRef.value.style.transform = `translate(${d.translate.x}px, ${d.translate.y}px)`
+		frameRef.value.style.backgroundPosition = `${d.translate.x % d.tile.x}px ${d.translate.y % d.tile.y}px`
+	}
+	if (!(
+		_displayed.card.home.x == d.card.home.x &&
+		_displayed.card.home.y == d.card.home.y &&
+		_displayed.card.span.w == d.card.span.w &&
+		_displayed.card.span.h == d.card.span.h)) {
+
+		cardRef.value.style.top = d.card.home.x+'px'
+		cardRef.value.style.left = d.card.home.y+'px'
+		cardRef.value.style.width = d.card.span.x+'px'
+		cardRef.value.style.height = d.card.span.y+'px'
+	}
+	_displayed = d
+}
+const _displayed = {//what we have set the page to currently display; use to only update if necessary!
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function onPointerMove(e) { if (!drag) return
 	let segment = {//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
 		x: e.clientX - drag.start.x,
@@ -117,12 +181,14 @@ function onPointerMove(e) { if (!drag) return
 	move(segment)
 }
 
-function arrow(x, y) { return {x, y} }
-function math(a1, operator, a2) {
-	if      (operator == '+') { return {x: a1.x + a2.x, y: a1.y + a2.y} }//use with two {x, y} objects
-	else if (operator == '-') { return {x: a1.x - a2.x, y: a1.y - a2.y} }
-	else if (operator == '*') { return {x: a1.x * a2,   y: a1.y * a2  } }//use with ane xy object and a number, like 2
-	else if (operator == '/') { return {x: a1.x / a2,   y: a1.y / a2  } }
+function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to compute
+	if      (o == '+') { return {x: a.x + b.x, y: a.y + b.y} }//use with two {x, y} objects
+	else if (o == '-') { return {x: a.x - b.x, y: a.y - b.y} }
+	else if (o == '*') { return {x: a.x * b,   y: a.y * b  } }//use with ane xy object and a number, like 2
+	else if (o == '/') { return {x: a.x / b,   y: a.y / b  } }
+	else if (o == '==') { return   a.x == b.x && a.y == b.y  }
+	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
+	else return {x: a, y: o}
 }
 
 const hud1Ref = ref('upper left')

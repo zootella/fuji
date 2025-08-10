@@ -14,6 +14,7 @@ import Viewer5 from './components/Viewer5.vue'//img tag with gamma and pixelated
 import Viewer6 from './components/Viewer6.vue'//decode img in script
 import Viewer7 from './components/Viewer7.vue'//img tag in template
 import Viewer8 from './components/Viewer8.vue'//img triad
+import Viewer9 from './components/Viewer9.vue'//data url path versus object url path
 
 import Pixel1 from './components/Pixel1.vue'
 
@@ -26,6 +27,6 @@ import Space1 from './components/Space1.vue'//pink polka dots
 </script>
 <template>
 
-<Lister2 />
+<Viewer9 />
 
 </template>
