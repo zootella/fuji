@@ -1,4 +1,4 @@
-<script setup>//./components/Space1.vue - infinite pannable tabletop (current best)
+<script setup>//./components/MySpace.vue - infinite pannable tabletop (current best)
 
 //keep, infinite pannable tabletop
 

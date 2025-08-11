@@ -1,4 +1,4 @@
-<script setup>//./components/Viewer5.vue - io module, FileReader, Blob, img tag, SVG gamma filter option, CSS pixelated option
+<script setup>//./components/MyLens.vue - io module, FileReader, Blob, img tag, SVG gamma filter option, CSS pixelated option
 
 //keep, here's where you've got SVG gamma and CSS pixelated
 

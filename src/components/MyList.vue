@@ -1,4 +1,4 @@
-<script setup>//./components/Lister2.vue - drop in image and list images in that folder (current best)
+<script setup>//./components/MyList.vue - drop in image and list images in that folder (current best)
 
 //keep, drop events we list files from, and lots of native resolution working and thinking in here, too
 
