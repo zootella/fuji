@@ -154,7 +154,7 @@ function displayUpdate(d) {//given a new display request, change style only if n
 	}
 	_displayed = d
 }
-const _displayed = {//what we have set the page to currently display; use to only update if necessary!
+let _displayed = {//what we have set the page to currently display; use to only update if necessary!
 }
 
 

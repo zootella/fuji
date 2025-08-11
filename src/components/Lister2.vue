@@ -10,17 +10,28 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {lookPath, forwardize, backize} from './library.js'//our javascript library
 
 const hardVerticals = [
-	480,//Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
-	600,//SVGA (800×600); common in late '90s multimedia PCs
-	768,//WXGA (1366×768); dominant in budget laptops for over a decade
-	900,//1440×900 and 1600×900; mid-range panels, especially Dell and HP
-	1024,//SXGA (1280×1024); popular in 4:3 office monitors
-
-	1080,//Full HD (1920×1080); the most common resolution today
-	1200,//UXGA (1600×1200); classic 4:3 pro panels, especially Dell UltraSharp
-	1440,//QHD (2560×1440); high-end monitors and gaming setups
-	2160,//4K UHD (3840×2160); widespread in premium laptops and monitors
-	2880,//5K (5120×2880); found in iMacs and ultra-premium displays
+	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
+	600,  // SVGA (800×600); common in late '90s multimedia PCs
+	720,  // HD (1280×720); entry-level TVs, older budget laptops
+	768,  // WXGA (1366×768); dominant in budget laptops for over a decade [mainstream]
+	864,  // FWXGA variant (1536×864); occasional in mid-range laptops
+	900,  // 1440×900 / 1600×900; mid-range panels, especially Dell and HP [mainstream]
+	1024, // SXGA (1280×1024); popular 4:3 office monitors in the 2000s
+	1050, // WSXGA+ (1680×1050); mid-to-high-end 16:10 panels in the late 2000s
+	1080, // Full HD (1920×1080); the most common resolution today [mainstream]
+	1152, // QWXGA (2048×1152); uncommon wide format, some niche monitors
+	1200, // UXGA (1600×1200) / WUXGA (1920×1200); pro and workstation panels [mainstream]
+	1440, // QHD (2560×1440); high-end monitors, gaming setups, premium laptops [mainstream]
+	1536, // QXGA (2048×1536); uncommon high-res 4:3, some tablets
+	1600, // WQXGA (2560×1600); premium 16:10 laptops and monitors [mainstream]
+	1664, // MacBook Air M2 native (2560×1664)
+	1964, // MacBook Pro 14" native (3024×1964)
+	2160, // 4K UHD (3840×2160); widespread in premium laptops and monitors [mainstream]
+	2234, // MacBook Pro 16" native (3456×2234)
+	2520, // iMac 24" 4.5K Retina (4480×2520)
+	2880, // 5K (5120×2880); iMacs and ultra-premium displays
+	3200, // 6K (6016×3384); Apple Pro Display XDR and similar
+	4320, // 8K UHD (7680×4320); bleeding-edge professional monitors
 ]
 
 onMounted(async () => {
