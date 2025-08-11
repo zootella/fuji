@@ -33,7 +33,7 @@ fn hard_vertical() -> u32 {
 }
 #[cfg(target_os = "windows")]
 mod platform {
-	use windows::Win32::Graphics::Gdi::{GetSystemMetrics, SM_CYSCREEN};
+	use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CYSCREEN};
 	use std::panic;
 	pub fn hard_vertical() -> u32 {
 		panic::catch_unwind(|| unsafe {
