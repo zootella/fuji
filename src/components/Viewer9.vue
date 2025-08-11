@@ -25,14 +25,15 @@ onBeforeUnmount(() => {
 async function onDroppedPath(path) {
 	console.log(`dropped path "${path}"`)
 
-	let details = await loadImage1(path)
-	await loadImage2(img8Ref.value, details)//right now we just load everything into img8!
+	let details = await readImage(path)
+	await renderImage(img8Ref.value, details)//right now we just load everything into img8!
 
 	console.log(details)
 	console.log(`${details.t2 - details.t1}ms disk + ${details.t3 - details.t2}ms memory + ${details.t4 - details.t3}ms render`)
 }
 
-async function loadImage1(path) {//read the file at path and get a data url string ready to render
+//tolibrary
+async function readImage(path) {//read the file at path and get a data url string ready to render
 	let details = {}
 	details.t1 = performance.now()//start time
 	details.path = path
@@ -47,7 +48,7 @@ async function loadImage1(path) {//read the file at path and get a data url stri
 	details.data = data//keep a reference to the data url even though we don't use it yet
 	return details
 }
-async function loadImage2(img, details) {//render the data url string details.data into the given hidden img tag
+async function renderImage(img, details) {//render the data url string details.data into the given hidden img tag
 
 	//load the data url into the given img tag and decode it
 	img.src = details.data//setting this should cause an earlier call awaiting decode to throw, and this new call to work fine
@@ -96,7 +97,7 @@ async function loadImage(i, path) {
 
 	let details
 	try {
-		details = await loadImagePathToRef(i.imgRef, path)
+		details = await loadImagePathToRef(i.imgRef, path)//need to switch to readImage and renderImage
 	} catch (e) {
 		i.state = 'Error.'
 		i.error = e

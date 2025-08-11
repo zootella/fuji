@@ -9,6 +9,7 @@ import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {lookPath, forwardize, backize} from './library.js'//our javascript library
 
+//tolibrary
 const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
 	600,  // SVGA (800×600); common in late '90s multimedia PCs

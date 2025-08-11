@@ -183,6 +183,7 @@ function onPointerMove(e) { if (!drag) return
 	move(segment)
 }
 
+//tolibrary
 function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to compute
 	if      (o == '+') { return {x: a.x + b.x, y: a.y + b.y} }//use with two {x, y} objects
 	else if (o == '-') { return {x: a.x - b.x, y: a.y - b.y} }
