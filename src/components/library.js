@@ -111,18 +111,7 @@ export async function renderImage(img, details) {//render the data url string de
 
 	//success if there wasn't an exception from that
 	details.t4 = performance.now()//time rendering image to bitmap
-	details.w = img.naturalWidth//and now we can get its pixel dimensions
-	details.h = img.naturalHeight
-
-	//style the img so it fills the container div, which will be the correct aspect ratio
-	img.style.position = 'absolute'
-	img.style.top = '0'
-	img.style.left = '0'
-	img.style.width = '100%'
-	img.style.height = '100%'
-	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
-
-	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
+	details.span = xy(img.naturalWidth, img.naturalHeight)//and now we can get its pixel dimensions
 }
 
 
