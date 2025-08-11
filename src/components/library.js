@@ -88,6 +88,46 @@ found ${images.length} images
 
 
 
+export async function readImage(path) {//read the file at path and get a data url string ready to render
+	let details = {}
+	details.t1 = performance.now()//start time
+	details.path = path
+
+	//read file and convert to data url
+	let bytes = new Uint8Array(await ioRead(path))
+	details.t2 = performance.now()//time spent in io from disk
+	let blob = new Blob([bytes.buffer], {type: 'image/png'})
+	let data = await blobToDataUrl(blob)//alternatively, URL.createObjectURL saves memory, but creates a resource that could leak
+	details.t3 = performance.now()//time converting formats in memory
+	details.size = bytes.length//byte size of file
+	details.data = data//keep a reference to the data url even though we don't use it yet
+	return details
+}
+export async function renderImage(img, details) {//render the data url string details.data into the given hidden img tag
+
+	//load the data url into the given img tag and decode it
+	img.src = details.data//setting this should cause an earlier call awaiting decode to throw, and this new call to work fine
+	await img.decode()//throws on problem with the image data
+
+	//success if there wasn't an exception from that
+	details.t4 = performance.now()//time rendering image to bitmap
+	details.w = img.naturalWidth//and now we can get its pixel dimensions
+	details.h = img.naturalHeight
+
+	//style the img so it fills the container div, which will be the correct aspect ratio
+	img.style.position = 'absolute'
+	img.style.top = '0'
+	img.style.left = '0'
+	img.style.width = '100%'
+	img.style.height = '100%'
+	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
+
+	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
+}
+
+
+
+
 
 
 
@@ -124,9 +164,9 @@ export function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to comp
 	else if (o == '-') { return {x: a.x - b.x, y: a.y - b.y} }
 	else if (o == '*') { return {x: a.x * b,   y: a.y * b  } }//use with ane xy object and a number, like 2
 	else if (o == '/') { return {x: a.x / b,   y: a.y / b  } }
-	else if (o == '==') { return   a.x == b.x && a.y == b.y  }
+	else if (o == '==') { return   a.x == b.x && a.y == b.y  }//equals
 	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
-	else return {x: a, y: o}
+	else return {x: a, y: o}//shorthand to make a new object like {x, y}
 }
 
 

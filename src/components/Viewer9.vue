@@ -8,7 +8,7 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {ioRead, ioReadDir} from '../io.js'//our rust module
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {xy, raf, blobToDataUrl, forwardize, backize, lookPath} from './library.js'//our javascript library
+import {xy, raf, blobToDataUrl, forwardize, backize, lookPath, readImage, renderImage} from './library.js'//our javascript library
 
 onMounted(async () => {
 	const w = getCurrentWindow()
@@ -32,44 +32,6 @@ async function onDroppedPath(path) {
 
 	console.log(details)
 	console.log(`${details.t2 - details.t1}ms disk + ${details.t3 - details.t2}ms memory + ${details.t4 - details.t3}ms render`)
-}
-
-//tolibrary
-async function readImage(path) {//read the file at path and get a data url string ready to render
-	let details = {}
-	details.t1 = performance.now()//start time
-	details.path = path
-
-	//read file and convert to data url
-	let bytes = new Uint8Array(await ioRead(path))
-	details.t2 = performance.now()//time spent in io from disk
-	let blob = new Blob([bytes.buffer], {type: 'image/png'})
-	let data = await blobToDataUrl(blob)//alternatively, URL.createObjectURL saves memory, but creates a resource that could leak
-	details.t3 = performance.now()//time converting formats in memory
-	details.size = bytes.length//byte size of file
-	details.data = data//keep a reference to the data url even though we don't use it yet
-	return details
-}
-async function renderImage(img, details) {//render the data url string details.data into the given hidden img tag
-
-	//load the data url into the given img tag and decode it
-	img.src = details.data//setting this should cause an earlier call awaiting decode to throw, and this new call to work fine
-	await img.decode()//throws on problem with the image data
-
-	//success if there wasn't an exception from that
-	details.t4 = performance.now()//time rendering image to bitmap
-	details.w = img.naturalWidth//and now we can get its pixel dimensions
-	details.h = img.naturalHeight
-
-	//style the img so it fills the container div, which will be the correct aspect ratio
-	img.style.position = 'absolute'
-	img.style.top = '0'
-	img.style.left = '0'
-	img.style.width = '100%'
-	img.style.height = '100%'
-	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
-
-	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
 }
 
 const containerRef = ref(null)
