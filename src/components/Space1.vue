@@ -2,8 +2,13 @@
 
 //keep, infinite pannable tabletop
 
-import {getCurrentWindow} from '@tauri-apps/api/window'
+import {invoke} from '@tauri-apps/api/core';
+import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
+import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
+import {ioRead, ioReadDir} from '../io.js'//our rust module
+
 import {ref, onMounted, onBeforeUnmount} from 'vue'
+import {xy, raf, blobToDataUrl, forwardize, backize, lookPath} from './library.js'//our javascript library
 
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
@@ -85,21 +90,21 @@ function onUp(e) {
 	drag = null//discard the drag object, getting things ready for the next drag
 }
 
-let arrow1 = {x: 0, y: 0}//arrow1 points from the corner of the frame to the center of the pannable space; changes when the user drags to pan
-let arrow2 = {x: 0, y: 0}//arrow2 points from the center of the pannable space to corner of the card; changes when we zoom
+let arrow1 = xy(0, 0)//arrow1 points from the corner of the frame to the center of the pannable space; changes when the user drags to pan
+let arrow2 = xy(0, 0)//arrow2 points from the center of the pannable space to corner of the card; changes when we zoom
 function onResize() {//called once on mounted and whenever the viewport size changes
 	console.log('on resize! ↘️')
 	//...
 }
 function move(segment) {//move the card under the frame by the given segment
-	arrow1 = math(arrow1, '+', segment)
-	let a12 = math(arrow1, '+', arrow2)
+	arrow1 = xy(arrow1, '+', segment)
+	let a12 = xy(arrow1, '+', arrow2)
 	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`
 	frameRef.value.style.backgroundPosition = `${a12.x % 60}px ${a12.y % 60}px`
 	//^the GPU moves the card to the new pan position, elements nested within the card automatically move along; the second line of code makes the frame's repeating background stay in the same place underneath
 }
 
-const cardSize = {w: 800, h: 600}//dimensions of rectangular div the user can drag to pan around in space
+const cardSpan = xy(800, 600)//dimensions of rectangular div the user can drag to pan around in space
 let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
 const zoomStep = 1.1
 function zoom(direction) {
@@ -112,11 +117,11 @@ function zoom(direction) {
 
 const _dimension = {//our complete set of state variables, from which we can position everything
 	dhp: 0,//diamond half permimiter, screen width + height, set on startup and upon entering full screen
-	arrow1: {x: 0, y: 0},//frame corner to frame middle, set on startup and upon entering full screen
-	arrow2: {x: 0, y: 0},//frame middle to space origin, set during pan on each drag segment
 	zoom: 1,//zoom multiplier, set on zoom step or drag
-	image: {w: 0, h: 0},//image file width and height, set on image load or flip to next image
-	tile: {}
+	arrow1: xy(0, 0),//frame corner to frame middle, set on startup and upon entering full screen
+	arrow2: xy(0, 0),//frame middle to space origin, set during pan on each drag segment
+	image: xy(0, 0),//image file width and height, set on image load or flip to next image
+	tile: xy(60, 60),//table tile width and height
 }
 
 function displayCompute(dimension) {//from the given dimension information, calculate display styles
@@ -134,35 +139,29 @@ function displayCompute(dimension) {//from the given dimension information, calc
 
 
 function displayUpdate(d) {//given a new display request, change style only if necessary, and save it as official current state
-	if (!(
-		_displayed.translate.x == d.translate.x &&
-		_displayed.translate.y == d.translate.y)) {
+
+	if (
+		xy(_displayed.translate, '==', d.translate) &&//the tabletop center is the same distance panned away from the frame corner
+		xy(_displayed.tile,      '==', d.tile)//the repeating tabletop tiled pattern has the same dimensions
+	) {/* no space translation necessary */} else {
 
 		cardRef.value.style.transform = `translate(${d.translate.x}px, ${d.translate.y}px)`
 		frameRef.value.style.backgroundPosition = `${d.translate.x % d.tile.x}px ${d.translate.y % d.tile.y}px`
 	}
-	if (!(
-		_displayed.card.home.x == d.card.home.x &&
-		_displayed.card.home.y == d.card.home.y &&
-		_displayed.card.span.w == d.card.span.w &&
-		_displayed.card.span.h == d.card.span.h)) {
+
+	if (
+		xy(_displayed.card.home, '==', d.card.home) &&//the card is in the same size and place
+		xy(_displayed.card.span, '==', d.card.span)
+	) {/* no card top/left/width/height necessary */} else {
 
 		cardRef.value.style.top = d.card.home.x+'px'
 		cardRef.value.style.left = d.card.home.y+'px'
 		cardRef.value.style.width = d.card.span.x+'px'
 		cardRef.value.style.height = d.card.span.y+'px'
 	}
-	_displayed = d
-}
-let _displayed = {//what we have set the page to currently display; use to only update if necessary!
-}
 
-
-
-
-
-
-
+	_displayed = d//record what we set on the page to skip an upcomming change that wouldn't be necessary
+} let _displayed//our record of how we've set the page to appear, treat as private to display update
 
 
 
@@ -172,26 +171,9 @@ let _displayed = {//what we have set the page to currently display; use to only 
 
 
 function onPointerMove(e) { if (!drag) return
-	let segment = {//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
-		x: e.clientX - drag.start.x,
-		y: e.clientY - drag.start.y
-	}
-	drag.start = {//get ready for the next drag segment
-		x: e.clientX,
-		y: e.clientY
-	}
+	let segment = xy(e.clientX - drag.start.x, e.clientY - drag.start.y)//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
+	drag.start = xy(e.clientX, e.clientY)//get ready for the next drag segment
 	move(segment)
-}
-
-//tolibrary
-function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to compute
-	if      (o == '+') { return {x: a.x + b.x, y: a.y + b.y} }//use with two {x, y} objects
-	else if (o == '-') { return {x: a.x - b.x, y: a.y - b.y} }
-	else if (o == '*') { return {x: a.x * b,   y: a.y * b  } }//use with ane xy object and a number, like 2
-	else if (o == '/') { return {x: a.x / b,   y: a.y / b  } }
-	else if (o == '==') { return   a.x == b.x && a.y == b.y  }
-	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
-	else return {x: a, y: o}
 }
 
 const hud1Ref = ref('upper left')
@@ -226,7 +208,7 @@ Here's a second line, another paragraph tag. They do pan with the card. If the c
 	<div
 		ref="cardRef"
 		class="myCard myShadow myDry myWillChangeTransform bg-gray-200 border border-cyan-500"
-		:style="{width: cardSize.w+'px', height: cardSize.h+'px'}"
+		:style="{width: cardSpan.x+'px', height: cardSpan.y+'px'}"
 	>
 
 		<!-- we could also put stuff inside the card box, like this orange box -->

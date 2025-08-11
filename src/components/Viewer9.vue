@@ -2,11 +2,13 @@
 
 //keep, current best image pipeline, and img triad under construction here
 
-import {getCurrentWindow} from '@tauri-apps/api/window'
-import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
+import {invoke} from '@tauri-apps/api/core';
+import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {ioRead} from '../io.js'//our rust module
-import {raf, blobToDataUrl} from './library.js'//our javascript library
+import {ioRead, ioReadDir} from '../io.js'//our rust module
+
+import {ref, onMounted, onBeforeUnmount} from 'vue'
+import {xy, raf, blobToDataUrl, forwardize, backize, lookPath} from './library.js'//our javascript library
 
 onMounted(async () => {
 	const w = getCurrentWindow()

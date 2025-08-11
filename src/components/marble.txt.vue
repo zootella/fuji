@@ -2,6 +2,14 @@
 
 //keep, dark marble from upstairs
 
+import {invoke} from '@tauri-apps/api/core';
+import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
+import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
+import {ioRead, ioReadDir} from '../io.js'//our rust module
+
+import {ref, onMounted, onBeforeUnmount} from 'vue'
+import {xy, raf, blobToDataUrl, forwardize, backize, lookPath} from './library.js'//our javascript library
+
 </script>
 <template>
 <div class="min-h-screen p-[50px] myMarble">
