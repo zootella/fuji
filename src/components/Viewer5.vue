@@ -1,5 +1,7 @@
 <script setup>//./components/Viewer5.vue - io module, FileReader, Blob, img tag, SVG gamma filter option, CSS pixelated option
 
+//keep, here's where you've got SVG gamma and CSS pixelated
+
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ioRead} from '../io.js'

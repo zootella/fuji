@@ -1,6 +1,8 @@
-<script setup>//./components/Viewer7.vue - img in template
+<script setup>//./components/Viewer6.vue - decode image in script, create new element
 
-import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
+//delete because intermediate draft
+
+import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ioRead} from '../io.js'
 
@@ -44,9 +46,8 @@ async function loadImage(p) {//takes a path to an image on the disk
 	loaded.data = data//keep a reference to the data url even though we don't use it yet
 
 	//make a new img tag and render the image into it
-	let img = image1Ref.value//instead of new Image(), get the existing vue reference from the template
+	let img = new Image()
 	img.src = data
-	await nextTick()
 	try {
 		await img.decode()//throws on problem with the image data
 	} catch (e) { loaded.e = e; console.error(e); return }
@@ -62,20 +63,19 @@ async function loadImage(p) {//takes a path to an image on the disk
 	img.style.width = '100%'
 	img.style.height = '100%'
 	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
-	img.style.display = ''//set to blank to show the img, replacing display none
 
-	//ok, here im using display none and '' directly instead of vue's v-show. is this ok to do with vue's reactivity system also at work here? doing it this way let's me keep position and display entirely in imperitive code. my idea is that soon we may have several images, not just image1, and then code will need to turn one off and another on, too
+	containerRef.value.innerHTML = ''//discard any previously loaded img
+	containerRef.value.appendChild(img)//put the img tag we made into the container, causing it to show up on the page
 }
 
 const containerRef = ref(null)
-const image1Ref = ref(null)
 
 </script>
 <template>
 <div>
 
 <div ref="containerRef" class="relative w-screen h-screen bg-black overflow-hidden">
-	<img ref="image1Ref" style="display: none;" />
+	<!-- the img tag we made on load will get put in here to show up on the page! -->
 </div>
 
 </div>

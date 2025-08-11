@@ -1,5 +1,6 @@
 <script setup>//./components/Marble3.vue - infinite panning marble background design for the full screen experience
 
+//delete because the comment at the start says this is a disaster
 
 
 

@@ -1,0 +1,163 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#[tauri::command]
+fn hard_vertical() -> u32 {
+	platform::hard_vertical()
+}
+mod platform {
+
+	#[cfg(target_os = "windows")]
+	mod imp {
+		use windows::Win32::Graphics::Gdi::{GetSystemMetrics, SM_CYSCREEN};
+		pub fn hard_vertical() -> u32 {
+			unsafe { GetSystemMetrics(SM_CYSCREEN) as u32 }
+		}
+	}
+
+	#[cfg(target_os = "macos")]
+	mod imp {
+		use core_graphics::display::{CGMainDisplayID, CGDisplayPixelsHigh};
+		use std::panic;
+		pub fn hard_vertical() -> u32 {
+			// Wrap unsafe call to avoid panics leaking out
+			panic::catch_unwind(|| unsafe {
+				let id = CGMainDisplayID();
+				CGDisplayPixelsHigh(id) as u32
+			})
+			.unwrap_or(0)
+		}
+	}
+
+	#[cfg(target_os = "linux")]
+	mod imp {
+		use std::process::Command;
+		pub fn hard_vertical() -> u32 {
+			let output = match std::process::Command::new("xrandr").arg("--query").output() {
+				Ok(o) => o,
+				Err(_) => return 0,
+			};
+			let stdout = String::from_utf8_lossy(&output.stdout);
+			for line in stdout.lines() {
+				if line.contains(" connected primary ") {
+					if let Some(res_part) = line.split_whitespace().find(|w| w.contains('+')) {
+						if let Some((resolution, _)) = res_part.split_once('+') {
+							if let Some((_, height_str)) = resolution.split_once('x') {
+								if let Ok(height) = height_str.parse::<u32>() {
+									return height;
+								}
+							}
+						}
+					}
+				}
+			}
+			0
+		}
+	}
+
+	#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+	mod imp {
+		pub fn hard_vertical() -> u32 {
+			0
+		}
+	}
+
+	// Re-export platform-specific function
+	#[cfg(target_os = "windows")]
+	pub use imp::hard_vertical;
+
+	#[cfg(target_os = "macos")]
+	pub use imp::hard_vertical;
+
+	#[cfg(target_os = "linux")]
+	pub use imp::hard_vertical;
+
+	#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+	pub use imp::hard_vertical;
+}
+
+
+
+
+
+
+
+
+/*
+earlier from chat4
+
+use tauri::{PhysicalSize, Window};//bring in what we need from tauri
+use display_info::DisplayInfo;
+
+#[tauri::command]
+fn count_pixels_1(window: Window) -> Result<(u32, u32, f64), String> {
+	let monitor = window
+		.current_monitor()
+		.map_err(|e| e.to_string())?
+		.ok_or("No monitor detected".to_string())?;
+	let PhysicalSize {width, height} = *monitor.size();
+	let scale = monitor.scale_factor();
+	Ok((width, height, scale))
+}
+
+#[tauri::command]
+fn count_pixels_2() -> Result<(u32, u32, f32), String> {
+	// fetch all displays
+	let mut displays = DisplayInfo::all().map_err(|e| e.to_string())?;
+	// pick the primary, or fallback to the first
+	let disp = displays
+		.iter()
+		.find(|d| d.is_primary)
+		.cloned()
+		.unwrap_or_else(|| displays.remove(0));
+
+	// disp.width/height = hardware pixels, disp.scale_factor = DPI scale
+	Ok((disp.width, disp.height, disp.scale_factor))
+}
+
+#[tauri::command]
+fn count_pixels_3(window: Window) -> Result<(u64, u64, f64), String> {
+	// first grab the logical & scale so we can return scale if you still need it
+	let monitor = window
+		.current_monitor()
+		.map_err(|e| e.to_string())?
+		.ok_or_else(|| "No monitor detected".to_string())?;
+	let scale = monitor.scale_factor();
+
+	// --- macOS native path: CoreGraphics ---
+	#[cfg(target_os = "macos")] {
+		let mode = CGDisplay::main()
+			.display_mode()
+			.ok_or_else(|| "Unable to get CGDisplayMode".to_string())?;
+		let pixel_w = mode.pixel_width();
+		let pixel_h = mode.pixel_height();
+		return Ok((pixel_w, pixel_h, scale));
+	}
+
+	// --- Windows / Linux fallback ---
+	#[cfg(not(target_os = "macos"))] {
+		let mut displays = DisplayInfo::all().map_err(|e| e.to_string())?;
+		let disp = displays
+			.iter()
+			.find(|d| d.is_primary)
+			.cloned()
+			.unwrap_or_else(|| displays.remove(0));
+		return Ok((disp.width, disp.height, disp.scale_factor as f64));
+	}
+}
+*/

@@ -1,4 +1,6 @@
-<script setup>//./components/Viewer4.vue
+<script setup>//./components/Viewer4.vue - rendering in canvas
+
+//delete because we abandoned canvas
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'

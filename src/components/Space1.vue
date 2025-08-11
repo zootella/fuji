@@ -1,4 +1,6 @@
-<script setup>//./components/Space1.vue - mvp infinite lighttable for full screen
+<script setup>//./components/Space1.vue - infinite pannable tabletop (current best)
+
+//keep, infinite pannable tabletop
 
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ref, onMounted, onBeforeUnmount} from 'vue'

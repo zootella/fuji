@@ -1,5 +1,7 @@
 <script setup>//./components/Pixel1.vue - a boondoggle trying to draw a raster image to hardware pixels
 
+//delete because fine you win we'll never get to be sure we can write to actual device pixels; upcoming rust code may still try to get the monitor resolution, though
+
 const imageSize = 900//counted in raster image file pixels which render 1:1 to device pixels
 const tableSize = 2500//counted in CSS pixels, which make sense to the user
 

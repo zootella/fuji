@@ -1,5 +1,7 @@
 <script setup>//./components/Viewer1.vue - using plugin fs, btoa, img tag
 
+//delete because we abandoned plugin fs
+
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {readFile} from '@tauri-apps/plugin-fs'

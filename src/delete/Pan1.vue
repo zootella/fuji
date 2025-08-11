@@ -1,5 +1,7 @@
 <script setup>//./components/Pan1.vue - first experiment panning around a large tabletop with an image in the middle
 
+//delete because we got a repeating tile working on an infinite tabletop, and will give the user 'd' if they get lost
+
 const imageSize = 900
 const tableSize = 2500
 

@@ -1,5 +1,7 @@
 <script setup>//./components/Viewer3.vue - still img tag, our own rust io module
 
+//delete because intermediate step
+
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ioRead} from '../io.js'

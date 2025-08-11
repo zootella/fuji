@@ -1,5 +1,7 @@
 <script setup>//./components/Viewer8.vue - inmg triad
 
+//delete because intermediate draft
+
 import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {ioRead} from '../io.js'

@@ -1,11 +1,12 @@
-<script setup>//./components/Viewer8.vue - inmg triad
+<script setup>//./components/Viewer9.vue - image load pipeline and img triad
 
-import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
+//keep, current best image pipeline, and img triad under construction here
+
 import {getCurrentWindow} from '@tauri-apps/api/window'
-import {ioRead} from '../io.js'
+import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-
-import {hello1} from './library.js'
+import {ioRead} from '../io.js'//our rust module
+import {raf, blobToDataUrl} from './library.js'//our javascript library
 
 onMounted(async () => {
 	const w = getCurrentWindow()
@@ -29,8 +30,6 @@ async function onDroppedPath(path) {
 
 	console.log(details)
 	console.log(`${details.t2 - details.t1}ms disk + ${details.t3 - details.t2}ms memory + ${details.t4 - details.t3}ms render`)
-
-	console.log(`also, from the new library: ${hello1()}`)
 }
 
 async function loadImage1(path) {//read the file at path and get a data url string ready to render
@@ -127,18 +126,6 @@ async function flipImage(forward) {//direction forward true, reverse false
 	imagePrev = here//go back to get where we were
 	imageMain = ahead//we moved ahead
 	imageNext = behind//for double ahead, reuse behind which fell off the horizon
-}
-
-//promise helpers
-const raf = () => new Promise(r => requestAnimationFrame(r))
-function blobToDataUrl(blob) {//promisifed wrapper of FileReader's .readAsDataURL method
-	let reader = new FileReader()
-	let p = new Promise((resolve, reject) => {
-		reader.onload  = () => resolve(reader.result)
-		reader.onerror = () => reject(reader.error)
-	})
-	reader.readAsDataURL(blob)
-	return p
 }
 
 </script>
