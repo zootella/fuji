@@ -1,6 +1,6 @@
 <script setup>//./components/Table.vue - mvp lighttable for full screen
 
-//delete, no longer using finite table
+//delete because no longer using finite table
 
 const imageSize = 900
 const tableSize = 3000

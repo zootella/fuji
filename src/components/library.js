@@ -6,7 +6,7 @@
 // |_|   \__,_|/ |_|
 //           |__/   
 
-
+//keep, this is the new unifed library to keep components short and tell what's a pure function in here
 
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {ioRead, ioReadDir} from '../io.js'//our rust module
