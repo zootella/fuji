@@ -17,6 +17,9 @@ onMounted(() => {
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize); onResize()//and call right away to look at the starting size
+
+	dimensionStart()
+	setText()
 })
 onBeforeUnmount(() => {
 	frameRef.value.removeEventListener('wheel', onWheel)
@@ -80,7 +83,7 @@ let drag//an object of positions and ids during a left or right click drag
 function dragStart(e) {
 	drag = {
 		button: e.button,//0 primary or 2 secondary mouse button
-		start: {x: e.clientX, y: e.clientY},//record where this drag started
+		start: xy(e.clientX, e.clientY),//record where this drag started
 		pointer: e.pointerId,
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
@@ -90,105 +93,87 @@ function onUp(e) {
 	drag = null//discard the drag object, getting things ready for the next drag
 }
 
-let arrow1 = xy(0, 0)//arrow1 points from the corner of the frame to the center of the pannable space; changes when the user drags to pan
-let arrow2 = xy(0, 0)//arrow2 points from the center of the pannable space to corner of the card; changes when we zoom
-function onResize() {//called once on mounted and whenever the viewport size changes
-	console.log('on resize! ↘️')
-	//...
-}
-function move(segment) {//move the card under the frame by the given segment
-	arrow1 = xy(arrow1, '+', segment)
-	let a12 = xy(arrow1, '+', arrow2)
-	cardRef.value.style.transform = `translate(${a12.x}px, ${a12.y}px)`
-	frameRef.value.style.backgroundPosition = `${a12.x % 60}px ${a12.y % 60}px`
-	//^the GPU moves the card to the new pan position, elements nested within the card automatically move along; the second line of code makes the frame's repeating background stay in the same place underneath
-}
-
-const cardSpan = xy(800, 600)//dimensions of rectangular div the user can drag to pan around in space
-let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
-const zoomStep = 1.1
-function zoom(direction) {
-	zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
-	//...
-}
-
-
-
-
-const _dimension = {//our complete set of state variables, from which we can position everything
-	dhp: 0,//diamond half permimiter, screen width + height, set on startup and upon entering full screen
-	zoom: 1,//zoom multiplier, set on zoom step or drag
-	arrow1: xy(0, 0),//frame corner to frame middle, set on startup and upon entering full screen
-	arrow2: xy(0, 0),//frame middle to space origin, set during pan on each drag segment
-	image: xy(0, 0),//image file width and height, set on image load or flip to next image
-	tile: xy(60, 60),//table tile width and height
-}
-
-function displayCompute(dimension) {//from the given dimension information, calculate display styles
-
-	//going to look at dhp, arrow1, arrow2, zoom, image width and height
-	//to then compute translate and card
-
-
-	return {
-		translate:'',
-		card:'',
-	}
-
-}
-
-
-function displayUpdate(d) {//given a new display request, change style only if necessary, and save it as official current state
-
-	if (
-		xy(_displayed.translate, '==', d.translate) &&//the tabletop center is the same distance panned away from the frame corner
-		xy(_displayed.tile,      '==', d.tile)//the repeating tabletop tiled pattern has the same dimensions
-	) {/* no space translation necessary */} else {
-
-		cardRef.value.style.transform = `translate(${d.translate.x}px, ${d.translate.y}px)`
-		frameRef.value.style.backgroundPosition = `${d.translate.x % d.tile.x}px ${d.translate.y % d.tile.y}px`
-	}
-
-	if (
-		xy(_displayed.card.home, '==', d.card.home) &&//the card is in the same size and place
-		xy(_displayed.card.span, '==', d.card.span)
-	) {/* no card top/left/width/height necessary */} else {
-
-		cardRef.value.style.top = d.card.home.x+'px'
-		cardRef.value.style.left = d.card.home.y+'px'
-		cardRef.value.style.width = d.card.span.x+'px'
-		cardRef.value.style.height = d.card.span.y+'px'
-	}
-
-	_displayed = d//record what we set on the page to skip an upcomming change that wouldn't be necessary
-} let _displayed//our record of how we've set the page to appear, treat as private to display update
-
-
-
-
-
-
-
-
-function onPointerMove(e) { if (!drag) return
-	let segment = xy(e.clientX - drag.start.x, e.clientY - drag.start.y)//the segment, positive x to the right and y down, of the segment the mouse just did during the current drag
-	drag.start = xy(e.clientX, e.clientY)//get ready for the next drag segment
-	move(segment)
-}
-
-const hud1Ref = ref('upper left')
-const hud2Ref = ref('System operating according to normal parameters')
-const hud3Ref = ref(`lower left, this one is longer
+const hud1Ref = ref('')
+const hud2Ref = ref('')
+const hud3Ref = ref('')
+const hud4Ref = ref('')
+const captionRef = ref('')
+function setText() {
+/*
+hud1Ref.value = 'upper left'
+hud2Ref.value = 'System operating according to normal parameters'
+hud3Ref.value = `lower left, this one is longer
 and could involve a second line of text, which could be quite long; text that grows to the width of the frame does wrap
-or even a third line`)
-const hud4Ref = ref(`middle of frame
+or even a third line`
+hud4Ref.value = `middle of frame
 this HUD will likely be a card showing the user all the
 keyboard shortcuts the app supports, and be really easy to
 show and hide, such as by pressing the [H]elp or just [Spacebar]
-and here is yet another line`)
+and here is yet another line`
+*/
+captionRef.value = `This paragraph, and the next, demonstrate a caption beneath the card. They don't affect the dimensions of the card.
+Here's a second line, another paragraph tag. They do pan with the card. If the card size changes, such as a zoom in, the text stays the same size and spot beneath the card.`//no terminating newline, if that matters
+}
 
-const captionRef = ref(`This paragraph, and the next, demonstrate a caption beneath the card. They don't affect the dimensions of the card.
-Here's a second line, another paragraph tag. They do pan with the card. If the card size changes, such as a zoom in, the text stays the same size and spot beneath the card.`)//no terminating newline, if that matters
+function onResize() {//called once on mounted and whenever the viewport size changes
+	console.log('on resize! ↘️')
+}
+// let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
+// const zoomStep = 1.1
+function zoom(direction) {
+	// zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
+}
+
+function onPointerMove(e) { if (!drag) return
+	let current = xy(e.clientX, e.clientY)//the new current location of the pointer
+	let segment = xy(current, '-', drag.start)//the segment it just moved to get to where it is now
+	drag.start = current//get ready for the next drag segment
+
+	quiverA.space = xy(quiverA.space, '+', segment)
+	update()
+}
+
+const quiverA = {}//Quiver A: {x, y} arrows, dimensions, and zoom that completely describe what we want to show on the page
+function dimensionStart() {
+
+	quiverA.diamond = screen.width + screen.height//full size diamond half permineter
+	quiverA.zoom = 1.5//zoom factor for the diamond permimiter
+	quiverA.space = xy(xy(frameRef.value.clientWidth, frameRef.value.clientHeight), '/', 2)//frame corner to space center
+	quiverA.natural = xy(300, 200)//natural image pixel width and height from its own file data
+	quiverA.tile = xy(60, 60)//tiled background
+	update()
+}
+function update() {
+
+	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
+	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a
+	quiverB.space = quiverA.space
+	quiverB.tile  = quiverA.tile//these arrows are the same, but copy them from a to b as b is our complete record of page styles
+	quiverB.card2 = xy(quiverA.natural, '*', quiverA.zoom)//diagonal across card top left to bottom right
+	quiverB.card1 = xy(quiverA.space, '+', xy(quiverB.card2, '/', -2))//from that, frame corner to card corner
+
+	//are there any changes we need to set on the page?
+	let same = false
+	if (quiverC) {
+		same = (
+			xy(quiverC.space, '==', quiverB.space) &&
+			xy(quiverC.tile,  '==', quiverB.tile)  &&
+			xy(quiverC.card1, '==', quiverB.card1) &&
+			xy(quiverC.card2, '==', quiverB.card2)
+		)
+	}
+	if (!same) {//only bother the page if necessary
+
+		frameRef.value.style.backgroundPosition = `${quiverB.space.x % quiverB.tile.x}px ${quiverB.space.y % quiverB.tile.x}px`
+		cardRef.value.style.transform = `translate(${quiverB.card1.x}px, ${quiverB.card1.y}px)`
+		cardRef.value.style.width = quiverB.card2.x+'px'
+		cardRef.value.style.height = quiverB.card2.y+'px'
+	}
+
+	//keep a record of what we told the page to only bother it next time it's necessary
+	quiverC = quiverB
+}
+let quiverC//Quiver C: our record of how we've styled the page to appear; treat as private to above
 
 </script>
 <template>
@@ -208,7 +193,6 @@ Here's a second line, another paragraph tag. They do pan with the card. If the c
 	<div
 		ref="cardRef"
 		class="myCard myShadow myDry myWillChangeTransform bg-gray-200 border border-cyan-500"
-		:style="{width: cardSpan.x+'px', height: cardSpan.y+'px'}"
 	>
 
 		<!-- we could also put stuff inside the card box, like this orange box -->

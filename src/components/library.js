@@ -155,7 +155,7 @@ export function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to comp
 	else if (o == '/') { return {x: a.x / b,   y: a.y / b  } }
 	else if (o == '==') { return   a.x == b.x && a.y == b.y  }//equals
 	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
-	else return {x: a, y: o}//shorthand to make a new object like {x, y}
+	else { return {x: a, y: o} }
 }
 
 
