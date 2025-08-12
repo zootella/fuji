@@ -43,7 +43,7 @@ Executable and installer on windows
 ./fuji/src-tauri/target/release/bundle/windows/fuji-0.1.0-x86_64.exe
 ```
 
-### Setup macOS
+## Setup macOS
 
 Verify or Install Xcode Command Line Tools
 ```
@@ -71,7 +71,7 @@ $ cargo --version
 cargo 1.88.0 (873a06493 2025-05-10)
 ```
 
-### Setup Windows 10
+## Setup Windows 10
 
 https://visualstudio.microsoft.com/visual-cpp-build-tools/
  * Downloads and runs a 4.5mb installer
