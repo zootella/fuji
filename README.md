@@ -3,6 +3,10 @@
 
 A multimedia file manager designed for precision and privacy.
 
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+	<circle cx="50" cy="50" r="50" fill="hotpink" />
+</svg>
+
 Made with
 [Rust](https://www.rust-lang.org/),
 [JS](https://developer.mozilla.org/en-US/docs/Web/JavaScript),
