@@ -31,13 +31,13 @@ $ yarn create tauri-app fuji
 
 ### Output
 
-Executable and installer on mac:
+Executable and installer on mac
 ```
 ./fuji/src-tauri/target/release/bundle/macos/fuji.app
 ./fuji/src-tauri/target/release/bundle/dmg/kay_0.1.0_aarch64.dmg
 ```
 
-Executable and installer on windows:
+Executable and installer on windows
 ```
 ./fuji/src-tauri/target/release/fuji.exe
 ./fuji/src-tauri/target/release/bundle/windows/fuji-0.1.0-x86_64.exe
@@ -78,7 +78,7 @@ https://visualstudio.microsoft.com/visual-cpp-build-tools/
  * Visual Studio Installer, wizard starts
  * Desktop development with C++, choose that one first card
 
-You can paste the whole block below into *PowerShell* as a single command:
+You can paste the whole block below into *PowerShell* as a single command
 ```
 # Detect Visual Studio Build Tools with MSVC
 $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
@@ -95,12 +95,12 @@ $clPath = Join-Path $latestMsvcVersion.FullName "bin\Hostx64\x64"
 Write-Host "Resolved cl.exe path:"
 Write-Host $clPath
 ```
-Should output a path like:
+Should output a path like
 ```
 Resolved cl.exe path:
 C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64
 ```
-You only need to get it on the path for this one *PowerShell* session:
+You only need to get it on the path for this one *PowerShell* session...
 ```
 # Add cl.exe to the path for this session, and confirm it's there
 $env:Path += ";$clPath"
@@ -111,15 +111,15 @@ CommandType  Name    Version    Source
 Application  cl.exe  14.44.3... C:\Program Files (x86)\Microsoft Visua...
 ```
 
-To be able to then install the Rust toolchain:
+...to be able to then install the Rust toolchain
 ```
 # Install the Rust toolchain
 Invoke-WebRequest -Uri https://win.rustup.rs -OutFile rustup-init.exe
 Start-Process .\rustup-init.exe
 ```
-This pops its own command line window, *Enter* for default.
+This pops its own command line window, *Enter* for default
 
-Now you can see everything in *MINGW64*:
+Now you can see everything in [Git](https://git-scm.com/downloads/win)'s *MINGW64*
 ```
 $ node --version, v20.15.0
 $ npm --version, 10.8.1
