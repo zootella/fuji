@@ -41,10 +41,10 @@ async function onKey(e) {
 	} else if (e.key == 'Escape') {
 		await setFullscreen(false)//macos will also exit fullscreen, but this call doesn't mess anything up with that
 	}
-	else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft')  }
-	else if (e.key == 'ArrowRight') { console.log('my key ArrowRight') }
-	else if (e.key == 'ArrowUp')    { console.log('my key ArrowUp')    }
-	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown')  }
+	else if (e.key == 'ArrowLeft')  { console.log('my key ArrowLeft');  quiverA.natural.x -= 100; quiver() }
+	else if (e.key == 'ArrowRight') { console.log('my key ArrowRight'); quiverA.natural.x += 100; quiver() }
+	else if (e.key == 'ArrowUp')    { console.log('my key ArrowUp');    quiverA.natural.y += 100; quiver() }
+	else if (e.key == 'ArrowDown')  { console.log('my key ArrowDown');  quiverA.natural.y -= 100; quiver() }
 	else if (e.key == 'PageUp')     { console.log('my key PageUp')     }
 	else if (e.key == 'PageDown')   { console.log('my key PageDown')   }
 	else if (e.key == '+')          { zoom(true)  }
@@ -63,7 +63,7 @@ function onWheel(e) {
 	if (e.ctrlKey)  s += ' +Ctrl'
 	if (e.shiftKey) s += ' +Shift'//with shift held on mac, delta y is 0 and x is positive or negative
 	if (e.metaKey)  s += ' +Meta'//testing on mac with karabiner elements and the microsoft keyboard, always seeing meta, never ctrl
-	console.log(s)
+	//console.log(s)
 
 	if      (e.deltaY < 0) { zoom(true)  }
 	else if (e.deltaY > 0) { zoom(false) }
@@ -118,10 +118,11 @@ Here's a second line, another paragraph tag. They do pan with the card. If the c
 function onResize() {//called once on mounted and whenever the viewport size changes
 	console.log('on resize! ↘️')
 }
-// let zoomAmount = 1//2 for 2x, in css pixels, 1 for exactly the card size
-// const zoomStep = 1.1
+
+const zoomStep = 1.25
 function zoom(direction) {
-	// zoomAmount = direction ? zoomAmount * zoomStep : zoomAmount / zoomStep
+	quiverA.zoom = direction ? quiverA.zoom * zoomStep : quiverA.zoom / zoomStep
+	quiver()//or, should zoom keep the part of the card that's in the center of the frame in the center? or, should it keep the part of the card that's under the pointer still? this is ok for now but you realize there are at least three ways to do this
 }
 
 function onPointerMove(e) { if (!drag) return
@@ -130,26 +131,27 @@ function onPointerMove(e) { if (!drag) return
 	drag.start = current//get ready for the next drag segment
 
 	quiverA.space = xy(quiverA.space, '+', segment)
-	update()
+	quiver()
 }
 
-const quiverA = {}//Quiver A: {x, y} arrows, dimensions, and zoom that completely describe what we want to show on the page
+//the way this works is, change arrows in quiver a, then call quiver(); keep everything in quiver a; don't touch quiver b or c
+const quiverA = {}//Quiver A: {x, y} arrows, dimensions, and zoom that completely describe where everything should appear
 function dimensionStart() {
 
 	quiverA.diamond = screen.width + screen.height//full size diamond half permineter
-	quiverA.zoom = 1.5//zoom factor for the diamond permimiter
+	quiverA.zoom = 0.2//zoom factor for the diamond permimiter
 	quiverA.space = xy(xy(frameRef.value.clientWidth, frameRef.value.clientHeight), '/', 2)//frame corner to space center
 	quiverA.natural = xy(300, 200)//natural image pixel width and height from its own file data
 	quiverA.tile = xy(60, 60)//tiled background
-	update()
+	quiver()
 }
-function update() {
+function quiver() {
 
 	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
 	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a
 	quiverB.space = quiverA.space
 	quiverB.tile  = quiverA.tile//these arrows are the same, but copy them from a to b as b is our complete record of page styles
-	quiverB.card2 = xy(quiverA.natural, '*', quiverA.zoom)//diagonal across card top left to bottom right
+	quiverB.card2 = xy(xy(quiverA.natural, '*', (quiverA.zoom * quiverA.diamond)), '/', (quiverA.natural.x + quiverA.natural.y))//diagonal across card top left to bottom right; math by Ramiel, No. 5
 	quiverB.card1 = xy(quiverA.space, '+', xy(quiverB.card2, '/', -2))//from that, frame corner to card corner
 
 	//are there any changes we need to set on the page?
