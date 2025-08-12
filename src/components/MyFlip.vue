@@ -36,7 +36,6 @@ async function onKey(e) {
 
 function onStart() {
 	console.log('⭕ on start - once on startup, component loaded')
-
 }
 async function onDrop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
@@ -61,60 +60,28 @@ async function onFlip(direction) {
 
 }
 
-
-/*
-//we change where these module variables point to indicate how we're using them right now; consider flipping through a long list:
-let imagePrev = {imgRef: img7Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//hidden, but keeping around to make a flip back instant
-let imageMain = {imgRef: img8Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//only one of the three that's visible
-let imageNext = {imgRef: img9Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//preloading or preloaded to flip forward without a delay
-
-function blankImage(i) {
-	i.imgRef.value.src = ''//free the big base64 string
-	i.imgRef.value.style.width = 0
-	i.imgRef.value.style.height = 0//keep out of layout
-
-	i.state = 'Blank.'
-	i.details = null
-	i.error = null
-	i.loadingPromise = Promise.resolve()
-}//ok if the only place you call blank is at the start of the next async load, then combine them
-//and now you see that you want loadImage below to make an internal promise another invocation can look for and await
-async function loadImage(i, path) {
-	if (i.state != 'Blank.') throw new Error()//won't need this because you're going to blank it
-	i.state = 'Loading.'
-
-	let details
-	try {
-		details = await loadImagePathToRef(i.imgRef, path)//need to switch to readImage and renderImage
-	} catch (e) {
-		i.state = 'Error.'
-		i.error = e
-		i.details = details
-		return
-	}
-	i.state = 'Ready.'
-	i.details = details
+function fillImage(imgRef, path) {//start loading the image on the disk at path into the given img7Ref, img8Ref, or img9Ref
+	const image = {imgRef, path, promise: null, details: null}
+	image.promise = readAndRenderImage(imgRef.value, path).then(details => {//await image.promise to wait for it to finish
+		image.details = details//once image.promise is resolved, you can get details about the image here
+		return details
+	})
+	return image//return the image object to await image.promise and then check out image.details
 }
 
-async function flipImage(forward) {//direction forward true, reverse false
-	let behind, here, ahead//we're here; this flip will cause us to step to ahead; we'll reuse behind as two notches ahead
-	if (forward) { behind = imagePrev; here = imageMain; ahead = imageNext; }//flip forward to next, ahead; previous is behind
-	else         { behind = imageNext; here = imageMain; ahead = imagePrev; }//flip back, so previous is ahead and next is behind
 
-	blankImage(behind)
-	loadImage(behind, )
 
-	//todo, start the preload of the next next image now, in the behind slot which will be double ahead! 🤯 and don't await it
-	await ahead.loadingPromise//set a resolved promise here if nothing to wait for
-	//what happens if another flip command comes in here? discarded? queued? either is fine, but make sure you can spin the wheel to cause a race condition that breaks state!
 
-	await raf()//pause here until right before the next repaint, so both display toggles apply in the same frame
-	here.imgRef.value.style.display = 'none'//hide the currently visible image to move beyond it
-	ahead.imgRef.value.style.display = ''//show the preloaded image ahead to move to it
-	//and rewire our pointers to reflect the just changed state
-	imagePrev = here//go back to get where we were
-	imageMain = ahead//we moved ahead
-	imageNext = behind//for double ahead, reuse behind which fell off the horizon
+const triad = {prev: null, here: null, next: null}
+/*
+triad.prev, here, next
+null means intentionally left blank
+or there's an object, which looks like this:
+
+{
+	imgRef,//reference to img7Ref, 8, or 9; get to the img dom element with imgRef.value
+	promise,//resolved once the image is loaded and ready to flip to it
+	details,//information about how it loaded, including how long that took, the file size, the image's natural dimensions
 }
 */
 
