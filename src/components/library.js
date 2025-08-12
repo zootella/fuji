@@ -88,6 +88,11 @@ found ${images.length} images
 
 
 
+
+export async function readAndRenderImage(img, path) {
+	let details = await readImage(path)
+	return await renderImage(img, details)
+}
 export async function readImage(path) {//read the file at path and get a data url string ready to render
 	let details = {}
 	details.t1 = performance.now()//start time
@@ -112,6 +117,8 @@ export async function renderImage(img, details) {//render the data url string de
 	//success if there wasn't an exception from that
 	details.t4 = performance.now()//time rendering image to bitmap
 	details.span = xy(img.naturalWidth, img.naturalHeight)//and now we can get its pixel dimensions
+	details.note = `${Math.round(details.t2 - details.t1)}ms disk + ${Math.round(details.t3 - details.t2)}ms memory + ${Math.round(details.t4 - details.t3)}ms render`
+	return details
 }
 
 

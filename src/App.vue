@@ -11,6 +11,6 @@ import MySpace from './components/MySpace.vue'//pink polka dots
 </script>
 <template>
 
-<MySpace />
+<MyFlip />
 
 </template>

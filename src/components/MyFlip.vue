@@ -8,28 +8,43 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {ioRead, ioReadDir} from '../io.js'//our rust module
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {xy, raf, blobToDataUrl, forwardize, backize, lookPath, readImage, renderImage} from './library.js'//our javascript library
+import {xy, raf, blobToDataUrl, forwardize, backize, lookPath, readAndRenderImage} from './library.js'//our javascript library
 
 onMounted(async () => {
 	const w = getCurrentWindow()
+	window.addEventListener('keydown', onKey)
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
 			let path = event.payload.paths[0]
-			await onDroppedPath(path)
+			await onDrop(path)
 		}
 	})
+	onStart()
 })
 let unlistenFileDrop//will hold the unsubscribe function set above and called below
 onBeforeUnmount(() => {
+	window.removeEventListener('keydown', onKey)
 	if (unlistenFileDrop) unlistenFileDrop()
 })
 
-async function onDroppedPath(path) {
-	console.log(`dropped path "${path}"`)
+async function onKey(e) {
+	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
+
+	if      (e.key == 'ArrowLeft')  { await onFlip(-1) }
+	else if (e.key == 'ArrowRight') { await onFlip(1)  }
+}
+
+function onStart() {
+	console.log('⭕ on start - once on startup, component loaded')
+
+}
+async function onDrop(path) {
+	console.log(`⭕ on dropped path "${path}" - load and show right away`)
+
 	let img = img8Ref.value//right now we just load everything into img8!
 
-	let details = await readImage(path)
-	await renderImage(img, details)
+	let details = await readAndRenderImage(img, path)
+	console.log(details.note)
 
 	//style the img so it fills the container div, which will be the correct aspect ratio
 	img.style.position = 'absolute'
@@ -40,9 +55,10 @@ async function onDroppedPath(path) {
 	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
 
 	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
+}
+async function onFlip(direction) {
+	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
 
-	console.log(details)
-	console.log(`${details.t2 - details.t1}ms disk + ${details.t3 - details.t2}ms memory + ${details.t4 - details.t3}ms render`)
 }
 
 const containerRef = ref(null)
