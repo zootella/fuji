@@ -40,24 +40,39 @@ function onStart() {
 async function onDrop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
 
-	let img = img8Ref.value//right now we just load everything into img8!
+	triad.prev = fillImage(img7Ref, '/Users/kevin/Documents/colors/1red.jpg')
+	triad.here = fillImage(img8Ref, '/Users/kevin/Documents/colors/2orange.jpg')
+	triad.next = fillImage(img9Ref, '/Users/kevin/Documents/colors/3yellow.jpg')
+	await triad.here.promise
+	console.log(triad.here.details.note)
 
-	let details = await readAndRenderImage(img, path)
-	console.log(details.note)
-
+	let img = triad.here.imgRef.value
 	//style the img so it fills the container div, which will be the correct aspect ratio
 	img.style.position = 'absolute'
 	img.style.top = '0'
 	img.style.left = '0'
 	img.style.width = '100%'
 	img.style.height = '100%'
-	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above
-
+	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above; ttd august, actually you probably want to render each image into a box that matches what the card will be for that image, not for the curren timage, so you never tell the browser to stretch
 	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
 }
 async function onFlip(direction) {
 	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
+	let t1 = performance.now()
 
+	let behind, upon, ahead//from direction, pick the image functions which are ahead, we'll flip to, and behind, we'll discard and reuse
+	if (direction > 0) {behind = 'prev', upon = 'here', ahead = 'next'}//flip forward, so next is ahead
+	else               {behind = 'next', upon = 'here', ahead = 'prev'}//flip backwards, so prev is where we're going
+
+	triad[behind] = fillImage(triad[behind].imgRef, '/Users/kevin/Documents/colors/4green.jpg')//preload the next next image, but don't delay the flip for it
+	await triad[ahead].promise//delay this flip until the image we're about to show is rendered
+	await raf()//run the remaining lines of code in this function just before the next paint
+	triad[upon].imgRef.value.style.display = 'none'//hide the image we're upon
+	triad[ahead].imgRef.value.style.display = ''//show the image that's ahead
+	let [wasBehind, wasUpon, wasAhead] = [triad[behind], triad[upon], triad[ahead]]//rotate the triad forward
+	triad[behind] = wasUpon; triad[upon] = wasAhead; triad[ahead] = wasBehind
+	let t2 = performance.now()
+	console.log(`experienced a flip delay of ${t2 - t1}ms`)
 }
 
 function fillImage(imgRef, path) {//start loading the image on the disk at path into the given img7Ref, img8Ref, or img9Ref
@@ -73,17 +88,6 @@ function fillImage(imgRef, path) {//start loading the image on the disk at path 
 
 
 const triad = {prev: null, here: null, next: null}
-/*
-triad.prev, here, next
-null means intentionally left blank
-or there's an object, which looks like this:
-
-{
-	imgRef,//reference to img7Ref, 8, or 9; get to the img dom element with imgRef.value
-	promise,//resolved once the image is loaded and ready to flip to it
-	details,//information about how it loaded, including how long that took, the file size, the image's natural dimensions
-}
-*/
 
 const img7Ref = ref(null)
 const img8Ref = ref(null)
