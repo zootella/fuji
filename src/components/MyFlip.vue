@@ -61,11 +61,8 @@ async function onFlip(direction) {
 
 }
 
-const containerRef = ref(null)
 
-const img7Ref = ref(null)
-const img8Ref = ref(null)
-const img9Ref = ref(null)//our template contains these three img tags
+/*
 //we change where these module variables point to indicate how we're using them right now; consider flipping through a long list:
 let imagePrev = {imgRef: img7Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//hidden, but keeping around to make a flip back instant
 let imageMain = {imgRef: img8Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//only one of the three that's visible
@@ -105,7 +102,7 @@ async function flipImage(forward) {//direction forward true, reverse false
 	else         { behind = imageNext; here = imageMain; ahead = imagePrev; }//flip back, so previous is ahead and next is behind
 
 	blankImage(behind)
-	/*no await*/loadImage(behind, )
+	loadImage(behind, )
 
 	//todo, start the preload of the next next image now, in the behind slot which will be double ahead! 🤯 and don't await it
 	await ahead.loadingPromise//set a resolved promise here if nothing to wait for
@@ -119,12 +116,17 @@ async function flipImage(forward) {//direction forward true, reverse false
 	imageMain = ahead//we moved ahead
 	imageNext = behind//for double ahead, reuse behind which fell off the horizon
 }
+*/
+
+const img7Ref = ref(null)
+const img8Ref = ref(null)
+const img9Ref = ref(null)//our template contains these three img tags
 
 </script>
 <template>
 <div>
 
-<div ref="containerRef" class="relative w-screen h-screen bg-black overflow-hidden">
+<div class="relative w-screen h-screen bg-black overflow-hidden">
 	<img ref="img7Ref" style="display: none;" />
 	<img ref="img8Ref" style="display: none;" /><!-- three img tags for current (shown), previous (cached), and next (preloaded) -->
 	<img ref="img9Ref" style="display: none;" />
