@@ -1,3 +1,6 @@
+
+# Fuji
+
 A multimedia file manager designed for precision and privacy.
 
 Made with
