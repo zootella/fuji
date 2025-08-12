@@ -1,10 +1,10 @@
-notes:
+notes
 
-```
 ## setup development workstation
 
 ### mac
 
+```
 $ xcode-select -p
 /Library/Developer/CommandLineTools
 
@@ -23,9 +23,11 @@ $ rustc --version
 rustc 1.88.0 (6b00bc388 2025-06-23)
 $ cargo --version
 cargo 1.88.0 (873a06493 2025-05-10)
+```
 
 second, to scaffold the project:
 
+```
 $ yarn create tauri-app fuji
 ✔ Identifier · com.zootella.fuji
 ✔ Choose which language to use for your frontend · TypeScript / JavaScript - (pnpm, yarn, npm, deno, bun)
@@ -40,13 +42,72 @@ executable and installer on mac:
 executable and installer on windows:
 ./fuji/src-tauri/target/release/fuji.exe
 ./fuji/src-tauri/target/release/bundle/windows/fuji-0.1.0-x86_64.exe
+```
 
 ### windows 10
 
-ttd august, you installed rust globally and then the project coded cross platform builds and runs fine
+https://visualstudio.microsoft.com/visual-cpp-build-tools/
+downloads and runs a 4.5mb installer
+Visual Studio Installer, wizard starts
+Desktop development with C++, choose that one first card
+
+you can paste the whole block below into powershell as a single command:
+
+```
+# Detect Visual Studio Build Tools with MSVC
+$vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+  -latest -products * `
+  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+  -property installationPath
+# Locate MSVC toolset folder
+$msvcRoot = Join-Path $vsPath "VC\Tools\MSVC"
+# Get the latest MSVC version folder
+$latestMsvcVersion = Get-ChildItem $msvcRoot | Sort-Object Name -Descending | Select-Object -First 1
+# Build full path to cl.exe
+$clPath = Join-Path $latestMsvcVersion.FullName "bin\Hostx64\x64"
+# Output the resolved path
+Write-Host "Resolved cl.exe path:"
+Write-Host $clPath
 ```
 
-from scaffolding:
+```
+Resolved cl.exe path:
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64
+
+# Add cl.exe to the path for this session, and confirm it's there
+$env:Path += ";$clPath"
+Get-Command cl.exe
+
+CommandType  Name    Version    Source
+-----------  ----    -------    ------
+Application  cl.exe  14.44.3... C:\Program Files (x86)\Microsoft Visua...
+
+# Install the Rust toolchain
+Invoke-WebRequest -Uri https://win.rustup.rs -OutFile rustup-init.exe
+Start-Process .\rustup-init.exe
+```
+
+pops its own command line window, enter for default
+now you can see everything in mingw64
+
+```
+$ node --version, v20.15.0
+$ npm --version, 10.8.1
+$ yarn --version, 1.22.22
+$ rustc --version, rustc 1.88.0 (6b00bc388 2025-06-23)
+$ cargo --version, cargo 1.88.0 (873a06493 2025-05-10)
+
+$ cargo install tauri-cli --version "^2.0.0" --locked
+$ cargo tauri --version, tauri-cli 2.7.1
+
+$ git clone https://github.com/zootella/fuji
+$ cd fuji
+$ yarn install
+$ yarn build
+$ yarn local
+```
+
+## (from scaffolding)
 
 # Tauri + Vue 3
 
