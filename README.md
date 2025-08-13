@@ -3,7 +3,7 @@
 
 # Fuji
 
-A multimedia file manager designed for precision and privacy.
+A multimedia file manager designed with privacy and precision in mind.
 
 Made with
 [Rust](https://www.rust-lang.org/),

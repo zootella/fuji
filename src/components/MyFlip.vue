@@ -73,6 +73,11 @@ async function onFlip(direction) {
 	triad[behind] = wasUpon; triad[upon] = wasAhead; triad[ahead] = wasBehind
 	let t2 = performance.now()
 	console.log(`experienced a flip delay of ${t2 - t1}ms`)
+	/*
+	ttd august, keep the preloading, but pull it back in two places to make it a little less aggressive
+	ok, on first load, don't start loading the neighbors until the first is done; give it exclusive access to the disk and renderer
+	and, on flip above, start preloading the next next image after the flip, not before; give the renderer
+	*/
 }
 
 function fillImage(imgRef, path) {//start loading the image on the disk at path into the given img7Ref, img8Ref, or img9Ref
