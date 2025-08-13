@@ -57,7 +57,7 @@ export const imageTypes = {
 	'.avif': 'image/avif',//2019, Alliance for Open Media: from AV1 codec, supports HDR and wide color gamut
 	'.webp': 'image/webp',//2010, Google: recent format for smaller file size
 }
-export async function lookPath(path) {//given a path, return text all about it
+export async function listSiblings(path) {//given a path, return text all about it
 
 	let folder = parse.dirname(path)
 	let contents = await ioReadDir(folder)
@@ -74,16 +74,10 @@ export async function lookPath(path) {//given a path, return text all about it
 		mime: imageTypes[f.extension],//include the mime type that goes with that extension
 	}))
 
-	console.log(images)
-	return `
-${path} <- path
-${folder} <- folder
-found ${images.length} images
-`
-
-
-
-
+	let list = images.map(f => f.path).sort()
+	let index = list.indexOf(path)
+	if (index == -1) index = 0//ttd august
+	return {index, list}
 }
 
 

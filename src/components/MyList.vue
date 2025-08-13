@@ -8,7 +8,7 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {ioRead, ioReadDir} from '../io.js'//our rust module
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {xy, raf, blobToDataUrl, forwardize, backize, lookPath, readImage, renderImage} from './library.js'//our javascript library
+import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage} from './library.js'//our javascript library
 
 onMounted(async () => {
 	const w = getCurrentWindow()
@@ -42,7 +42,7 @@ ${n4} tauri currentMonitor size.height
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
 			let path = forwardize(event.payload.paths[0])
 
-			log(await lookPath(path))
+			log(await listSiblings(path))
 		}
 	})
 })

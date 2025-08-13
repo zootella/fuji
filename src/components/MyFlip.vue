@@ -8,7 +8,7 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {ioRead, ioReadDir} from '../io.js'//our rust module
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {xy, raf, blobToDataUrl, forwardize, backize, lookPath, readAndRenderImage} from './library.js'//our javascript library
+import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage} from './library.js'//our javascript library
 
 onMounted(async () => {
 	const w = getCurrentWindow()
@@ -39,10 +39,14 @@ function onStart() {
 }
 async function onDrop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
+	triad.here.imgRef.value.style.display = 'none'//hide the image we're on
 
-	triad.prev = fillImage(img7Ref, '/Users/kevin/Documents/colors/1red.jpg')
-	triad.here = fillImage(img8Ref, '/Users/kevin/Documents/colors/2orange.jpg')
-	triad.next = fillImage(img9Ref, '/Users/kevin/Documents/colors/3yellow.jpg')
+	folder = await listSiblings(path)//list all the images in the same folder as path
+	//initialize the triad
+	triad.prev = fillImage(img7Ref, folder.index - 1, folder.list)//path alphebetically above
+	triad.here = fillImage(img8Ref, folder.index,     folder.list)//path dropped in
+	triad.next = fillImage(img9Ref, folder.index + 1, folder.list)//path alphebetically below
+
 	await triad.here.promise
 	console.log(triad.here.details.note)
 
@@ -57,6 +61,12 @@ async function onDrop(path) {
 	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
 }
 async function onFlip(direction) {
+	if (!folder) return//nothing loaded yet
+
+	let indexAhead1 = folder.index + direction//index where the user wants us to flip to
+	let indexAhead2 = folder.index + direction + direction//the next next one, the one beyond that
+	if (indexAhead1 < 0 || indexAhead1 >= folder.list.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
+
 	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
 	let t1 = performance.now()
 
@@ -64,7 +74,9 @@ async function onFlip(direction) {
 	if (direction > 0) {behind = 'prev', upon = 'here', ahead = 'next'}//flip forward, so next is ahead
 	else               {behind = 'next', upon = 'here', ahead = 'prev'}//flip backwards, so prev is where we're going
 
-	triad[behind] = fillImage(triad[behind].imgRef, '/Users/kevin/Documents/colors/4green.jpg')//preload the next next image, but don't delay the flip for it
+	folder.index = indexAhead1//move our index in the folder image listing
+	triad[behind] = fillImage(triad[behind].imgRef, indexAhead2, folder.list)//preload the next next image, but don't wait for it
+
 	await triad[ahead].promise//delay this flip until the image we're about to show is rendered
 	await raf()//run the remaining lines of code in this function just before the next paint
 	triad[upon].imgRef.value.style.display = 'none'//hide the image we're upon
@@ -73,30 +85,30 @@ async function onFlip(direction) {
 	triad[behind] = wasUpon; triad[upon] = wasAhead; triad[ahead] = wasBehind
 	let t2 = performance.now()
 	console.log(`experienced a flip delay of ${t2 - t1}ms`)
-	/*
-	ttd august, keep the preloading, but pull it back in two places to make it a little less aggressive
-	ok, on first load, don't start loading the neighbors until the first is done; give it exclusive access to the disk and renderer
-	and, on flip above, start preloading the next next image after the flip, not before; give the renderer
-	*/
 }
 
-function fillImage(imgRef, path) {//start loading the image on the disk at path into the given img7Ref, img8Ref, or img9Ref
-	const image = {imgRef, path, promise: null, details: null}
-	image.promise = readAndRenderImage(imgRef.value, path).then(details => {//await image.promise to wait for it to finish
+function fillImage(imgRef, index, list) {//start loading the image on the disk at list[index] into the given img7Ref, img8Ref, or img9Ref
+	let image = {imgRef, path: null, promise: Promise.resolve(), details: null}//wrap the given imgRef into an object to set in the triad
+	if (index < 0 || index >= list.length) return image//no path; mark this spot intentionally left blank
+
+	image.path = list[index]//we do have a path, load the image there into the given imgRef.value
+	image.promise = readAndRenderImage(imgRef.value, image.path).then(details => {//await image.promise to wait for it to finish
 		image.details = details//once image.promise is resolved, you can get details about the image here
 		return details
 	})
 	return image//return the image object to await image.promise and then check out image.details
 }
 
-
-
-
-const triad = {prev: null, here: null, next: null}
-
 const img7Ref = ref(null)
 const img8Ref = ref(null)
 const img9Ref = ref(null)//our template contains these three img tags
+
+let folder//set on drop, holds listing.list of images in current folder, and listing.index of the image we're on
+const triad = {
+	prev: {imgRef: img7Ref, path: null, promise: Promise.resolve(), details: null},
+	here: {imgRef: img8Ref, path: null, promise: Promise.resolve(), details: null},
+	next: {imgRef: img9Ref, path: null, promise: Promise.resolve(), details: null},
+}
 
 </script>
 <template>

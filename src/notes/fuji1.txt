@@ -983,6 +983,11 @@ async function flipImage(forward) {//direction forward true, reverse false
 
 
 
+	/*
+	ttd august, keep the preloading, but pull it back in two places to make it a little less aggressive
+	ok, on first load, don't start loading the neighbors until the first is done; give it exclusive access to the disk and renderer
+	and, on flip above, start preloading the next next image after the flip, not before; give the renderer
+	*/
 
 
 
