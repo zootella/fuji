@@ -166,10 +166,11 @@ function quiver() {
 	}
 	if (!same) {//only bother the page if necessary
 
-		frameRef.value.style.backgroundPosition = `${quiverB.space.x % quiverB.tile.x}px ${quiverB.space.y % quiverB.tile.x}px`
+		frameRef.value.style.backgroundPosition = `${quiverB.space.x % quiverB.tile.x}px ${quiverB.space.y % quiverB.tile.y}px`
 		cardRef.value.style.transform = `translate(${quiverB.card1.x}px, ${quiverB.card1.y}px)`
 		cardRef.value.style.width = quiverB.card2.x+'px'
 		cardRef.value.style.height = quiverB.card2.y+'px'
+		//ttd august, could isolate width and height to only run if necessary; won't run during a pan, for instance
 	}
 
 	//keep a record of what we told the page to only bother it next time it's necessary

@@ -48,7 +48,7 @@ async function onDrop(path) {
 	triad.next = fillImage(img9Ref, folder.index + 1, folder.list)//path alphebetically below
 
 	await triad.here.promise
-	console.log(triad.here.details.note)
+	console.log(triad.here.details?.note)//ttd august, or triad.here.error will be something
 
 	let img = triad.here.imgRef.value
 	//style the img so it fills the container div, which will be the correct aspect ratio
@@ -98,16 +98,31 @@ async function _onFlip(direction) {
 	triad[ahead] = fillImage(triad[ahead].imgRef, indexAhead2, folder.list)//preload the next next image, but don't wait for it
 }
 function fillImage(imgRef, index, list) {//start loading the image on the disk at list[index] into the given img7Ref, img8Ref, or img9Ref
-	let image = {imgRef, path: null, promise: Promise.resolve(), details: null}//wrap the given imgRef into an object to set in the triad
+	let image = {imgRef, path: null, promise: Promise.resolve(), error: null, details: null}//wrap the given imgRef into an object to set in the triad
 	if (index < 0 || index >= list.length) return image//no path; mark this spot intentionally left blank
 
 	image.path = list[index]//we do have a path, load the image there into the given imgRef.value
-	image.promise = readAndRenderImage(imgRef.value, image.path).then(details => {//await image.promise to wait for it to finish
-		image.details = details//once image.promise is resolved, you can get details about the image here
-		return details
-	})
-	return image//return the image object to await image.promise and then check out image.details
+	image.promise = readAndRenderImage(imgRef.value, image.path)
+		.then(details => {//await image.promise to wait for it to finish
+			image.details = details//once image.promise is resolved, you can get details about the image here
+			return details
+		})
+		.catch(error => {
+			imgRef.value.src = errorData
+			image.error = error
+			return error
+		})
+	return image//return the image object to await image.promise and then check out image.details or image.error
 }
+
+//dashed box with center X as a visual placeholder for an image we couldn't render
+const errorData = `data:image/svg+xml;base64,${btoa(`
+	<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+		<rect width="300" height="300" fill="none" stroke="#444" stroke-width="1" stroke-dasharray="2,1"/>
+		<line x1="140" y1="140" x2="160" y2="160" stroke="#444" stroke-width="1"/>
+		<line x1="160" y1="140" x2="140" y2="160" stroke="#444" stroke-width="1"/>
+	</svg>
+`)}`
 
 const img7Ref = ref(null)
 const img8Ref = ref(null)
@@ -119,30 +134,6 @@ const triad = {
 	here: {imgRef: img8Ref, path: null, promise: Promise.resolve(), details: null},
 	next: {imgRef: img9Ref, path: null, promise: Promise.resolve(), details: null},
 }
-
-/*
-
-let flipQueue = Promise.resolve()  // Start with resolved promise
-
-async function onFlip(direction) {
-    // Chain this flip onto the queue
-    flipQueue = flipQueue.then(() => executeFlip(direction))
-    return flipQueue
-}
-
-
-possible fixes and improvements at this point:
-- queue up flip commands with promises
-- you're preloading, but not in a way that keeps things from slowing down--preload after not before, adn confirm things are still fast even when you're moving 1red.jpg which takes 1s to render in and out of the horizon!
-
-your flip delay logs don't work, they all say 0-2ms even though you can tell it's much longer
-probably because the renderer can't get the next keystroke event while it's still rendering an image?
-but that's just my guess--why is this? you may need to think deeply about not just this code, but also how modern browsers work, with concurrency and their own tasks, threads, events, event loop, etc.
-
-single threaded image decoding is a thing, claude tells me
-
-
-*/
 
 </script>
 <template>
