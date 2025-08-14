@@ -74,9 +74,11 @@ async function onFlip(direction) {
 	if (direction > 0) {behind = 'prev', upon = 'here', ahead = 'next'}//flip forward, so next is ahead
 	else               {behind = 'next', upon = 'here', ahead = 'prev'}//flip backwards, so prev is where we're going
 
+	//note: (1) currently, we get the next next preload started first. all async, of course, and no await, and yet it still causes things to slow down!
 	folder.index = indexAhead1//move our index in the folder image listing
 	triad[behind] = fillImage(triad[behind].imgRef, indexAhead2, folder.list)//preload the next next image, but don't wait for it
 
+	//(2) after the preload, we do the work that matters to the user's current command
 	await triad[ahead].promise//delay this flip until the image we're about to show is rendered
 	await raf()//run the remaining lines of code in this function just before the next paint
 	triad[upon].imgRef.value.style.display = 'none'//hide the image we're upon
@@ -85,6 +87,8 @@ async function onFlip(direction) {
 	triad[behind] = wasUpon; triad[upon] = wasAhead; triad[ahead] = wasBehind
 	let t2 = performance.now()
 	console.log(`experienced a flip delay of ${t2 - t1}ms`)
+
+	//(3) so when execution reaches here we're actually done with the parts of the command the user can see. so maybe we should move the "begin preload" steps from before the "user going to see it" steps to after those steps are done that the user can see? what do you think? im not sure this is the right solution, so let's evaluate this category, and other categories of solutions. there might be something we can do in fillImage, even, having it start a new render sorta after things quiet down with keystrokes and other renders, or something, too, alternatively
 }
 
 function fillImage(imgRef, index, list) {//start loading the image on the disk at list[index] into the given img7Ref, img8Ref, or img9Ref
@@ -109,6 +113,30 @@ const triad = {
 	here: {imgRef: img8Ref, path: null, promise: Promise.resolve(), details: null},
 	next: {imgRef: img9Ref, path: null, promise: Promise.resolve(), details: null},
 }
+
+/*
+
+let flipQueue = Promise.resolve()  // Start with resolved promise
+
+async function onFlip(direction) {
+    // Chain this flip onto the queue
+    flipQueue = flipQueue.then(() => executeFlip(direction))
+    return flipQueue
+}
+
+
+possible fixes and improvements at this point:
+- queue up flip commands with promises
+- you're preloading, but not in a way that keeps things from slowing down--preload after not before, adn confirm things are still fast even when you're moving 1red.jpg which takes 1s to render in and out of the horizon!
+
+your flip delay logs don't work, they all say 0-2ms even though you can tell it's much longer
+probably because the renderer can't get the next keystroke event while it's still rendering an image?
+but that's just my guess--why is this? you may need to think deeply about not just this code, but also how modern browsers work, with concurrency and their own tasks, threads, events, event loop, etc.
+
+single threaded image decoding is a thing, claude tells me
+
+
+*/
 
 </script>
 <template>
