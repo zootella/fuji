@@ -13,10 +13,8 @@ import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {ioRead, ioReadDir} from '../io.js'//our rust module
 
+//promises
 
-
-
-//promise helpers
 export const raf = () => new Promise(resolve => requestAnimationFrame(resolve))//before next paint, synchronized with display refresh (~16ms)
 export function blobToDataUrl(blob) {//promisifed wrapper of FileReader's .readAsDataURL method
 	let reader = new FileReader()
@@ -28,8 +26,19 @@ export function blobToDataUrl(blob) {//promisifed wrapper of FileReader's .readA
 	return p
 }
 
+//arrows
 
+export function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to compute
+	if      (o == '+') { return {x: a.x + b.x, y: a.y + b.y} }//use with two {x, y} objects
+	else if (o == '-') { return {x: a.x - b.x, y: a.y - b.y} }
+	else if (o == '*') { return {x: a.x * b,   y: a.y * b  } }//use with ane xy object and a number, like 2
+	else if (o == '/') { return {x: a.x / b,   y: a.y / b  } }
+	else if (o == '==') { return   a.x == b.x && a.y == b.y  }//equals
+	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
+	else { return {x: a, y: o} }
+}
 
+//paths
 
 //forwardize all new paths that come into the system, then backize to show on the page
 export function forwardize(path) {
@@ -40,8 +49,6 @@ export function backize(path) {
 	//but will look weird on windows, so use this in template code before showing to a Windows user
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
 }
-
-
 
 export const imageTypes = {
 	'.bmp': 'image/bmp',//1986, Microsoft: Simple uncompressed raster format for Windows graphics, easy to decode
@@ -80,8 +87,7 @@ export async function listSiblings(path) {//given a path, return text all about 
 	return {index, list}
 }
 
-
-
+//images
 
 export async function readAndRenderImage(img, path) {
 	let details = await readImage(path)
@@ -110,16 +116,12 @@ export async function renderImage(img, details) {//render the data url string de
 
 	//success if there wasn't an exception from that
 	details.t4 = performance.now()//time rendering image to bitmap
-	details.span = xy(img.naturalWidth, img.naturalHeight)//and now we can get its pixel dimensions
+	details.natural = xy(img.naturalWidth, img.naturalHeight)//and now we can get its pixel dimensions
 	details.note = `${Math.round(details.t2 - details.t1)}ms disk + ${Math.round(details.t3 - details.t2)}ms memory + ${Math.round(details.t4 - details.t3)}ms render`
 	return details
 }
 
-
-
-
-
-
+//resolution
 
 export const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
@@ -145,21 +147,3 @@ export const hardVerticals = [
 	3200, // 6K (6016×3384); Apple Pro Display XDR and similar
 	4320, // 8K UHD (7680×4320); bleeding-edge professional monitors
 ]
-
-
-
-
-export function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to compute
-	if      (o == '+') { return {x: a.x + b.x, y: a.y + b.y} }//use with two {x, y} objects
-	else if (o == '-') { return {x: a.x - b.x, y: a.y - b.y} }
-	else if (o == '*') { return {x: a.x * b,   y: a.y * b  } }//use with ane xy object and a number, like 2
-	else if (o == '/') { return {x: a.x / b,   y: a.y / b  } }
-	else if (o == '==') { return   a.x == b.x && a.y == b.y  }//equals
-	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
-	else { return {x: a, y: o} }
-}
-
-
-
-
-

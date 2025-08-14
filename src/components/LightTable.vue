@@ -144,9 +144,9 @@ const quiverA = {}//Quiver A: {x, y} arrows, dimensions, and zoom that completel
 function dimensionStart() {
 
 	quiverA.diamond = screen.width + screen.height//full size diamond half permineter
-	quiverA.zoom = 0.2//zoom factor for the diamond permimiter
+	quiverA.zoom = 0.5//zoom factor for the diamond permimiter
 	quiverA.space = xy(xy(frameRef.value.clientWidth, frameRef.value.clientHeight), '/', 2)//frame corner to space center
-	quiverA.natural = xy(300, 200)//natural image pixel width and height from its own file data
+	quiverA.natural = xy(64, 64)//natural image pixel width and height from its own file data
 	quiverA.tile = xy(60, 60)//tiled background
 	quiver()
 }
@@ -195,17 +195,19 @@ function onStart() {
 }
 async function onDrop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
-//	triad.here.imgRef.value.style.display = 'none'//hide the image we're on
 
+	triad.here.imgRef.value.style.display = 'none'//hide the image we're on; this is blinkey but ok for a drop, ttd august
 	folder = await listSiblings(path)//list all the images in the same folder as path
-	//initialize the triad
-	triad.prev = fillImage(img7Ref, folder.index - 1, folder.list)//path alphebetically above
 	triad.here = fillImage(img8Ref, folder.index,     folder.list)//path dropped in
-	triad.next = fillImage(img9Ref, folder.index + 1, folder.list)//path alphebetically below
 
 	await triad.here.promise
+	await raf()
+	quiverA.natural = triad.here.details?.natural || xy(64, 64); quiver()//position and size the card for the aspect ratio ahead
 	triad.here.imgRef.value.style.display = 'block'//show the image now that it's ready
-	console.log(triad.here.details?.note)//ttd august, or triad.here.error will be something
+	await raf()
+
+	triad.prev = fillImage(img7Ref, folder.index - 1, folder.list)//path alphebetically above
+	triad.next = fillImage(img9Ref, folder.index + 1, folder.list)//path alphebetically below
 }
 
 let flipQueue = Promise.resolve()//do one flip at a time; start with resolved promise
@@ -233,6 +235,7 @@ async function _flip(direction) {
 
 	//change page
 	triad[upon].imgRef.value.style.display = 'none'//hide the image we're upon
+	quiverA.natural = triad[ahead].details?.natural || xy(64, 64); quiver()//position and size the card for the aspect ratio ahead
 	triad[ahead].imgRef.value.style.display = 'block'//show the image that's ahead
 
 	//change state
@@ -330,7 +333,7 @@ const triad = {
 	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div
 		ref="cardRef"
-		class="myCard myShadow myDry myWillChangeTransform bg-gray-200 border border-black"
+		class="myCard myShadow myDry myWillChangeTransform bg-neutral-950 border border-black"
 	>
 
 		<!-- three img tags for current (shown), previous (cached), and next (preloaded) -->
@@ -392,9 +395,9 @@ const triad = {
 	white-space: pre; /* honor \n and overflow the container */
 	color: #525252;
 	text-shadow:
-		-1px -1px 2px black,           /* Bottom shadow using your background color */
-		1px 1px 2px black,          /* Top highlight using gray-500 (lighter than text) */
-		0 0 8px black;           /* Outer glow using your background color */
+		-1px -1px 2px black,
+		1px 1px 2px black,
+		0 0 8px black;
 }
 
 </style>
