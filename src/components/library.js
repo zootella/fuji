@@ -17,7 +17,7 @@ import {ioRead, ioReadDir} from '../io.js'//our rust module
 
 
 //promise helpers
-export const raf = () => new Promise(f => requestAnimationFrame(f))
+export const raf = () => new Promise(resolve => requestAnimationFrame(resolve))//before next paint, synchronized with display refresh (~16ms)
 export function blobToDataUrl(blob) {//promisifed wrapper of FileReader's .readAsDataURL method
 	let reader = new FileReader()
 	let p = new Promise((resolve, reject) => {

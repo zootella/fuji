@@ -60,37 +60,43 @@ async function onDrop(path) {
 	img.style.objectFit = 'contain'//letterbox for now; later will leave this out and size the container exactly right based on the natural width and height we got above; ttd august, actually you probably want to render each image into a box that matches what the card will be for that image, not for the curren timage, so you never tell the browser to stretch
 	img.style.display = ''//show the image now that it's ready; later will do this as part of the flip system
 }
+
+let flipQueue = Promise.resolve()//do one flip at a time; start with resolved promise
 async function onFlip(direction) {
+	flipQueue = (flipQueue//queue this flip to run after any pending flips
+		.then(() => _onFlip(direction))
+		.catch(e => console.error('Flip error:', e))  // Don't break the chain
+	)
+	return flipQueue
+}
+async function _onFlip(direction) {
 	if (!folder) return//nothing loaded yet
 
 	let indexAhead1 = folder.index + direction//index where the user wants us to flip to
 	let indexAhead2 = folder.index + direction + direction//the next next one, the one beyond that
 	if (indexAhead1 < 0 || indexAhead1 >= folder.list.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
-
 	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
-	let t1 = performance.now()
 
 	let behind, upon, ahead//from direction, pick the image functions which are ahead, we'll flip to, and behind, we'll discard and reuse
 	if (direction > 0) {behind = 'prev', upon = 'here', ahead = 'next'}//flip forward, so next is ahead
 	else               {behind = 'next', upon = 'here', ahead = 'prev'}//flip backwards, so prev is where we're going
 
-	//note: (1) currently, we get the next next preload started first. all async, of course, and no await, and yet it still causes things to slow down!
-	folder.index = indexAhead1//move our index in the folder image listing
-	triad[behind] = fillImage(triad[behind].imgRef, indexAhead2, folder.list)//preload the next next image, but don't wait for it
-
-	//(2) after the preload, we do the work that matters to the user's current command
 	await triad[ahead].promise//delay this flip until the image we're about to show is rendered
-	await raf()//run the remaining lines of code in this function just before the next paint
+	await raf()//🥪 wait for clean frame boundary
+
+	//change page
 	triad[upon].imgRef.value.style.display = 'none'//hide the image we're upon
 	triad[ahead].imgRef.value.style.display = ''//show the image that's ahead
+
+	//change state
+	folder.index = indexAhead1//move our index in the folder image listing
 	let [wasBehind, wasUpon, wasAhead] = [triad[behind], triad[upon], triad[ahead]]//rotate the triad forward
 	triad[behind] = wasUpon; triad[upon] = wasAhead; triad[ahead] = wasBehind
-	let t2 = performance.now()
-	console.log(`experienced a flip delay of ${t2 - t1}ms`)
 
-	//(3) so when execution reaches here we're actually done with the parts of the command the user can see. so maybe we should move the "begin preload" steps from before the "user going to see it" steps to after those steps are done that the user can see? what do you think? im not sure this is the right solution, so let's evaluate this category, and other categories of solutions. there might be something we can do in fillImage, even, having it start a new render sorta after things quiet down with keystrokes and other renders, or something, too, alternatively
+	await raf()//🥪 wait for above paint to hit the screen
+
+	triad[ahead] = fillImage(triad[ahead].imgRef, indexAhead2, folder.list)//preload the next next image, but don't wait for it
 }
-
 function fillImage(imgRef, index, list) {//start loading the image on the disk at list[index] into the given img7Ref, img8Ref, or img9Ref
 	let image = {imgRef, path: null, promise: Promise.resolve(), details: null}//wrap the given imgRef into an object to set in the triad
 	if (index < 0 || index >= list.length) return image//no path; mark this spot intentionally left blank
