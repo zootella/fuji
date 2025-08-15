@@ -22,7 +22,7 @@ onMounted(async () => {
 	const w = getCurrentWindow()
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
-			let path = event.payload.paths[0]
+			let path = forwardize(event.payload.paths[0])
 			await onDrop(path)
 		}
 	})
@@ -302,8 +302,8 @@ keyboard shortcuts the app supports, and be really easy to
 show and hide, such as by pressing the [H]elp or just [Spacebar]
 and here is yet another line`
 */
-captionRef.value = `This paragraph, and the next, demonstrate a caption beneath the card. They don't affect the dimensions of the card.
-Here's a second line, another paragraph tag. They do pan with the card. If the card size changes, such as a zoom in, the text stays the same size and spot beneath the card.`//no terminating newline, if that matters
+captionRef.value = `A multimedia file manager designed
+with privacy and precision in mind`//no terminating newline, if that matters
 }
 
 const img7Ref = ref(null)
@@ -342,7 +342,7 @@ const triad = {
 		<img ref="img9Ref" class="myImage" />
 
 		<!-- caption lives inside the card, but sits below its border -->
-		<div class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap myEmbossed">{{captionRef}}</div>
+		<div class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap font-mono myEmbossed">{{captionRef}}</div>
 
 	</div>
 
