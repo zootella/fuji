@@ -65,6 +65,7 @@ export const imageTypes = {
 	'.webp': 'image/webp',//2010, Google: recent format for smaller file size
 }
 export async function listSiblings(path) {//given a path, return text all about it
+	path = forwardize(path)//fix for windows
 
 	let folder = parse.dirname(path)
 	let contents = await ioReadDir(folder)
