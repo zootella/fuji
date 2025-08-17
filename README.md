@@ -36,7 +36,7 @@ $ yarn create tauri-app fuji
 Executable and installer on mac
 ```
 ./fuji/src-tauri/target/release/bundle/macos/fuji.app
-./fuji/src-tauri/target/release/bundle/dmg/kay_0.1.0_aarch64.dmg
+./fuji/src-tauri/target/release/bundle/dmg/fuji_0.1.0_aarch64.dmg
 ```
 
 Executable and installer on windows
