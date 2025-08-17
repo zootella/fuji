@@ -122,6 +122,22 @@ export async function renderImage(img, details) {//render the data url string de
 
 //resolution
 
+async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
+	let w = getCurrentWindow()
+	let p = await w.outerPosition()
+	let s = await w.outerSize()
+	let m = await currentMonitor()
+
+	let arrowPosition = xy(p.x, p.y)
+	let arrowSize = xy(s.width, s.height)
+	let arrowScreen = xy(screen.width, screen.height)
+	let arrowMonitor = xy(m.size.width, m.size.height)
+	let arrowWindow = xy(window.innerWidth, window.innerHeight)
+
+	let scale = arrowScreen.y / arrowMonitor.y//CSS pixels divided by the height of the fake bitmap macOS paints on and then scales down onto hardware pixels, which is the fourth pixel unit we've encountered! css pixels, looks like resolution, giant canvas, physical pixels
+	return xy(xy(xy(arrowPosition, '+', arrowSize), '*', scale), '-', arrowWindow)
+}
+
 export const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
 	600,  // SVGA (800×600); common in late '90s multimedia PCs
