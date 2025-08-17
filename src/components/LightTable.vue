@@ -121,21 +121,56 @@ function onUp(e) {
 // |___/_/___\___|
 //                
 
+async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
+	let w = getCurrentWindow()
+	let p = await w.outerPosition()
+	let s = await w.outerSize()
+	let m = await currentMonitor()
+
+	let arrowPosition = xy(p.x, p.y)
+	let arrowSize = xy(s.width, s.height)
+	let arrowScreen = xy(screen.width, screen.height)
+	let arrowMonitor = xy(m.size.width, m.size.height)
+	let arrowWindow = xy(window.innerWidth, window.innerHeight)
+
+	let scale = arrowScreen.y / arrowMonitor.y
+	return xy(xy(xy(arrowPosition, '+', arrowSize), '*', scale), '-', arrowWindow)
+}
+
 async function snippet() {
 	const w = getCurrentWindow()
 	const m = await currentMonitor()
 
-	let outerPosition = (await w.outerPosition()).y
-	let outerSize = (await w.outerSize()).height
-	let bottom1 = m.size.height - outerPosition - outerSize
+	let op = await w.outerPosition()
+	let os = await w.outerSize()
+
+	let arrowPosition = xy(op.x, op.y)
+	let arrowSize = xy(os.width, os.height)
+	let arrowScreen = xy(screen.width, screen.height)
+	let arrowMonitor = xy(m.size.width, m.size.height)
+	let arrowWindow = xy(window.innerWidth, window.innerHeight)
+
+	let outerPositionY = (await w.outerPosition()).y
+	let outerSizeH = (await w.outerSize()).height
+	let bottom1 = m.size.height - outerPositionY - outerSizeH
 
 	//now, for the calculations...
 	let woh, wop, ans1, ans2, bottom2
-	woh = screen.height * outerSize     / m.size.height
-	wop = screen.height * outerPosition / m.size.height
+	woh = screen.height * outerSizeH     / m.size.height
+	wop = screen.height * outerPositionY / m.size.height
 	ans1 = woh - window.innerHeight
 	ans2 = wop + ans1
 	bottom2 = screen.height - wop - woh
+
+	let scale = arrowScreen.y / arrowMonitor.y
+
+	let a2 = xy(xy(xy(arrowPosition, '+', arrowSize), '*', scale), '-', arrowWindow)
+	console.log(a2)
+	//let's do it in percent of screen height and width
+console.log(`
+a2 is {${a2.x}, ${a2.y}}
+screen in css pixel unitsis {${arrowScreen.x}, ${arrowScreen.y}}
+`)
 
 	/*
 	these calculations seem trustworthy
@@ -151,12 +186,14 @@ async function snippet() {
 	so just do this around entering fullscreen or not
 	*/
 
+	let simplified = await screenToViewport()
+
 console.log(`
 
 (a) these should all be in units of 2880, and middle includes the title bar
 
-${outerPosition} w.outerPosition - confirm screen height to window titlebar top
-${outerSize} w.outerSize - confirm window titlebar top to window bottom
+${outerPositionY} w.outerPositionY - confirm screen height to window titlebar top
+${outerSizeH} w.outerSizeH - confirm window titlebar top to window bottom
 ${bottom1} bottom1 - confirm window bottom to screen bottom
 ----
 ${m.size.height} m.size.height
@@ -176,10 +213,15 @@ ${bottom2} bottom2 - frame bottom to screen bottom
 ----
 ${screen.height} screen.height
 
+(d) here it is factored and simplified
+
+(${simplified.x}, ${simplified.y}) arrowToViewport
+
 `)
 }
 function onResize() {//called once on mounted and whenever the viewport size changes
 	console.log('on resize! ↘️')
+	snippet()
 }
 
 const zoomStep = 1.25
