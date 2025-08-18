@@ -45,21 +45,26 @@ onBeforeUnmount(() => {
 async function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
 
-	if      (e.key == 'f') { console.log('my key F') }
-	else if (e.key == 'q') { console.log('my key Q') }
-	else if ((e.ctrlKey || e.metaKey) && e.key == 's') { console.log('my key Ctrl+S')
+	let Ctrl = e.ctrlKey || e.metaKey
+	let Shift = e.shiftKey
+	let key = e.key
+
+	if      (key == 'f') { console.log('my key F') }
+	else if (key == 'q') { console.log('my key Q') }
+	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
 		e.preventDefault()//tell the browser not to show the file save dialog box
-	} else if (e.key == 'Escape') {
+	} else if (key == 'Escape') {
 		await setFullscreen(false)//macos will also exit fullscreen, but this call doesn't mess anything up with that
 	}
-	else if (e.key == 'ArrowLeft')  {  }
-	else if (e.key == 'ArrowRight') {  }
-	else if (e.key == 'ArrowUp')    {  }
-	else if (e.key == 'ArrowDown')  {  }
-	else if (e.key == 'PageUp')     { flip(-1) }
-	else if (e.key == 'PageDown')   { flip(1)  }
-	else if (e.key == '+')          { zoom(true)  }
-	else if (e.key == '-')          { zoom(false) }
+	else if (key == 'ArrowLeft')  {  }
+	else if (key == 'ArrowRight') {  }
+	else if (key == 'ArrowUp')    {  }
+	else if (key == 'ArrowDown')  {  }
+	else if (key == 'PageDown')   { flip(1)  }
+	else if (key == 'PageUp')     { flip(-1) }
+	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoom(true)  }//control and the [=+] key in browsers zooms in
+	else if (key == '-')                                    { zoom(false) }
+	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 async function setFullscreen(set) { let w = getCurrentWindow(); let current = await w.isFullscreen()
 	if (set != current) w.setFullscreen(set)
