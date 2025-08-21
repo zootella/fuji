@@ -130,6 +130,7 @@ async function measureScreen() {//get the screen resolution as {x, y} in all the
 	on mac, []different looks like resolutions
 	on windows, []different zoom numbers in settings
 
+
 	leaving out mac and windows set to blur the monitor to a not native resolution, though
 	leaving out multiple monitors, also
 	*/
