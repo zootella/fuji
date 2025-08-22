@@ -122,29 +122,6 @@ export async function renderImage(img, details) {//render the data url string de
 
 //resolution
 
-async function measureScreen() {//get the screen resolution as {x, y} in all the different real and fake pixel units
-	/*
-	test this
-	[]mac X []windows
-	[]old dell monitor X []new 4k monitor
-	on mac, []different looks like resolutions
-	on windows, []different zoom numbers in settings
-
-
-	leaving out mac and windows set to blur the monitor to a not native resolution, though
-	leaving out multiple monitors, also
-	*/
-
-	let arrows = {
-		screenCss: xy(0, 0),//CSS pixels, matches styles on div tags
-		screenLooksLike: xy(0, 0),//macOS's "looks like" resolution, matches numbers in System Settings
-		screenOsCanvas: xy(0, 0),//macOS's scaled canvas, what macOS actually paints text, vectors, and images onto
-		screenPhysical: xy(0, 0),//physical hardware lights, had to go deep in Rust to get these
-	}
-	console.log(arrows)
-	return arrows
-}
-
 async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
 	let w = getCurrentWindow()
 	let p = await w.outerPosition()

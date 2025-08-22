@@ -10,30 +10,47 @@ import {ioRead, ioReadDir} from '../io.js'//our rust module
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage} from './library.js'//our javascript library
 
-onMounted(async () => {
-	const w = getCurrentWindow()
-	const m = await currentMonitor()
+async function measureScreen() {//get the screen resolution as {x, y} in all the different real and fake pixel units
+	/*
+	test this
+	[]mac X []windows
+	[]old dell monitor X []new 4k monitor
+	on mac, []different looks like resolutions
+	on windows, []different zoom numbers in settings
 
-	let n1 = screen.height
-	let n2 = window.devicePixelRatio
-	let n3 = await w.scaleFactor()
-	let n4 = m.size.height
-	let n5 = m.scaleFactor
-	let n6 = await invoke('hard_vertical')
+
+	leaving out mac and windows set to blur the monitor to a not native resolution, though
+	leaving out multiple monitors, also
+	*/
 	/*
 	strategy to use hard vertical
 	if window.devicePixelRatio is 1, then just use screen.height
 	if hard_vertical returns 0, <1080, or something not listed above, screen.height
 	*/
+
+	let arrows = {
+		screenCss: xy(0, 0),//CSS pixels, matches styles on div tags
+		screenLooksLike: xy(0, 0),//macOS's "looks like" resolution, matches numbers in System Settings
+		screenOsCanvas: xy(0, 0),//macOS's scaled canvas, what macOS actually paints text, vectors, and images onto
+		screenPhysical: xy(0, 0),//physical hardware lights, had to go deep in Rust to get these
+	}
+	console.log(arrows)
+	return arrows
+}
+
+onMounted(async () => {
+	const w = getCurrentWindow()
+	const m = await currentMonitor()
+
 log(`getting the true vertical pixel resolution
 
-${n2} window.devicePixelRatio
-${n3} tauri getCurrentWindow scaleFactor
-${n5} tauri currentMonitor scaleFactor
+${window.devicePixelRatio} window.devicePixelRatio
+${await w.scaleFactor()} tauri getCurrentWindow scaleFactor
+${m.scaleFactor} tauri currentMonitor scaleFactor
 
-${n1} screen.height
-${n6} rust hard_vertical 🦀
-${n4} tauri currentMonitor size.height
+${screen.height} screen.height
+${await invoke('hard_vertical')} rust hard_vertical 🦀
+${m.size.height} tauri currentMonitor size.height
 
 (some correct answers are 1600 classic dell, 1664 macbook air, 2160 4K monitor 🏆)
 `)
