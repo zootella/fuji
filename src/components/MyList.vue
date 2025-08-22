@@ -27,12 +27,16 @@ async function measureScreen() {//get the screen resolution as {x, y} in all the
 	if window.devicePixelRatio is 1, then just use screen.height
 	if hard_vertical returns 0, <1080, or something not listed above, screen.height
 	*/
+	const w = getCurrentWindow()
+	const m = await currentMonitor()
+
+	let hardVertical = await invoke('hard_vertical')
+	let hardHorizontal = hardVertical * screen.width / screen.height
 
 	let arrows = {
-		screenCss: xy(0, 0),//CSS pixels, matches styles on div tags
-		screenLooksLike: xy(0, 0),//macOS's "looks like" resolution, matches numbers in System Settings
-		screenOsCanvas: xy(0, 0),//macOS's scaled canvas, what macOS actually paints text, vectors, and images onto
-		screenPhysical: xy(0, 0),//physical hardware lights, had to go deep in Rust to get these
+		screenCss: xy(screen.width, screen.height),//CSS pixels, matches styles on div tags, matches macOS's "looks like" resolution in settings
+		screenOsCanvas: xy(m.size.width, m.size.height),//macOS's scaled canvas, what macOS actually paints text, vectors, and images onto
+		screenPhysical: xy(hardHorizontal, hardVertical),//physical hardware lights, had to go deep in Rust to get these
 	}
 	console.log(arrows)
 	return arrows
@@ -42,17 +46,17 @@ onMounted(async () => {
 	const w = getCurrentWindow()
 	const m = await currentMonitor()
 
+	let measure = await measureScreen()
+
 log(`getting the true vertical pixel resolution
 
 ${window.devicePixelRatio} window.devicePixelRatio
 ${await w.scaleFactor()} tauri getCurrentWindow scaleFactor
 ${m.scaleFactor} tauri currentMonitor scaleFactor
 
-${screen.height} screen.height
-${await invoke('hard_vertical')} rust hard_vertical 🦀
-${m.size.height} tauri currentMonitor size.height
-
-(some correct answers are 1600 classic dell, 1664 macbook air, 2160 4K monitor 🏆)
+${measure.screenCss.x     } × ${measure.screenCss.y     } screen css, from CSSs screen.width and screen.height
+${measure.screenPhysical.x} × ${measure.screenPhysical.y} screen physical, from low level graphics apis 🦀
+${measure.screenOsCanvas.x} × ${measure.screenOsCanvas.y} screen os canvas, from tauri's currentMonitor() .size.width and .size.height
 `)
 
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
