@@ -6,7 +6,10 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {ioRead, ioReadDir} from '../io.js'//our rust module
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage} from './library.js'//our javascript library
+import {
+xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
+screenToViewport,
+} from './library.js'//our javascript library
 
 //                       _   
 //   _____   _____ _ __ | |_ 
@@ -18,7 +21,7 @@ import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRender
 onMounted(async () => {
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
 	window.addEventListener('keydown', onKey)
-	window.addEventListener('resize', onResize); onResize()//and call right away to look at the starting size
+	window.addEventListener('resize', onResize)
 	const w = getCurrentWindow()
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
@@ -66,13 +69,18 @@ async function onKey(e) {
 	else if (key == '-')                                    { zoom(false) }
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
-async function setFullscreen(set) { let w = getCurrentWindow(); let current = await w.isFullscreen()
-	if (set != current) w.setFullscreen(set)
-}
-async function toggleFullscreen() { let w = getCurrentWindow(); let current = await w.isFullscreen()
-	w.setFullscreen(!current)
-}
 async function onDoubleClick(e) { await toggleFullscreen() }
+async function toggleFullscreen() { let w = getCurrentWindow(); let current = await w.isFullscreen()
+	await changeFullscreen(w, current, !current)
+}
+async function setFullscreen(destination) { let w = getCurrentWindow(); let current = await w.isFullscreen()
+	await changeFullscreen(w, current, destination)
+}
+async function changeFullscreen(w, current, destination) {
+	if (current == destination) return
+	screenToViewportBeforeFullscreenChange = await screenToViewport()
+	w.setFullscreen(destination)
+}
 
 function onWheel(e) {
 	e.preventDefault()//tell the browser not to scroll
@@ -125,8 +133,14 @@ function onUp(e) {
 // |___/_/___\___|
 //                
 
-function onResize() {//called once on mounted and whenever the viewport size changes
-	console.log('on resize! ↘️')
+const panForFullscreenChange = true//works correctly, but causes mismatched jump cut after unavoidable macOS blur animation
+let screenToViewportBeforeFullscreenChange//hold arrow in module state to signal getting the after state on the next resize event
+async function onResize() {//called whenever the viewport size changes
+	if (screenToViewportBeforeFullscreenChange) {//we only care if we just entered or left full screen
+		let screenToViewportAfterFullscreenChange = await screenToViewport()//to find out where the window was before, or is after
+		if (panForFullscreenChange) dragSegment(xy(screenToViewportBeforeFullscreenChange, '-', screenToViewportAfterFullscreenChange))
+		screenToViewportBeforeFullscreenChange = null//we don't care about resize events otherwise
+	}
 }
 
 const zoomStep = 1.25
@@ -139,7 +153,9 @@ function onPointerMove(e) { if (!drag) return
 	let current = xy(e.clientX, e.clientY)//the new current location of the pointer
 	let segment = xy(current, '-', drag.start)//the segment it just moved to get to where it is now
 	drag.start = current//get ready for the next drag segment
-
+	dragSegment(segment)
+}
+function dragSegment(segment) {
 	quiverA.space = xy(quiverA.space, '+', segment)
 	quiver()
 }

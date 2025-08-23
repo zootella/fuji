@@ -122,7 +122,7 @@ export async function renderImage(img, details) {//render the data url string de
 
 //resolution
 
-async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
+export async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
 	let w = getCurrentWindow()
 	let p = await w.outerPosition()
 	let s = await w.outerSize()
