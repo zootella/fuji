@@ -244,6 +244,7 @@ async function flip(direction) {
 	)
 	return flipQueue
 }
+//ttd august, you're seeing 30mb animated GIFs (that should be MPEGs) take 8s to get off disk in local development on windows, and with those in the list, you've been able to mangle the triad! new design: discard, rather than queuing, a second flip command while one is delayed, and immediately show a "Loading..." hud
 async function _flip(direction) {
 	if (!folder) return//nothing loaded yet
 
