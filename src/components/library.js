@@ -136,7 +136,7 @@ export async function screenToViewport() {//arrow from the screen corner above t
 
 	let scale = arrowScreen.y / arrowMonitor.y//CSS pixels divided by the height of the fake bitmap macOS paints on and then scales down onto hardware pixels, which is the fourth pixel unit we've encountered! css pixels, looks like resolution, giant canvas, physical pixels
 	return xy(xy(xy(arrowPosition, '+', arrowSize), '*', scale), '-', arrowWindow)
-}
+}//ttd august, and, this does not work on windows as there is a 1? pixel width border. so it's a little off. keep it, but stop using it entirely
 
 export const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
