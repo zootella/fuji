@@ -54,6 +54,8 @@ async function onKey(e) {
 
 	if      (key == 'f') { console.log('my key F') }
 	else if (key == 'q') { console.log('my key Q') }
+	else if (key == 'h') { toggleHelp()        }
+	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
 		e.preventDefault()//tell the browser not to show the file save dialog box
 	} else if (key == 'Escape') {
@@ -305,13 +307,13 @@ const errorData = `data:image/svg+xml;base64,${btoa(`
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
-const hud1Ref = ref('')
-const hud2Ref = ref('')
-const hud3Ref = ref('')
-const hud4Ref = ref('')
-const captionRef = ref('')
+const showHud1Ref    = ref(false); const hud1Ref    = ref('')
+const showHud2Ref    = ref(false); const hud2Ref    = ref('')
+const showHud3Ref    = ref(false); const hud3Ref    = ref('')
+const showHud4Ref    = ref(false); const hud4Ref    = ref('')
+const showCaptionRef = ref(false); const captionRef = ref('')
 function setText() {
-/*
+
 hud1Ref.value = 'upper left'
 hud2Ref.value = 'System operating according to normal parameters'
 hud3Ref.value = `lower left, this one is longer
@@ -322,10 +324,13 @@ this HUD will likely be a card showing the user all the
 keyboard shortcuts the app supports, and be really easy to
 show and hide, such as by pressing the [H]elp or just [Spacebar]
 and here is yet another line`
-*/
+
 captionRef.value = `A multimedia file manager designed
 with privacy and precision in mind`//no terminating newline, if that matters
+showCaptionRef.value = true
 }
+function toggleInformation() { showHud3Ref.value = !showHud3Ref.value }
+function toggleHelp()        { showHud4Ref.value = !showHud4Ref.value }
 
 const img7Ref = ref(null)
 const img8Ref = ref(null)
@@ -363,15 +368,15 @@ const triad = {
 		<img ref="img9Ref" class="myImage" />
 
 		<!-- caption lives inside the card, but sits below its border -->
-		<div class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap font-mono myEmbossed">{{captionRef}}</div>
+		<div v-if="showCaptionRef" class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap font-mono myEmbossed">{{captionRef}}</div>
 
 	</div>
 
 	<!-- HUD, inside the frame, next to the card -->
-	<div v-if="hud1Ref" class="myHud myDry absolute top-4 left-4">{{hud1Ref}}</div>
-	<div v-if="hud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
-	<div v-if="hud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
-	<div v-if="hud4Ref" class="myHud myDry absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">{{hud4Ref}}</div>
+	<div v-if="showHud1Ref" class="myHud myDry absolute top-4 left-4">{{hud1Ref}}</div>
+	<div v-if="showHud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
+	<div v-if="showHud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
+	<div v-if="showHud4Ref" class="myHud myDry absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">{{hud4Ref}}</div>
 
 </div>
 
