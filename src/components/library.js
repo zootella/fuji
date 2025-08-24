@@ -162,3 +162,78 @@ export const hardVerticals = [
 	3200, // 6K (6016×3384); Apple Pro Display XDR and similar
 	4320, // 8K UHD (7680×4320); bleeding-edge professional monitors
 ]
+
+
+
+
+
+
+
+//group digits like "12,345"
+export function sayGroupDigits(s, thousandsSeparator = ',') {//pass comma, period, or leave out to get international ready thin space
+	if (typeof s != 'string') s += ''
+
+	let minus = ''
+	if (s.startsWith('-')) { minus = '-'; s = s.slice(1) }//deal with negative numbers
+	if (s.length > 4) {//let a group of four through
+		s = s.split('').reverse().join('')//reversed
+		s = s.match(/.{1,3}/g).join(thousandsSeparator)//grouped reverse
+		s = s.split('').reverse().join('')//forward again
+	}
+	return minus+s
+}
+
+// Describe big sizes and counts in four digits or less
+export function saySize4(n)   { return _number4(n, 1024, [' bytes', ' KB', ' MB', ' GB', ' TB', ' PB', ' EB', ' ZB', ' YB']) }
+export function sayNumber4(n) { return _number4(n, 1000, ['',       ' K',  ' M',  ' B',  ' T',  ' P',  ' E',  ' Z',  ' Y'])  }
+function _number4(n, power, units) {
+	var u = 0 // Start on the first unit
+	var d = 1 // Which has a value of 1 each
+	while (u < units.length) { // Loop to larger units until we can say n in four digits or less
+
+		var w = Math.floor(n / d) // Find out how many of the current unit we have
+		if (w <= 9999) return w + units[u] // Four digits or less, use this unit
+
+		u++ // Move to the next larger unit
+		d *= power
+	}
+	return n+'' // We ran out of units
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -8,7 +8,7 @@ import {ioRead, ioReadDir} from '../io.js'//our rust module
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {
 xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
-screenToViewport,
+screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 
 //                       _   
@@ -31,7 +31,7 @@ onMounted(async () => {
 	})
 	onStart()
 	dimensionStart()
-	setText()
+	hudStart()
 })
 let unlistenFileDrop//will hold the unsubscribe function set above and called below
 onBeforeUnmount(() => {
@@ -203,6 +203,8 @@ function quiver() {
 
 	//keep a record of what we told the page to only bother it next time it's necessary
 	quiverC = quiverB
+
+	updateInformation()
 }
 let quiverC//Quiver C: our record of how we've styled the page to appear; treat as private to above
 
@@ -231,6 +233,7 @@ async function onDrop(path) {
 
 	triad.prev = fillImage(img7Ref, folder.index - 1, folder.list)//path alphebetically above
 	triad.next = fillImage(img9Ref, folder.index + 1, folder.list)//path alphebetically below
+	updateInformation()
 }
 
 let flipQueue = Promise.resolve()//do one flip at a time; start with resolved promise
@@ -269,6 +272,7 @@ async function _flip(direction) {
 	await raf()//🥪 wait for above paint to hit the screen
 
 	triad[ahead] = fillImage(triad[ahead].imgRef, indexAhead2, folder.list)//preload the next next image, but don't wait for it
+	updateInformation()
 }
 function fillImage(imgRef, index, list) {//start loading the image on the disk at list[index] into the given img7Ref, img8Ref, or img9Ref
 	let image = {imgRef, path: null, promise: Promise.resolve(), error: null, details: null}//wrap the given imgRef into an object to set in the triad
@@ -286,6 +290,49 @@ function fillImage(imgRef, index, list) {//start loading the image on the disk a
 			return error
 		})
 	return image//return the image object to await image.promise and then check out image.details or image.error
+}
+
+//  _               _ 
+// | |__  _   _  __| |
+// | '_ \| | | |/ _` |
+// | | | | |_| | (_| |
+// |_| |_|\__,_|\__,_|
+//                    
+
+const showHud1Ref    = ref(false); const hud1Ref    = ref('')//upper left, on frame
+const showHud2Ref    = ref(false); const hud2Ref    = ref('')//upper right
+const showHud3Ref    = ref(true);  const hud3Ref    = ref('')//bottom, information
+const showHud4Ref    = ref(false); const hud4Ref    = ref('')//middle, help
+const showCaptionRef = ref(true);  const captionRef = ref('')//caption, below card on table
+function hudStart() {
+
+hud1Ref.value = 'upper left'
+hud2Ref.value = 'System operating according to normal parameters'
+hud3Ref.value = ``
+hud4Ref.value = `middle of frame
+this HUD will likely be a card showing the user all the
+keyboard shortcuts the app supports, and be really easy to
+show and hide, such as by pressing the [H]elp or just [Spacebar]
+and here is yet another line`
+
+captionRef.value = `A multimedia file manager designed
+with privacy and precision in mind`//no terminating newline, if that matters
+showCaptionRef.value = true
+
+	updateInformation()
+}
+function toggleInformation() { showHud3Ref.value = !showHud3Ref.value }
+function toggleHelp()        { showHud4Ref.value = !showHud4Ref.value }
+function updateInformation() {
+	let s = 'no image loaded'
+	if (triad.here?.details?.path && quiverC?.card2) {
+		let d = triad.here.details
+s = `${d.path}
+natural ${d.natural.x} width x ${d.natural.y} height, ${saySize4(d.size)} (${sayGroupDigits(d.size)} bytes)
+displayed ${Math.round(quiverC.card2.x)} width x ${Math.round(quiverC.card2.y)} height (CSS, not physical, pixels)
+${d.note}`
+	}
+	hud3Ref.value = s
 }
 
 //  _              
@@ -306,31 +353,6 @@ const errorData = `data:image/svg+xml;base64,${btoa(`
 
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
-
-const showHud1Ref    = ref(false); const hud1Ref    = ref('')
-const showHud2Ref    = ref(false); const hud2Ref    = ref('')
-const showHud3Ref    = ref(false); const hud3Ref    = ref('')
-const showHud4Ref    = ref(false); const hud4Ref    = ref('')
-const showCaptionRef = ref(false); const captionRef = ref('')
-function setText() {
-
-hud1Ref.value = 'upper left'
-hud2Ref.value = 'System operating according to normal parameters'
-hud3Ref.value = `lower left, this one is longer
-and could involve a second line of text, which could be quite long; text that grows to the width of the frame does wrap
-or even a third line`
-hud4Ref.value = `middle of frame
-this HUD will likely be a card showing the user all the
-keyboard shortcuts the app supports, and be really easy to
-show and hide, such as by pressing the [H]elp or just [Spacebar]
-and here is yet another line`
-
-captionRef.value = `A multimedia file manager designed
-with privacy and precision in mind`//no terminating newline, if that matters
-showCaptionRef.value = true
-}
-function toggleInformation() { showHud3Ref.value = !showHud3Ref.value }
-function toggleHelp()        { showHud4Ref.value = !showHud4Ref.value }
 
 const img7Ref = ref(null)
 const img8Ref = ref(null)
