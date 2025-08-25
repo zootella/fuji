@@ -54,6 +54,7 @@ async function onKey(e) {
 
 	if      (key == 'f') { console.log('my key F') }
 	else if (key == 'q') { console.log('my key Q') }
+	else if (key == 'm') { screenToViewport() }
 	else if (key == 'h') { toggleHelp()        }
 	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')

@@ -128,6 +128,12 @@ export async function screenToViewport() {//arrow from the screen corner above t
 	let s = await w.outerSize()
 	let m = await currentMonitor()
 
+	console.log({
+		outer: await w.outerSize(),
+		inner: await w.innerSize(),
+		window: xy(window.screenX, window.screenY),
+	})
+
 	let arrowPosition = xy(p.x, p.y)
 	let arrowSize = xy(s.width, s.height)
 	let arrowScreen = xy(screen.width, screen.height)
@@ -137,6 +143,17 @@ export async function screenToViewport() {//arrow from the screen corner above t
 	let scale = arrowScreen.y / arrowMonitor.y//CSS pixels divided by the height of the fake bitmap macOS paints on and then scales down onto hardware pixels, which is the fourth pixel unit we've encountered! css pixels, looks like resolution, giant canvas, physical pixels
 	return xy(xy(xy(arrowPosition, '+', arrowSize), '*', scale), '-', arrowWindow)
 }//ttd august, and, this does not work on windows as there is a 1? pixel width border. so it's a little off. keep it, but stop using it entirely
+
+/*
+claude sums it up nicely:
+
+The Pixel Unit Challenge
+You're correct that there are multiple pixel units at play:
+1. CSS pixels - What web APIs report (window.innerWidth/Height)
+2. Logical/Points pixels - macOS "looks like" resolution
+3. Backing store pixels - The large bitmap macOS renders to
+4. Physical/Hardware pixels - Actual screen pixels
+*/
 
 export const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
