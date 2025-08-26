@@ -11,7 +11,8 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {ioRead, ioReadDir} from '../io.js'//our rust module
+import {ioRead, ioReadDir} from '../io.js'//our rust modules
+import {panelResolution} from '../panel.js'
 
 //promises
 
@@ -185,7 +186,22 @@ ${cssScreenToViewport.x} × ${cssScreenToViewport.y} screen to viewport
 	return cssScreenToViewport
 }
 
+export async function measureScreen() {//get the screen resolution as {x, y} in all the different real and fake pixel units
+	const w = getCurrentWindow()
+	const m = await currentMonitor()
+	let q = {
+		windowDevicePixelRatio: window.devicePixelRatio,
+		tauriWindowScaleFactor: await w.scaleFactor(),
+		tauriMonitorScaleFactor: m.scaleFactor,//these tend to all be the same, but go between CSS and backing, never to physical!
 
+		cssScreen: xy(screen.width, screen.height),
+		backingScreen: xy(m.size.width, m.size.height),
+		physicalScreen: await panelResolution(),//custom Rust code we wrote to system APIs to get the real physical pixel counts
+	}
+	console.log(q)
+	return q
+}
+//ttd august, you might be seeing something where if code calls panelResolution real fast back to back, it breaks and just says 0, 0; so ask about that, or cache it, or have a cache that expires in 100ms or something, ugh
 
 export const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes
