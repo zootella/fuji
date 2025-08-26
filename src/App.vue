@@ -13,6 +13,6 @@ import LightTable from './components/LightTable.vue'
 </script>
 <template>
 
-<LightTable />
+<MyList />
 
 </template>
