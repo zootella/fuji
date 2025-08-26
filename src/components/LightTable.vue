@@ -141,6 +141,7 @@ let screenToViewportBeforeFullscreenChange//hold arrow in module state to signal
 async function onResize() {//called whenever the viewport size changes
 	if (screenToViewportBeforeFullscreenChange) {//we only care if we just entered or left full screen
 		let screenToViewportAfterFullscreenChange = await screenToViewport()//to find out where the window was before, or is after
+		console.log('in resize', screenToViewportAfterFullscreenChange)
 		if (panForFullscreenChange) dragSegment(xy(screenToViewportBeforeFullscreenChange, '-', screenToViewportAfterFullscreenChange))
 		screenToViewportBeforeFullscreenChange = null//we don't care about resize events otherwise
 	}
@@ -434,10 +435,10 @@ const triad = {
 .myWillChangeBackgroundPosition { will-change: background-position; } /* with the styles, you get 2 layers in dev tools Layers */
 
 .myDots {
-	background-color: #171717; /* an off-white that still reads white but lets layers below peek through */
-	background-image: radial-gradient(circle at center, #262626 6px, transparent 6px); /* a pastel-pink dot layer, centered in each cell */
-	background-size: 60px 60px; /* make each “tile” big enough that the full 16px-diameter dot never hits an edge */
-	background-position: 0 0, 30px 30px; /* offset the second layer by half a cell → diamond pattern */
+	background-color: #171717;
+	background-image: radial-gradient(circle at center, #262626 6px, transparent 6px);
+	background-size: 60px 60px;
+	background-position: 0 0, 30px 30px;
 }
 .myShadow {
 	box-shadow: 6px 6px 12px rgba(0,0,0,0.5);

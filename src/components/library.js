@@ -155,6 +155,10 @@ export async function screenToViewport2() {//arrow from the screen corner above 
 	so the crazy workaround here assumes a border width that's the same all around
 	and a title bar height that's only on the top
 	and then we can do the math from there!
+
+	on mac, border is 0, so all the extra height is title bar at the top
+	on windows, crazily, position points to outside a 7 pixel all the way around shadow,
+	except with the top shaved off--so the math still works
 	*/
 	let w = getCurrentWindow()
 	let p = await w.outerPosition()
@@ -179,6 +183,8 @@ export async function screenToViewport2() {//arrow from the screen corner above 
 	let border = (cssWindowOuter.x - cssWindowInner.x) / 2
 	let title = cssWindowOuter.y - border - cssWindowInner.y - border
 
+	let cssScreenToViewport = xy(cssPosition.x + border, cssPosition.y + border + title)
+
 console.log(`in backing units:
 ${backingScreen.x} × ${backingScreen.y} screen
 ${backingWindowOuter.x} × ${backingWindowOuter.y} outer window
@@ -190,8 +196,10 @@ ${cssWindowOuter.x} × ${cssWindowOuter.y} outer window (calculated, scale of ${
 ${cssWindowInner.x} × ${cssWindowInner.y} inner window
 ${cssPosition.x} × ${cssPosition.y} position (calculated)
 
-from that we assume ${border} border all the way around, and ${title} title bar on the top
+from that we assume ${border} border all the way around, and ${title} title bar on the top, and
+${cssScreenToViewport.x} × ${cssScreenToViewport.y} screen to viewport
 `)
+	return cssScreenToViewport
 }
 
 
