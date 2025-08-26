@@ -1,6 +1,7 @@
 //./src-tauri/src/lib.rs
 
 mod io;//compile io.rs as a module named io
+mod panel;
 
 pub fn run() {
 	tauri::Builder::default()//start building the Tauri application
@@ -14,6 +15,7 @@ pub fn run() {
 				io::io_stat,
 				io::io_read,
 				io::io_copy,
+				panel::panel_resolution,
 			]
 		)                                                     
 		.run(tauri::generate_context!())//launch the app with the generated config (tauri.conf.json)

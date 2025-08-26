@@ -244,13 +244,9 @@ async function flip(direction) {
 	)
 	return flipQueue
 }
-//ttd august, you're seeing 30mb animated GIFs (that should be MPEGs) take 8s to get off disk in local development on windows, and with those in the list, you've been able to mangle the triad! new design: discard, rather than queuing, a second flip command while one is delayed, and immediately show a "Loading..." hud
-//two things that cause Loading... to appear. the current flip request is delayed for more than 200ms, the user is starting to wonder. or, there is a second flip request that we're tossing out while the current flip request is delayed
-/*
-actually, here's the simple effective design:
-show Loading... immediately if the flip has to wait at all--if the promise is not already resolved
+/*ttd august, as with slow big GIFs that should be MPEGs you've been able to mangle the triad
+show Loading... upper right HUD immediately if the flip has to wait at all--if the promise is not already resolved
 and when Loading... is shown, in that mode, ignore all additional commands
-this should be pretty easy to add
 */
 async function _flip(direction) {
 	if (!folder) return//nothing loaded yet

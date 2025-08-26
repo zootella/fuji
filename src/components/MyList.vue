@@ -3,9 +3,12 @@
 //keep, drop events we list files from, and lots of native resolution working and thinking in here, too
 
 import {invoke} from '@tauri-apps/api/core';
+
 import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {ioRead, ioReadDir} from '../io.js'//our rust module
+
+import {ioRead, ioReadDir} from '../io.js'//our rust modules
+import {panelResolution} from '../panel.js'
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage} from './library.js'//our javascript library
@@ -31,12 +34,14 @@ async function measureScreen() {//get the screen resolution as {x, y} in all the
 	const m = await currentMonitor()
 
 	let hardVertical = await invoke('hard_vertical')
+	let panel = await panelResolution()
 	let hardHorizontal = hardVertical * screen.width / screen.height
 
 	let arrows = {
 		screenCss: xy(screen.width, screen.height),//CSS pixels, matches styles on div tags, matches macOS's "looks like" resolution in settings
 		screenOsCanvas: xy(m.size.width, m.size.height),//macOS's scaled canvas, what macOS actually paints text, vectors, and images onto
 		screenPhysical: xy(hardHorizontal, hardVertical),//physical hardware lights, had to go deep in Rust to get these
+		panel,
 	}
 	console.log(arrows)
 	return arrows
@@ -57,6 +62,8 @@ ${m.scaleFactor} tauri currentMonitor scaleFactor
 ${measure.screenCss.x     } × ${measure.screenCss.y     } screen css, from CSSs screen.width and screen.height
 ${measure.screenPhysical.x} × ${measure.screenPhysical.y} screen physical, from low level graphics apis 🦀
 ${measure.screenOsCanvas.x} × ${measure.screenOsCanvas.y} screen os canvas, from tauri's currentMonitor() .size.width and .size.height
+
+${measure.panel.x} × ${measure.panel.y} panel resolution, new version from low level graphics apis 🦀
 `)
 
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
