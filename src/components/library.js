@@ -123,22 +123,6 @@ export async function renderImage(img, details) {//render the data url string de
 //resolution
 
 export async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
-	let w = getCurrentWindow()
-	let p = await w.outerPosition()
-	let s = await w.outerSize()
-	let m = await currentMonitor()
-
-	let arrowPosition = xy(p.x, p.y)
-	let arrowSize = xy(s.width, s.height)
-	let arrowScreen = xy(screen.width, screen.height)
-	let arrowMonitor = xy(m.size.width, m.size.height)
-	let arrowWindow = xy(window.innerWidth, window.innerHeight)
-
-	let scale = arrowScreen.y / arrowMonitor.y
-	return xy(xy(xy(arrowPosition, '+', arrowSize), '*', scale), '-', arrowWindow)
-}//previous version that works on mac, not windows, because of the window border, we think
-
-export async function screenToViewport2() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
 	/*
 	The Pixel Unit Challenge: there are multiple pixel units at play
 	1. CSS pixels - What web APIs report
@@ -182,10 +166,9 @@ export async function screenToViewport2() {//arrow from the screen corner above 
 	//here, we assume there's a border all the way around, and a title bar only at the top
 	let border = (cssWindowOuter.x - cssWindowInner.x) / 2
 	let title = cssWindowOuter.y - border - cssWindowInner.y - border
-
 	let cssScreenToViewport = xy(cssPosition.x + border, cssPosition.y + border + title)
 
-console.log(`in backing units:
+if (false) console.log(`in backing units:
 ${backingScreen.x} × ${backingScreen.y} screen
 ${backingWindowOuter.x} × ${backingWindowOuter.y} outer window
 ${backingPosition.x} × ${backingPosition.y} position

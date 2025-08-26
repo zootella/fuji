@@ -8,7 +8,7 @@ import {ioRead, ioReadDir} from '../io.js'//our rust module
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {
 xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
-screenToViewport, screenToViewport2, sayGroupDigits, saySize4,
+screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 
 //                       _   
@@ -54,7 +54,7 @@ async function onKey(e) {
 
 	if      (key == 'f') { console.log('my key F') }
 	else if (key == 'q') { console.log('my key Q') }
-	else if (key == 'm') { screenToViewport2() }
+	else if (key == 'm') { screenToViewport()  }//ttd august, just for testing
 	else if (key == 'h') { toggleHelp()        }
 	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
@@ -81,7 +81,7 @@ async function setFullscreen(destination) { let w = getCurrentWindow(); let curr
 }
 async function changeFullscreen(w, current, destination) {
 	if (current == destination) return
-	screenToViewportBeforeFullscreenChange = await screenToViewport()
+	screenToViewport1 = await screenToViewport()
 	w.setFullscreen(destination)
 }
 
@@ -136,14 +136,12 @@ function onUp(e) {
 // |___/_/___\___|
 //                
 
-const panForFullscreenChange = true//works correctly, but causes mismatched jump cut after unavoidable macOS blur animation
-let screenToViewportBeforeFullscreenChange//hold arrow in module state to signal getting the after state on the next resize event
+let screenToViewport1//arrow from screen corner to viewport corner before a change in to our out of full screen
 async function onResize() {//called whenever the viewport size changes
-	if (screenToViewportBeforeFullscreenChange) {//we only care if we just entered or left full screen
-		let screenToViewportAfterFullscreenChange = await screenToViewport()//to find out where the window was before, or is after
-		console.log('in resize', screenToViewportAfterFullscreenChange)
-		if (panForFullscreenChange) dragSegment(xy(screenToViewportBeforeFullscreenChange, '-', screenToViewportAfterFullscreenChange))
-		screenToViewportBeforeFullscreenChange = null//we don't care about resize events otherwise
+	if (screenToViewport1) {//we've been waiting for this resize event to see where the viewport moved on the screen
+		let stv2 = await screenToViewport()//where it is now, after the full screen change
+		if (screenToViewport1 && stv2) dragSegment(xy(screenToViewport1, '-', stv2))
+		screenToViewport1 = null//we don't need resize events generally
 	}
 }
 
