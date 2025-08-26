@@ -128,32 +128,73 @@ export async function screenToViewport() {//arrow from the screen corner above t
 	let s = await w.outerSize()
 	let m = await currentMonitor()
 
-	console.log({
-		outer: await w.outerSize(),
-		inner: await w.innerSize(),
-		window: xy(window.screenX, window.screenY),
-	})
-
 	let arrowPosition = xy(p.x, p.y)
 	let arrowSize = xy(s.width, s.height)
 	let arrowScreen = xy(screen.width, screen.height)
 	let arrowMonitor = xy(m.size.width, m.size.height)
 	let arrowWindow = xy(window.innerWidth, window.innerHeight)
 
-	let scale = arrowScreen.y / arrowMonitor.y//CSS pixels divided by the height of the fake bitmap macOS paints on and then scales down onto hardware pixels, which is the fourth pixel unit we've encountered! css pixels, looks like resolution, giant canvas, physical pixels
+	let scale = arrowScreen.y / arrowMonitor.y
 	return xy(xy(xy(arrowPosition, '+', arrowSize), '*', scale), '-', arrowWindow)
-}//ttd august, and, this does not work on windows as there is a 1? pixel width border. so it's a little off. keep it, but stop using it entirely
+}//previous version that works on mac, not windows, because of the window border, we think
 
-/*
-claude sums it up nicely:
+export async function screenToViewport2() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
+	/*
+	The Pixel Unit Challenge: there are multiple pixel units at play
+	1. CSS pixels - What web APIs report
+	2. Logical/Points pixels - macOS "looks like" resolution
+	3. Backing store pixels - The large bitmap macOS renders to
+	4. Physical/Hardware pixels - Actual screen pixels
+	you're seeing that 1 and 2 are the same, and 3 is a macOS only thing
 
-The Pixel Unit Challenge
-You're correct that there are multiple pixel units at play:
-1. CSS pixels - What web APIs report (window.innerWidth/Height)
-2. Logical/Points pixels - macOS "looks like" resolution
-3. Backing store pixels - The large bitmap macOS renders to
-4. Physical/Hardware pixels - Actual screen pixels
-*/
+	also, tauri APIs are broken:
+	- getCurrentWindow().outerSize works, but is in backing store pixels
+	- and is the same as what .innerSize says
+	- window.innerWidth and .innerHeight are nonsensical
+
+	so the crazy workaround here assumes a border width that's the same all around
+	and a title bar height that's only on the top
+	and then we can do the math from there!
+	*/
+	let w = getCurrentWindow()
+	let p = await w.outerPosition()
+	let s = await w.outerSize()
+	let m = await currentMonitor()
+
+	//measurements from tauri are in macOS backing store pixels
+	let backingPosition = xy(p.x, p.y)//screen corner to window outer corner
+	let backingWindowOuter = xy(s.width, s.height)//outer window dimensions, including titlebar and borders
+	let backingScreen = xy(m.size.width, m.size.height)//screen dimensions
+
+	//measurements from HTML are in CSS pixels
+	let cssScreen = xy(screen.width, screen.height)//screen dimensions
+	let cssWindowInner = xy(window.innerWidth, window.innerHeight)//inner window dimensions, the renderer viewport which is the frame div
+
+	//scale everything CSS pixels
+	let scale = cssScreen.y / backingScreen.y
+	let cssPosition = xy(backingPosition, '*', scale)
+	let cssWindowOuter = xy(backingWindowOuter, '*', scale)
+
+	//here, we assume there's a border all the way around, and a title bar only at the top
+	let border = (cssWindowOuter.x - cssWindowInner.x) / 2
+	let title = cssWindowOuter.y - border - cssWindowInner.y - border
+
+console.log(`in backing units:
+${backingScreen.x} × ${backingScreen.y} screen
+${backingWindowOuter.x} × ${backingWindowOuter.y} outer window
+${backingPosition.x} × ${backingPosition.y} position
+
+all in css units from here:
+${cssScreen.x} × ${cssScreen.y} screen
+${cssWindowOuter.x} × ${cssWindowOuter.y} outer window (calculated, scale of ${scale})
+${cssWindowInner.x} × ${cssWindowInner.y} inner window
+${cssPosition.x} × ${cssPosition.y} position (calculated)
+
+from that we assume ${border} border all the way around, and ${title} title bar on the top
+`)
+}
+
+
 
 export const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes

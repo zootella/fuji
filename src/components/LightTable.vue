@@ -8,7 +8,7 @@ import {ioRead, ioReadDir} from '../io.js'//our rust module
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {
 xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
-screenToViewport, sayGroupDigits, saySize4,
+screenToViewport, screenToViewport2, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 
 //                       _   
@@ -54,7 +54,7 @@ async function onKey(e) {
 
 	if      (key == 'f') { console.log('my key F') }
 	else if (key == 'q') { console.log('my key Q') }
-	else if (key == 'm') { screenToViewport() }
+	else if (key == 'm') { screenToViewport2() }
 	else if (key == 'h') { toggleHelp()        }
 	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
