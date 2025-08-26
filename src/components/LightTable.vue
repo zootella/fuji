@@ -54,7 +54,6 @@ async function onKey(e) {
 
 	if      (key == 'f') { console.log('my key F') }
 	else if (key == 'q') { console.log('my key Q') }
-	else if (key == 'm') { screenToViewport()  }//ttd august, just for testing
 	else if (key == 'h') { toggleHelp()        }
 	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
@@ -82,6 +81,7 @@ async function setFullscreen(destination) { let w = getCurrentWindow(); let curr
 async function changeFullscreen(w, current, destination) {
 	if (current == destination) return
 	screenToViewport1 = await screenToViewport()
+	//ttd august, this is pixel perfect now on mac and windows (but you haven't tested high res windows yet) to work around the shift-melt-blink render a black curtain over the frame, go full screen, get the resize event, do the pan, and then remove the curtain. this is a cool idea
 	w.setFullscreen(destination)
 }
 
@@ -207,6 +207,11 @@ function quiver() {
 	updateInformation()
 }
 let quiverC//Quiver C: our record of how we've styled the page to appear; treat as private to above
+/*ttd august, brief notes on quiver
+- minimal nonoverlapping quiverB is frame corner to card corner, card diagonal, space center, tile diagonal
+- if pixels here are real, quiver() should Math.round or natural set quiverB so there are no floats in there at all!
+- keep the existing !same check, but inside there, also only do the parts that are necessary
+*/
 
 //   __ _ _       
 //  / _| (_)_ __  

@@ -29,6 +29,14 @@ async function measureScreen() {//get the screen resolution as {x, y} in all the
 	strategy to use hard vertical
 	if window.devicePixelRatio is 1, then just use screen.height
 	if hard_vertical returns 0, <1080, or something not listed above, screen.height
+
+	ttd august, note that on a macbook air you're seeing
+	1710 / 1112 = 1.537 769 screen css
+	2560 / 1664 = 1.538 461 panel resolution
+	so following from the panel resolution, screen css really needs to be either
+	1710.769 x 1112, or
+	1710 x 1111.5
+	yeah that's better so use width, not height, when computing the scale ratio css to physical
 	*/
 	const w = getCurrentWindow()
 	const m = await currentMonitor()

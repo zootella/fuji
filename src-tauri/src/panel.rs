@@ -53,28 +53,35 @@ mod platform {
 	}
 	
 	pub fn panel_resolution() -> Arrow {
-		unsafe {
+		panic::catch_unwind(|| unsafe {
 			let id = CGMainDisplayID();
 			let modes = CGDisplayCopyAllDisplayModes(id, std::ptr::null());//list all available display modes
 			if modes.is_null() {
 				return Arrow { x: 0, y: 0 };
 			}
+			
 			let count = CFArrayGetCount(modes as *const c_void);//array length
 			let mut winning_height = 0;//unfortunately, the api doesn't expose a property that says "this resolution is hardware"
 			let mut winner = Arrow { x: 0, y: 0 };//so we return the first resolution we found with the tallest height
 			
 			for i in 0..count {
 				let mode_ref = CFArrayGetValueAtIndex(modes as *const c_void, i);
+				if mode_ref.is_null() {
+					continue;
+				}
 				let mode = CGDisplayMode::from_ptr(mode_ref as *mut _);
-				let h = mode.pixel_height() as u32;//get the framebuffer height of this mode
-				let w = mode.pixel_width() as u32;//get the framebuffer width of this mode
-				if h > winning_height {
-					winning_height = h;
-					winner = Arrow { x: w, y: h };
+				let height = mode.pixel_height() as u32;//get the framebuffer height of this mode
+				let width = mode.pixel_width() as u32;//get the framebuffer width of this mode
+				if height > winning_height {
+					winning_height = height;
+					winner = Arrow { x: width, y: height };
 				}
 			}
+			
+			CFRelease(modes as *const c_void);//necessary to release the array
 			winner
-		}
+		})
+		.unwrap_or(Arrow { x: 0, y: 0 })
 	}
 }
 
