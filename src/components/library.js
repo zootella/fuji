@@ -234,6 +234,32 @@ export const hardVerticals = [
 
 
 
+
+
+
+
+
+
+export function sizeThumbnail(method, natural, h) {
+	let aspect = natural.x / natural.y
+	if (method == 'Flickr.') {//size to height, don't let get wider than 2x height, don't blow up icons
+		let w = h * 2
+		if (natural.x <= w && natural.y <= h) return natural//small enough to pass through
+		let thumbnail = xy(h * aspect, h)//fit to height
+		if (thumbnail.x > w) return xy(w, w / aspect)//too wide!--fit to width
+		return thumbnail
+	}//we might have additional alternative sizing strategies in the future
+}
+
+
+
+
+
+
+
+
+
+
 //group digits like "12,345"
 export function sayGroupDigits(s, thousandsSeparator = ',') {//pass comma, period, or leave out to get international ready thin space
 	if (typeof s != 'string') s += ''
