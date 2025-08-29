@@ -173,6 +173,30 @@ function dimensionStart() {
 	quiverA.tile = xy(60, 60)//tiled background
 	quiver()
 }
+/*
+quiver A is going to have to contain some peers that can get computed from one another
+for instance natural, diamond, zoom, card1, card2, can affect each other in different dimensions
+have helper functions which take some and compute others (using your sketch where )
+use those to always leave quiver A consistant with itself
+
+early change: get rid of zoom; diamond starts at screen sum, gets adjusted up adn down with zoom
+because you're going to have to set diamond based on natural when flipping in 1x mode, for instance
+
+write a measurements from the system right now library of functions, like
+measureScreen() { return xy(screen.width, screen.height) }
+measureFrame() { return xy(frameRef.value.clientWidth, frameRef.value.clientHeight) }
+measureScale() returns float that gets from CSS to real physical panel coordinates
+
+i think there is no zoom
+there is a diamond, which starts at screen sum and then goes up and down with +/-
+and there is a shown, which is output, comparing card2, natural, panel, and screen
+
+next feature to code with this refactored setup:
+[]info includes shown percent output number
+[]zoom keeps part of image in the center of the frame in the center
+building towards a system of modes that control how pan, zoom, and flip behave:
+d(iamond), f(it), w(idth), 123456789(x panel pixels)
+*/
 function quiver() {
 
 	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
