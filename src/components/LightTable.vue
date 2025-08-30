@@ -148,7 +148,7 @@ async function onResize() {//called whenever the viewport size changes
 const zoomStep = 1.25
 function zoom(direction) {
 	quiverA.zoom = direction ? quiverA.zoom * zoomStep : quiverA.zoom / zoomStep
-	quiver()//or, should zoom keep the part of the card that's in the center of the frame in the center? or, should it keep the part of the card that's under the pointer still? this is ok for now but you realize there are at least three ways to do this
+	quiver()
 }
 
 function onPointerMove(e) { if (!drag) return
@@ -173,30 +173,6 @@ function dimensionStart() {
 	quiverA.tile = xy(60, 60)//tiled background
 	quiver()
 }
-/*
-quiver A is going to have to contain some peers that can get computed from one another
-for instance natural, diamond, zoom, card1, card2, can affect each other in different dimensions
-have helper functions which take some and compute others (using your sketch where )
-use those to always leave quiver A consistant with itself
-
-early change: get rid of zoom; diamond starts at screen sum, gets adjusted up adn down with zoom
-because you're going to have to set diamond based on natural when flipping in 1x mode, for instance
-
-write a measurements from the system right now library of functions, like
-measureScreen() { return xy(screen.width, screen.height) }
-measureFrame() { return xy(frameRef.value.clientWidth, frameRef.value.clientHeight) }
-measureScale() returns float that gets from CSS to real physical panel coordinates
-
-i think there is no zoom
-there is a diamond, which starts at screen sum and then goes up and down with +/-
-and there is a shown, which is output, comparing card2, natural, panel, and screen
-
-next feature to code with this refactored setup:
-[]info includes shown percent output number
-[]zoom keeps part of image in the center of the frame in the center
-building towards a system of modes that control how pan, zoom, and flip behave:
-d(iamond), f(it), w(idth), 123456789(x panel pixels)
-*/
 function quiver() {
 
 	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
@@ -205,24 +181,19 @@ function quiver() {
 	quiverB.tile  = quiverA.tile//these arrows are the same, but copy them from a to b as b is our complete record of page styles
 	quiverB.card2 = xy(xy(quiverA.natural, '*', (quiverA.zoom * quiverA.diamond)), '/', (quiverA.natural.x + quiverA.natural.y))//diagonal across card top left to bottom right; math by Ramiel, No. 5
 	quiverB.card1 = xy(quiverA.space, '+', xy(quiverB.card2, '/', -2))//from that, frame corner to card corner
+	//ttd august, here's where, if quiverA says pixels are real, you should Math.round quiverB
 
-	//are there any changes we need to set on the page?
-	let same = false
-	if (quiverC) {
-		same = (
-			xy(quiverC.space, '==', quiverB.space) &&
-			xy(quiverC.tile,  '==', quiverB.tile)  &&
-			xy(quiverC.card1, '==', quiverB.card1) &&
-			xy(quiverC.card2, '==', quiverB.card2)
-		)
-	}
-	if (!same) {//only bother the page if necessary
-
+	//only bother the page if necessary
+	function same(name) { return quiverC && xy(quiverB[name], '==', quiverC[name]) }
+	if (!(same('space') && same('tile'))) {
 		frameRef.value.style.backgroundPosition = `${quiverB.space.x % quiverB.tile.x}px ${quiverB.space.y % quiverB.tile.y}px`
+	}
+	if (!same('card1')) {
 		cardRef.value.style.transform = `translate(${quiverB.card1.x}px, ${quiverB.card1.y}px)`
-		cardRef.value.style.width = quiverB.card2.x+'px'
+	}
+	if (!same('card2')) {
+		cardRef.value.style.width  = quiverB.card2.x+'px'
 		cardRef.value.style.height = quiverB.card2.y+'px'
-		//ttd august, could isolate width and height to only run if necessary; won't run during a pan, for instance
 	}
 
 	//keep a record of what we told the page to only bother it next time it's necessary
