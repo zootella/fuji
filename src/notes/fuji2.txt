@@ -54,23 +54,6 @@ let's call these "hardware pixels"
 
 
 
-[]spacebar status so you can tell what the file name is, what the zoom is
-[]you want 1234x zoom, from those number keys
-[]d to return to full screen diamond
-[]hud shows what current zoom is, using the hardware pixel height rust call
-[]smooth zoom using mouse drag
-[]smooth gamma using mouse drag, hud shows gamma
-[]p to toggle pixelated view
-[]g to reset gamma, also probably keep it overlayed the whole time, rather than turning it on and off
-you might be able to do all those in just one evening, and enjoy them one at a time
-
-
-
-
-
-
-
-
 
 
 

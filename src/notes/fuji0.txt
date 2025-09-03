@@ -1,0 +1,117 @@
+
+
+
+
+
+
+
+
+[]i information so you can tell what the file name is, what the zoom is
+[]you want 1234x zoom, from those number keys
+[]d to return to full screen diamond
+[]hud shows what current zoom is, using the hardware pixel height rust call
+[]smooth zoom using mouse drag
+[]smooth gamma using mouse drag, hud shows gamma
+[]p to toggle pixelated view
+[]g to reset gamma, also probably keep it overlayed the whole time, rather than turning it on and off
+you might be able to do all those in just one evening, and enjoy them one at a time
+
+
+
+
+
+
+/*ttd august, brief notes on quiver
+- minimal nonoverlapping quiverB is frame corner to card corner, card diagonal, space center, tile diagonal
+- if pixels here are real, quiver() should Math.round or natural set quiverB so there are no floats in there at all!
+- keep the existing !same check, but inside there, also only do the parts that are necessary
+*/
+
+
+
+
+
+measureScreen
+//ttd august, you might be seeing something where if code calls panelResolution real fast back to back, it breaks and just says 0, 0; so ask about that, or cache it, or have a cache that expires in 100ms or something, ugh
+//no, you're fine, just call this once on startup, once on going to enter fullscreen, once on going to leave fullscreen, those should be separated in time enough that they're fine, and make a single cache for await panelResolution() so if it returns real numbers once, and 0,0 later, you report the real numbers from earlier up to the caller
+//this function is returning all the details, but what are the numbers you actually want? maybe just the frame dimensions, which aren't even here, and the physical to css pixel ratio, which could be reported as a single float number. hmmm...
+
+
+
+
+it'll be interesting to see how detail zoom works
+you want the growth of the pixels on the screen to be linear with the vertical distance of the drag
+so for a card height smaller than the screen, drag distance affects card height directly
+and for a card at or bigger than the screen, drag distance has to be more powerful
+
+
+
+
+
+
+
+code fuji
+
+you could add at desktop the holds pan position in and out of fullscreen thing
+and then test downstairs, it's pretty easy if you keep your wits about you
+it's not a new arrow, it's a catch before and after a fullscreen change
+and then a manual pan segment, as though the user dragged into position
+
+also get the true vertical resolution
+don't use it yet, but do save it as a quiver arrow
+quiverA.physical//real hardware pixel resolution of the display the tauri window is on, on load, in to, and out of, full screen
+
+yeah, these are more intensive, so you keep them in quiverA
+but only update them on
+- start
+- before and after into and out of fullscreen
+
+
+
+code fuji night
+[]caption that shows path and natural resolution
+[]hud that shows zoom level
+
+
+
+
+
+
+
+code fuji
+mac user explains, i don't have a mouse wheel, nor pg up and down keys
+ok so maybe
+ctrl+arrow is flip previous, next
+shift+arrow is pan in a big step, like 1/4th screen height distance or something
+
+
+
+ctrl, shift, arrows, plusminus - everyone has these
+pgupdn, drag, right mouse, wheel - not everyone has these
+
+flip
+pan
+zoom
+gamma
+
+figure this out, needs to include
+- ways to do everything just with the mouse, or just with the keyboard
+- browser defaults users expect, like + with or without ctrl zooms in
+- ways to do everything even with limited input, like shift arrow keys to pan in big steps
+- cool ideas like detail zoom and detail gamma with right vertical drag
+
+maybe ask chat, as it'll follow expected defaults you don't know about
+
+and you haven't found your note from before, but it might have been
+primary mouse drag, hold ctrl to detail zoom; shift to gamma light
+
+
+
+
+
+
+
+
+
+
+

@@ -202,11 +202,6 @@ function quiver() {
 	updateInformation()
 }
 let quiverC//Quiver C: our record of how we've styled the page to appear; treat as private to above
-/*ttd august, brief notes on quiver
-- minimal nonoverlapping quiverB is frame corner to card corner, card diagonal, space center, tile diagonal
-- if pixels here are real, quiver() should Math.round or natural set quiverB so there are no floats in there at all!
-- keep the existing !same check, but inside there, also only do the parts that are necessary
-*/
 
 //   __ _ _       
 //  / _| (_)_ __  
