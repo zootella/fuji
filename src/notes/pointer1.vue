@@ -3,9 +3,6 @@
 
 
 
-
-
-
 // Track our hide timer and delay
 let hideTimer = null
 const HIDE_DELAY = 200  // milliseconds
@@ -22,18 +19,6 @@ function hideCursor() {
 	clearTimeout(hideTimer)
 	frameRef.value.classList.add('cursor-hidden')
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -152,29 +137,6 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(rafId)
 })
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

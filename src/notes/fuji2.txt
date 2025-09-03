@@ -1,53 +1,103 @@
 
 
-MVP vision, 2025aug1, goal is to be using this because it's useful in <3 more sessions
-drag image into window, any folder
-shows image, any format
-scroll wheel flip through images in folder
-zoom with persistant viewport
-exit full screen and scroll through thumbnail flow
-
-ok so what's the fastest route to useful:
-code[x] mac[x] win[ ] run from source on both mac and windows
-code[x] mac[x] win[ ] drag in file to start in folder
-code[ ] mac[ ] win[ ] list everything in that folder, confirm works on mac and windows c and usb drives
-code[ ] mac[ ] win[ ] flip next and forward, control flip to zoom in and out
-code[ ] mac[ ] win[ ] default ordering by correct date, with name1234 numbering that way, groups of those in sort by most recent
-code[ ] mac[ ] win[ ] fullscreen with tauri, and back again
-code[ ] mac[ ] win[ ] keyboard commands
-
-
-
-default placement is
 
 
 
 
-ok, how do you quickly get to useable
+>code fuji mvp small
+[x]keyboard keys, mouse wheel
+[x]full screen and back
+[]diamond size
+[]alphebetize folder
 
-
-
-
-
-
-
-
-
-
-
-/*
-[]zoom with mouse wheel
-[]hud
-[]marble tile
-[]shadows on image
-[~]continuity with window move, resize, fullscreen; do that last (and, of course, you do it first. and, of course, it doesn't work and takes most of the middle of the day)
-
-
-*/
 
 
 
 today in fuji
+- see if you can get a css background on a single gpu layer
+- clear off drafting table and draft the new simpler arrow system for diamond formation; maybe think about the other modes
+- code the hud on spacebar
+
+try the polkadot pattern and understand the layout gpu implications
+code the caption and huds
+[x]background ride along pattern; [x]gpu layer implications
+[x]embossed ride along caption, so cool; [x]gpu layer implications
+and then the float over HUDs
+[x]current zoom or gamma, upper right, during drag
+[x]all details, bottom left, toggle with spacebar
+[x]help, upper left, toggle with H key
+
+
+
+fuji notes
+
+getting things setup on mac and windows first time
+going to keep plugin-fs, but not crazy permissions for it
+
+
+according to devtools in my tauri renderer window:
+screen.width 2560
+screen.height 1440
+window.devicePixelRatio 2 (this is a ratio between what and what??)
+let's call these "CSS pixels"
+
+according to macos settings displays:
+2560x1440
+let's call these "os looks like pixels"
+
+according to the cardboard box i took my monitor out of:
+3840 x 2160
+let's call these "hardware pixels"
+
+
+
+
+
+
+[]spacebar status so you can tell what the file name is, what the zoom is
+[]you want 1234x zoom, from those number keys
+[]d to return to full screen diamond
+[]hud shows what current zoom is, using the hardware pixel height rust call
+[]smooth zoom using mouse drag
+[]smooth gamma using mouse drag, hud shows gamma
+[]p to toggle pixelated view
+[]g to reset gamma, also probably keep it overlayed the whole time, rather than turning it on and off
+you might be able to do all those in just one evening, and enjoy them one at a time
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ok, im working on fuji, a multimedia file manager for desktop mac and windows and rpi, built in js and rust using tauri. so there are instances where id like to save a note about a file, so fuji can find it later, and move faster, without having to repeat steps. for instance, in a folder of images, fuji can calculate the sha256 hash sum of each file, and render the file to get its natural width and height pixel dimensions. it can do this for every file in every new folder the user navigates it to, but this will be time consuming to repeat
+
+ok, so one solution is to have a database, centralized, keeping records of this metadata. another is to create my own hidden file, .fuji or something, and scatter that everywhere, just like (and often alongside) .ds_store. but then in the shower i had this crazy idea: is the format within ds store extensible? can i, for instance, without breaking any rules or conventions, add my own fuji application specific details to existing ds_store files, or make new ones in new folders that don't have them yet
+
+this way, i won't have to make my users ignore or hide yet another file like ds_store—i can ride along inside there, letting apple take all the blame for being annoying!
+
+
+
+
+
+
+
+Fuji. For your desktop app’s folder tagging feature, we’re using platform-native metadata APIs to store a UUID directly on the folder itself—leveraging extended attributes (`xattr`) on macOS (APFS) and alternate data streams (ADS) on Windows (NTFS).
+
+more thinking and folder tagging won't work at all
+the user can copy a folder, for instance, then there are two folders with the same tag!
+so maybe it is xattr and ads on files after all
+only use cached data there if the last modified date hasn't changed
+and only cache data there that is specific to the file and its contents, not user supplied metadata
+minimal stuff, like hash, quickhash, image dimensions
 
 
 

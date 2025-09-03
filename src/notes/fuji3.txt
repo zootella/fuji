@@ -1,11 +1,126 @@
 
-more notes
+
+early trailmarkers for fuji
+put it in a single folder, like documents
+first do just the lightbox view
+use electron
+have mouse move panning, ctrl zoom, mouse wheel next back
+full screen
+then comes the first cool logic: default zoom, persistant zoom
+
+
+
+do throw in a notes.txt.jpg to handle an image that can't load gracefully
+
+
+
+
+1 associate with file extensions as default viewer, so double-clicking .jpg and .png run my app
+2 go full screen
+3 get mouse motion, position without clicking, clicks, drags, mouse wheel clicks on windows
+4 keyboard typing, keystrokes without a form input box, like the user just starts typing a tag, or presses the delete key, or shift delete, stuff like that
 
 
 
 
 
-oh have a bauhaus theme where the file name is the caption in large light gray helvetica
+
+
+
+you have to turn nsis on, msi is the default
+// src-tauri/tauri.conf.json
+{
+  "tauri": {
+    "bundle": {
+      // …
+      "windows": {
+        // explicitly choose NSIS
+        "installerType": ["nsis"],
+        // optional: customize your installer executable name
+        "iconPath": ["icons/icon.ico"],
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256"
+      }
+    }
+  }
+}
+
+
+
+
+next steps, you can get this to useful in another single session!
+[]show a .jpeg in the window, full size, confirm retina works
+[]load that image when you do send to in windows
+[]associate with .jpg in mac and windows
+
+
+
+next smaller steps, remember the goal is to in just a few sessions, make this useful
+a[]drag in an image to view it
+b[]have rust allow the given root directory
+c[]list the contents of the image folder and each directory upwards to the root
+d[]get mouse wheel clicks up and down
+
+
+
+
+
+
+
+
+
+
+
+
+more on how to do thumbnails keeping full size rendered versions out of memory
+WebCodecs / ImageDecoder API
+Hardware-accelerated decoding: you ask the decoder for a downscaled frame directly, so no full-size bitmap ever lives in JS memory.
+Throughput focus: although startup latency for the codec may be a bit higher, once running you get the most consistent, highest-throughput resizes with minimal CPU load
+W3C
+.
+In a “thousands of thumbnails” scenario, WebCodecs will generally outpace createImageBitmap on sustained work, especially under heavy load.
+
+
+
+
+>>>> flip and rotate
+
+<!-- rotate 90°, then flip horizontally -->
+<img :src="imgSrc" style="transform: rotate(90deg) scaleX(-1);" />
+
+
+
+//hi-dpi backing store
+const dpr = window.devicePixelRatio || 1;
+canvas.width  = size * dpr;
+canvas.height = size * dpr;
+canvas.style.width  = `${size}px`;
+canvas.style.height = `${size}px`;
+const ctx = canvas.getContext('2d');
+ctx.scale(dpr, dpr);
+
+//high quality smoothing
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = 'high';
+
+
+
+
+
+
+
+
+
+
+
+
+now you think it's possible that zoom levels that work well for the user will be
+1x, 2x, 3x, 4x, and so on
+an image zoomed in gets larger in smaller increments, which you think is good
+also, done this way you never worry about the screen size
+well, except for huge images that need to start out smaller
+yeah, nevermind, how does that work
+also for a large image you may want 1.5x essentially
 
 
 
@@ -20,6 +135,282 @@ oh have a bauhaus theme where the file name is the caption in large light gray h
 
 
 
+
+
+
+
+>> thoughts on the size algorithms
+
+you won't know what works well until you try it, over several sessions, across real files
+so code it in a way that it's easy to change later
+and even have named strategies so you can switch between them
+
+>> thoughts on thumbnail size algorithm
+
+1 simple is you set the height the same, and flow from there
+2 another idea is you do show big images, but it's a log, so they're larger but not much larger
+3 cool idea now is that the largest length is the same, so a rotated image isn't smaller, and then some rows are taller yes but only if they need to be
+
+>> thoughts on the lightbox size algorithm
+
+does true resolution matter?
+if so, then small images could start out 2x
+and large images 1x
+except very large images should be sized reasonably, like the main center is in the middle
+and, of course, on retina, these sizes are not real pixels
+
+ok so then maybe true resolution doesn't matter any more
+have a keyboard shortcut which switches to it, or something
+but otherwise pretty much ignore it
+it mattered more in the 90s when scaling was bad, and when scaling too noticable time
+
+ok, so then what size do you start out on?
+and, how do you flip from one image to the next?
+
+small images should be 2x virtual pixels, no larger, to begin
+huge images should probably overflow the viewport, but not hugely, so you can see the middle and drag around
+so from those two rules, you have a starting "small image, make it bigger; huge image, make it smaller"
+
+so then what about most images which are about the size of the screen
+here, you have the horizontal or vertical letterbox idea
+
+>> thoughts on stepping stones there
+
+what if you made a view which:
+always rendered one file format pixel to one hardware pixel, no zoom, so small on retina
+and then you add zoom, and it uses smoothing, but it's always in these pure chunks 2x, 3x, 4x, 5x and so on
+and then let the user drag that around, including off the page
+
+from this you'll figure out
+how dragging the view around works
+how flipping to the next image that's a lot bigger or smaller than this one works
+how to save the previous image and preload the next one
+how to bitblt new pixels into the canvas so there's zero blink possible
+
+and can figure that out without needing to design a smart size algorithm
+
+
+
+
+
+
+acdsee has a lot of trouble with Ben-Day dots
+
+// ✅ Enable smoothing (default)
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = 'high';//low is the canvas default and matches img src; or set to medium or high
+1 time unit, low - bilinear with 4 sample linear filter
+1.5-2x units, medium - mip map pyramid down, bilinear for up; designed to be a faster nearly high quality
+2.5-3x units, high - Bicubic (cubic-convolution/Lanczos3-style 16-sample) for up-scaling + mip-maps for down-scaling
+
+Low is bilinear-only (4-sample), your fastest option.
+
+Medium layers a mip-map pyramid for down-scaling and still uses bilinear for up-scaling—so you get visibly smoother results than “low,” but at roughly 1.5×–2× the cost of “low.”
+
+High goes further (bicubic or Lanczos3 plus mip-maps), giving the best resampling fidelity but at roughly 2.5×–3× the cost of “low.”
+
+
+
+//'low' | 'medium' | 'high'; low is the default, medium or high will most closely match what img src does
+
+""medium" imageSmoothingQuality is effectively a performance-conscious approximation of "high", designed to retain almost indistinguishable visual fidelity in many cases, but with less computational overhead."
+
+
+
+
+
+
+
+
+
+2025aug ~ tauri icon notes, the circle is too big in the dock problem
+
+macos, sized the dock as big as it goes
+128px, fuji's default circle is diameter 128, makes sense
+104px, the system rounded rectangles
+106px, spotify's exposed circular diameter, a little larger, based
+
+talking to copilot, when you get to this, going to try
+1024×1024 for Dock and Launchpad
+128×128 for Finder and Spotlight
+so you'll try to build from two source pngs for mac, instead of one
+
+copilot keeps saying
+"Use a circle diameter of ~860–880px on a 1024×1024 canvas"
+does that ratio match up?
+
+106/ 128 = 82.812 observed
+860/1024 = 83.984 chat lower range (actually, this is probably what spotify is using, and what you should use!)
+880/1024 = 85.937 chat higher range
+
+
+
+
+
+
+
+
+
+
+
+the march to mvpersonal continues
+next areas to attack:
+- in space, the better defined arrows and unified update if necessary flow, []be able to pan and zoom the card
+- in viewer9, the img triad loading, []be able to flip through the six color images
+
+
+
+
+for mvpersonal, you're always going to read and render
+all you need to know is if an img tag is intentionally left blank, loading, or ready
+you always start all three as soon as you can
+and then you just delay the flip until the img ahead is ready
+
+ok, so you'll need readImage and renderImage to be separate when you do the folder listing view
+but for the lighttable, you can use them combined
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+you did some here, but think this is unnecessary:
+https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH
+Evergreen Standalone Installer
+A full-blown installer that can install the Evergreen Runtime in offline environment. Available for x86/x64/ARM64.
+x64
+downloaded and ran
+MicrosoftEdgeWebView2RuntimeInstallerX64.exe, 181mb
+and then it says installation failed, already installed
+
+
+
+
+
+
+
+
+
+
+in the flow view, have a huge ass scrollbar to begin
+and then ask chat about clever simple ways to add a minimap to the scrollbar
+
+
+
+
+
+two ways to get fuji to build for
+(1) set the rust toolchain back to 1.75.0
+this is bad because it was replaced 1y7m ago already
+and affects the build on mac, too
+(2) or, with the current rust toolchain, drop down to a lower level of settings to make an exe that doesn't link to a version of the windows api that's newer than win7
+this is bad because it quickly gets really complex and weird and brittle
+also (3) even if you got thorugh one of those, there is also an issue of installing edge webview2 on windows 7
+ok, so you're going to back out of fuji supports win7 and today's win was fuji builds and runs on both windows and mac
+
+
+
+
+
+[x]builds on mac
+[x]builds on windows
+[~]runs on win7
+
+
+
+
+
+
+
+[]if you can tell that you're on a monitor where all the pixels match, like the old dell
+then Math.floor all the things you hand
+otherwise, let floats through
+
+
+you realize that quiverA is going to contain some duplicates
+sometimes, you're going to compute card1 and card2 from dhp
+other times, you're going ot compute dhp from card1 and card2
+so that's fine, write helper functions, keep a subset in quiverA, don't change one without changing others that are or can be downstream of that one
+
+
+
+
+
+
+the Loading... hud
+maybe, simpler
+show it immediately if the preload hasn't finished yet
+yeah, that's simple
+
+and, the presence of the Loading... state also means that all keyboard input is silenced
+all input events are ignored
+
+^really good simplification you should switch to now!
+
+
+
+
+
+
+
+
+talking to claude about quickhash
+i think this is the strategy
+4kb chunks will be a single read from the disk, afs and ntfs
+the start can be header-ey, the end shouldn't be
+reads closer to the start may be faster
+FUJI:QUICK:123456:first, middle, last
+first is first 4kb
+last is second to last full and last partial 4kb, staying on 4kb chunk boundaries
+middle is divide bytes between those, then split into one third and two thirds
+or, be fancy with the golden ratio
+const PHI = (1 + Math.sqrt(5)) / 2
+
+fuji specific hashes idea:
+
+FUJI:QUICK:123456:first+middle+last
+FUJI:PIECE:123456:piece1+piece2+piece3...
+FUJI:SHA256:123456:data
+
+first, middle, last, those are 4kb
+pieces are bigger, maybe a megabyte
+123456 is the size in bytes
+
+
+and if you do the xattr/afs custom metadata that stays with the file thing, you put in
+- hashes: quick, piece, full
+- image raster dimensions: width, height
+maybe just those
+beyond that you could add
+- stuff for video like resolution, duration
+- modified date of file to notice when cached metadata should be checked and updated
+- modified data of fuji to notice same thing
+
+
+
+
+
+
+code the thumbnail renderer
+then you can delete all the early canvas experiments
+yeah, you do need it because images will be huge, and you want to let the user scroll through the whole giant folder
+and, it's easy
+and, you understand the role of the macOS 2 scale factor now; you do render to pixels on the backing canvas, so you set the canvas to the looks like height X scale ratio
+a close within reach usable thing is the folder scanner, separate component, drag in a picture from a folder, it shows the whole folder, using a really simple CSS flow, and repeating use of the thumbnail renderer
+here also you don't need the number that tracks memory usage, because memory usage will be predictable based on number of images in the folder, which is great
 
 
 

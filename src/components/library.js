@@ -202,6 +202,8 @@ export async function measureScreen() {//get the screen resolution as {x, y} in 
 	return q
 }
 //ttd august, you might be seeing something where if code calls panelResolution real fast back to back, it breaks and just says 0, 0; so ask about that, or cache it, or have a cache that expires in 100ms or something, ugh
+//no, you're fine, just call this once on startup, once on going to enter fullscreen, once on going to leave fullscreen, those should be separated in time enough that they're fine, and make a single cache for await panelResolution() so if it returns real numbers once, and 0,0 later, you report the real numbers from earlier up to the caller
+//this function is returning all the details, but what are the numbers you actually want? maybe just the frame dimensions, which aren't even here, and the physical to css pixel ratio, which could be reported as a single float number. hmmm...
 
 export const hardVerticals = [
 	480,  // Legacy 640×480 VGA; still seen in embedded systems and some virtual modes

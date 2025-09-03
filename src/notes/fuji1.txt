@@ -3,265 +3,17 @@
 
 
 
+you've coded Thumbnail but haven't run it yet
+to run it, make a test container which you drag a path into and it shows that image as a single thumbnail
+there, you can also start to explore the css layout for the text like flow
 
 
 
 
-/*
-ok, here's my current draft of this new file
-you can see that below in the templat ei have two sections
-the first is what was here before, a guide that matches neighboring experiments that i want to keep close to
-the second is your draft of what the template should be for panning
 
-for this example, let's make the tabletop 2500x2500
-in the center, let's do make a canvas. it should be a cyan background with a one device pixel circle in the center
-the circle should be red
-the canvas should be rendered with device pixels
-its a size of 1000x1000
-my goal is that jaggies at the edges of the red circle are visible, the circle is not rendered anti-alised
-and then this canvas appears in the center of the tabletop
-also, the canvas renders to a size in device pixels (adjusted) so it's smaller than it would be if it were rendered to 1000 compared to 2500 tabletop dimension
-
-keeping in mind that we are goign to add panning next, let's right now focus on the tabletop and canvas on top
-let's draw this so that it's pinned to the upper left corner of the page--the edge of the viewport is the edge of the page
-
-oh, tehre are red +s every 500 css px on the tabletop. the tabletop background is black
-
-ok, show me what to change in the script, template, and style parts of this vue file to get us to this next waypoint
-*/
-
-/*
-
-<!-- replacement for new panning example -->
-<div
-	ref="wrapper"
-	class="relative w-screen h-screen overflow-hidden bg-black"
-	@pointerdown="startDrag"
-	@pointermove="onDrag"
-	@pointerup="endDrag"
-	@pointerleave="endDrag"
->
-	<!-- “Tabletop” layer -->
-	<div
-		class="absolute top-0 left-0 grid-bg"
-		:style="{
-			width:  tabletop.width  + 'px',
-			height: tabletop.height + 'px',
-			transform: `translate(${offset.x}px, ${offset.y}px)`,
-			cursor: isDragging ? 'grabbing' : 'grab'
-		}"
-	>
-		<!-- Placeholder for the centered image-canvas -->
-		<canvas
-			ref="canvasRef"
-			class="absolute"
-		/>
-		<!-- ^add CSS bindings to size & center this later -->
-	</div>
-</div>
-
-*/
-
-
-
-
-
-
-
-
-
-/*
-ok, so i just ran this, and it all works, except the circle is still big and fuzzy. we need to do something, the right thing, in the right place, so that the canvas renders onto device pixels on the page in tauri, not css pixels
-
-my guess is that we do this by setting the css dimensiosn of the canvas html dom object smaller
-by exactly the right amount so that each and every exact canvas pixel ends up drawing to a real and single device pixel on my retina monitor
-but let's think about this task and correct patterns and simplicity to do this in the right place, the right way!
-
-  //Keep the CSS display size in CSS pixels
-  canvas.style.width  = imageSize + 'px'
-  canvas.style.height = imageSize + 'px'
-
-
-
-  ttd july, what happens when you change the monitor pixel resolution on mac? when you change the zoom 1.25 1.5 on windows??
-  lots of testing out to do here now even with this little example, and even before panning
-
-  also, what happens when the image has odd or even dimensions, and the right answer is actually a 0.5?
-*/
-
-
-. thinking about a wide variety of monitors from different vendors our user could have connected to their windows, mac, and raspberry pi computers, our goal here is simple: to make sure that always, every single exactly one pixel of image data gets drawn to exactly one pixel of hardware display. sure, there's CSS and smoothing and sizing and different units along the pipeline from disk to display, but our goal is to connect the disk and display pixels exactly and correctly
-
-
-
-
-
-
-oh, you're going to be able to confirm that there isn't a single missing or stretched pixel by loading images that are 1x1, 2x2, 3x3, and 4x4, like small paintbrush made pngs
-
-
-
-
-ok so i have a mac attached to a 4k monitor from a smaller manufacturer
-in Settings, Displays, there's a list
-
-3840x2160 (these are the numbers on the 4K label)
-2560x1440 (current setting that i like)
-2048x1152 (bigger setting that i've tried out as part of this testing)
-1920x1080 (Default)
-1600x900
-1152x648
-
-there are more, but i have left Show all resolutions off
-
-ok so our solution isn't actually good enough
-i've been checking for jaggies in the red circle by taking a screenshot and then opening it in figma and zooming in
-and with that text, the circle looks great
-
-but then i started changing the resolution in settings, displays
-and also holding a physical ruler up to my screen to measure the diameter of the circle
-and also taking pictures zoomed into the pixels of my screen with my phone, and then looking at them zoomed in on my phone, to see individual pixels
-
-right away i can tell that we have not achieved our goal because as i change the "resolution" in settings, the diameter of the circle on my physical screen changes!!
-we need to be correctly putting canvas pixels to hardware pixels
-so no matter the resolution setting, the physical ruler diameter of the circle should always be the same!!
-
-also, i can see antialiasing on the photos of the pixels of the screen on my phone
-
-so, let's take a step back and think about this deeply
-what's the right way to really render a canvas onto hardware pixels on the user's display??
-
-
-
-so which of these actually map to device pixels? so that one pixel for an app on my mac becomes one pixel in the hardware of my screen??
-
-
-
-
-
-
-
-
-
-
-2 console; 128mm physical
-
-
-
-nope, doesn't fucking work
-you've been taking screenshots, which are correct, but fake
-if this worked, you'd measure the same physical diameter to the circle even as you change the fake-ass "resolution" in mac os settings
-and yet also--even as you
-
-
-
-
-
-
-yes, theres' another thing, OS scale, ugh ugh ugh
-
-
-
-import { invoke } from '@tauri-apps/api/tauri'
-
-async function fixCanvas(canvas) {
-  const dpr     = window.devicePixelRatio || 1
-  const osScale = await invoke('get_os_scale') // e.g. 1.5, 2.0, etc.
-
-  console.log(`DPR=${dpr}, OS scale=${osScale}`)
-
-  // Compute CSS size so that
-  //    1 image pixel → 1 canvas pixel → 1 browser backing‑store pixel
-  // → then divided by (dpr * osScale) to land on one physical pixel
-  const cssSizeX = canvas.width  / (dpr * osScale)
-  const cssSizeY = canvas.height / (dpr * osScale)
-
-  canvas.style.width  = `${cssSizeX}px`
-  canvas.style.height = `${cssSizeY}px`
-}
-
-and then in rust:
-
-use tauri::{Manager, Window};
-
-#[tauri::command]
-fn get_os_scale(window: Window) -> f64 {
-  // Ask the window for its current monitor
-  if let Ok(Some(monitor)) = window.current_monitor() {
-    // wry / winit’s `scale_factor` gives you backing-pixel-to-physical-pixel ratio
-    monitor.scale_factor()
-  } else {
-    1.0
-  }
-}
-
-fn main() {
-  tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![get_os_scale])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
-}
-
-
-
-ok but to test that this actually works, you need a square stupid black and white test pattern
-alternating zebra stripes horizontal and vertical
-- and then on dell and sceptre monitors
-- on mac and windows
-with different scales and resolutions playing in settings
-a - you need to always see only black and white stripes
-b - and always measure with a physical ruler the same physical size
-you think you will be able to do (b) but not be able to do (a)
-and if that's the case, then drop back to the solution you've got now
-
-
-
-and confirm that at least you get 1:1 pixels on an old fashioned monitor
+confirm that at least you get 1:1 pixels on an old fashioned monitor
 where the hdardware is not retina
 and the os scale is 1
-
-
-
-
-
-
-ok so let's say rust can get you the monitor
-
-
-
-
-
-
-
-correct answer is 3840 × 2160
-
-setting looks like to 2560x1440 (your daily driver)
-[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
-[Log] 5120 × 2880 scale 2, from rust 1 (Pan1.vue, line 101)
-[Log] 2560 × 1440 scale 2, from rust 2 (Pan1.vue, line 102)
-
-setting looks like to 2048x1152 (strange middle road)
-[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
-[Log] 4096 × 2304 scale 2, from rust 1 (Pan1.vue, line 101)
-[Log] 2048 × 1152 scale 2, from rust 2 (Pan1.vue, line 102)
-
-
-
-
-correct answer is 3840 × 2160, our goal is to get this either directly or from math
-
-setting looks like to 2560x1440 (your daily driver)
-[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
-[Log] 5120 × 2880 scale 2, from rust 1 (Pan1.vue, line 101)
-[Log] ?? × ?? scale ??, from rust 2 (Pan1.vue, line 102)
-
-setting looks like to 2048x1152 (strange middle road)
-[Log] device pixel ratio 2, from js 🖥️ (Pan1.vue, line 82)
-[Log] 4096 × 2304 scale 2, from rust 1 (Pan1.vue, line 101)
-[Log] ?? × ?? scale ??, from rust 2 (Pan1.vue, line 102)
-
-
-
 
 
 ok, so it's really ahrd to get the real resolution
@@ -275,139 +27,18 @@ and if you really want true resolution using fuji, switch to 4k in settings
 
 
 
-function fixCanvas(canvas) {//ensure the given canvas ref draws to device pixels on the screen, not css pixels
-
-	let dpr = window.devicePixelRatio || 1//likely 1.0, 1.25, 1.5, 2.0; possible 1.3333333333333333, 1.6666666666666667, 2.25, 2.5, 3.0
-
-	let actual = {width: 3840, height: 2160}
-
-	let actual = 2160//maybe there is some way to get this from rust; haven't found it yet, though
-	let mistake = 0//bump slightly wider like 5 or 10 to see beats
-
-	console.log(`all from js 🖥️ ${window.devicePixelRatio} device pixel ratio, ${window.screen.height} window screen height`)
-
-	let scale = window.screen.height / actualHeight
-	console.log(`calculated manual dpr ${dpr}`)
-
-	/*
-	ok, we know that the vertical hardware pixels are 2160
-
-	2160 true hardware pixels, height
-	1440 what css tells us
-
-	ok, so to draw a square to hit 900 pixels
-	*/
-
-	// 2) CSS size = imageSize / dpr → 1 buffer px → 1 device px
-	canvas.style.width  = (((canvas.width * window.screen.width) / actual) + 0) + 'px'
-	canvas.style.height = (((canvas.height * window.screen.height) / actual) + 0) + 'px'
-}
 
 
 
 
 
 
-ok, so the real pixels are a boondoggle you've spent two summer days in
-you can sorta get zebra lines to stick to them, but only sorta
-if it's an old school display where the pixels are one to one top to bottom, plan one behavior
-if it's something else, something retina, plan a second behavior
-except both of those are X by the thumbnail view and the lightbox view, also
-also all those X big images and small images
-
-
-simple pixels, thumbnail: render image into thumbnail size canvas
-simple pixels, lightbox: render image into display size canvas
-
-modern pixels, thumbnail: render image into thumbnail size canvas
-modern pixels, lightbox: 
-ok, so here, if you render image into
-
-what if you always rendered the image into a canvas so file format pixels equaled canvas pixels
-and then to zoom in and out in lightbox, you don't rerender, rather you just css position
-so there you're trusting the browser stretcher to be as good or better than canvas' renderer, which is fine, you think
-you're also gaining some benefit about how the looks like pixels on mac get stretched adn composited
-
-and so all of that is fine except done that way for lots of thumbnails, you'll run out of memory
-so for there, you need to use the canvas renderer
 
 
 
 
 
-wait now chat is saying i can do true gamma in img src like this:
 
-<svg height="0">
-  <filter id="gamma">
-    <feComponentTransfer>
-      <feFuncR type="gamma" exponent="2.2" />
-      <feFuncG type="gamma" exponent="2.2" />
-      <feFuncB type="gamma" exponent="2.2" />
-    </feComponentTransfer>
-  </filter>
-</svg>
-<img src="your-image.jpg" style="filter: url(#gamma);" />
-
-
-
-<template>
-  <div>
-    <svg height="0">
-      <filter id="gamma">
-        <feComponentTransfer>
-          <feFuncR ref="gammaR" type="gamma" :exponent="gamma" />
-          <feFuncG ref="gammaG" type="gamma" :exponent="gamma" />
-          <feFuncB ref="gammaB" type="gamma" :exponent="gamma" />
-        </feComponentTransfer>
-      </filter>
-    </svg>
-
-    <img src="your-image.jpg" style="filter: url(#gamma);" />
-
-    <button @click="increaseGamma">Increase Gamma</button>
-    <button @click="resetGamma">Reset Gamma</button>
-    <p>Gamma: {{ gamma.toFixed(2) }}</p>
-  </div>
-</template>
-<script setup>
-import { ref, watch } from 'vue';
-
-const gamma = ref(2.2);
-const gammaR = ref(null);
-const gammaG = ref(null);
-const gammaB = ref(null);
-
-function increaseGamma() {
-  gamma.value = Math.min(5.0, gamma.value + 0.2);
-}
-
-function resetGamma() {
-  gamma.value = 2.2;
-}
-
-watch(gamma, (newVal) => {
-  if (gammaR.value) gammaR.value.setAttribute('exponent', newVal);
-  if (gammaG.value) gammaG.value.setAttribute('exponent', newVal);
-  if (gammaB.value) gammaB.value.setAttribute('exponent', newVal);
-});
-</script>
-
-
-
-
-
-ok, so then leaning on regular img all the way, you
--zoom by styling the regular img bigger or smaller
--do gamma with svg so there's no canvas at all
-
-but, you can't use this for thumbnails because you'll run out of memory with all those big images
-so that's what headed you to canvas--you can render into a smaller canvas, taking less memory
-except if you have hundreds of those, that's still a lot of memory
-and then there' sthe issue of do you still make them larger, to get under the retina, and how do those size
-
-ok, so what if instead you either do the flipbook thumbnails, which you like, no scrolling
-or, you do viewport optimization so as soon as you're done with a scroll, existing thumbnails far offscreen keep their shape but lose their image
-then, you can really use img src for everything, there's no canvas at all anymore!
 
 so then there's the minimap
 which is sorta theoretical
@@ -449,7 +80,6 @@ over the preview, flips through the image, maybe
 
 
 
-on the all img tag design
 your js can count how many pixels we've asked the renderer to keep in memory
 this is not the byte size of the images loaded
 rather it's the number of rendered pixels
@@ -464,20 +94,6 @@ there needs to be a subtle visual representation when you flip over the edge of 
 
 
 
-v-show display none, all vue, should be correct to make it appear, all ready, all at once
-
-also, you can get the raster dimensions from the img tag like this
-<template>
-  <img ref="imgRef" :src="dataUrl" alt="Loaded image" />
-</template>
-<script setup>
-import { ref, onMounted } from 'vue';
-const imgRef = ref(null);
-onMounted(() => {
-  const img = imgRef.value;
-  console.log('Raster dimensions:', img.naturalWidth, img.naturalHeight);
-});
-</script>
 
 
 
@@ -485,10 +101,10 @@ onMounted(() => {
 
 ok but you forgot the prompt to try to make something useful to you in just a few sessions!
 how about
-[]drag file into window, works from many paths and drives
-[]roll mouse wheel to flip forward and back in that folder, uses smart ordering
-[]zoom in and out of an image and drag it around in lightbox view
-[]fullscreen
+[x]drag file into window, works from many paths and drives
+[x]roll mouse wheel to flip forward and back in that folder, uses smart ordering
+[x]zoom in and out of an image and drag it around in lightbox view
+[x]fullscreen
 []contact sheet view, does scroll, constant height, no concerns on memory
 at this point, no concerns on ui, settings, speed, or memory, or image fidelity
 see how good it is when coded really simple
@@ -508,72 +124,65 @@ if not, then it returns to default placement, which is
 - small images are 2x zoom, centered
 - large images are fit width or height, exactly
 
-
-ok, so done that way, that means
-you never have to resize the tabletop in place, it stays the same square dimensions
-
-
-
-keyboard commands
-r - reset to center, size and zoom; turn off lock
-h - view help hud box, toggle on and off
-w - size to width, tabletop is width, cannot pan image beyond width, this is for doujinshi pages
-d - drag lock, now you don't have to click to pan around
-1,2,3,4 - size to those levels of zoom, based on hardware pixels
-
-cool ideas
-ctrl mouse wheel to 
-what if you do a stretch grab zoom that may be really smooth where you hold down a key and drag the mouse
-and then the point you drag stays that distance from the center
-you can pretty easily experiment with ideas like this in fuji, you realize!
+other tile sizing strategies you've thought of
+- the traditional one, not going to do it, a grid of squares, rectangles sized smaller within those squares, terrible
+- size rectangle into square so a gallery of pictures from the same camera, most landscape, one portrait, appear at the same scale (the flickr strategy scales the portrait one smaller)
+- logarithmic resize so big images look big in the contact sheet
+be able to switch between these in the same way you can switch the lightbox zoom mode
 
 
 
 
 
 
+[h]elp - welcome and help message in center box, starts displayed
+[i]nformation - details about image and load in bottom hud
 
-/*
-watch for changes to the frame size--you need to keep the table over the frame, like dragging the upper left corner bigger
+[d]iamond - reset to center, size and zoom; turn off lock
+[f]it - fit image on screen, no panning
+[w]idth - fit to width, can pan up and down only
+[1]...[9] - pixel zoom, based on true hardware panel pixels
+[a]cdsee classic copy; put this one in there just so you can tweet at acdsystems
 
-with this design as a starting point, how hard will it be to...
-- during a drag, show the pointer with the os's grabbing hand?
-- when the pointer is at rest above the tabletop, hiding it entirely?
+[l]ock pan - drag lock, now you don't have to click to pan around, idea from the DOS program from 1993
+[g]amma - increase gamma in large steps, ok then how do you reset it
+[p]ixelated - toggle on or off
+[space] - turn on or off slideshow
+
+
+
+standard and expressive controls to flip, zoom, and pan
+gamers will have a mouse with a clicky wheel
+limited users won't even have page up and page down
+follow expected standards like Ctrl+ to zoom in
+work well in a moment where the user wants to use only mouse, or only keyboard
+
+add things like:
+right drag up or down to zoom pixel by pixel
+another drag up or down to adjust gamma really granular
+pan with arrow keys, moving a quarter screen height distance
+
+
+
+slideshow has a random option
+which shuffles the contents of the folder
+but then keeps that shuffled order, so you can flip back and forward
+and then restart the automatic slideshow
+
+
+
+
+
+
+
 
 grab and grabbing are a mac only thing, and look weird
 ok so here's what you want
 over the tabletop, pointer disappears when it falls to rest
 during a drag, pointer is also off
-*/
 
-/*
-ok, my work today is done, in that we've got the tabletop dragging around!
 
-now, let's peek at what i have to do tomorrow
-ill add an img tag below
-the img will always be smaller than the tabletop (and the tabletop will always be larger than the screen!)
-is this going to mess up anything with the clicks and drags?
-my hope is that no, the html components that i put within the two divs will just stay where they are on the tabletop
-even while the user pans the tabletop around
-and that won't slow down gpu or negatively impact the current achievement of buttery smoothness at all!
 
-after that, ill add a HUD--just a few lines of text that float above the tabletop and image
-they'll be pinned to one corner or edge of the frame
-they are just information, they should not be nor need to be clickable, selectable, anything
-for instance, it might be text that shows information about the image in the lightbox
-is that going to require or indicate any changes into how we've coded panning here?
-my expectation and hope is no, it's not
-
-and as to buttery smoothness, while the text may be antialiased, or on a rectangular panel that is translucent
-GPUs are ready for this, so if the user flips the info hud on, they can still pan the image around below with the same experience
-
-but let's take a step back and check now, ahead of more coding, for potential issues with this waypoint's design
-looking now ahead at these two new features we'll work on tomorrow
-1 image sitting on tabletop
-2 hud in frame
-
-on, in full screen mode, hide the mouse pointer entirely, likely
-*/
 
 
 
@@ -616,6 +225,22 @@ w - fit to width, with
 123456 - that level of zoom, with coarse pixel sizing, also; all above are smooth default sizing
 and those three are all left hand keys, which is great
 
+will you need another one, [s]mart, which makes huge images reasonable and small images 2x raster in CSS pixels
+
+panning dimensions and limitations are specific to the lightbox view mode
+d lets you pan any way and away forever
+w lets you pan up and down but not side to side
+f has no panning at all
+a lets you pan both directions, but not beyond the edge of the image
+ok so then what happens when you zoom in?
+probably it switches to d mode
+either entirely (easiest, do first) or until the next flip
+
+
+
+
+
+
 
 
 crazy ideas section
@@ -631,86 +256,28 @@ this is so so usable and so underused
 
 
 
-should you code going into and out of fullscreen mode with the pan?
-right now, you think no
-but there are errors related to the frame not matching the window
-
-
-
-looks like ways to get the resize are
-window.addEventListener('resize', onResize), or
-ResizeObserver
-those two ways
 
 
 but keep in mind that lightbox will only be fullscreen, so then there won't be 
 really useful mvp has
-- drag in an image, it goes fullscreen
-- flick the wheel forward and ack through images
-- zoom and pan
-- esc or double click out of fullscreen to a window
-- scroll through a same size flow of all the images in that folder
-- double-click one to go back lightbox fullscreen and see it
+[x]drag in an image, it goes fullscreen
+[x]flick the wheel forward and ack through images
+[x]zoom and pan
+[x]esc or double click out of fullscreen to a window
+[]scroll through a same size flow of all the images in that folder
+[]double-click one to go back lightbox fullscreen and see it
 and then after that you add
-- filename and path, anything to be able find it in the shell after looking at it in fuji
-- gamma
-- smart ordering, saved date with sequences grouped together and ordered properly
-
-so there are two components, and they switch
-and lightbox is always fullscreen, and
-
-
-2 esc or double click out of fullscreen
-
-
-
-Light.vue
-Flow.vue
+[]filename and path, anything to be able find it in the shell after looking at it in fuji
+[]gamma
+[]smart ordering, saved date with sequences grouped together and ordered properly
 
 
 
 
-ok but also how do you see what version of rust you have
-and what version of tauri is installed
-
-
-
-optional, lock the toolchain
-
-[toolchain]
-channel = "1.88.0"
-components = ["rustc", "cargo"]
 
 
 
 
-css pixelated works
-make it the only way to turn that on is through 123456789x, those number keys
-and then you're in a pixel mode--rolling the wheel goes up and down those numbers
-and for all that to be right you do need to get the real hardware resolution from the operating system
-if you do anything else, like zoom with a drag, or flip forward or back to a neighboring image
-or of course if you press d to return to diamond sizing, pixel mode turns off
-so it's not a toggle that can stay on, it's a fleeting thing you get through true pixel sizing, and then bump out of automatically easily
-
-ok but then what about really small images
-like you roll into a 16x16 bmp
-maybe hard code it so if the image is 64x64 or smaller, then instead of diamond placement,
-
-
-
-how diamond placement works with the scroll wheel
-the diamond, it's size and location, persists through flipping through different images
-so then the table has a diamond, and an image, and needs to put the image in the diamond
-if having it touch the sides of the diamond would mean that the zoom would be >4x, then it just shows it at 4x, centered in the diamond
-if the image is 
-it does this
-it blows the im
-
-
-big images are shown
-
-
-images 64x64 or smaller are shown centered
 
 
 yeah, lots to figure out here
@@ -719,53 +286,27 @@ there are
 (b) small images, like web thumbnails you couldn't find the bigger version of, or pictures from the 90s
 (c) big images, like everything today
 
-so when you flip from big, to small, to big again
-what happens to the diamond?
-maybe, nothing, it persists
-so then if you're in an area where all the images are small, you zoom out or choose f fit, and then that also fits the diamond small, and you keep scrolling from there
 this is the idea that the diamond always persists, and that the image always touches the edges of the diamond
 yeah, lean on good controls to let the user drive, rather than complex rules to deal with transitions; there are too many previous image to next image transitions possible!!
-
-ok but then if you choose f fit, and roll to the next one ,it's not fit, because we're back to the diamond
-yeah, for now, that should be how it works
-the benefit there is if the next image is the same resolution and aspect ratio, but 
-
-
 
 now if the user presses w for width, now there isn't a diamond at all
 instead, every image is fit to full width, and scrolling can only move up and down
 this is commic book page mode
 
-
-
 oh at the start make p pixelated a manual toggle
 because you don't know when you're going to want it on or off
 yeah, probably always do that
 
-what if dfw are three boundary shapes
-d - diamond default
-f - fit to screen
-w - fit width
-ok, so you press any of those, and then roll through images of various sizes, and the boundary shape persists
-and d lets you pan horiz or vert, f doesn't let you pan at all, and w only lets you pan up and down
-if you zoom at all, in or out, it switches to diamond boundary
-yeah, this plan looks good; it's reason-able
 
-12345789 also should be a zoom lock, in that if you go into 4x, then you scroll through images at 4x
-but as soon as you zoom in or out, then it changes to that diamond from there on
-but not the same as if you press d, which is centered, sized diamond
 
-there is also (planning out the whole keyboard draft here)
-l - lock the drag. any mouse click releases it, as does another l
-h - show help, separate area on the hud
-spacebar - show or hide details at the bottom
+
+
+
+
+
+
+
 Ctrl+C - copy the path to the current image
-
-
-areas where text can appear on fullscreen mode
-caption, on card, beneath the image. this is a crazy idea and you like it
-
-
 
 oh, what if you automatically turn on pixelated when the zoom is bigger than something
 so you can have a large dimension screenshot, and ctrl+wheel zoom all the way in
@@ -776,15 +317,6 @@ like, let's say you always fit the image, any size, to the diamond
 and the diamond, of course, persists through wheel flips
 
 
-there could be a hud, which you toggle with spacebar
-or move the pointer to the bottom of the screen, and it appears
-while you're zooming or gamma-ing with a drag, the zoom and gamma shows; just during the drag
-
-there couuld also be a hud in text beneath the image itself
-this is a really cool idea, there you can show
-super long hash values
-super verbose image information
-a whole long usb drive path
 
 but with all this hud and popups, also remember to make Fuji immersive
 let the user exist entirely within the codex of images, without being distracted by information in text at all
@@ -797,6 +329,7 @@ let the user exist entirely within the codex of images, without being distracted
 
 in the crazy ideas section, the zoom world tabletop, where you pan from one image to the next
 it's as though there are always 8 images around the center one, or something
+this is a really cool idea
 
 
 
@@ -804,7 +337,6 @@ it's as though there are always 8 images around the center one, or something
 
 
 
-[]get these styles from table2 into marble3 as needed
 <style scoped>
 .myTable {
 	will-change: transform; /* pan with the compositor thread; no layout or paint; buttery-smooth 🧈 */
@@ -819,84 +351,17 @@ it's as though there are always 8 images around the center one, or something
 
 
 
-onMounted(() => {
-
-	//register listeners for input devices that are not related to position; those will go on the table in the template
-	window.addEventListener('keydown', onKey)
-	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
-
-	cardRef.value.style.transformOrigin = '0 0'
-	cardRef.value.style.transform = `translate(${spacePosition.x}px, ${spacePosition.y}px)`
-})
-onBeforeUnmount(() => {
-
-	//remove the listeners; there shouldn't be a danglign pointer but release one if there is
-	window.removeEventListener('keydown', onKey)
-	frameRef.value.removeEventListener('wheel', onWheel)
-	if (drag?.pointer) { cardRef.value.releasePointerCapture(drag.pointer); drag.pointer = null }
-})
-
-
-
-
-
-
-
-
-
-
-
-
-	/*
-	clear off the drafting table
-	code just diamond now, but have a plan to do all of them
-
-	what changes at startup?
-	what changes on drag?
-	what changes on flip to next image?
-	what changes on 
-
-	what are the minimal arrows that need to be kept in state?
-	what arrows can derive from what?
-
-	have a single function place(a1, a2)
-	which is the only place that sets the arrows (but you can read them elsewhere)
-	and is the only place that does the transform and size
-
-	*/
-
-
-
-
-
-
-
-for flicker free performance
-and acdsee's delay image flip until ready
-looks like a simple design is:
-
-you have two img tags, 0 and 1
-in the template they're wired up with v-show, not v-if
-you can define @load="onImageLoad(0 or 1)" and @error="onImageError"
-
-before the user click flip:
-read the file from disk and make the data url string (if you don't already have it because this is a flip back)
-load the url string into the hidden img tag
-set the size and location of the hidden img tag correctly for the image, using css
-watch for the on loaded event to arrive
-
-then it's a race between the loaded event, and the user's click to flip
-if its click before loaded, wait
-if it's loaded and now click, do:
-    requestAnimationFrame(() => {
-      showImage1.value = true
-    })
 
 so then what do you do if the flip commands come in faster than the animation frames?
 1 ignore a click when we're already about to do a flip
 2 skip and image to keep up
 3 queue each click and flip as fast as the frames afterwards
 just ignore them, duh; this won't actually happen
+
+
+
+
+
 
 earlier you were permutating all the possible next images
 previous/next
@@ -918,63 +383,8 @@ and so then it's just about next/previous image
 
 
 
-
-
-/*
-//we change where these module variables point to indicate how we're using them right now; consider flipping through a long list:
-let imagePrev = {imgRef: img7Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//hidden, but keeping around to make a flip back instant
-let imageMain = {imgRef: img8Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//only one of the three that's visible
-let imageNext = {imgRef: img9Ref, state: 'Blank.', details: null, error: null, loadingPromise: Promise.resolve()}//preloading or preloaded to flip forward without a delay
-
-function blankImage(i) {
-	i.imgRef.value.src = ''//free the big base64 string
-	i.imgRef.value.style.width = 0
-	i.imgRef.value.style.height = 0//keep out of layout
-
-	i.state = 'Blank.'
-	i.details = null
-	i.error = null
-	i.loadingPromise = Promise.resolve()
-}//ok if the only place you call blank is at the start of the next async load, then combine them
-//and now you see that you want loadImage below to make an internal promise another invocation can look for and await
-async function loadImage(i, path) {
-	if (i.state != 'Blank.') throw new Error()//won't need this because you're going to blank it
-	i.state = 'Loading.'
-
-	let details
-	try {
-		details = await loadImagePathToRef(i.imgRef, path)//need to switch to readImage and renderImage
-	} catch (e) {
-		i.state = 'Error.'
-		i.error = e
-		i.details = details
-		return
-	}
-	i.state = 'Ready.'
-	i.details = details
-}
-
-async function flipImage(forward) {//direction forward true, reverse false
-	let behind, here, ahead//we're here; this flip will cause us to step to ahead; we'll reuse behind as two notches ahead
-	if (forward) { behind = imagePrev; here = imageMain; ahead = imageNext; }//flip forward to next, ahead; previous is behind
-	else         { behind = imageNext; here = imageMain; ahead = imagePrev; }//flip back, so previous is ahead and next is behind
-
-	blankImage(behind)
-	loadImage(behind, )
-
-	//todo, start the preload of the next next image now, in the behind slot which will be double ahead! 🤯 and don't await it
-	await ahead.loadingPromise//set a resolved promise here if nothing to wait for
-	//what happens if another flip command comes in here? discarded? queued? either is fine, but make sure you can spin the wheel to cause a race condition that breaks state!
-
-	await raf()//pause here until right before the next repaint, so both display toggles apply in the same frame
-	here.imgRef.value.style.display = 'none'//hide the currently visible image to move beyond it
-	ahead.imgRef.value.style.display = ''//show the preloaded image ahead to move to it
-	//and rewire our pointers to reflect the just changed state
-	imagePrev = here//go back to get where we were
-	imageMain = ahead//we moved ahead
-	imageNext = behind//for double ahead, reuse behind which fell off the horizon
-}
-*/
+oh have a bauhaus theme where the file name is the caption in large light gray helvetica
+crazy ideas section
 
 
 
@@ -983,11 +393,44 @@ async function flipImage(forward) {//direction forward true, reverse false
 
 
 
-	/*
-	ttd august, keep the preloading, but pull it back in two places to make it a little less aggressive
-	ok, on first load, don't start loading the neighbors until the first is done; give it exclusive access to the disk and renderer
-	and, on flip above, start preloading the next next image after the flip, not before; give the renderer
-	*/
+note on full set of layouts:
+so you're going to plan the arrows for diamond layout on the drafting table,
+focused on diamond layout now, but looking ahead on paper and pencil towards the whole set:
+- [d]iamond layout, next image fits into same invisible diamond, zoom and pan move the diamond; pan X and Y
+- size to [f]it layout, next image also fits to screen; no pan at all
+- fit [w]idth only, next image also fits width; pan Y only
+- zoom [1,2,3,4,5,6,7,8,9]x, next image same space origin but totally different size on screen; pan X and Y
+any zoom in or out on any of those switches to diamond layout
+
+
+
+
+
+
+
+i think there is no zoom
+there is a diamond, which starts at screen sum and then goes up and down with +/-
+and there is a shown, which is output, comparing card2, natural, panel, and screen
+
+next feature to code with this refactored setup:
+[]info includes shown percent output number
+[]zoom keeps part of image in the center of the frame in the center
+building towards a system of modes that control how pan, zoom, and flip behave:
+d(iamond), f(it), w(idth), 123456789(x panel pixels)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
