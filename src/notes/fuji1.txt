@@ -145,8 +145,8 @@ be able to switch between these in the same way you can switch the lightbox zoom
 [a]cdsee classic copy; put this one in there just so you can tweet at acdsystems
 
 [l]ock pan - drag lock, now you don't have to click to pan around, idea from the DOS program from 1993
-[g]amma - increase gamma in large steps, ok then how do you reset it
-[p]ixelated - toggle on or off
+[g]amma - toggle between reasonable gamma and no gamma, remove any gamma added by the slider
+[p]ixelated - toggle on or off, note how g works this way now, too
 [space] - turn on or off slideshow
 
 
@@ -486,6 +486,10 @@ you can move forward and back, the order is shuffled and infinite, but stays as 
 yeah, these are two really good improvements
 maybe you start the slideshow with ctrl+s, and then get options like order is random, alphabet, date, smart, and how many full seconds
 
+crazy random ideas
+the slideshow has a setting to flip not exactly every n seconds, but rather a deviation away from that, to feel natural rather than like a drumbeat
+add this to the crazy ideas list in the brochure
+
 
 
 fuji
@@ -502,6 +506,7 @@ and there and only there
 Math.round the numbers you hand css
 so, do this in how you calculate quiverB from quiverA, of course
 and quiverA should have a boolean, cssPixelsAreReal
+
 
 
 
