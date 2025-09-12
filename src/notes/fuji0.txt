@@ -18,6 +18,7 @@ you might be able to do all those in just one evening, and enjoy them one at a t
 
 
 
+try out file association with .webp as those double-click into browser now
 
 
 
