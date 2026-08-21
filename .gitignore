@@ -34,3 +34,9 @@ diff*.txt
 Thumbs.db
 .fleet
 .idea
+
+#private planning and notes; "hide" as a dot-separated part of a file or folder name stays out of the public repo
+hide
+hide.*
+*.hide
+*.hide.*
