@@ -74,11 +74,12 @@ Bump everything that stays within its current major: @tauri-apps/api and cli, th
 
 Two whole-number jumps: Vite 7 raised the Node floor (satisfied — Node 22.21 installed vs `^20.19 || >=22.12` required) and changed browser baselines; Vite 8 is the Rolldown-bundler generation. plugin-vue 6.0.8 supports Vite 5 through 8. Our vite.config.js is small and uses nothing exotic, so the expectation is: read both migration guides, bump, and change little or nothing.
 
-- [ ] Read Vite 7 and 8 migration guides; note anything touching our config
-- [ ] Bump vite and @vitejs/plugin-vue; `pnpm install` clean
-- [ ] `pnpm vite-build` passes; skim dist output for sanity
-- [ ] Dev run (`pnpm local`) — HMR still works; manual test loop passes
-- [ ] Release build + run from built
+- [x] Read Vite 7 and 8 migration guides — v7: Node floor (satisfied) and browser targets (irrelevant for a current-webview app); v8: Rolldown/Oxc bundler, Lightning CSS minification, renamed options we don't use. Both plugins peer-support Vite 8. No config changes needed
+- [x] Bump vite ^8.2.2 and @vitejs/plugin-vue ^6.0.8; `pnpm install` clean in 1s
+- [x] `pnpm vite-build` passes — JS 90.6 kB (Oxc minifies tighter than esbuild did), CSS 13.5 kB (Lightning CSS); esbuild left the dependency tree entirely
+- [x] Dev server smoke test — serves 200 on strict port 1420 with HMR client injected
+- [x] Dev run (`pnpm local`) — manual test loop passed; HMR verified live (script-setup edit hot-swapped sub-second, component state reset as expected)
+- [ ] Release build + run from built — deferring to Step 5's final verification, so the sprint ends with one full release proof instead of three redundant ones
 
 **Commit point:** "vite 8, plugin-vue 6"
 
@@ -88,6 +89,7 @@ Tailwind 4's Vite plugin handles vendor prefixing itself (Lightning CSS) and rea
 
 - [ ] Delete postcss.config.js; drop autoprefixer and postcss from devDependencies
 - [ ] Delete tailwind.config.js (v4 auto-detects content; confirm nothing references it via @config)
+- [ ] Drop @tauri-apps/plugin-dialog from package.json — vestigial: no matching Rust crate, not registered in lib.rs, never imported in JS (found via fresh-scaffold comparison)
 - [ ] Rebuild; visually confirm styles unchanged — dots background, HUD smoke, caption emboss
 - [ ] Manual test loop passes
 
@@ -98,13 +100,36 @@ Tailwind 4's Vite plugin handles vendor prefixing itself (Lightning CSS) and rea
 - [x] `cargo update` — done early, in Step 2, to satisfy Tauri's npm↔crate minor-match guardrail (see Step 2 notes)
 - [ ] Bump the windows crate pin 0.48 → current (match the version tauri's own tree pulls, cutting duplicate compiles of a big crate); absorb API churn in panel.rs — surface is one feature, Win32_UI_WindowsAndMessaging
 - [ ] Bump core-graphics 0.22 → current; absorb any churn in panel.rs mac path
-- [ ] Edition 2021 → 2024 (`cargo fix --edition`, then set edition in Cargo.toml)
+- [ ] Edition: decision needed — a fresh scaffold still says edition 2021 (Tauri's template choice), so scaffold/ftorrent parity argues for staying on 2021; currency argues 2024. Recommendation: stay 2021, revisit when Tauri's template moves
 - [ ] `cargo check` clean, no warnings
 - [ ] Optional: `rustup target add x86_64-pc-windows-msvc` + `cargo check --target x86_64-pc-windows-msvc` to compile-check the windows path from this mac
 - [ ] Dev run — panelResolution() still returns real numbers on mac (check [i] HUD / console)
 - [ ] Release build + run from built; full manual test loop
 
 **Commit point:** "modernize rust deps, edition 2024"
+
+## Fresh-scaffold comparison (2026-08-22)
+
+Potted a new plant to sanity-check the repotted one: `pnpm create tauri-app` (vue template, pnpm manager) into the gitignored `hide/fresh/`, then diffed manifests against fuji.
+
+Findings:
+
+- **The template's pins are stale**: it ships vite ^6.0.3, @vitejs/plugin-vue ^5.2.1, vue ^3.5.13 — a literal fresh scaffold today runs Vite 6, not 8. Only the tauri packages float (`^2` → 2.11.x at install). So fuji is now *ahead* of the scaffold on vite/plugin-vue, which matches the sprint's real goal (current tools, majors and minors); when ftorrent is scaffolded, bump its vite to 8 to match fuji.
+- **vite.config.js**: fresh scaffold's is conceptually identical to ours (ours adds only the tailwind plugin) — nothing vestigial there.
+- **Cargo.toml**: identical shape; fuji's extras (plugin-fs, display-info, windows, core-graphics) are all deliberate. Edition still 2021 in the template — see Step 5 decision.
+- **tauri.conf.json**: same structure; fuji's window size, dragDropEnabled, and script names are deliberate differences.
+- **packageManager field**: the scaffold doesn't add one even with `--manager pnpm`; ours (cold3 pattern, corepack-enforced) is strictly better — keep.
+- **Found a stowaway**: @tauri-apps/plugin-dialog in fuji's package.json has no Rust crate, no registration, no JS import — added to Step 4's deletions.
+- **.gitignore**: fresh scaffold's matches the first half of ours; our duplicated lines are two scaffold generations concatenated — harmless, optional tidy.
+
+The `hide/fresh/` scaffold stays around as reference until the sprint closes, then can be deleted (or kept for the ftorrent scaffolding session).
+
+## Step 6 — Letter to windows claude
+
+After the mac-side steps land and push: write a letter in the repo (tracked and public — it must ride the push to reach the windows clone) briefing the Claude Code session Kevin will start on the windows workstation. It should carry: what this sprint changed, how to install (corepack/pnpm, shared lockfile — installing from the mac-made pnpm-lock.yaml **is the test**), what to build and run, the manual test loop, windows-specific attention points (windows crate 0.6x compile, high-res fullscreen pan preservation, NSIS bundling), and where to record results.
+
+- [ ] Write the letter (windows.md or similar name Kevin picks)
+- [ ] Commit and push so it's on the windows clone
 
 ## Open decisions
 
