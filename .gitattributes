@@ -1,0 +1,3 @@
+#one newline everywhere: lf in the repository and in both working trees, mac and windows
+#this overrides each machine's core.autocrlf, so the policy lives here rather than in two local git configs
+* text=auto eol=lf

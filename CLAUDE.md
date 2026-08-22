@@ -28,6 +28,7 @@ pnpm local        # Run Tauri in dev mode with hot reload
 ```bash
 pnpm build        # Build production executable and installer
 pnpm app          # Launch the built mac app
+pnpm win          # Launch the built windows exe
 ```
 
 ### Frontend Only (for rapid UI iteration)
@@ -118,8 +119,11 @@ pnpm upgrade-wash        # Deep clean including lock files
 **Windows**:
 ```
 ./src-tauri/target/release/fuji.exe
-./src-tauri/target/release/bundle/windows/fuji-0.1.0-x86_64.exe
+./src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
+./src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
 ```
+
+`fuji.exe` is the application itself — the same binary both installers wrap and install. `pnpm win` launches it in place, without installing.
 
 ## Path Handling
 

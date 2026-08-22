@@ -7,6 +7,7 @@
 		"local": "tauri dev",
 		"build": "tauri build",
 		"app": "open src-tauri/target/release/bundle/macos/Fuji.app",
+		"win": "start src-tauri/target/release/fuji.exe",
 		"dev": "vite",
 		"vite-build": "vite build",
 		"preview": "vite preview",
