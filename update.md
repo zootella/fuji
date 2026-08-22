@@ -87,11 +87,12 @@ Two whole-number jumps: Vite 7 raised the Node floor (satisfied — Node 22.21 i
 
 Tailwind 4's Vite plugin handles vendor prefixing itself (Lightning CSS) and reads configuration from CSS, so three artifacts are vestigial:
 
-- [ ] Delete postcss.config.js; drop autoprefixer and postcss from devDependencies
-- [ ] Delete tailwind.config.js (v4 auto-detects content; confirm nothing references it via @config)
-- [ ] Drop @tauri-apps/plugin-dialog from package.json — vestigial: no matching Rust crate, not registered in lib.rs, never imported in JS (found via fresh-scaffold comparison)
-- [ ] Rebuild; visually confirm styles unchanged — dots background, HUD smoke, caption emboss
-- [ ] Manual test loop passes
+- [x] Delete postcss.config.js; drop autoprefixer and postcss from devDependencies — grep confirmed zero references anywhere first
+- [x] Delete tailwind.config.js — nothing references it via @config
+- [x] Drop @tauri-apps/plugin-dialog from package.json — vestigial: no matching Rust crate, not registered in lib.rs, never imported in JS (found via fresh-scaffold comparison)
+- [x] Bonus parity tweak: removed the legacy `async` wrapper from vite.config.js, matching Tauri's current template (their PR #959)
+- [x] Rebuild passes — JS byte-identical 90.59 kB; CSS 13.47 kB (−0.04, autoprefixer's prefixes now handled by Lightning CSS natively)
+- [ ] Visual check + manual test loop (Kevin) — dots background, HUD smoke, caption emboss
 
 **Commit point:** "remove vestigial postcss and tailwind config"
 
@@ -114,7 +115,7 @@ Potted a new plant to sanity-check the repotted one: `pnpm create tauri-app` (vu
 
 Findings:
 
-- **The template's pins are stale**: it ships vite ^6.0.3, @vitejs/plugin-vue ^5.2.1, vue ^3.5.13 — a literal fresh scaffold today runs Vite 6, not 8. Only the tauri packages float (`^2` → 2.11.x at install). So fuji is now *ahead* of the scaffold on vite/plugin-vue, which matches the sprint's real goal (current tools, majors and minors); when ftorrent is scaffolded, bump its vite to 8 to match fuji.
+- **The template's pins are stale — and we verified it's release lag, not intent** (investigated 2026-08-22 when the vite-8 question was raised). The scaffold ships vite ^6.0.3, but: (a) create-tauri-app's own repo updated all JS templates to **vite 8** on 2026-06-15 (PR #975) — Tauri's current intent is vite 8; (b) the npm channel still serves the older 4.6.2 wrapper with vite-6 pins, which is why fresh scaffolds arrive on 6 today; (c) npm download data shows **vite 8.x is the largest running cohort at 41%** of all vite downloads (7.x 24%, 6.x a shrinking 16%), and Nuxt 4.4 ships vite 8. Decision: **fuji stays on Vite 8** — that's both current and mainstream-standard, and matches where Tauri's templates are headed. When ftorrent's desktop is scaffolded, bump its vite to 8 if the npm wrapper is still behind. Also from that template history: PR #959 removed the unneeded `async` wrapper from vite config templates — optional one-word parity tweak for our vite.config.js in Step 4.
 - **vite.config.js**: fresh scaffold's is conceptually identical to ours (ours adds only the tailwind plugin) — nothing vestigial there.
 - **Cargo.toml**: identical shape; fuji's extras (plugin-fs, display-info, windows, core-graphics) are all deliberate. Edition still 2021 in the template — see Step 5 decision.
 - **tauri.conf.json**: same structure; fuji's window size, dragDropEnabled, and script names are deliberate differences.
