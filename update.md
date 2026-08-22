@@ -134,4 +134,63 @@ After the mac-side steps land and push: write a letter in the repo (tracked and 
 
 ## Open decisions
 
-- **Windows verification:** everything here is verified on mac; the windows build (and high-res windows fullscreen panning, untested since last year) needs a session on the windows machine after the sprint lands.
+- **Windows verification:** ~~everything here is verified on mac; the windows build needs a session on the windows machine after the sprint lands~~ — done 2026-08-22, see below. High-res windows fullscreen panning remains untested; the windows workstation's display can't exercise it.
+
+## Windows session results
+
+Run 2026-08-22 on the windows workstation (Windows 10 Pro 19045, x86_64), following the sequence in `windows.md`.
+
+**The shared-lockfile test passed.** `pnpm install --frozen-lockfile` installed cleanly on windows from the mac-created pnpm-lock.yaml — "Lockfile is up to date, resolution step is skipped", 57 packages, 1.7s, no warnings, and `git status` clean afterward so nothing was silently rewritten. This is the exact scenario that broke under yarn classic. It is fixed.
+
+### Workstation toolchain (box-level, not project)
+
+This machine had been sitting as long as the repo had. Updated before testing, so results would be comparable to the mac's rather than measured on a year-old compiler:
+
+- rustup 1.28.2 → 1.29.0; rustc/cargo **1.88.0 → 1.98.0** — was 14 months and ~10 releases behind. The mac resolved Cargo.lock under 1.97.1, so windows had been the *older* compiler; it's now one release ahead
+- Git 2.42.0.2 → 2.55.0.3 (three years old; the same installer refreshes Git Bash)
+- `corepack enable` — pnpm wasn't on PATH at all. Corepack now resolves **pnpm 10.28.2** from the packageManager field, matching the mac exactly
+- Node deliberately left at 22.21.1 — identical to the mac, and comfortably over Vite 8's `^20.19 || >=22.12` floor. Node 22 reaches end-of-life ~April 2027, so a fleet-wide move to 24 or 26 wants scheduling, not doing mid-verification
+- Already current, untouched: WebView2 151.0.4129.101, Windows SDK 10.0.26100, MSVC (VS 2026 Community 14.50 and VS 2022 BuildTools 14.44 both present)
+
+### The letter's sequence
+
+- [x] **1. Prerequisites** — as above
+- [x] **2. `pnpm install --frozen-lockfile`** — passed, see headline. The lockfile carries *both* platforms for every native family — `@rolldown/binding`, `@tailwindcss/oxide`, `@tauri-apps/cli`, `lightningcss`, each with darwin-arm64 and win32-x64-msvc entries gated by `os:`/`cpu:` — and the install materialized only the win32 half. The mechanism works exactly as Step 1 predicted it would
+- [x] **Frontend build** — `pnpm vite-build`: JS 90.59 kB, CSS 13.47 kB, matching this doc's Step 4 numbers to the last digit. The freshly installed win32 native binaries agree with their darwin counterparts
+- [x] **3. Dev run** — `pnpm local` built and ran; manual test loop passed at the keyboard; no version-mismatch warnings from the Tauri CLI
+- [x] **4. Windows crate proof — compile and link** — `cargo build` clean in 2m14s with **zero warnings**. `windows v0.62.2` and `windows-core v0.62.2` compiled for real and linked into a 13.4 MB debug fuji.exe. panel.rs needed no changes; the mac's type-check-only verification of the 0.48 → 0.62.2 jump held up under a real MSVC link
+- [ ] **4b. `panel_resolution()` at runtime** — not reachable from the running app; see below
+- [x] **5. Release build** — `pnpm build` clean in 2m53s, producing `src-tauri/target/release/fuji.exe` (9.9 MB) and two bundles
+- [x] **Run from built** — the release exe runs; manual test loop passed again
+- [ ] **6. High-res fullscreen pan preservation** — not tested; hardware unavailable, reasoning below
+- [x] **7. Windows `app` equivalent** — added `"win": "start src-tauri/target/release/fuji.exe"` next to the untouched mac `app` script. `start` is cmd's closest analogue to macOS `open`: it launches and returns immediately. Verified working
+
+### Corrections found on windows
+
+- **NSIS is already configured** — the letter called it "planned but not-yet-configured." Not so: `tauri.conf.json` carries `"targets": "all"`, which on windows means msi *and* nsis. This build emitted `bundle/msi/Fuji_0.1.0_x64_en-US.msi` (3 MB) and `bundle/nsis/Fuji_0.1.0_x64-setup.exe` (2 MB) with no configuration work. It did pause once to re-download NSIS 3.11 and nsis_tauri_utils 0.5.3, because last year's cached copy was incomplete — a one-time cost, not a finding
+- **CLAUDE.md's windows bundle path was stale** — it documented `bundle/windows/fuji-0.1.0-x86_64.exe`, a Tauri 1 convention. Corrected to the real msi and nsis paths, plus a line clarifying that `fuji.exe` is the binary both installers wrap and that `pnpm win` launches it in place
+- **Line endings standardized on LF** — the repo was already 100% LF in every blob (autocrlf had been converting faithfully), but `.editorconfig` *declared* `end_of_line = crlf`, and the windows working tree was CRLF on checkout. Added `.gitattributes` with `* text=auto eol=lf` and flipped `.editorconfig` to `lf`, so the policy now lives in the repo instead of depending on each machine's local git config. The windows tree was re-checked out under the new rules and produced **zero diff**, confirming no content ever changed. Binaries were correctly detected and left alone. **The mac needs no action** — its working tree is already LF
+- **.gitignore** — added `._*` (macOS resource forks), `desktop.ini`, `ehthumbs.db`, and `*.stackdump` (msys2 crash dumps, which Git Bash can produce). The duplicated scaffold lines were left alone
+
+### Not tested, and why
+
+**Step 6, high-resolution fullscreen pan preservation.** This workstation has a single 1920 × 1200 display at 100% scaling — no `LogPixels` override, `Win8DpiScaling` off, no per-monitor settings. At 100%, CSS pixels, backing pixels, and physical pixels are all the same number, so the three-way distinction the quiver system exists to manage is never exercised. The fullscreen round-trip itself passed, but that tests the pan logic, not the scaled-pixel math.
+
+The judgment behind leaving it: this is a **standing coverage gap, not a regression risk introduced by this sprint.** It was untested in 2025 for the same reason it's untested now — nobody had the hardware in front of them. Nothing the sprint changed gives cause to suspect it. The windows crate supplies bindings, not behavior; what `GetSystemMetrics` returns under scaling is decided by tao's DPI awareness, not by the crate version. The one bug class this box *structurally cannot see* is a DPI-awareness change somewhere in tao 0.35 — invisible at 100% scaling, wrong at 150%.
+
+Cheapest future test, when someone's at this machine: set windows display scaling to 150%, restart fuji, press `[i]`, and confirm cssScreen and physicalScreen diverge (expecting 1280 × 800 against 1920 × 1200). Thirty seconds, fully reversible.
+
+### `panel_resolution()` compiles and links, but nothing calls it
+
+Step 4's runtime half turned out to be untestable as written, for a reason the letter couldn't have known: **no code path in the running app reaches `panel_resolution()`.** `App.vue` imports MyFlip, MyLens, MyList, and MySpace but renders only `<LightTable />`, so MyList never mounts — and MyList is the only caller of `measureScreen()`, which is the only caller of `panelResolution()`. MyList is a retired development component from earlier work on the pixel-units problem; reaching it again would take code changes. The `[i]` HUD is a different thing entirely — image facts, from LightTable.
+
+Left out of scope deliberately, because nothing suggests a problem. `panel_resolution()` is a direct FFI call to `GetSystemMetrics(SM_CXSCREEN/SM_CYSCREEN)`; the windows crate supplies the binding, not the behavior, and that binding is checked at compile time — it built clean against 0.62.2 with zero warnings, so the signature, the `SYSTEM_METRICS_INDEX` constants, and the `i32` return all line up. Fourteen versions of binding churn have no mechanism for changing what user32.dll answers, and what it answers under DPI scaling is tao's business, not the crate's.
+
+Whoever revives MyList — or wires the measurement in somewhere that renders — gets this check and step 6's scaling matrix in one sitting. MyList.vue's own `ttd august` block is already written as exactly that matrix: mac vs windows, old monitor vs 4k, different zoom settings on windows.
+
+### For the mac session
+
+- **Did the mac's fullscreen pan test run at devicePixelRatio 2?** This doc doesn't say. If the mac was on a Retina panel, the scaled-pixel path has been exercised *somewhere* and the gap above is windows-only. If it was on an external 1x display, that path is untested on both machines and the gap is larger than it looks
+- **Consider bumping the mac to Rust 1.98** — windows runs it now; the mac is on 1.97.1
+- **`panel_resolution()` reports the primary monitor only.** `SM_CXSCREEN`/`SM_CYSCREEN` describe the primary display, not the monitor the window happens to be on. Moot on this single-display box; would misreport on a multi-monitor setup with mixed resolutions. Noted, not fixed — beyond this session's scope
+- **CLAUDE.md's mac bundle paths** say lowercase `fuji.app` and `fuji_0.1.0_aarch64.dmg` while productName is `Fuji`. Presumably harmless on a case-insensitive filesystem; left alone rather than guessed at from windows

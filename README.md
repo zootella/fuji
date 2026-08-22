@@ -123,22 +123,22 @@ This pops its own command line window, *Enter* for default
 
 Now you can see everything in [Git](https://git-scm.com/downloads/win)'s *MINGW64*
 ```
-$ node --version, v20.15.0
+$ node --version, v22.21.1
 $ npm --version, 10.8.1
-$ yarn --version, 1.22.22
-$ rustc --version, rustc 1.88.0 (6b00bc388 2025-06-23)
-$ cargo --version, cargo 1.88.0 (873a06493 2025-05-10)
-
-$ cargo install tauri-cli --version "^2.0.0" --locked
-$ cargo tauri --version, tauri-cli 2.7.1
+$ corepack --version, 0.34.0
+$ rustc --version, rustc 1.98.0 (88d9e12ae 2026-08-18)
+$ cargo --version, cargo 1.98.0 (797e8a9bc 2026-08-05)
+$ git --version, git version 2.55.0.windows.3
 
 $ git clone https://github.com/zootella/fuji
 $ cd fuji
-$ yarn install
-$ yarn build
-$ yarn local
+$ pnpm install --frozen-lockfile
+$ pnpm build
+$ pnpm local
 ```
-Installed `tauri-cli` globally, but that probably isn't necessary.
+`pnpm` isn't installed globally — it comes from corepack, which ships with Node. Run `corepack enable` once from an elevated *PowerShell*; after that `pnpm` reads the `packageManager` field in package.json and runs the exact version this project pins, downloading it on first use. Use `--frozen-lockfile` when you're installing what's committed rather than changing dependencies; it refuses to quietly rewrite pnpm-lock.yaml, which is what keeps one lockfile serving both mac and windows.
+
+No global `tauri-cli` either — the `@tauri-apps/cli` in devDependencies is what `pnpm local` and `pnpm build` run, and keeping it there means the CLI can't drift out of step with the Rust crates.
 
 ## README from scaffolding
 
