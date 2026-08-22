@@ -112,8 +112,8 @@ pnpm upgrade-wash        # Deep clean including lock files
 
 **macOS**:
 ```
-./src-tauri/target/release/bundle/macos/fuji.app
-./src-tauri/target/release/bundle/dmg/fuji_0.1.0_aarch64.dmg
+./src-tauri/target/release/bundle/macos/Fuji.app
+./src-tauri/target/release/bundle/dmg/Fuji_0.1.0_aarch64.dmg
 ```
 
 **Windows**:
