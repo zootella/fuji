@@ -63,11 +63,12 @@ Note: pnpm 10 ignores postinstall scripts (esbuild, @tailwindcss/oxide) by defau
 
 Bump everything that stays within its current major: @tauri-apps/api and cli, the three tauri plugins, vue, tailwindcss, @tailwindcss/vite. Edit package.json to current versions, reinstall, rebuild.
 
-- [ ] package.json bumped, `pnpm install` clean
-- [ ] `pnpm vite-build` passes
-- [ ] Manual test loop passes
+- [x] package.json bumped, `pnpm install` clean in 1.4s — api 2.11.1, cli 2.11.4, dialog 2.7.2, fs 2.5.1, opener 2.5.4, vue 3.5.41, tailwind 4.3.3
+- [x] `pnpm vite-build` passes — JS 92.4 kB, CSS 13.8 kB, growth consistent with minor feature additions
+- [x] Pulled forward from Step 5: full `cargo update` (355 changes) — Tauri's dev guardrail requires npm packages and Rust crates on the same major/minor, so the crate side had to move with the JS side. Now tauri 2.11.5 ↔ api 2.11.1, plugin-fs 2.5.1 ↔ 2.5.1, opener 2.5.4 ↔ 2.5.4; `cargo check` clean in 33s. (A targeted `cargo update -p tauri ...` first produced an incoherent tree that failed to compile — full update was the fix.)
+- [x] Manual test loop passes — 2026-08-22: mismatch warning gone; drag-in, flipping, and the fullscreen round-trip with pan preservation all confirmed
 
-**Commit point:** "bump js minors: tauri 2.11, vue 3.5.41, tailwind 4.3"
+**Commit point:** "bump js minors and align rust crates: tauri 2.11, vue 3.5.41, tailwind 4.3"
 
 ## Step 3 — Vite 6 → 8, plugin-vue 5 → 6 (the one real migration)
 
@@ -94,7 +95,7 @@ Tailwind 4's Vite plugin handles vendor prefixing itself (Lightning CSS) and rea
 
 ## Step 5 — Rust side
 
-- [ ] `cargo update` — floats tauri, tauri-build, plugins, serde, display-info within their ranges
+- [x] `cargo update` — done early, in Step 2, to satisfy Tauri's npm↔crate minor-match guardrail (see Step 2 notes)
 - [ ] Bump the windows crate pin 0.48 → current (match the version tauri's own tree pulls, cutting duplicate compiles of a big crate); absorb API churn in panel.rs — surface is one feature, Win32_UI_WindowsAndMessaging
 - [ ] Bump core-graphics 0.22 → current; absorb any churn in panel.rs mac path
 - [ ] Edition 2021 → 2024 (`cargo fix --edition`, then set edition in Cargo.toml)
