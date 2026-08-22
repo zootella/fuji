@@ -6,7 +6,7 @@ Ground rules for this sprint: Claude edits files and runs builds; Kevin alone ru
 
 ## The manual test loop
 
-Run after each step (Kevin, at the keyboard, `yarn local` or the built app):
+Run after each step (Kevin, at the keyboard, `pnpm local` or the built app):
 
 1. Drag an image file into the window — it loads, siblings list
 2. Mouse wheel — flips forward and back through the folder
@@ -46,12 +46,16 @@ Match cold3 (and ftorrent when it's scaffolded): `"packageManager": "pnpm@10.28.
 
 Why pnpm fixes the mac/windows lockfile problem: the native-binary packages (@tauri-apps/cli-darwin-arm64, cli-win32-x64-msvc, esbuild's and rollup's platform binaries) are optionalDependencies selected by os/cpu. Yarn classic records only the set resolvable on the machine that ran install, so a mac-made lockfile strands a windows install — and yarn 1 is frozen software, so it never got fixed. pnpm records every platform variant in the lockfile and selects at install time, so one tracked lockfile serves both machines.
 
-- [ ] `pnpm import` — generate pnpm-lock.yaml from yarn.lock at identical versions
-- [ ] package.json: `"packageManager": "pnpm@10.28.2"`; update wash/upgrade-wash scripts (yarn.lock → pnpm-lock.yaml, and pnpm's node_modules layout)
-- [ ] Delete yarn.lock; `pnpm install` clean
-- [ ] Update CLAUDE.md (says "Package Manager: Yarn") and any yarn references in docs
-- [ ] `pnpm vite-build` passes; `pnpm local` dev run; manual test loop passes
-- [ ] Corepack check: `yarn` now refuses in this project, `pnpm` accepted
+- [x] `pnpm import` — pnpm-lock.yaml generated; spot-check confirmed identical versions (vite 6.3.5, vue 3.5.18, tailwind 4.1.11)
+- [x] package.json: `"packageManager": "pnpm@10.28.2"`; upgrade-wash script now removes pnpm-lock.yaml
+- [x] yarn.lock and node_modules deleted; `pnpm install --frozen-lockfile` clean in 1.2s
+- [x] CLAUDE.md converted to pnpm commands
+- [x] tauri.conf.json beforeDevCommand/beforeBuildCommand converted (missed in first sweep — corepack's yarn refusal caught it on first `pnpm local`)
+- [x] `pnpm vite-build` passes — JS bundle byte-identical to yarn baseline; CSS +0.25 kB (verify visually in dev run)
+- [ ] `pnpm local` dev run; manual test loop passes
+- [x] Corepack check: `yarn` refuses ("configured to use pnpm"), `pnpm app` launches the built app
+
+Note: pnpm 10 ignores postinstall scripts (esbuild, @tailwindcss/oxide) by default; build works anyway because both ship native binaries as optionalDependencies — the same mechanism that makes the shared lockfile cross-platform.
 
 **Commit point:** "switch to pnpm"
 
@@ -59,8 +63,8 @@ Why pnpm fixes the mac/windows lockfile problem: the native-binary packages (@ta
 
 Bump everything that stays within its current major: @tauri-apps/api and cli, the three tauri plugins, vue, tailwindcss, @tailwindcss/vite. Edit package.json to current versions, reinstall, rebuild.
 
-- [ ] package.json bumped, `yarn install` clean
-- [ ] `yarn vite-build` passes
+- [ ] package.json bumped, `pnpm install` clean
+- [ ] `pnpm vite-build` passes
 - [ ] Manual test loop passes
 
 **Commit point:** "bump js minors: tauri 2.11, vue 3.5.41, tailwind 4.3"
@@ -70,9 +74,9 @@ Bump everything that stays within its current major: @tauri-apps/api and cli, th
 Two whole-number jumps: Vite 7 raised the Node floor (satisfied — Node 22.21 installed vs `^20.19 || >=22.12` required) and changed browser baselines; Vite 8 is the Rolldown-bundler generation. plugin-vue 6.0.8 supports Vite 5 through 8. Our vite.config.js is small and uses nothing exotic, so the expectation is: read both migration guides, bump, and change little or nothing.
 
 - [ ] Read Vite 7 and 8 migration guides; note anything touching our config
-- [ ] Bump vite and @vitejs/plugin-vue; `yarn install` clean
-- [ ] `yarn vite-build` passes; skim dist output for sanity
-- [ ] Dev run (`yarn local`) — HMR still works; manual test loop passes
+- [ ] Bump vite and @vitejs/plugin-vue; `pnpm install` clean
+- [ ] `pnpm vite-build` passes; skim dist output for sanity
+- [ ] Dev run (`pnpm local`) — HMR still works; manual test loop passes
 - [ ] Release build + run from built
 
 **Commit point:** "vite 8, plugin-vue 6"

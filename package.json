@@ -11,10 +11,10 @@
 		"vite-build": "vite build",
 		"preview": "vite preview",
 		"tauri": "tauri",
-		"upgrade-wash": "yarn wash && rimraf yarn.lock src-tauri/Cargo.lock",
+		"upgrade-wash": "pnpm wash && rimraf pnpm-lock.yaml src-tauri/Cargo.lock",
 		"wash": "rimraf dist node_modules src-tauri/target src-tauri/gen"
 	},
-	"packageManager": "yarn@1.22.22",
+	"packageManager": "pnpm@10.28.2",
 	"dependencies": {
 		"@tauri-apps/api": "^2.6.0",
 		"@tauri-apps/plugin-dialog": "^2.3.2",

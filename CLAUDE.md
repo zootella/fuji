@@ -8,7 +8,7 @@ Fuji is a multimedia file manager designed with privacy and precision in mind. I
 - **Backend**: Rust (src-tauri/)
 - **Frontend**: Vue 3 + JavaScript (src/)
 - **Build Tools**: Vite, Tailwind CSS
-- **Package Manager**: Yarn
+- **Package Manager**: pnpm
 
 The application displays images in an infinite pannable/zoomable space with keyboard navigation, drag-and-drop support, and full-screen mode.
 
@@ -16,29 +16,30 @@ The application displays images in an infinite pannable/zoomable space with keyb
 
 ### Setup
 ```bash
-yarn install
+pnpm install
 ```
 
 ### Run Development Mode
 ```bash
-yarn local        # Run Tauri in dev mode with hot reload
+pnpm local        # Run Tauri in dev mode with hot reload
 ```
 
 ### Build
 ```bash
-yarn build        # Build production executable and installer
+pnpm build        # Build production executable and installer
+pnpm app          # Launch the built mac app
 ```
 
 ### Frontend Only (for rapid UI iteration)
 ```bash
-yarn dev          # Run Vite dev server without Tauri
-yarn vite-build   # Build frontend only
+pnpm dev          # Run Vite dev server without Tauri
+pnpm vite-build   # Build frontend only
 ```
 
 ### Clean Build Environment
 ```bash
-yarn wash                # Remove dist, node_modules, and target folders
-yarn upgrade-wash        # Deep clean including lock files
+pnpm wash                # Remove dist, node_modules, and target folders
+pnpm upgrade-wash        # Deep clean including lock files
 ```
 
 ## Architecture
