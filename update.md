@@ -24,7 +24,7 @@ Verify the untouched code builds and runs, so any later breakage is attributable
 - [x] `cargo check` — passed clean, Rust 1.97.1
 - [x] Dev run: `yarn local` — built and ran successfully, confirmed 2026-08-21
 - [x] Release build: `yarn build` completes — passed 2026-08-21, 1m18s, both bundles produced
-- [ ] Run `src-tauri/target/release/bundle/macos/Fuji.app` directly; full manual test loop
+- [x] Run `src-tauri/target/release/bundle/macos/Fuji.app` directly — done via the `app` script, loop passed
 
 **Versions before** (locked → latest available, checked 2026-08-21):
 
@@ -52,7 +52,7 @@ Why pnpm fixes the mac/windows lockfile problem: the native-binary packages (@ta
 - [x] CLAUDE.md converted to pnpm commands
 - [x] tauri.conf.json beforeDevCommand/beforeBuildCommand converted (missed in first sweep — corepack's yarn refusal caught it on first `pnpm local`)
 - [x] `pnpm vite-build` passes — JS bundle byte-identical to yarn baseline; CSS +0.25 kB (verify visually in dev run)
-- [ ] `pnpm local` dev run; manual test loop passes
+- [x] `pnpm local` dev run; manual test loop passed (after the tauri.conf.json fix below)
 - [x] Corepack check: `yarn` refuses ("configured to use pnpm"), `pnpm app` launches the built app
 
 Note: pnpm 10 ignores postinstall scripts (esbuild, @tailwindcss/oxide) by default; build works anyway because both ship native binaries as optionalDependencies — the same mechanism that makes the shared lockfile cross-platform.
@@ -79,7 +79,7 @@ Two whole-number jumps: Vite 7 raised the Node floor (satisfied — Node 22.21 i
 - [x] `pnpm vite-build` passes — JS 90.6 kB (Oxc minifies tighter than esbuild did), CSS 13.5 kB (Lightning CSS); esbuild left the dependency tree entirely
 - [x] Dev server smoke test — serves 200 on strict port 1420 with HMR client injected
 - [x] Dev run (`pnpm local`) — manual test loop passed; HMR verified live (script-setup edit hot-swapped sub-second, component state reset as expected)
-- [ ] Release build + run from built — deferring to Step 5's final verification, so the sprint ends with one full release proof instead of three redundant ones
+- [x] Release build + run from built — deferred to and completed in Step 5's final verification, so the sprint ends with one full release proof instead of three redundant ones
 
 **Commit point:** "vite 8, plugin-vue 6"
 
@@ -92,7 +92,7 @@ Tailwind 4's Vite plugin handles vendor prefixing itself (Lightning CSS) and rea
 - [x] Drop @tauri-apps/plugin-dialog from package.json — vestigial: no matching Rust crate, not registered in lib.rs, never imported in JS (found via fresh-scaffold comparison)
 - [x] Bonus parity tweak: removed the legacy `async` wrapper from vite.config.js, matching Tauri's current template (their PR #959)
 - [x] Rebuild passes — JS byte-identical 90.59 kB; CSS 13.47 kB (−0.04, autoprefixer's prefixes now handled by Lightning CSS natively)
-- [ ] Visual check + manual test loop (the user) — dots background, HUD smoke, caption emboss
+- [x] Visual check + manual test loop (the user) — styles pixel-identical, loop passed
 
 **Commit point:** "remove vestigial postcss and tailwind config"
 
@@ -130,7 +130,7 @@ The `hide/fresh/` scaffold stays around as reference until the sprint closes, th
 After the mac-side steps land and push: write a letter in the repo (tracked and public — it must ride the push to reach the windows clone) briefing the Claude Code session the user will start on the windows workstation. It should carry: what this sprint changed, how to install (corepack/pnpm, shared lockfile — installing from the mac-made pnpm-lock.yaml **is the test**), what to build and run, the manual test loop, windows-specific attention points (windows crate 0.6x compile, high-res fullscreen pan preservation, NSIS bundling), and where to record results.
 
 - [x] Letter written: `windows.md` — carries the ground rules (git, style, ttd, hide files) that live only in the mac session's memory, the install-is-the-test framing, the verification sequence, and the reporting format
-- [ ] Commit and push so it's on the windows clone (the user)
+- [x] Committed and pushed 2026-08-22 — the letter is on the remote, awaiting the windows session
 
 ## Open decisions
 
