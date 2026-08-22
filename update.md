@@ -2,11 +2,11 @@
 
 The goal: bring fuji's dependencies to where a fresh scaffold with the same tools would put them today — majors and minors both — so this repo matches its sister project **ftorrent**, which will be scaffolded from scratch on the same stack. When ftorrent exists, diffing its manifests against fuji's should show no meaningful drift.
 
-Ground rules for this sprint: Claude edits files and runs builds; Kevin alone runs mutating git commands. Each step ends at a commit point so any step can stop the train without stranding the others. After every step: build passes, app runs, images behave.
+Ground rules for this sprint: Claude edits files and runs builds; the user alone runs mutating git commands. Each step ends at a commit point so any step can stop the train without stranding the others. After every step: build passes, app runs, images behave.
 
 ## The manual test loop
 
-Run after each step (Kevin, at the keyboard, `pnpm local` or the built app):
+Run after each step (the user, at the keyboard, `pnpm local` or the built app):
 
 1. Drag an image file into the window — it loads, siblings list
 2. Mouse wheel — flips forward and back through the folder
@@ -92,20 +92,20 @@ Tailwind 4's Vite plugin handles vendor prefixing itself (Lightning CSS) and rea
 - [x] Drop @tauri-apps/plugin-dialog from package.json — vestigial: no matching Rust crate, not registered in lib.rs, never imported in JS (found via fresh-scaffold comparison)
 - [x] Bonus parity tweak: removed the legacy `async` wrapper from vite.config.js, matching Tauri's current template (their PR #959)
 - [x] Rebuild passes — JS byte-identical 90.59 kB; CSS 13.47 kB (−0.04, autoprefixer's prefixes now handled by Lightning CSS natively)
-- [ ] Visual check + manual test loop (Kevin) — dots background, HUD smoke, caption emboss
+- [ ] Visual check + manual test loop (the user) — dots background, HUD smoke, caption emboss
 
 **Commit point:** "remove vestigial postcss and tailwind config"
 
 ## Step 5 — Rust side
 
 - [x] `cargo update` — done early, in Step 2, to satisfy Tauri's npm↔crate minor-match guardrail (see Step 2 notes)
-- [ ] Bump the windows crate pin 0.48 → current (match the version tauri's own tree pulls, cutting duplicate compiles of a big crate); absorb API churn in panel.rs — surface is one feature, Win32_UI_WindowsAndMessaging
-- [ ] Bump core-graphics 0.22 → current; absorb any churn in panel.rs mac path
-- [ ] Edition: decision needed — a fresh scaffold still says edition 2021 (Tauri's template choice), so scaffold/ftorrent parity argues for staying on 2021; currency argues 2024. Recommendation: stay 2021, revisit when Tauri's template moves
-- [ ] `cargo check` clean, no warnings
-- [ ] Optional: `rustup target add x86_64-pc-windows-msvc` + `cargo check --target x86_64-pc-windows-msvc` to compile-check the windows path from this mac
-- [ ] Dev run — panelResolution() still returns real numbers on mac (check [i] HUD / console)
-- [ ] Release build + run from built; full manual test loop
+- [x] Bump the windows crate pin 0.48 → 0.62.2 (the version tauri's own tree pulls) — panel.rs needed zero changes; verified by type-checking the module against 0.62 for the x86_64-pc-windows-msvc target from this mac (a full cross cargo check is blocked by tauri-winres wanting llvm-rc; the real windows build happens on the windows machine)
+- [x] Bump core-graphics 0.22 → 0.25 and foreign-types-shared 0.1 → 0.3 (they pair) — panel.rs mac path compiled clean, zero changes; both old duplicate versions left the lock tree
+- [x] Edition: decided — staying on 2021 for scaffold/ftorrent parity (Tauri's template choice); revisit when Tauri's template moves
+- [x] `cargo check` clean, no warnings
+- [x] Windows path verified from mac via scratch-crate type-check against windows 0.62 (full cross cargo check blocked by tauri-winres needing llvm-rc — real proof comes on the windows machine)
+- [x] Release build passes — cargo 1m14s, both bundles produced 2026-08-22
+- [x] Run from built (`pnpm app`) — 2026-08-22, runs quickly, test loop fine
 
 **Commit point:** "modernize rust deps, edition 2024"
 
@@ -127,10 +127,10 @@ The `hide/fresh/` scaffold stays around as reference until the sprint closes, th
 
 ## Step 6 — Letter to windows claude
 
-After the mac-side steps land and push: write a letter in the repo (tracked and public — it must ride the push to reach the windows clone) briefing the Claude Code session Kevin will start on the windows workstation. It should carry: what this sprint changed, how to install (corepack/pnpm, shared lockfile — installing from the mac-made pnpm-lock.yaml **is the test**), what to build and run, the manual test loop, windows-specific attention points (windows crate 0.6x compile, high-res fullscreen pan preservation, NSIS bundling), and where to record results.
+After the mac-side steps land and push: write a letter in the repo (tracked and public — it must ride the push to reach the windows clone) briefing the Claude Code session the user will start on the windows workstation. It should carry: what this sprint changed, how to install (corepack/pnpm, shared lockfile — installing from the mac-made pnpm-lock.yaml **is the test**), what to build and run, the manual test loop, windows-specific attention points (windows crate 0.6x compile, high-res fullscreen pan preservation, NSIS bundling), and where to record results.
 
-- [ ] Write the letter (windows.md or similar name Kevin picks)
-- [ ] Commit and push so it's on the windows clone
+- [x] Letter written: `windows.md` — carries the ground rules (git, style, ttd, hide files) that live only in the mac session's memory, the install-is-the-test framing, the verification sequence, and the reporting format
+- [ ] Commit and push so it's on the windows clone (the user)
 
 ## Open decisions
 
