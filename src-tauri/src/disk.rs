@@ -6,6 +6,30 @@ use std::fs;
 use std::time::UNIX_EPOCH;
 use tauri::command;
 
+/*
+The design contract of this module: these commands hand the interface the full,
+standard power a desktop application has over the disk — the same power a native
+Mac or Windows app wields through its file APIs. They follow POSIX semantics
+faithfully, sharp edges included: disk_copy overwrites an existing destination,
+just like cp and std::fs::copy do. Code that calls these commands must be
+careful, exactly as native application code must.
+
+The commands take any path and hold no guard, so the safety of the whole
+application rests on walls outside this file. First, every path originates from
+a user gesture — a drag onto the window, a choice in a dialog — never from
+outside content. Second, untrusted text (file names, file contents, metadata)
+reaches the page only through Vue's escaping interpolation, so it can never
+become script that calls these commands. Third, the Content-Security-Policy in
+tauri.conf.json keeps foreign script out of the webview even if a first wall
+someday cracks.
+
+When this module grows the write and delete family sketched at the bottom of
+this file, revisit holding a guard here as well: a Rust-side registry of allowed
+roots, recording folders the user has actually dragged in or chosen, with
+commands refusing paths outside them. Read-and-copy trusts its caller; unlink
+should trust less.
+*/
+
 #[derive(Serialize)]
 pub struct DirEntry {
 	pub name:       String,//Base name of the entry (not including parent path)
@@ -21,9 +45,9 @@ pub struct FileStat {
 	pub is_dir:     bool,//True if this path is a directory
 	pub is_symlink: bool,//True if this path is a symbolic link
 	pub size:       u64,//Size in bytes
-	pub atime:      u128,//Last access time, in milliseconds since the UNIX epoch
-	pub mtime:      u128,//Last modification time, in milliseconds since the UNIX epoch
-	pub ctime:      u128,//Creation time, in milliseconds since the UNIX epoch
+	pub atime:      u128,//Last access time, in milliseconds since the UNIX epoch; 0 when the filesystem has no answer
+	pub mtime:      u128,//Last modification time, in milliseconds since the UNIX epoch; 0 when the filesystem has no answer
+	pub ctime:      u128,//Creation time, in milliseconds since the UNIX epoch; 0 when the filesystem has no answer (common on linux)
 }
 
 /// POSIX-like `readdir`, shallow only
@@ -31,8 +55,8 @@ pub struct FileStat {
 pub fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 	let mut results = Vec::new();
 	for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
-		let entry = entry.map_err(|e| e.to_string())?;
-		let meta  = fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?;
+		let entry = match entry { Ok(entry) => entry, Err(_) => continue };//skip an entry the listing can't produce, rather than failing the whole folder over it
+		let meta  = match fs::symlink_metadata(entry.path()) { Ok(meta) => meta, Err(_) => continue };//same for one we can't stat, like a locked file
 		let ft    = meta.file_type();
 		results.push(DirEntry {
 			name:       entry.file_name().to_string_lossy().into_owned(),
@@ -50,33 +74,18 @@ pub fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 pub fn disk_stat(path: String) -> Result<FileStat, String> {
 	let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
 	let ft    = meta.file_type();
-	let atime = meta
-		.accessed()
-		.map_err(|e| e.to_string())?
-		.duration_since(UNIX_EPOCH)
-		.map_err(|e| e.to_string())?
-		.as_millis();
-	let mtime = meta
-		.modified()
-		.map_err(|e| e.to_string())?
-		.duration_since(UNIX_EPOCH)
-		.map_err(|e| e.to_string())?
-		.as_millis();
-	let ctime = meta
-		.created()
-		.map_err(|e| e.to_string())?
-		.duration_since(UNIX_EPOCH)
-		.map_err(|e| e.to_string())?
-		.as_millis();
 	Ok(FileStat {
 		is_file:    ft.is_file(),
 		is_dir:     ft.is_dir(),
 		is_symlink: ft.is_symlink(),
 		size:       meta.len(),
-		atime,
-		mtime,
-		ctime,
+		atime:      _millis(meta.accessed()),
+		mtime:      _millis(meta.modified()),
+		ctime:      _millis(meta.created()),
 	})
+}
+fn _millis(time: std::io::Result<std::time::SystemTime>) -> u128 {//a timestamp as milliseconds since the unix epoch, or 0 when the filesystem can't say, so one missing date never fails the whole stat
+	time.ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis()).unwrap_or(0)
 }
 
 /// POSIX-like `open` + `read` + `close`

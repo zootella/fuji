@@ -8,7 +8,8 @@
 	"permissions": [
 		"core:default",
 		"core:window:allow-set-fullscreen",
-		"opener:default",
-		"fs:default"
+		"opener:allow-reveal-item-in-dir",
+		"dialog:allow-open",
+		"dialog:allow-save"
 	]
 }
