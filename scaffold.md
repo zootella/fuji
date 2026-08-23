@@ -50,6 +50,7 @@ pnpm add -D tailwindcss @tailwindcss/vite
 ## 5. Config conventions
 
 - tauri.conf.json: `beforeDevCommand: "pnpm dev"`, `beforeBuildCommand` pointing at the vite build script — pnpm, never another package manager.
+- Replace the scaffold's `"csp": null` with fuji's tested policy: `"default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob:"`. Rationale: these apps' webviews load only the bundled frontend and never navigate; all networking lives in the Rust core. CSP is the second wall behind Vue's template escaping — add nothing to it without a reason written next to it. Leave `devCsp` unset (dev stays unrestricted for HMR; the policy guards what ships). Verify on the built app: Tauri injects the policy into the binary's embedded HTML, and failure is loud — blocked IPC means the UI can't reach Rust, blocked img-src means images don't render.
 - Scripts, following fuji's package.json: `local` (tauri dev), `build` (tauri build), `app` (open the built mac bundle), `win` (start the built windows exe), `vite-build`, `wash`/`upgrade-wash`. A script cannot be named `run` — pnpm's builtin shadows it.
 - Line endings: copy fuji's .gitattributes (`* text=auto eol=lf`) and .editorconfig — LF in the repo and both working trees, policy living in the repo rather than machines' git configs.
 - .gitignore: fuji's current one is the reference — including the OS-junk entries for both platforms and the hide-convention block if the project adopts it.

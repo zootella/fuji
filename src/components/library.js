@@ -11,7 +11,7 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {ioRead, ioReadDir} from '../io.js'//our rust modules
+import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
 
 //promises
@@ -67,7 +67,7 @@ export const imageTypes = {
 }
 export async function listSiblings(path) {//given a path, return text all about it
 	let folder = parse.dirname(path)
-	let contents = await ioReadDir(folder)
+	let contents = await diskReadDir(folder)
 	let files = contents.filter(f => f.is_file && !f.is_dir && !f.is_symlink)//only include files
 	files = files.map(f => ({...f,
 		path: parse.join(folder, f.name),
@@ -99,7 +99,7 @@ export async function readImage(path) {//read the file at path and get a data ur
 	details.path = path
 
 	//read file and convert to data url
-	let bytes = new Uint8Array(await ioRead(path))
+	let bytes = new Uint8Array(await diskRead(path))
 	details.t2 = performance.now()//time spent in io from disk
 	let blob = new Blob([bytes.buffer], {type: 'image/png'})
 	let data = await blobToDataUrl(blob)//alternatively, URL.createObjectURL saves memory, but creates a resource that could leak

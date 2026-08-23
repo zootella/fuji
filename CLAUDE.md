@@ -50,11 +50,11 @@ pnpm upgrade-wash        # Deep clean including lock files
 **Entry Point**: `main.rs` → `lib.rs::run()`
 
 **Key Modules**:
-- `io.rs` - File I/O commands for JavaScript to invoke:
-  - `io_readdir()` - List directory contents (POSIX-like readdir)
-  - `io_stat()` - Get file metadata (POSIX-like stat)
-  - `io_read()` - Read entire file into memory
-  - `io_copy()` - Efficient file copying using kernel-space operations
+- `disk.rs` - File I/O commands for JavaScript to invoke:
+  - `disk_readdir()` - List directory contents (POSIX-like readdir)
+  - `disk_stat()` - Get file metadata (POSIX-like stat)
+  - `disk_read()` - Read entire file into memory
+  - `disk_copy()` - Efficient file copying using kernel-space operations
 
 - `panel.rs` - Hardware display resolution detection:
   - `panel_resolution()` - Returns physical pixel dimensions via platform-specific APIs
@@ -63,8 +63,8 @@ pnpm upgrade-wash        # Deep clean including lock files
 **Command Registration**: All Rust functions exposed to JavaScript must be registered in `lib.rs::run()` using `tauri::generate_handler![]`
 
 **Important Architecture Notes**:
-- File I/O uses synchronous operations; `io_read()` loads entire files into memory (suitable for images, not large files)
-- Comments in `io.rs` extensively document memory efficiency tradeoffs between direct reads vs. streaming
+- File I/O uses synchronous operations; `disk_read()` loads entire files into memory (suitable for images, not large files)
+- Comments in `disk.rs` extensively document memory efficiency tradeoffs between direct reads vs. streaming
 - Platform-specific code uses `#[cfg(target_os = "...")]` attributes for Windows/macOS/Linux
 
 ### Frontend (src/)
@@ -79,8 +79,8 @@ pnpm upgrade-wash        # Deep clean including lock files
   - HUD overlays for help and information display
 
 **JavaScript Modules**:
-- `io.js` - Thin wrapper exposing Rust commands to JavaScript:
-  - `ioRead(path)`, `ioReadDir(path)`, `ioStat(path)`, `ioCopy(source, destination)`
+- `disk.js` - Thin wrapper exposing Rust commands to JavaScript:
+  - `diskRead(path)`, `diskReadDir(path)`, `diskStat(path)`, `diskCopy(source, destination)`
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`
@@ -134,9 +134,9 @@ Always use the path normalization functions from `library.js`:
 
 ## Adding New Rust Commands
 
-1. Define function in appropriate module (e.g., `io.rs`) with `#[tauri::command]` attribute
+1. Define function in appropriate module (e.g., `disk.rs`) with `#[tauri::command]` attribute
 2. Add to `generate_handler![]` in `lib.rs::run()`
-3. Create JavaScript wrapper in corresponding JS file (e.g., `io.js`)
+3. Create JavaScript wrapper in corresponding JS file (e.g., `disk.js`)
 4. Import and use in Vue components
 
 ## Platform-Specific Code

@@ -1,6 +1,6 @@
 //./src-tauri/src/lib.rs
 
-mod io;//compile io.rs as a module named io
+mod disk;//compile disk.rs as a module named disk
 mod panel;
 
 pub fn run() {
@@ -11,10 +11,10 @@ pub fn run() {
 			tauri::generate_handler![
 				greet,          //functions from below
 				hard_vertical,
-				io::io_readdir, //functions we've written in io.rs
-				io::io_stat,
-				io::io_read,
-				io::io_copy,
+				disk::disk_readdir, //functions we've written in disk.rs
+				disk::disk_stat,
+				disk::disk_read,
+				disk::disk_copy,
 				panel::panel_resolution,
 			]
 		)                                                     

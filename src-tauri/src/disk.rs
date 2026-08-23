@@ -1,4 +1,4 @@
-//./src-tauri/src/io.rs
+//./src-tauri/src/disk.rs
 
 use serde::Serialize;
 use std::fs;
@@ -28,7 +28,7 @@ pub struct FileStat {
 
 /// POSIX-like `readdir`, shallow only
 #[command]
-pub fn io_readdir(path: String) -> Result<Vec<DirEntry>, String> {
+pub fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 	let mut results = Vec::new();
 	for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
 		let entry = entry.map_err(|e| e.to_string())?;
@@ -47,7 +47,7 @@ pub fn io_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 
 /// POSIX-like `stat(2)` metadata
 #[command]
-pub fn io_stat(path: String) -> Result<FileStat, String> {
+pub fn disk_stat(path: String) -> Result<FileStat, String> {
 	let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
 	let ft    = meta.file_type();
 	let atime = meta
@@ -81,7 +81,7 @@ pub fn io_stat(path: String) -> Result<FileStat, String> {
 
 /// POSIX-like `open` + `read` + `close`
 #[command]
-pub fn io_read(path: String) -> Result<Vec<u8>, String> {
+pub fn disk_read(path: String) -> Result<Vec<u8>, String> {
 	std::fs::read(&path).map_err(|e| e.to_string())
 }
 /*
@@ -95,7 +95,7 @@ so this will be fine for images, but for big files, you'll have to use plugin-fs
 
 /// “cp” (shallow, files only)  
 #[tauri::command]
-pub fn io_copy(source: String, destination: String) -> Result<(), String> {
+pub fn disk_copy(source: String, destination: String) -> Result<(), String> {
 	fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string())
 }
 /*
@@ -104,22 +104,22 @@ a block of memory in a Tauri app like Fuji can exist in these layers:
 1. Rust backend process (fallback 8 KiB buffer, IPC deserialization)
 0. Kernel mode (page cache, zero‐copy)
 
-when io_read above gets the bytes of an image onto the screen, the memory is copied many times:
+when disk_read above gets the bytes of an image onto the screen, the memory is copied many times:
 disk -> kernel page cache -> Rust heap buffer -> Rust JSON buffer -> WebView IPC buffer -> JS heap
 
-io_copy, on the other hand is far more efficient
-On Windows 10 and later, io_copy (via std::fs::copy) invokes the Win32 CopyFileEx API,
+disk_copy, on the other hand is far more efficient
+On Windows 10 and later, disk_copy (via std::fs::copy) invokes the Win32 CopyFileEx API,
 which performs the entire copy inside the kernel’s page cache
 no user-mode buffer is ever allocated in your Tauri process 
 On modern macOS, it uses the kernel’s fclonefileat/fcopyfile primitives
 to clone or copy the file data entirely in kernel space,
 so again no bytes of the file ever enter your Rust or JS heaps
 
-io_copy is as fast and efficient as the hardware allows for files of any size
+disk_copy is as fast and efficient as the hardware allows for files of any size
 but is a fire and forget pattern--there's no way for an app above to know that it's halfway done
 or pause or cancel its operation
 
-Tauri's plugin-fs offers copyFile, which works the same as our io_copy above
+Tauri's plugin-fs offers copyFile, which works the same as our disk_copy above
 to enable progress and cancel copying a huge file, a developer using plugin-fs would use the streaming apis for read and write
 When you use plugin-fs's file handle methods (open(), file.read(), file.write(),
 the Rust plugin reads or writes in fixed-size chunks (by default 64 KiB at a time) via std::fs or tokio::fs 
@@ -138,7 +138,7 @@ we could write rust code which:
 which comes to about two screenfuls of Rust
 and could result in js code on top that's as simple as this:
 
-import { copyWithProgress } from 'fuji-io';
+import { copyWithProgress } from 'fuji-disk';
 let controller; // will hold the AbortController
 async function runCopy() {
   controller = new AbortController();
@@ -173,31 +173,31 @@ more to add later...
 
 /// POSIX `open` with `O_TRUNC|O_CREAT` + `write` + `close`  
 #[tauri::command]
-pub fn io_write(path: String, data: Vec<u8>) -> Result<(), String> {
+pub fn disk_write(path: String, data: Vec<u8>) -> Result<(), String> {
 	fs::write(&path, data).map_err(|e| e.to_string())
 }
 
 /// POSIX `rename(2)`  
 #[tauri::command]
-pub fn io_rename(source: String, destination: String) -> Result<(), String> {
+pub fn disk_rename(source: String, destination: String) -> Result<(), String> {
 	fs::rename(&source, &destination).map_err(|e| e.to_string())
 }
 
 /// POSIX `unlink(2)` for files  
 #[tauri::command]
-pub fn io_unlink(path: String) -> Result<(), String> {
+pub fn disk_unlink(path: String) -> Result<(), String> {
 	fs::remove_file(&path).map_err(|e| e.to_string())
 }
 
 /// POSIX `rmdir(2)` (fails if non-empty)  
 #[tauri::command]
-pub fn io_rmdir(path: String) -> Result<(), String> {
+pub fn disk_rmdir(path: String) -> Result<(), String> {
 	fs::remove_dir(&path).map_err(|e| e.to_string())
 }
 
 /// POSIX `mkdir(2)` (single level only)  
 #[tauri::command]
-pub fn io_mkdir(path: String) -> Result<(), String> {
+pub fn disk_mkdir(path: String) -> Result<(), String> {
 	fs::create_dir(&path).map_err(|e| e.to_string())
 }
 */
