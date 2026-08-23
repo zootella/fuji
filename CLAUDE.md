@@ -145,3 +145,4 @@ When writing platform-specific Rust code:
 - Use `#[cfg(target_os = "windows")]`, `#[cfg(target_os = "macos")]`, `#[cfg(target_os = "linux")]`
 - Provide fallback implementation with `#[cfg(not(any(...)))]`
 - See `panel.rs` for examples of Windows (Win32), macOS (FFI), and Linux (xrandr) implementations
+- To type-check windows-only code from a mac: `cargo check --target x86_64-pc-windows-msvc` fails inside tauri's build script (tauri-winres wants llvm-rc), so copy the module into a scratch crate without tauri and check that against the target instead
