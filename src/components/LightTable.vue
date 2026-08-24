@@ -62,7 +62,7 @@ async function onKey(e) {
 	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
 		e.preventDefault()//tell the browser not to show the file save dialog box
 	} else if (key == 'Escape') {
-		await setFullscreen(false)//macos will also exit fullscreen, but this call doesn't mess anything up with that
+		await setFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
 	}
 	else if (key == 'ArrowLeft')  {  }
 	else if (key == 'ArrowRight') {  }
@@ -75,18 +75,26 @@ async function onKey(e) {
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 async function onDoubleClick(e) { await toggleFullscreen() }
-async function toggleFullscreen() { let w = getCurrentWindow(); let current = await w.isFullscreen()
-	await changeFullscreen(w, current, !current)
-}
-async function setFullscreen(destination) { let w = getCurrentWindow(); let current = await w.isFullscreen()
-	await changeFullscreen(w, current, destination)
-}
-async function changeFullscreen(w, current, destination) {
-	if (current == destination) return
+let fullscreenNow = false//our own record of the fullscreen state; we initiate every transition, and isFullscreen doesn't report the simple mode
+async function toggleFullscreen() { await changeFullscreen(!fullscreenNow) }
+async function setFullscreen(destination) { await changeFullscreen(destination) }
+const fullscreenCurtain = true//factory preset: true blinks the frame to black through fullscreen transitions, false allows the occasional one-frame shear; trying both to feel which distracts less
+async function changeFullscreen(destination) {
+	if (fullscreenNow == destination) return
+	if (fullscreenCurtain) {
+		curtainUp()//black out the frame so the transition's in-between frames can't show the image out of place
+		await raf(); await raf()//two frame boundaries: the first schedules the curtain's paint, the second confirms it reached the screen before the window changes beneath it
+	}
 	screenToViewport1 = await screenToViewport()
 	//ttd august, this is pixel perfect now on mac and windows (but you haven't tested high res windows yet) to work around the shift-melt-blink render a black curtain over the frame, go full screen, get the resize event, do the pan, and then remove the curtain. this is a cool idea
-	w.setFullscreen(destination)
+	getCurrentWindow().setSimpleFullscreen(destination)//simple fullscreen: instant, no macos space, no fade animation; on windows, identical to setFullscreen
+	fullscreenNow = destination
 }
+
+const showCurtainRef = ref(false)//a black cover over the whole frame during fullscreen transitions; up before the window changes, down after the pan lands
+let curtainTimer//started when the curtain goes up, cleared when it comes down normally
+function curtainUp()   { showCurtainRef.value = true;  clearTimeout(curtainTimer); curtainTimer = setTimeout(curtainDown, 800) }//the timer means the curtain always falls, even if the resize event never arrives; a brief shear beats a stuck black window
+function curtainDown() { showCurtainRef.value = false; clearTimeout(curtainTimer) }
 
 function onWheel(e) {
 	e.preventDefault()//tell the browser not to scroll
@@ -145,6 +153,10 @@ async function onResize() {//called whenever the viewport size changes
 		let stv2 = await screenToViewport()//where it is now, after the full screen change
 		if (screenToViewport1 && stv2) dragSegment(xy(screenToViewport1, '-', stv2))
 		screenToViewport1 = null//we don't need resize events generally
+		if (showCurtainRef.value) {//the curtain is up, waiting on this pan
+			await raf()//let the corrective pan reach the screen while the curtain still hides it
+			curtainDown()
+		}
 	}
 }
 
@@ -401,6 +413,9 @@ const triad = {
 	<div v-if="showHud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
 	<div v-if="showHud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
 	<div v-if="showHud4Ref" class="myHud myDry absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">{{hud4Ref}}</div>
+
+	<!-- curtain, last so it covers everything: blacks out the frame during fullscreen transitions -->
+	<div v-if="showCurtainRef" class="myDry absolute inset-0 bg-black"></div>
 
 </div>
 
