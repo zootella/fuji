@@ -5,15 +5,16 @@
 	"type": "module",
 	"scripts": {
 		"local": "tauri dev",
+		"build-binary": "tauri build --no-bundle",
+		"build-app": "tauri build --bundles app",
+		"build-dmg": "tauri build",
 		"build": "tauri build",
 		"app": "open src-tauri/target/release/bundle/macos/Fuji.app",
 		"win": "start src-tauri/target/release/fuji.exe",
 		"dev": "vite",
 		"vite-build": "vite build",
 		"preview": "vite preview",
-		"tauri": "tauri",
-		"upgrade-wash": "pnpm wash && rimraf pnpm-lock.yaml src-tauri/Cargo.lock",
-		"wash": "rimraf dist node_modules src-tauri/target src-tauri/gen"
+		"tauri": "tauri"
 	},
 	"packageManager": "pnpm@10.28.2",
 	"dependencies": {

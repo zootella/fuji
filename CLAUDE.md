@@ -26,7 +26,10 @@ pnpm local        # Run Tauri in dev mode with hot reload
 
 ### Build
 ```bash
-pnpm build        # Build production executable and installer
+pnpm build-binary # Quickest proof the release build compiles and links; no bundles
+pnpm build-app    # Also bundle the runnable app; skips the dmg and its finder theatrics
+pnpm build-dmg    # Everything, including the dmg installer
+pnpm build        # Same as build-dmg
 pnpm app          # Launch the built mac app
 pnpm win          # Launch the built windows exe
 ```
@@ -38,10 +41,7 @@ pnpm vite-build   # Build frontend only
 ```
 
 ### Clean Build Environment
-```bash
-pnpm wash                # Remove dist, node_modules, and target folders
-pnpm upgrade-wash        # Deep clean including lock files
-```
+There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair were yarn-classic-era crutches — that ecosystem needed frequent clean reinstalls; pnpm's store does not. If a genuine mess ever needs clearing, delete `dist`, `node_modules`, or `src-tauri/target` by hand — and never delete the tracked lockfiles: pnpm-lock.yaml and Cargo.lock serve both mac and windows, and removing them to fix a problem is the anti-pattern that motivated the pnpm switch.
 
 ## Architecture
 
