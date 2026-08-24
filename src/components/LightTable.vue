@@ -75,12 +75,13 @@ async function onKey(e) {
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 async function onDoubleClick(e) { await toggleFullscreen() }
-let fullscreenNow = false//our own record of the fullscreen state; we initiate every transition, and isFullscreen doesn't report the simple mode
+let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and isFullscreen doesn't report the simple mode
 async function toggleFullscreen() { await changeFullscreen(!fullscreenNow) }
 async function setFullscreen(destination) { await changeFullscreen(destination) }
 const fullscreenCurtain = true//factory preset: true blinks the frame to black through fullscreen transitions, false allows the occasional one-frame shear; trying both to feel which distracts less
 async function changeFullscreen(destination) {
 	if (fullscreenNow == destination) return
+	fullscreenNow = destination//record where we're headed before awaiting frames, so a request arriving mid-transition sees the destination and not the state we're leaving
 	if (fullscreenCurtain) {
 		curtainUp()//black out the frame so the transition's in-between frames can't show the image out of place
 		await raf(); await raf()//two frame boundaries: the first schedules the curtain's paint, the second confirms it reached the screen before the window changes beneath it
@@ -88,7 +89,6 @@ async function changeFullscreen(destination) {
 	screenToViewport1 = await screenToViewport()
 	//ttd august, this is pixel perfect now on mac and windows (but you haven't tested high res windows yet) to work around the shift-melt-blink render a black curtain over the frame, go full screen, get the resize event, do the pan, and then remove the curtain. this is a cool idea
 	getCurrentWindow().setSimpleFullscreen(destination)//simple fullscreen: instant, no macos space, no fade animation; on windows, identical to setFullscreen
-	fullscreenNow = destination
 }
 
 const showCurtainRef = ref(false)//a black cover over the whole frame during fullscreen transitions; up before the window changes, down after the pan lands
