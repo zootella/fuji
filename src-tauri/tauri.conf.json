@@ -15,6 +15,7 @@
 				"title": "Fuji",
 				"width": 1200,
 				"height": 1050,
+				"visible": false,
 				"dragDropEnabled": true,
 				"fullscreen": false
 			}

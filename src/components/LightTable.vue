@@ -8,7 +8,7 @@ import {diskRead, diskReadDir} from '../disk.js'//our rust module
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {
 xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
-screenToViewport, sayGroupDigits, saySize4,
+sizeWindow, screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 
 //                       _   
@@ -30,6 +30,9 @@ onMounted(async () => {
 		}
 	})
 	onStart()
+	await sizeWindow()//size the still-hidden window to the desktop's work area
+	await w.show()//reveal before waiting on a frame: a hidden window gets no animation frames, so raf would wait forever
+	await raf()//now frames flow; let the resized viewport report its new dimensions before we measure them
 	dimensionStart()
 	hudStart()
 })

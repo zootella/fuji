@@ -10,6 +10,7 @@
 
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
+import {LogicalSize} from '@tauri-apps/api/dpi'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
@@ -122,6 +123,18 @@ export async function renderImage(img, details) {//render the data url string de
 }
 
 //resolution
+
+export async function sizeWindow() {//on startup, while the window is still hidden (tauri.conf.json visible false), size it to fit the desktop; the caller reveals it afterward
+	try {
+		let w = getCurrentWindow()
+		if (await w.isVisible()) return//size the window once on startup only; in development, a hot reload mounts the app again, and by then the window is already visible
+		let m = await currentMonitor()
+		if (!m) return//if tauri can't identify the monitor, leave the fallback size from tauri.conf.json
+		let area = xy(m.workArea.size.width, m.workArea.size.height)//the monitor rectangle not covered by os chrome like menu bars, docks, and taskbars; in backing pixels, like everything tauri measures
+		let logical = xy(area, '/', m.scaleFactor)//the resize api speaks logical pixels
+		await w.setSize(new LogicalSize(Math.round(logical.x * 0.6), Math.round(logical.y * 0.8)))//60% of the usable width and 80% of its height; position stays unset so the os places the window like it places any app's
+	} catch (e) { console.error('sizeWindow:', e) }//whatever goes wrong sizing, the window keeps its fallback size; the caller still reveals it, because a wrong-sized window beats an invisible one
+}
 
 export async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
 	/*
