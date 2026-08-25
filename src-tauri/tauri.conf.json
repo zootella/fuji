@@ -13,8 +13,8 @@
 		"windows": [
 			{
 				"title": "Fuji",
-				"width": 1200,
-				"height": 1050,
+				"width": 800,
+				"height": 600,
 				"visible": false,
 				"dragDropEnabled": true,
 				"fullscreen": false

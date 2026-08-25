@@ -8,7 +8,7 @@ import {diskRead, diskReadDir} from '../disk.js'//our rust module
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {
 xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
-sizeWindow, screenToViewport, sayGroupDigits, saySize4,
+revealWindow, screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 
 //                       _   
@@ -19,22 +19,23 @@ sizeWindow, screenToViewport, sayGroupDigits, saySize4,
 //                           
 
 onMounted(async () => {
+	const w = getCurrentWindow()
+	await revealWindow()//size the still-hidden window to the desktop's work area and show it
+
+	//everything below runs after the window is up, so no failure down here can leave the app running with nothing on screen
+	await raf()//now frames flow; let the resized viewport report its new dimensions before we measure them
+	dimensionStart()
+	hudStart()
+	onStart()
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
-	const w = getCurrentWindow()
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
 			let path = forwardize(event.payload.paths[0])
 			await onDrop(path)
 		}
 	})
-	onStart()
-	await sizeWindow()//size the still-hidden window to the desktop's work area
-	await w.show()//reveal before waiting on a frame: a hidden window gets no animation frames, so raf would wait forever
-	await raf()//now frames flow; let the resized viewport report its new dimensions before we measure them
-	dimensionStart()
-	hudStart()
 })
 let unlistenFileDrop//will hold the unsubscribe function set above and called below
 onBeforeUnmount(() => {
@@ -78,7 +79,7 @@ async function onDoubleClick(e) { await toggleFullscreen() }
 let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and isFullscreen doesn't report the simple mode
 async function toggleFullscreen() { await changeFullscreen(!fullscreenNow) }
 async function setFullscreen(destination) { await changeFullscreen(destination) }
-const fullscreenCurtain = true//factory preset: true blinks the frame to black through fullscreen transitions, false allows the occasional one-frame shear; trying both to feel which distracts less
+const fullscreenCurtain = true//factory preset: true blinks the frame to black through fullscreen transitions, which the user chose by feel over false's occasional one-frame shear
 async function changeFullscreen(destination) {
 	if (fullscreenNow == destination) return
 	fullscreenNow = destination//record where we're headed before awaiting frames, so a request arriving mid-transition sees the destination and not the state we're leaving
