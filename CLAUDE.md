@@ -69,7 +69,9 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Frontend (src/)
 
-**Entry Point**: `main.js` → `App.vue` → `LightTable.vue`
+**Entry Point**: `main.js` → `App.vue` → router → `LightTable.vue`
+
+`main.js` installs Pinia and Vue Router; `App.vue` is nothing but the `<router-view />` outlet. The router runs in hash mode with one real route (`/` to `LightTable`) plus a catch-all redirect, and there are no stores yet. Before adding a route or a store, read `router-and-store.md` — it carries the rule for which views are routes and which are modes swapped with `v-show`, and why an empty outlet would leave the window hidden.
 
 **Key Components**:
 - `LightTable.vue` - Main unified component containing the complete image viewer logic:
