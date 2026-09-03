@@ -24,7 +24,10 @@ onBeforeUnmount(() => {
 	}
 })
 
-function start() {//the shell calls this once the window is real and this view is on screen; measuring any earlier reads the hidden window's size, or nothing at all
+let started = false//start() comes every time this view is shown, and the setup below must happen once: running dimensionStart again would throw away the pan and zoom the user left
+function start() {//the shell calls this when this view first comes on screen; measuring any earlier reads the hidden window's size, or nothing at all
+	if (started) return
+	started = true
 	console.log('⭕ on start - the shell has revealed the window and handed this view the screen')
 	dimensionStart()
 	hudStart()
@@ -35,8 +38,6 @@ function isFullscreen() { return fullscreenNow }//the shell asks before recordin
 defineExpose({start, onKey, onResize, onDrop, isFullscreen})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing
 
 async function onKey(e) {
-	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
-
 	let Ctrl = e.ctrlKey || e.metaKey
 	let Shift = e.shiftKey
 	let key = e.key

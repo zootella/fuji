@@ -12,6 +12,8 @@ const settingsHeader = `# fuji.toml — fuji reads this file when it starts and 
 
 //every setting fuji has, and the only place any of them is defined; a check, where the type alone isn't enough, has to accept the factory value or an ordinary file would report a problem against itself
 const settingsSchema = [
+	{section: 'view',       key: 'showing',     factory: 'Table',   comment: 'which kind of view fuji was showing when it last closed, so it opens there again: Sheet for the contact sheet, Table for whichever table', check: value => value == 'Sheet' || value == 'Table'},
+	{section: 'view',       key: 'table',       factory: 'Diamond', comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead'},
 	{section: 'window',     key: 'remember',    factory: true, comment: 'remember the size and position of the window from launch to launch; when false, fuji sizes its window to a fraction of the desktop and lets the operating system place it'},
 	{section: 'window',     key: 'x',           factory: 0,    comment: 'the window fuji last recorded, in physical pixels, and read only when remember is true; a width or height that is not positive means fuji has not recorded a window yet, and it sizes itself to the desktop instead'},
 	{section: 'window',     key: 'y',           factory: 0},
