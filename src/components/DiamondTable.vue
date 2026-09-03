@@ -1,16 +1,13 @@
-<script setup>//./components/LightTable.vue - unified component for mvp[ersonal]
+<script setup>//./components/DiamondTable.vue - one image sized to an invisible diamond, on an infinite plane that pan and zoom move
 
-import {invoke} from '@tauri-apps/api/core'
-import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
-import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {diskRead, diskReadDir} from '../disk.js'//our rust module
+import {getCurrentWindow} from '@tauri-apps/api/window'
 
-import {ref, onMounted, onBeforeUnmount} from 'vue'
+import {ref, onBeforeUnmount} from 'vue'
 import {
-xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
-revealWindow, screenToViewport, sayGroupDigits, saySize4,
+xy, raf, listSiblings, readAndRenderImage,
+screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
-import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'//fuji.toml, read at startup and handed down to rust as it changes, for rust to write on the way out
+import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
 
 //                       _   
 //   _____   _____ _ __ | |_ 
@@ -19,44 +16,23 @@ import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../se
 //  \___| \_/ \___|_| |_|\__|
 //                           
 
-onMounted(async () => {
-	const w = getCurrentWindow()
-	await settingsLoad()//first, because everything below reads a setting, starting with the size of the window
-	await revealWindow(settingsWindowRect())//size the still-hidden window — to the one the user left, if fuji is remembering it — and show it
-
-	//everything below runs after the window is up, so no failure down here can leave the app running with nothing on screen
-	await raf()//now frames flow; let the resized viewport report its new dimensions before we measure them
-	dimensionStart()
-	hudStart()
-	onStart()
-	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
-	window.addEventListener('keydown', onKey)
-	window.addEventListener('resize', onResize)
-	if (settings.window.remember) {//record where the user puts the window, so it comes back there next launch; both events report physical pixels, as the file holds them, and the fullscreen guard keeps a window the size of the screen from becoming the one fuji remembers
-		await recordWindow(w)//the events below report only changes, so without this a session where the user never touches the window records nothing
-		unlistenMoved   = await w.onMoved(  ({payload}) => { if (fullscreenNow) return; settings.window.x     = payload.x;     settings.window.y      = payload.y;      settingsChanged() })
-		unlistenResized = await w.onResized(({payload}) => { if (fullscreenNow) return; settings.window.width = payload.width; settings.window.height = payload.height; settingsChanged() })
-	}
-	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
-		if (event.payload.type == 'drop' && event.payload.paths.length) {
-			let path = forwardize(event.payload.paths[0])
-			await onDrop(path)
-		}
-	})
-})
-let unlistenFileDrop, unlistenMoved, unlistenResized//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	frameRef.value.removeEventListener('wheel', onWheel)
 	if (drag?.pointer && frameRef.value.hasPointerCapture(drag.pointer)) {
 		frameRef.value.releasePointerCapture(drag.pointer)
 		drag.pointer = null
 	}
-	window.removeEventListener('keydown', onKey)
-	window.removeEventListener('resize', onResize)
-	if (unlistenFileDrop) unlistenFileDrop()
-	if (unlistenMoved) unlistenMoved()
-	if (unlistenResized) unlistenResized()
 })
+
+function start() {//the shell calls this once the window is real and this view is on screen; measuring any earlier reads the hidden window's size, or nothing at all
+	console.log('⭕ on start - the shell has revealed the window and handed this view the screen')
+	dimensionStart()
+	hudStart()
+	frameRef.value.addEventListener('wheel', onWheel, {passive: false})//on the frame, not the window, so a hidden table is handed nothing; and last, so no wheel can reach the quiver before dimensionStart has filled it
+}
+function isFullscreen() { return fullscreenNow }//the shell asks before recording a window, because a fullscreen one is not one the user placed
+
+defineExpose({start, onKey, onResize, onDrop, isFullscreen})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing
 
 async function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//ignore keystrokes into a form field
@@ -72,7 +48,7 @@ async function onKey(e) {
 	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
 		e.preventDefault()//tell the browser not to show the file save dialog box
 	} else if (key == 'Escape') {
-		await setFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
+		await changeFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
 	}
 	else if (key == 'ArrowLeft')  {  }
 	else if (key == 'ArrowRight') {  }
@@ -85,9 +61,8 @@ async function onKey(e) {
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 async function onDoubleClick(e) { await toggleFullscreen() }
-let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and isFullscreen doesn't report the simple mode
+let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and tauri's isFullscreen() doesn't report the simple mode
 async function toggleFullscreen() { await changeFullscreen(!fullscreenNow) }
-async function setFullscreen(destination) { await changeFullscreen(destination) }
 async function changeFullscreen(destination) {
 	if (fullscreenNow == destination) return
 	fullscreenNow = destination//record where we're headed before awaiting frames, so a request arriving mid-transition sees the destination and not the state we're leaving
@@ -155,14 +130,6 @@ function onUp(e) {
 // \__ \ |/ /  __/
 // |___/_/___\___|
 //                
-
-async function recordWindow(w) {//write down the window fuji has right now, for the file to carry to the next launch
-	let position = await w.outerPosition()//outer, matching setPosition and the onMoved payload
-	let size = await w.innerSize()//inner, matching setSize and the onResized payload; mixing the two would grow the window by a titlebar every launch
-	settings.window.x     = position.x; settings.window.y      = position.y
-	settings.window.width = size.width; settings.window.height = size.height
-	settingsChanged()
-}
 
 let screenToViewport1//arrow from screen corner to viewport corner before a change in to our out of full screen
 async function onResize() {//called whenever the viewport size changes
@@ -242,9 +209,6 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 // |_| |_|_| .__/ 
 //         |_|    
 
-function onStart() {
-	console.log('⭕ on start - once on startup, component loaded')
-}
 async function onDrop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
 
@@ -267,7 +231,7 @@ let flipQueue = Promise.resolve()//do one flip at a time; start with resolved pr
 async function flip(direction) {
 	flipQueue = (flipQueue//queue this flip to run after any pending flips
 		.then(() => _flip(direction))
-		.catch(e => console.error('Flip error:', e))  // Don't break the chain
+		.catch(e => console.error('Flip error:', e))//don't break the chain
 	)
 	return flipQueue
 }

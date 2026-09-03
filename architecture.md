@@ -8,7 +8,7 @@ It says what fuji does, not what it might. It is the only architecture document:
 App.vue
 └── Shell.vue            the window: settings, reveal, window events, which view is showing
     ├── Sheet.vue        v-show   one sheet: thumbnails, tree, path box, sorts
-    └── LightTable.vue   v-if     one of several tables: the image, full size
+    └── DiamondTable.vue v-if     one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
                 ↓ both import, neither knows the other exists
         the model                 folder, sort order, list, index, back
@@ -26,7 +26,9 @@ App.vue
 
 ## The sheet and the tables
 
-**There is one sheet and there are many tables.** The user calls it a contact sheet; the code calls it `Sheet`. A table shows one image the way some kind of reader wants to see it — `LightTable` on an infinite pannable plane, a comic table as a full-width vertical scroll, and whatever else earns a place. The sheet shows a folder.
+**There is one sheet and there are many tables.** The user calls it a contact sheet; the code calls it `Sheet`. A table shows one image the way some kind of reader wants to see it — `DiamondTable` sizes it to an invisible diamond on an infinite pannable plane, a comic table would run it full width down a vertical scroll, and whatever else earns a place. The sheet shows a folder.
+
+**A table is named for what makes it different, not for what they all are.** They are all light tables, which is why none of them is called one: `DiamondTable` is the one that keeps a diamond, and the next is the one that keeps whatever it keeps instead.
 
 **`c` switches between the sheet and the current table, and they swap with `v-show`.** That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
 
@@ -38,7 +40,7 @@ App.vue
 
 **The model holds what the user is looking at, and no view owns it.** The current folder, the sort order, the ordered list of images in it, the current index, and the history of where the user has been.
 
-**Tables are interchangeable views of the same thing, and that is what forces the model down here.** A user on image 47 who switches from the light table to the comic table expects to still be on image 47. If the folder listing and the index lived inside a table, the second table would either duplicate them or reach into the first, and reaching in is how two components stop being separable. The same argument settles sort order: the user sets it in the sheet, then double-clicks a thumbnail and flips — and expects to flip in the order they set. So sort order is not the sheet's, even though the sheet is where it is chosen.
+**Tables are interchangeable views of the same thing, and that is what forces the model down here.** A user on image 47 who switches from one table to another expects to still be on image 47. If the folder listing and the index lived inside a table, the second table would either duplicate them or reach into the first, and reaching in is how two components stop being separable. The same argument settles sort order: the user sets it in the sheet, then double-clicks a thumbnail and flips — and expects to flip in the order they set. So sort order is not the sheet's, even though the sheet is where it is chosen.
 
 **The model holds the current path, not the current index.** A user on image 47 who changes the sort from name to date expects to still be looking at that picture, not at whatever is now forty-seventh, so the path is the durable value and the index is `list.indexOf(path)`. Flipping is find where I am, step one, take that path. Two things follow: a shuffled order is a permutation that has to be kept rather than derived, since name, date, and size can be rebuilt from the listing at any time and a shuffle cannot; and a current path that is no longer in the list, because the file was deleted or a filter excludes it, needs a rule rather than an `indexOf` of −1 sailing on.
 
@@ -80,7 +82,7 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What this makes easy
 
-**Writing a new table touches one line of the shell** — the entry that says which component that table is. The new table imports the model and the cache like every other table, and `LightTable.vue` and `Sheet.vue` do not change, do not learn it exists, and cannot be broken by it. If a new table ever requires editing an old one, the model layer has leaked and that is the bug to fix, not the table.
+**Writing a new table touches one line of the shell** — the entry that says which component that table is. The new table imports the model and the cache like every other table, and `DiamondTable.vue` and `Sheet.vue` do not change, do not learn it exists, and cannot be broken by it. If a new table ever requires editing an old one, the model layer has leaked and that is the bug to fix, not the table.
 
 **Growing the sheet into a file manager** — a tree, a path box, a toolbar of sorts — is work inside `Sheet.vue` plus values in the model. No table changes.
 
@@ -94,6 +96,6 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What is built today
 
-`LightTable.vue` and `settings.js` are real. The shell, the sheet, the model, and the cache are the plan above, being built in that order. `LightTable.vue` still holds folder and index as local bindings; they move to the model when it exists, and until then nothing new should join them there.
+`Shell.vue`, `DiamondTable.vue`, and `settings.js` are real. The sheet, a second table, the model, and the cache are the plan above, being built in that order. `DiamondTable.vue` still holds folder and index as local bindings; they move to the model when it exists, and until then nothing new should join them there.
 
 There is no router and no store library. `App.vue` renders the one view directly and `main.js` mounts the app and does nothing else.

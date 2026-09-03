@@ -1,6 +1,6 @@
 <script setup>//./src/App.vue
 
-import LightTable from './components/LightTable.vue'
+import Shell from './components/Shell.vue'
 
 /*
 Fuji has no router, and this file is where one would go.
@@ -15,6 +15,6 @@ There are shapes fuji could grow into where a router would earn its place; archi
 </script>
 <template>
 
-<LightTable />
+<Shell />
 
 </template>

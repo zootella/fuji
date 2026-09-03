@@ -69,12 +69,12 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Frontend (src/)
 
-**Entry Point**: `main.js` → `App.vue` → `LightTable.vue`
+**Entry Point**: `main.js` → `App.vue` → `Shell.vue` → `DiamondTable.vue`
 
 `main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view or a new home for state: it carries the layers, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Key Components**:
-- `LightTable.vue` - Main unified component containing the complete image viewer logic:
+- `DiamondTable.vue` - One of fuji's tables, showing a single image; the shell owns the window and hands it events:
   - Event handling (keyboard, mouse, wheel, drag-drop, resize)
   - Triad pattern: maintains 3 image elements (prev, current, next) for smooth navigation
   - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
