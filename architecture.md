@@ -2,7 +2,7 @@
 
 Fuji is four layers: a **shell** that owns the window, one **sheet** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
 
-It says what fuji does, not what it might. `router-and-store.md` is the older document that reasoned toward these answers, and it survives for now because its arguments are worth reading; where the two disagree, this one is current.
+It says what fuji does, not what it might. It is the only architecture document: `style.md` governs how code is written, `scaffold.md` how the project is set up, and where all three are silent, decide and write it down here.
 
 ```
 App.vue
@@ -62,6 +62,22 @@ App.vue
 
 **The settings object is plain and not reactive, on purpose.** A value the interface has to re-render on — sort order, once the sheet has a toolbar — is stored in `fuji.toml` and watched in the model. Two homes, two jobs: one keeps it across launches, the other tells the page it moved.
 
+## No router and no store
+
+**Fuji has neither, and both absences are decisions rather than things not yet done.**
+
+Routing sells services that belong to the browser as a document-navigation shell: addressable urls, a back button the browser supplies whether the app wanted one or not, code splitting over a network, server rendering. Tauri keeps the rendering engine and discards that shell, so none of them apply here. `App.vue` carries the longer argument at the spot a router would occupy. It would earn its place if fuji ever shared this code with a web build, registered a url scheme for the operating system to hand it, opened several windows each showing a different page, or grew many cheap parameterized destinations a user opens deliberately and expects to retrace.
+
+**Shared state is an exported ref in a plain module, and that is the whole convention.**
+
+    export const sortOrder = ref('Alphabet')//application state: the sheet sets it, every table reads it
+
+A module is already a singleton that outlives every component, `ref` already makes it watched, and an import is already how anything reaches it. A store library adds a devtools timeline, state kept across hot reloads, subscription hooks, and a name — worth having where a team needs the convention spelled out for it, and not worth a second way of doing things here. What matters is that the pattern is written down and followed, which is the part a library was doing for free.
+
+**The rule for where a value goes:** state the interface watches is an exported `ref`; state it does not watch is a plain binding; nothing large goes inside a deep reactive. That last clause is why fuji's most important state — the quiver, the triad, the drag object — is not reactive at all, and why one rule covers both kinds rather than a convention plus a standing list of exceptions.
+
+**Large collections get `shallowRef`.** A folder listing is replaced, never edited in place, so proxying thousands of strings to watch for a change that always arrives as a whole new array is work for nothing.
+
 ## What this makes easy
 
 **Writing a new table touches one line of the shell** — the entry that says which component that table is. The new table imports the model and the cache like every other table, and `LightTable.vue` and `Sheet.vue` do not change, do not learn it exists, and cannot be broken by it. If a new table ever requires editing an old one, the model layer has leaked and that is the bug to fix, not the table.
@@ -80,4 +96,4 @@ App.vue
 
 `LightTable.vue` and `settings.js` are real. The shell, the sheet, the model, and the cache are the plan above, being built in that order. `LightTable.vue` still holds folder and index as local bindings; they move to the model when it exists, and until then nothing new should join them there.
 
-Vue Router and Pinia are installed and idle. The router has one route, and once `App.vue` renders the shell directly its remaining job — keeping the outlet from rendering nothing into a hidden window — belongs to nobody, so it is under review. Pinia has no stores; the layer that genuinely wants watching turned out to be the model rather than the cache, and whether that wants a store or a plain module exporting refs is a question for when the model is written.
+There is no router and no store library. `App.vue` renders the one view directly and `main.js` mounts the app and does nothing else.
