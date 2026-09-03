@@ -10,6 +10,7 @@ import {
 xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage,
 revealWindow, screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
+import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'//fuji.toml, read at startup and handed down to rust as it changes, for rust to write on the way out
 
 //                       _   
 //   _____   _____ _ __ | |_ 
@@ -20,7 +21,8 @@ revealWindow, screenToViewport, sayGroupDigits, saySize4,
 
 onMounted(async () => {
 	const w = getCurrentWindow()
-	await revealWindow()//size the still-hidden window to the desktop's work area and show it
+	await settingsLoad()//first, because everything below reads a setting, starting with the size of the window
+	await revealWindow(settingsWindowRect())//size the still-hidden window — to the one the user left, if fuji is remembering it — and show it
 
 	//everything below runs after the window is up, so no failure down here can leave the app running with nothing on screen
 	await raf()//now frames flow; let the resized viewport report its new dimensions before we measure them
@@ -30,6 +32,11 @@ onMounted(async () => {
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
+	if (settings.window.remember) {//record where the user puts the window, so it comes back there next launch; both events report physical pixels, as the file holds them, and the fullscreen guard keeps a window the size of the screen from becoming the one fuji remembers
+		await recordWindow(w)//the events below report only changes, so without this a session where the user never touches the window records nothing
+		unlistenMoved   = await w.onMoved(  ({payload}) => { if (fullscreenNow) return; settings.window.x     = payload.x;     settings.window.y      = payload.y;      settingsChanged() })
+		unlistenResized = await w.onResized(({payload}) => { if (fullscreenNow) return; settings.window.width = payload.width; settings.window.height = payload.height; settingsChanged() })
+	}
 	unlistenFileDrop = await w.onDragDropEvent(async (event) => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) {
 			let path = forwardize(event.payload.paths[0])
@@ -37,7 +44,7 @@ onMounted(async () => {
 		}
 	})
 })
-let unlistenFileDrop//will hold the unsubscribe function set above and called below
+let unlistenFileDrop, unlistenMoved, unlistenResized//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	frameRef.value.removeEventListener('wheel', onWheel)
 	if (drag?.pointer && frameRef.value.hasPointerCapture(drag.pointer)) {
@@ -47,6 +54,8 @@ onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
 	if (unlistenFileDrop) unlistenFileDrop()
+	if (unlistenMoved) unlistenMoved()
+	if (unlistenResized) unlistenResized()
 })
 
 async function onKey(e) {
@@ -79,11 +88,10 @@ async function onDoubleClick(e) { await toggleFullscreen() }
 let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and isFullscreen doesn't report the simple mode
 async function toggleFullscreen() { await changeFullscreen(!fullscreenNow) }
 async function setFullscreen(destination) { await changeFullscreen(destination) }
-const fullscreenCurtain = true//factory preset: true blinks the frame to black through fullscreen transitions, which the user chose by feel over false's occasional one-frame shear
 async function changeFullscreen(destination) {
 	if (fullscreenNow == destination) return
 	fullscreenNow = destination//record where we're headed before awaiting frames, so a request arriving mid-transition sees the destination and not the state we're leaving
-	if (fullscreenCurtain) {
+	if (settings.fullscreen.curtain) {
 		curtainUp()//black out the frame so the transition's in-between frames can't show the image out of place
 		await raf(); await raf()//two frame boundaries: the first schedules the curtain's paint, the second confirms it reached the screen before the window changes beneath it
 	}
@@ -148,6 +156,14 @@ function onUp(e) {
 // |___/_/___\___|
 //                
 
+async function recordWindow(w) {//write down the window fuji has right now, for the file to carry to the next launch
+	let position = await w.outerPosition()//outer, matching setPosition and the onMoved payload
+	let size = await w.innerSize()//inner, matching setSize and the onResized payload; mixing the two would grow the window by a titlebar every launch
+	settings.window.x     = position.x; settings.window.y      = position.y
+	settings.window.width = size.width; settings.window.height = size.height
+	settingsChanged()
+}
+
 let screenToViewport1//arrow from screen corner to viewport corner before a change in to our out of full screen
 async function onResize() {//called whenever the viewport size changes
 	if (screenToViewport1) {//we've been waiting for this resize event to see where the viewport moved on the screen
@@ -161,9 +177,9 @@ async function onResize() {//called whenever the viewport size changes
 	}
 }
 
-const zoomStep = 1.25
 function zoom(direction) {
-	quiverA.zoom = direction ? quiverA.zoom * zoomStep : quiverA.zoom / zoomStep
+	let step = settings.zoom.step//how far one press of + or - moves, from the settings file
+	quiverA.zoom = direction ? quiverA.zoom * step : quiverA.zoom / step
 	quiver()
 }
 
@@ -316,9 +332,9 @@ function fillImage(imgRef, index, list) {//start loading the image on the disk a
 
 const showHud1Ref    = ref(false); const hud1Ref    = ref('')//upper left, on frame
 const showHud2Ref    = ref(false); const hud2Ref    = ref('')//upper right
-const showHud3Ref    = ref(true);  const hud3Ref    = ref('')//bottom, information
+const showHud3Ref    = ref(false); const hud3Ref    = ref('')//bottom, information; starts hidden so one the user turned off never flashes up before hudStart reads the setting
 const showHud4Ref    = ref(false); const hud4Ref    = ref('')//middle, help
-const showCaptionRef = ref(true);  const captionRef = ref('')//caption, below card on table
+const showCaptionRef = ref(false); const captionRef = ref('')//caption, below card on table; hidden to start for the same reason
 function hudStart() {
 
 hud1Ref.value = 'upper left'
@@ -332,11 +348,16 @@ and here is yet another line`
 
 captionRef.value = `A multimedia file manager designed
 with privacy and precision in mind`//no terminating newline, if that matters
-showCaptionRef.value = true
+
+	showHud3Ref.value    = settings.hud.information//where these two start; [i] toggles this one from there, and nothing toggles the caption yet
+	showCaptionRef.value = settings.hud.caption
 
 	updateInformation()
 }
-function toggleInformation() { showHud3Ref.value = !showHud3Ref.value }
+function toggleInformation() {
+	showHud3Ref.value = !showHud3Ref.value
+	settings.hud.information = showHud3Ref.value; settingsChanged()//the setting records where the user left this hud, not just where it started
+}
 function toggleHelp()        { showHud4Ref.value = !showHud4Ref.value }
 function updateInformation() {
 	let s = 'no image loaded'

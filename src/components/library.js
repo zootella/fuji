@@ -9,7 +9,7 @@
 //keep, this is the new unifed library to keep components short and tell what's a pure function in here
 
 import {invoke} from '@tauri-apps/api/core';
-import {getCurrentWindow, currentMonitor, LogicalSize} from '@tauri-apps/api/window'
+import {getCurrentWindow, currentMonitor, LogicalSize, PhysicalSize, PhysicalPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
@@ -128,17 +128,22 @@ const startingWindowSize = {widthFraction: 0.6, heightFraction: 0.8}//how much o
 /*
 The window is created hidden — tauri.conf.json sets visible false — and this function sizes it to fit the desktop before revealing it, so it appears once already correct instead of flashing at one size and jumping to another.
 
-Two things it deliberately does not do. It never sets a position: where a window opens is the operating system's job, and leaving it there is what makes a second copy land beside the first rather than exactly on top of it, where the user could never find it. And it never lets a sizing failure stop the reveal, which is what the finally is for — the window starts hidden, so an error on the way to show() would leave a process running with nothing on screen at all.
+Two things it deliberately does not do. It never chooses a position: where a window opens is the operating system's job, and leaving it there is what makes a second copy land beside the first rather than exactly on top of it, where the user could never find it — the one exception being a window the user has asked fuji to remember, handed in as a rect, which it puts back where they left it. And it never lets a sizing failure stop the reveal, which is what the finally is for — the window starts hidden, so an error on the way to show() would leave a process running with nothing on screen at all.
 
 That difference is also why there is one try here rather than two. Failing to measure the desktop has a fallback: the window keeps the size tauri.conf.json gave it when it was created, 800 by 600, which is also Tauri's own default. Failing to show has no fallback, so show() sits outside the catch — if it rejects, the app is broken in a way no handling here improves.
 
 The caller measures the viewport after this resolves, and must, because a hidden window is given no animation frames: nothing can await one until show() has happened.
 */
 
-export async function revealWindow() {//size the hidden window to the desktop and show it; call once, after the app has mounted and there's something to see
+export async function revealWindow(rect) {//size the hidden window and show it; pass the window fuji recorded to return to it, or false to size to the desktop; call once, after the app has mounted and there's something to see
 	let w = getCurrentWindow()
 	try {
 		if (await w.isVisible()) return//size once at startup only; a hot reload in development mounts the app again against a window that is already up
+		if (rect) {//fuji is remembering the window and has one recorded, so put it back rather than measuring anything
+			await w.setSize(new PhysicalSize(rect.width, rect.height))
+			await w.setPosition(new PhysicalPosition(rect.x, rect.y))//physical at both ends, exactly as the window reported it, so nothing rounds on the way back
+			return
+		}
 		let m = await currentMonitor()
 		if (!m) return//tauri couldn't say which monitor we're on, so there's nothing to measure and the fallback size stands
 		let area = xy(m.workArea.size.width, m.workArea.size.height)//the monitor minus the chrome the os keeps for itself: menu bars, docks, the windows taskbar; in backing pixels, like everything tauri measures

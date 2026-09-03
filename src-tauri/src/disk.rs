@@ -177,14 +177,14 @@ for compare, the rust function will have to bring blocks of both files into its 
 the OS doesn't have an api like copy-on-clone
 */
 
-/*
-more to add later...
-
 /// POSIX `open` with `O_TRUNC|O_CREAT` + `write` + `close`  
 #[tauri::command]
 pub fn disk_write(path: String, data: Vec<u8>) -> Result<(), String> {
 	fs::write(&path, data).map_err(|e| e.to_string())
 }
+
+/*
+more to add later...
 
 /// POSIX `rename(2)`  
 #[tauri::command]
