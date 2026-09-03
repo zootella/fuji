@@ -1,6 +1,7 @@
 <script setup>//./components/DiamondTable.vue - one image sized to an invisible diamond, on an infinite plane that pan and zoom move
 
 import {getCurrentWindow} from '@tauri-apps/api/window'
+import {getCurrentWebview} from '@tauri-apps/api/webview'
 
 import {ref, onBeforeUnmount} from 'vue'
 import {
@@ -73,8 +74,19 @@ async function changeFullscreen(destination) {
 	}
 	screenToViewport1 = await screenToViewport()
 	//ttd august, this is pixel perfect now on mac and windows (but you haven't tested high res windows yet) to work around the shift-melt-blink render a black curtain over the frame, go full screen, get the resize event, do the pan, and then remove the curtain. this is a cool idea
-	getCurrentWindow().setSimpleFullscreen(destination)//simple fullscreen: instant, no macos space, no fade animation; on windows, identical to setFullscreen
+	await getCurrentWindow().setSimpleFullscreen(destination)//simple fullscreen: instant, no macos space, no fade animation; on windows, identical to setFullscreen
+	await getCurrentWebview().setFocus()//hand the keyboard back to the page; awaited after the line above so it lands second, and explained below
 }
+
+/*
+Why fuji has to hand the keyboard back after a fullscreen change.
+
+Simple fullscreen hides the titlebar by clearing the window's Titled style mask, and changing an NSWindow's style mask drops its first responder. tao knows this — util::toggle_style_mask carries the comment "If we don't do this, key handling will break" — and repairs it by calling makeFirstResponder with tao's own content view. That is the right view for a window tao draws into itself. Fuji's window has a WKWebView as a subview of that one, so the repair leaves the responder chain pointing a level above the web content: the mouse still works, because a click makes the view under it first responder, but no keystroke reaches JavaScript at all. The symptom is a fullscreen window that ignores the keyboard until the user clicks once.
+
+Focusing the webview is wry's makeFirstResponder aimed a level lower, which is the same repair with the right argument. It needs core:webview:allow-set-webview-focus, which core:webview:default does not grant.
+
+This belongs to the window rather than to this table, and moves to the shell whenever fullscreen does — otherwise the next table has to remember to carry a copy.
+*/
 
 const showCurtainRef = ref(false)//a black cover over the whole frame during fullscreen transitions; up before the window changes, down after the pan lands
 let curtainTimer//started when the curtain goes up, cleared when it comes down normally
