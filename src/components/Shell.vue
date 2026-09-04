@@ -4,6 +4,7 @@ import {ref, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {raf, forwardize, revealWindow} from './library.js'
 import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'
+import {experimentRun} from '../experiment.js'//TEMPORARY
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -52,6 +53,7 @@ onMounted(async () => {
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView().onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
 	})
+	experimentRun().catch(error => console.error('experiment:', error))//TEMPORARY, and last so nothing above waits on it
 	if (settings.window.remember) {//record where the user puts the window, so it comes back there next launch; both events report physical pixels, as the file holds them
 		await recordWindow(w)//the events below report only changes, so without this a session where the user never touches the window records nothing
 		unlistenMoved   = await w.onMoved(  ({payload}) => { if (isFullscreen()) return; settings.window.x     = payload.x;     settings.window.y      = payload.y;      settingsChanged() })
