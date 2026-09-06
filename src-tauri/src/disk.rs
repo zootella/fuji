@@ -90,12 +90,13 @@ fn _millis(time: std::io::Result<std::time::SystemTime>) -> u128 {//a timestamp 
 
 /// POSIX-like `open` + `read` + `close`
 #[command]
-pub fn disk_read(path: String) -> Result<Vec<u8>, String> {
-	std::fs::read(&path).map_err(|e| e.to_string())
+pub fn disk_read(path: String) -> Result<tauri::ipc::Response, String> {
+	std::fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())//Response carries the bytes across raw; a bare Vec<u8> would cross as a JSON array of numbers, which is the whole cost below
 }
 /*
-note that this reads the whole file into memory
-fuji will have the file in memory three times: Rust + IPC + JS!
+Returning Response rather than Vec<u8> is the difference between a copy and a translation. A Vec<u8> is serialized as a JSON array — one decimal number per byte, written on the Rust side and parsed on the JS side — so a 2.5 MB photograph crosses as roughly two and a half million numbers. Fuji measured that at about 150ms per megabyte on an M2, linear in file size, and it was landing on the main thread in the middle of flips. Response hands the same bytes over as an ArrayBuffer instead. The JS side already wrapped the result in `new Uint8Array(...)`, which accepts either, so nothing above had to change.
+
+Note that this still reads the whole file into memory, and fuji holds it more than once: Rust's buffer, the transfer, and the JS heap.
 plugin-fs does streaming by:
 - on the Rust side, reading parts of the file in 64 KB chunks
 - on the JS side, presenting that using the Web Streams API

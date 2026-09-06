@@ -27,9 +27,9 @@ That is the whole protocol. No hints, no priorities, no promises about what will
 
 ## What the store holds, per path
 
-    blob         the file's bytes, held because the url is made from them
-    url          one object URL over that blob, made once and never remade
-    img          the decoded image at natural size; the grip that keeps the pixels wanted
+    blob         the file's bytes: raw material for any decode at any size, and for a hash later
+    url          one object url over that blob, made once and held as long as the entry is
+    img          the decoded element, which is the thing a table puts on screen
     references   a map of holder name to count, so a leak has a name
     requested    Date.now() when a caller first asked
     loaded       when the bytes arrived
@@ -37,23 +37,29 @@ That is the whole protocol. No hints, no priorities, no promises about what will
     touched      when it was last asked for
     error        what went wrong, in as much detail as there is
 
-**One blob per path, and for now one decode.** A table wants an image at natural size and is the only caller there is, so that is all the first iteration holds. The sheet wants the same bytes decoded small, which is a second product over one blob and the obvious next entry point — it lands beside `img`, keyed by the size asked for, when there is a sheet to ask for it.
+**Two products over one file, and a name for one of them.** The blob is what anything future is made from — a thumbnail with `createImageBitmap`, a SHA-256 hash, a re-decode after the engine drops one. The img is the finished thing. The url is neither: it is the handle the img was built through, kept because it is the cheap way back if the engine ever drops what it built.
 
-**The three timestamps are two durations.** `loaded - requested` is what getting the bytes cost, `rendered - loaded` is what the decode cost. Nothing sensible can be decided about what to keep without both, and `touched` is easy to forget to record and impossible to reconstruct afterwards.
+**The blob costs about 6% of the entry**, and the argument for it got weaker the day `disk_read` started returning raw bytes. Re-reading a file is cheap now. The blob stays because it is the raw material for a thumbnail, a hash, and a re-decode, not because reading is expensive.
 
-## Why the object url has to be owned
+**A table shows the store's element itself.** It does not point an element of its own at the same picture, because that pays the whole decode again. This is the single most important thing in this file and it was learned the hard way.
 
-`library.js` carries the reason fuji avoided object urls until now, on the line where it makes a data url: *"alternatively, URL.createObjectURL saves memory, but creates a resource that could leak."* That is exactly right and it is still true. A data url is a string, and dropping it is enough. An object url holds its blob alive until somebody revokes it, and nothing ever revokes it for you — flip through two hundred large photographs minting a url each time and fuji is holding more than a gigabyte it will never get back.
+## Why the store owns the object url
 
-**There is an idiom that dodges the problem and costs too much:** revoke the moment `decode()` resolves, since a loaded `<img>` keeps working with a revoked url. But a *second* element pointed at that url gets its pixels in a millisecond, and revoking early throws that away — every re-display becomes a fresh decode. The url has to live exactly as long as cheap re-display is wanted, which is a thing the store can know and a view cannot.
+`library.js` carries the reason fuji avoided object urls for a year, on the line where it makes a data url: *"alternatively, URL.createObjectURL saves memory, but creates a resource that could leak."* That is exactly right, and the answer is ownership rather than avoidance: urls are made in one place in `cache.js` and revoked in one place, `cacheFree`, and no view touches either. The reference count is what makes the rule checkable instead of remembered.
 
-**So the store owns it.** Urls are made in one place and revoked in one place, and no view ever calls either. The reference count makes the rule checkable rather than remembered: when nobody wants a path, its url is revoked and its pixels are dropped.
+**Revoking at `decode()` was tried, and reverted.** It is a tempting shortcut — a loaded `<img>` does go on displaying after its url is revoked, because revoking removes the name and not the data. The worry is what happens when the data goes: an element the page is not showing can have its decoded frame dropped by the engine, and getting it back means rebuilding from source. A revoked url leaves nothing cheap to rebuild from, where the old data url — a string on the element that nothing could revoke — always did.
 
-**This relocates the discipline rather than removing it.** A view that never says it is done still leaks. But it leaks in one shape — a view leaving a folder without letting go — instead of a missing revoke buried in display code, and there is one obvious place to look.
+**That worry is reasoning, not measurement.** Whether a hidden element actually loses its frame here, and whether the url is what it would rebuild through, is in the open questions below. Keeping the url costs one revoke in a function that already exists, so the store owns it until that is settled.
 
 ## What the views do instead
 
-**A table keeps a window around the current image.** It asks for the neighbours of wherever the user is, holds references to them, and releases the ones that fall out of range as the user flips. The window is measured **in bytes, not in images**: a dozen 26-megapixel photographs is 1.2 GB and a dozen web JPEGs is 100 MB, so counting images is wrong in both directions and counting bytes lets the window fit the folder. This is the triad grown up — same job, no fixed three, and the anti-flicker half of the triad stays exactly as it is, because having the next image already decoded *in its own element* would be worth doing even with a perfect store.
+**A table keeps a window around the current image.** It asks for the neighbours of wherever the user is, holds references to them, and releases the ones that fall out of range as the user flips. `flipCache.js` is the diamond table's, and it counts **images**, from `flip.back` and `flip.forward` in `fuji.toml`.
+
+Counting images is known to be the wrong unit and is deliberate for now. A dozen 26-megapixel photographs is 1.2 GB where a dozen web JPEGs is 100 MB, so a count is wrong in both directions and a byte budget would let the window fit the folder. But a count is a number the user can change while fuji is running, which is what makes the window itself measurable — and until the measurements below say what a window is worth, a budget would be a policy written ahead of its evidence. The unit is an open question with an instrument pointed at it, not a settled answer.
+
+This is the triad grown up: same job, no fixed three. The half of the triad that was never about caching is kept — showing an element that already has its pixels, so a flip is a display swap rather than a source assignment — and that is why a table shows the store's own element rather than pointing one of its own at the same picture.
+
+**A view must not start a read before it has painted.** This is the rule the triad kept without anyone noticing, in a single line — *wait for above paint to hit the screen* — and the first version of the window broke it by sliding before the swap. Every flip then blocked on the read of the image entering the window, and a table whose every flip was a cache hit still took 300ms to turn a page. The meter caught it because two numbers matched to the millisecond, again and again: the flip's paint and the next load's read were the same interval seen twice. Show first, then ask.
 
 **The sheet asks for what is visible.** With no queue, a view that asks for five hundred images at once gets five hundred concurrent loads, and that is the view's problem to avoid — ask for what is on screen, ask for more as the user scrolls, release what scrolls away. The sheet knows what is visible and the store never will, which is why the discipline belongs there.
 
@@ -81,7 +87,7 @@ Three signals, and they deserve different reactions:
 
 **The operating system is already the byte cache.** Read a file and macOS or Windows keeps those pages in RAM; read it again and the second read is a copy out of memory. That cache is shared between processes, knows about system-wide memory pressure, and evicts on information fuji does not have. The store holds a blob per live path because the url is made from it — about 6% overhead against a decode — not because re-reading is expensive.
 
-**And the number that made reading look expensive is fuji's own.** 883ms for a 6.2 MB file is not what an M2's SSD does. `disk_read` returns `Vec<u8>`, which crosses the IPC boundary as a JSON array — six million numbers encoded on one side and parsed on the other. `tauri::ipc::Response` carries raw bytes as an ArrayBuffer instead. That fix is worth more than any byte caching would have been.
+**And the number that made reading look expensive was fuji's own.** 883ms for a 6.2 MB file is not what an M2's SSD does. `disk_read` returned `Vec<u8>`, which crossed the IPC boundary as a JSON array — one decimal number per byte, encoded on one side and parsed on the other. The meter caught it precisely: read time was linear in file size at about **150ms per megabyte**, from 250ms for a 1.6 MB file to 904ms for a 6.2 MB one. `tauri::ipc::Response` carries the same bytes as an ArrayBuffer, and every caller already wrapped the result in `new Uint8Array(...)`, which takes either. That fix was worth more than any byte caching would have been.
 
 ## What the library provides
 
@@ -90,6 +96,8 @@ Stateless helpers in `library.js`, holding nothing: read a path into a blob and 
 The existing data-url pair stays for now, alongside rather than replaced. A data url is **self-contained** — a string that carries its own bytes and needs no owner — where an object url is a **reference** that means nothing without the blob behind it. That is a real difference, not just convenience, and it may yet find a caller. If it does not, it gets deprecated and then deleted rather than quietly kept.
 
 ## What the measurements said
+
+`performance.md` carries everything the running app has measured, with the numbers and the reasoning. What follows is the bench that came before it, kept because two of its lines are still the reason the store holds elements at all — and because one of them was wrong in a way worth remembering.
 
 One question could not be reasoned out: whether an `<img>` that is not in the document keeps its decoded pixels. `img.decode()` answers it, resolving at once for an image already decoded. On a 6240 × 4160 progressive JPEG, 5.95 MiB on disk and 99 MiB decoded, in the tauri webview on macOS:
 
@@ -101,7 +109,11 @@ One question could not be reasoned out: whether an `<img>` that is not in the do
     6 attached element, fresh url .................. 916ms
       detached element, same url as the attached one 0ms
 
-**Being in the document buys nothing** — lines 2 and 6, which is what makes a store of detached images viable at all. **The decode belongs to the url, not to any element** — line 3, and a millisecond is what a hit costs. **A fresh url over the same blob costs a full decode** — line 5, which is why one url per path is a rule and not a preference.
+**Line 3 is wrong, and the running app is what proved it.** Wired into fuji, a second element pointed at the same source paid the *whole decode again* — a HUD reading `show` against `render` showed them equal, 960ms against 960ms for the roof photograph. The test elements were detached and never painted, so `decode()` resolved cheaply on a question that had nothing to do with putting pixels on a screen. **Do not trust a rendering measurement taken on something nobody is rendering.**
+
+What lines 2 and 6 do still say is that detachment itself is fine, which is what makes a store of elements viable. Line 5 — a fresh url over the same blob costing a full decode — is why one url per path is made once and kept rather than remade.
+
+**The real finding, from the app rather than the bench: what makes re-display instant is the same element, already decoded.** The old triad was not caching an image, it was caching a rendered element — a stronger and more specific thing than anyone here understood at the time.
 
 Line 4 carries a caveat: releasing both elements left the decode alive, but JavaScript cannot force collection, so that may only mean it had not been collected yet. It says nothing about memory pressure, which is the condition that matters when fuji is holding a lot and the one this test could not create.
 
@@ -117,6 +129,14 @@ Small on purpose, and meant to produce measurements rather than to be right abou
 ## Open
 
 **What a table's window should cost.** Size and rebuild time are independent: a 26-megapixel image is 99 MiB decoded whether it took 60ms or 960ms, and a badly compressed photograph costs the same memory as a beautiful one. So a policy that only counts bytes will throw away the expensive decodes as readily as the cheap ones. Which weights matter cannot be settled before fuji has been dragged through real galleries, real folders of saved torrents, real photograph libraries — recording every input now is what makes that experiment possible later.
+
+**Whether holding eleven images costs anything per flip.** Measured but not yet answered: the HUD reports the flip's wall clock and the frame count beside it. Compare `flip.back` and `flip.forward` at 5 against 1 on a folder of large photographs. If the flip is the same either way, what remains is background loading and the window should ask more gently; if it climbs at 5, the window wants a byte budget rather than a count.
+
+**What a flip costs now.** The first run said: every flip a hit, `store` at 0, and `paint` between 134 and 372ms — all of it the blocked read described above. With the read fixed and the order corrected, the same walk should report `paint` at about one frame. If it does not, the questions below are where to look next.
+
+**Whether a hidden element keeps its pixels.** This is the question the url ownership above is waiting on, and the HUD now splits a flip into `store` and `paint` to answer it: a store hit costs no time at all, so a large `paint` is the engine rebuilding an image the store believes it already has. If that number is large, holding an `<img>` is not holding a decode and the store is keeping the wrong thing.
+
+**Whether that is a difference at all.** An engine dropping the frames of images nobody is showing would do it to the triad exactly as readily as to the store — same elements, same `display: none`, same lack of any way to ask. So it cannot be what makes one design feel faster than the other, and if the two feel different the cause is somewhere fuji controls. Worth knowing before reading anything into a comparison.
 
 **Whether retention holds under pressure.** The measurements were taken on an idle machine with one image. When fuji is holding hundreds, the engine may begin discarding decodes and rebuilding them, and a hit that costs a millisecond today could cost 900ms then, invisibly.
 

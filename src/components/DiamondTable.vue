@@ -5,9 +5,12 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 
 import {ref, onBeforeUnmount} from 'vue'
 import {
-xy, raf, listSiblings, readAndRenderImage,
+xy, raf, listSiblings,
 screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
+import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
+import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
+import {meterStart, meterFlip} from '../meter.js'//the performance log, which writes a file instead of painting a number; off unless meter.record says otherwise
 import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
 
 //                       _   
@@ -23,6 +26,7 @@ onBeforeUnmount(() => {
 		frameRef.value.releasePointerCapture(drag.pointer)
 		drag.pointer = null
 	}
+	flipCacheClose()//this table is going away, so the store should not still be holding images on its behalf
 })
 
 let started = false//start() comes every time this view is shown, and the setup below must happen once: running dimensionStart again would throw away the pan and zoom the user left
@@ -32,6 +36,7 @@ function start() {//the shell calls this when this view first comes on screen; m
 	console.log('⭕ on start - the shell has revealed the window and handed this view the screen')
 	dimensionStart()
 	hudStart()
+	meterStart(`diamond-${settings.flip.back}x${settings.flip.forward}`)//the window is in the name because two window sizes is the comparison anyone reaches for this log to make
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})//on the frame, not the window, so a hidden table is handed nothing; and last, so no wheel can reach the quiver before dimensionStart has filled it
 }
 function isFullscreen() { return fullscreenNow }//the shell asks before recording a window, because a fullscreen one is not one the user placed
@@ -225,21 +230,22 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 async function onDrop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
 
-	triad.here.imgRef.value.style.display = 'none'//hide the image we're on; this is blinkey but ok for a drop, ttd august
 	folder = await listSiblings(path)//list all the images in the same folder as path
-	triad.here = fillImage(img8Ref, folder.index,     folder.list)//path dropped in
-
-	await triad.here.promise
-	await raf()
-	quiverA.natural = triad.here.details?.natural || xy(64, 64); quiver()//position and size the card for the aspect ratio ahead
-	triad.here.imgRef.value.style.display = 'block'//show the image now that it's ready
-	await raf()
-
-	triad.prev = fillImage(img7Ref, folder.index - 1, folder.list)//path alphebetically above
-	triad.next = fillImage(img9Ref, folder.index + 1, folder.list)//path alphebetically below
-	updateInformation()
+	flipCacheWindow(folder.list, folder.index)//ask for this image and its neighbours before showing anything, because showIndex wants what the window is holding
+	await showIndex(folder.index)
 }
 
+/*
+A flip is three moments in a fixed order, and the order is the design rather than decoration. Wait for a clean frame boundary. Swap which element is shown and size the card to it. Wait again for that paint to reach the screen. Only then ask the store for anything new. The two waits carry a 🥪 so they are findable, and both are load-bearing: the first puts the swap inside a frame the engine is already about to render, and the second holds the flip open until the picture is actually on the glass.
+
+The last moment is the one that gets lost. Asking for the next image is the obvious thing to do first, because it has the longest wait and every instinct says to start it early. That instinct is wrong here. Reading a file and decoding it both want the main thread, and the main thread is what fires animation frames, so a read started before the paint blocks the very frame it was meant to help. The image the user asked for is already decoded and waiting; making them stare at the old one for another three hundred milliseconds to get a head start on an image they have not asked for yet is a trade nobody would make on purpose.
+
+Fuji made it anyway. The triad had this order, and one line of comment explaining it. When the triad became a store and a window, the rewrite moved the window slide to the top of the flip and kept the words without their meaning. Every flip was then a cache hit that took three hundred milliseconds, which is the worst shape a bug can take: the cache reported perfect behaviour while the app grew slower than the thing the cache replaced.
+
+The meter caught it, and only by accident. Each flip's paint and the next load's read came back as the same number, to the millisecond, again and again — 372 against 371, 366 against 366, 251 against 251. That is two clocks timing one interval, which is what a blocked frame looks like from outside. No test would have found it, because nothing was broken: no exception, no wrong picture, nothing to assert against, just a frame that took twenty times too long.
+
+Reads are cheap now that disk_read hands its bytes over raw, but decodes still occupy the thread and always will, so the order still holds. The rule for anyone editing below, a later version of whoever wrote this included: show first, then ask. Nothing that can occupy the main thread goes before the paint, and a line that has to move, moves after the second 🥪.
+*/
 let flipQueue = Promise.resolve()//do one flip at a time; start with resolved promise
 async function flip(direction) {
 	flipQueue = (flipQueue//queue this flip to run after any pending flips
@@ -255,49 +261,54 @@ and when Loading... is shown, in that mode, ignore all additional commands
 async function _flip(direction) {
 	if (!folder) return//nothing loaded yet
 
-	let indexAhead1 = folder.index + direction//index where the user wants us to flip to
-	let indexAhead2 = folder.index + direction + direction//the next next one, the one beyond that
-	if (indexAhead1 < 0 || indexAhead1 >= folder.list.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
+	let ahead = folder.index + direction//index where the user wants us to flip to
+	if (ahead < 0 || ahead >= folder.list.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
 	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
 
-	let behind, upon, ahead//from direction, pick the image functions which are ahead, we'll flip to, and behind, we'll discard and reuse
-	if (direction > 0) {behind = 'prev', upon = 'here', ahead = 'next'}//flip forward, so next is ahead
-	else               {behind = 'next', upon = 'here', ahead = 'prev'}//flip backwards, so prev is where we're going
+	let began = performance.now()//the wall clock from the command to pixels on the screen
+	await showIndex(ahead)//no need to ask the store for anything first: a flip moves one step and the window already reaches one step, so the image ahead is held before the command arrives
+	let painted = await raf()//🥪 wait for above paint to hit the screen, which is also the honest end of the flip
+	flipMs = Math.round(painted - began)
+	flipFrames = Math.ceil(flipMs / frameMs)//rounded up, so a flip that spilled a millisecond into a second frame does not get to claim it took one; converted rather than counted, because a blocked main thread fires no animation frames at all and counting callbacks would report one frame for a stall that dropped twelve
+	paintMs = Math.round(painted - shownAt)//the half of the flip that is the engine putting an image the store says is ready onto the screen
+	updateInformation()
+	learnFrameMs(painted)//deliberately not awaited: the flip is over, and the queue behind it must not wait on a measurement
+	meterFlip({//before the window slides, so nothing the instrument does can land inside what it just measured
+		sequence: ++flipSequence, index: ahead, direction: direction > 0 ? 'fwd' : 'back', hit: storeHit ? 'hit' : 'miss',
+		store: storeMs, paint: paintMs, flip: flipMs, frames: flipFrames, path: folder.list[ahead],
+	})
 
-	await triad[ahead].promise//delay this flip until the image we're about to show is rendered
+	flipCacheWindow(folder.list, ahead)//last of all, and this order is the whole point: a read started before the paint blocks the very frame it was meant to help, which is what the triad's "wait for above paint to hit the screen" was protecting and what this file lost when it stopped being a triad
+}
+let flipSequence = 0//so the log reads in the order the user flipped
+let flipMs = 0, flipFrames = 0//what the last flip cost end to end
+let storeHit = false//whether the image was already decoded when the flip asked for it
+let storeMs = 0, paintMs = 0, shownAt = 0//the flip split in two, and the two halves have nothing to do with each other: a large storeMs means the window did not reach this image in time, and a large paintMs on a hit means the engine dropped the pixels while the image was hidden and is rebuilding them. performance.md has what that second one has already cost
+let frameMs = 1000//narrowed toward this display's real frame time by the flips above
+async function learnFrameMs(painted) {//one more frame boundary after the flip has let go of the queue, because an interval needs two timestamps and the flip itself can only afford one
+	let next = await raf()
+	if (next - painted > 1 && next - painted < frameMs) frameMs = next - painted//the shortest gap ever seen between two frames is this display's rate, learned rather than assumed, so a 60hz dell and a 120hz panel each read correctly
+}
+
+async function showIndex(index) {//put the image at index on the card, and record where we are
+	let asked = performance.now(), askedDate = Date.now()//two clocks: one to time the wait, one to compare against the load's own Date.now stamps below
+	let entry = await flipCacheImage(folder.list[index])//already decoded if the window reached it in time; otherwise this is the wait
+	storeMs = Math.round(performance.now() - asked)
+	storeHit = entry.rendered > 0 && entry.rendered <= askedDate//decoded before this flip asked, which is the only thing that makes a window worth keeping
 	await raf()//🥪 wait for clean frame boundary
 
-	//change page
-	triad[upon].imgRef.value.style.display = 'none'//hide the image we're upon
-	quiverA.natural = triad[ahead].details?.natural || xy(64, 64); quiver()//position and size the card for the aspect ratio ahead
-	triad[ahead].imgRef.value.style.display = 'block'//show the image that's ahead
-
-	//change state
-	folder.index = indexAhead1//move our index in the folder image listing
-	let [wasBehind, wasUpon, wasAhead] = [triad[behind], triad[upon], triad[ahead]]//rotate the triad forward
-	triad[behind] = wasUpon; triad[upon] = wasAhead; triad[ahead] = wasBehind
-
-	await raf()//🥪 wait for above paint to hit the screen
-
-	triad[ahead] = fillImage(triad[ahead].imgRef, indexAhead2, folder.list)//preload the next next image, but don't wait for it
-	updateInformation()
+	folder.index = index
+	here = entry
+	cardShow(entry.error ? errorRef.value : entry.img)//the store's own element goes on the card rather than one of ours pointed at the same picture, which would pay the whole decode again
+	quiverA.natural = entry.error ? xy(64, 64) : xy(entry.img.naturalWidth, entry.img.naturalHeight); quiver()//position and size the card for the aspect ratio we are showing, and quiver updates the hud on its way out
+	shownAt = performance.now()//the swap is done, and the next frame boundary is the paint
 }
-function fillImage(imgRef, index, list) {//start loading the image on the disk at list[index] into the given img7Ref, img8Ref, or img9Ref
-	let image = {imgRef, path: null, promise: Promise.resolve(), error: null, details: null}//wrap the given imgRef into an object to set in the triad
-	if (index < 0 || index >= list.length) return image//no path; mark this spot intentionally left blank
-
-	image.path = list[index]//we do have a path, load the image there into the given imgRef.value
-	image.promise = readAndRenderImage(imgRef.value, image.path)
-		.then(details => {//await image.promise to wait for it to finish
-			image.details = details//once image.promise is resolved, you can get details about the image here
-			return details
-		})
-		.catch(error => {
-			imgRef.value.src = errorData
-			image.error = error
-			return error
-		})
-	return image//return the image object to await image.promise and then check out image.details or image.error
+let showing = null//the element the card is showing right now, which is the store's and not ours
+function cardShow(img) {//the one place an image becomes visible
+	if (img.parentNode != cardRef.value) { img.className = 'myImage'; cardRef.value.insertBefore(img, cardRef.value.firstChild) }//adopted on first showing; the store takes it back out when it lets the image go
+	if (showing && showing != img) showing.style.display = 'none'
+	img.style.display = 'block'
+	showing = img
 }
 
 //  _               _ 
@@ -333,17 +344,21 @@ with privacy and precision in mind`//no terminating newline, if that matters
 }
 function toggleInformation() {
 	showHud3Ref.value = !showHud3Ref.value
+	updateInformation()//it built nothing while it was hidden, so fill it now rather than showing whatever it last said
 	settings.hud.information = showHud3Ref.value; settingsChanged()//the setting records where the user left this hud, not just where it started
 }
 function toggleHelp()        { showHud4Ref.value = !showHud4Ref.value }
 function updateInformation() {
+	if (!showHud3Ref.value) return//a hidden hud builds no string and touches no ref, so measuring with it off measures fuji rather than fuji plus a readout
 	let s = 'no image loaded'
-	if (triad.here?.details?.path && quiverC?.card2) {
-		let d = triad.here.details
-s = `${d.path}
-natural ${d.natural.x} width x ${d.natural.y} height, ${saySize4(d.size)} (${sayGroupDigits(d.size)} bytes)
+	if (here?.img && quiverC?.card2) {
+		let f = cacheFootprint()//the store's running totals, free to read because they are kept rather than walked
+s = `${here.path}
+natural ${here.img.naturalWidth} width x ${here.img.naturalHeight} height, ${saySize4(here.blobBytes)} (${sayGroupDigits(here.blobBytes)} bytes)
 displayed ${Math.round(quiverC.card2.x)} width x ${Math.round(quiverC.card2.y)} height (CSS, not physical, pixels)
-${d.note}`
+${here.loaded - here.requested}ms disk + ${here.rendered - here.loaded}ms render, to load this one
+flip ${flipMs}ms (${flipFrames} frames) = ${storeMs}ms store + ${paintMs}ms paint
+cache ${f.count} images, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`
 	}
 	hud3Ref.value = s
 }
@@ -367,15 +382,9 @@ const errorData = `data:image/svg+xml;base64,${btoa(`
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
-const img7Ref = ref(null)
-const img8Ref = ref(null)
-const img9Ref = ref(null)//our template contains these three img tags
+const errorRef = ref(null)//the one img tag the template still owns, shown in place of a picture fuji could not read
 let folder//set on drop, holds listing.list of images in current folder, and listing.index of the image we're on
-const triad = {
-	prev: {imgRef: img7Ref, path: null, promise: Promise.resolve(), details: null},
-	here: {imgRef: img8Ref, path: null, promise: Promise.resolve(), details: null},
-	next: {imgRef: img9Ref, path: null, promise: Promise.resolve(), details: null},
-}
+let here = null//the store's entry for the image on the card, which is where the hud reads everything about it
 
 </script>
 <template>
@@ -397,10 +406,8 @@ const triad = {
 		class="myCard myShadow myDry myWillChangeTransform bg-neutral-950 border border-black"
 	>
 
-		<!-- three img tags for current (shown), previous (cached), and next (preloaded) -->
-		<img ref="img7Ref" class="myImage" />
-		<img ref="img8Ref" class="myImage" />
-		<img ref="img9Ref" class="myImage" />
+		<!-- the images the card shows are the store's own elements, put here by cardShow; this one is only for a file fuji could not read -->
+		<img ref="errorRef" class="myImage" :src="errorData" />
 
 		<!-- caption lives inside the card, but sits below its border -->
 		<div v-if="showCaptionRef" class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap font-mono myEmbossed">{{captionRef}}</div>
@@ -436,7 +443,7 @@ const triad = {
 	position: absolute; /* position outside the normal document flow; note the card should not be positioned absolute! */
 	top: 0; left: 0; width: 100%; height: 100%;
 	object-fit: fill; /* stretch to all four edges; script will set the aspect ratio of the card to match the image's natural dimensions */
-	display: none; /* start all three hidden; script will show one image tag from the triad at a time */
+	display: none; /* every image starts hidden; cardShow shows one at a time */
 }
 
 .myDry, .myDry * { /* on the div with this class and everything deep inside it */

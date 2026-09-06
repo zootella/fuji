@@ -14,6 +14,8 @@ const settingsHeader = `# fuji.toml — fuji reads this file when it starts and 
 const settingsSchema = [
 	{section: 'view',       key: 'showing',     factory: 'Table',   comment: 'which kind of view fuji was showing when it last closed, so it opens there again: Sheet for the contact sheet, Table for whichever table', check: value => value == 'Sheet' || value == 'Table'},
 	{section: 'view',       key: 'table',       factory: 'Diamond', comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead'},
+	{section: 'flip',       key: 'back',        factory: 5,         comment: 'how many images before the one on screen a table keeps decoded, so flipping back to them is instant instead of a fresh read and decode; one is the smallest that works, because a table always holds the image on either side of the one it is showing, and one here with one forward is the behaviour fuji had before it kept a window', check: value => Number.isInteger(value) && value >= 1},
+	{section: 'flip',       key: 'forward',     factory: 5,         comment: 'and how many after it; flipping forward is the common direction, so this is the one to raise first if a folder of large images still makes the user wait', check: value => Number.isInteger(value) && value >= 1},
 	{section: 'window',     key: 'remember',    factory: true, comment: 'remember the size and position of the window from launch to launch; when false, fuji sizes its window to a fraction of the desktop and lets the operating system place it'},
 	{section: 'window',     key: 'x',           factory: 0,    comment: 'the window fuji last recorded, in physical pixels, and read only when remember is true; a width or height that is not positive means fuji has not recorded a window yet, and it sizes itself to the desktop instead'},
 	{section: 'window',     key: 'y',           factory: 0},
@@ -23,6 +25,8 @@ const settingsSchema = [
 	{section: 'fullscreen', key: 'curtain',     factory: true, comment: 'black out the frame through a fullscreen transition, which hides an occasional one-frame shear at the cost of a blink; the user chose true by feel'},
 	{section: 'hud',        key: 'information', factory: true, comment: 'show the information panel along the bottom of the frame, the one [i] toggles; fuji writes this back as you turn it on and off, so it comes back the way you left it'},
 	{section: 'hud',        key: 'caption',     factory: true, comment: 'show the caption beneath the image at startup'},
+	{section: 'meter',      key: 'record',      factory: false, comment: 'write a performance log: every image load and every flip, with what each cost, saved when fuji closes; off by default because it is for answering a question rather than for running the app, and performance.md says what the numbers mean and what they have already shown', check: value => typeof value == 'boolean'},
+	{section: 'meter',      key: 'folder',      factory: 'Documents/temp/fuji', comment: 'where those logs go, under your home folder; it has to already exist, because fuji will not make it for you, and a run that cannot write says so in the console rather than at exit where nothing could hear it', check: value => value.trim() != ''},
 ]
 
 export const settings = settingsFactory()//the live settings the rest of fuji reads, filled in at startup and never replaced, so an importer keeps the same object

@@ -3,6 +3,7 @@
 import parse from 'path-browserify'
 import {diskRead} from './disk.js'
 import {imageTypes} from './components/library.js'
+import {meterLoad} from './meter.js'//the store already records what a load cost; this is only reporting it, and a load nothing ever flipped to counts too
 
 /*
 A store, not a strategy. It holds what the views tell it to hold and lets go when they say to let go. It does not decide, schedule, prioritise, or expire, and it knows nothing about folders, order, or who is asking. Every clever decision fuji makes about images lives in the view that is showing them; cache.md carries the long version of why.
@@ -11,11 +12,11 @@ Three shapes came before this one and each failed the same way: intelligence in 
 
 What is left is worth one place precisely because it is not clever: a path's bytes, its object url, its decoded pixels, and what each of those cost.
 
-Owning the url is the reason this file exists at all. library.js says why fuji avoided object urls until now — "URL.createObjectURL saves memory, but creates a resource that could leak" — and that is still true. An object url holds its blob alive until somebody revokes it, and nothing revokes it for you. Flip through two hundred large photographs minting a url each time and fuji is holding more than a gigabyte it will never get back. Here there is exactly one place urls are made and one place they are revoked, and no view touches either.
+An entry holds two things over one file. The blob is raw material: any decode at any size, and a hash later. The img is the finished thing, and a table shows that element itself rather than pointing an element of its own at the same picture — because pointing a second element at the same source costs the whole decode again. The measurement that said otherwise was taken on elements nobody was painting, and the running app overruled it.
 
-Two numbers say why the url is made once and never remade: pointing a second element at a url that already has pixels costs about a millisecond, and a fresh url over the same blob costs a full decode — 911ms for a 6240 by 4160 progressive jpeg on an M2. A store that minted a url per request would re-decode every time and look, from outside, exactly like a store that works.
+The store owns the object url for as long as it owns the entry. library.js says why fuji avoided object urls until now — "URL.createObjectURL saves memory, but creates a resource that could leak" — and that is exactly right, so urls are made in one place here and revoked in one place, cacheFree, and no view touches either. Revoking the moment decode() resolves was tried and taken back out: a loaded element does go on displaying without its url, but an element the page is not showing can have its decoded frame dropped by the engine, and then showing it again has to rebuild from source. A revoked url leaves nothing cheap to rebuild through. Whether that is really happening here is what the store and paint halves of the flip on the hud are for; until they say, keeping the url costs one line in a function that already runs.
 
-This first iteration keeps only the natural-size decode, because a table is the only caller today. Small decodes for the sheet are the next entry point, and the place they land is beside img below.
+This first iteration decodes only at natural size, because a table is the only caller today. The sheet will want small ones, made from the same blob with createImageBitmap, and that is a second product beside img rather than a second store.
 */
 
 const cacheCeiling = 1024*1024*1024//a gigabyte held, past which something is probably wrong; not a limit, a line to complain at
@@ -30,9 +31,9 @@ export function cacheNeed(path, holder) {//take a reference and get the image; a
 	if (!entry) {
 		entry = {
 			path,
-			blob: null,//the file's bytes, held because the url is made from them
-			url: '',//one object url over that blob, made once and never remade
-			img: null,//the decoded image at its natural size; the grip that keeps the pixels wanted
+			blob: null,//the file's bytes, the raw material for any decode at any size and for a hash later
+			url: '',//one object url over that blob, kept alive so re-showing the element is a rebuild from source rather than a full decode
+			img: null,//the decoded element, which is the thing a table puts on screen
 			blobBytes: 0, pixelBytes: 0,//counted on the entry so dropping it can subtract exactly what it added
 			references: new Map(),//holder name to how many times that holder has asked
 			requested: Date.now(), loaded: 0, rendered: 0,//two durations: getting the bytes, then decoding them
@@ -84,24 +85,27 @@ async function cacheLoad(entry) {//read the file and decode it, recording what e
 
 		entry.blob = new Blob([bytes.buffer], {type: imageTypes[parse.extname(entry.path).toLowerCase()] || 'application/octet-stream'})//the array is not kept: making a blob copies, so holding both would be two copies of every file
 		entry.blobBytes = entry.blob.size; cacheBlobBytes += entry.blobBytes
-		entry.url = URL.createObjectURL(entry.blob)
 
+		entry.url = URL.createObjectURL(entry.blob)//kept until cacheFree, because a hidden element can lose its decoded frame and needs this source to get it back cheaply
 		entry.img = new Image()
 		entry.img.src = entry.url
 		await entry.img.decode()//throws on data an image decoder cannot use
-		entry.rendered = Date.now()
-		entry.pixelBytes = entry.img.naturalWidth * entry.img.naturalHeight * 4//an estimate, and known to be low: a decoder may pad rows or keep a copy on the gpu
-		cachePixelBytes += entry.pixelBytes
+		if (entry.img) {//still ours: a release landing during the decode has already run cacheFree, which empties the entry, and measuring what it no longer holds would record a good file as a broken one
+			entry.rendered = Date.now()
+			entry.pixelBytes = entry.img.naturalWidth * entry.img.naturalHeight * 4//an estimate, and known to be low: a decoder may pad rows or keep a copy on the gpu
+			cachePixelBytes += entry.pixelBytes
+		}
 	} catch (error) {
 		entry.error = error//remembered, so one broken file in a folder is not read again on every pass
 	}
+	meterLoad(entry)//before the free below, while the entry still says what it cost
 	if (cacheEntries.get(entry.path) != entry) cacheFree(entry)//released while it was still loading, so let go of what arrived after nobody wanted it any more
 	return entry
 }
 
-function cacheFree(entry) {//the only place fuji revokes a url, and the only place it subtracts from the totals
-	if (entry.url) { URL.revokeObjectURL(entry.url); entry.url = '' }
-	if (entry.img) { entry.img.src = ''; entry.img = null }//let the engine take the pixels back
+function cacheFree(entry) {//the only place the store lets go, and the only place it subtracts from the totals
+	if (entry.img) { entry.img.remove(); entry.img.src = ''; entry.img = null }//out of whatever card was showing it, then emptied so the engine can take the pixels back
+	if (entry.url) { URL.revokeObjectURL(entry.url); entry.url = '' }//the only place fuji revokes a url, after the element that used it has let go
 	entry.blob = null
 	cacheBlobBytes -= entry.blobBytes; entry.blobBytes = 0
 	cachePixelBytes -= entry.pixelBytes; entry.pixelBytes = 0

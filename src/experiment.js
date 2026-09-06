@@ -16,7 +16,7 @@ This runs in the tauri webview on purpose. On macOS that is WKWebView and on Win
 */
 
 const subject = 'Documents/here/colors for fuji/1red.jpg'//a 6240 x 4160 progressive jpeg that takes about a second to decode, which is what makes it a good subject
-const reportName = 'fuji-experiment.txt'
+const reportName = 'Documents/temp/fuji/fuji-experiment.txt'//under the user's home, alongside the flip meter's files; the folder has to already exist, because disk_write does not make parent folders
 
 export async function experimentRun() {
 	let home = forwardize(await homeDir())
