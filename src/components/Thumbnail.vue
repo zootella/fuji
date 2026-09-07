@@ -1,4 +1,4 @@
-<script setup>//./components/Thumbnail.vue - given a data url and height, render an image into a canvas to save memory
+<script setup>//given a data url and height, render an image into a canvas to save memory
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {

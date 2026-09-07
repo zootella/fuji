@@ -2,7 +2,7 @@
 
 Fuji is four layers: a **shell** that owns the window, one **sheet** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
 
-It says what fuji does, not what it might. It is the only architecture document: `style.md` governs how code is written, `scaffold.md` how the project is set up, `cache.md` and `performance.md` cover images and what they cost, and where all of them are silent, decide and write it down here.
+It says what fuji does, not what it might. It is the only architecture document: `structure.md` names the parts and says how many there are of each, `style.md` governs how code is written, `scaffold.md` how the project is set up, `cache.md` and `performance.md` cover images and what they cost, and where all of them are silent, decide and write it down here.
 
 ```
 App.vue
@@ -76,7 +76,7 @@ Routing sells services that belong to the browser as a document-navigation shell
 
 A module is already a singleton that outlives every component, `ref` already makes it watched, and an import is already how anything reaches it. A store library adds a devtools timeline, state kept across hot reloads, subscription hooks, and a name — worth having where a team needs the convention spelled out for it, and not worth a second way of doing things here. What matters is that the pattern is written down and followed, which is the part a library was doing for free.
 
-**The rule for where a value goes:** state the interface watches is an exported `ref`; state it does not watch is a plain binding; nothing large goes inside a deep reactive. That last clause is why fuji's most important state — the quiver, the triad, the drag object — is not reactive at all, and why one rule covers both kinds rather than a convention plus a standing list of exceptions.
+**The rule for where a value goes:** state the interface watches is an exported `ref`; state it does not watch is a plain binding; nothing large goes inside a deep reactive. That last clause is why fuji's most important state — the quiver, the drag object, the folder listing — is not reactive at all, and why one rule covers both kinds rather than a convention plus a standing list of exceptions.
 
 **Large collections get `shallowRef`.** A folder listing is replaced, never edited in place, so proxying thousands of strings to watch for a change that always arrives as a whole new array is work for nothing.
 
@@ -96,7 +96,9 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What is built today
 
-`Shell.vue`, `Sheet.vue` and `ComicTable.vue` as stubs, `DiamondTable.vue`, `settings.js`, `cache.js` and `flipCache.js` are real. The model is the last piece of the plan above that has not been started. `DiamondTable.vue` still holds folder and index as local bindings; they move to the model when it exists, and until then nothing new should join them there.
+`Shell.vue` and `DiamondTable.vue` are real, `Sheet.vue` and `ComicTable.vue` are stubs, and `settings.js`, `cache.js`, `flipCache.js` and `meter.js` are real. The model is the last piece of the plan above that has not been started. `DiamondTable.vue` still holds folder and index as local bindings; they move to the model when it exists, and until then nothing new should join them there.
+
+Sorts and Flows are named and planned and neither is written — `sort.md` for the first, `structure.md` for both.
 
 There is no router and no store library. `App.vue` renders the one view directly and `main.js` mounts the app and does nothing else.
 

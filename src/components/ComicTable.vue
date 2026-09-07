@@ -1,4 +1,4 @@
-<script setup>//./components/ComicTable.vue - one image full width, read down a vertical scroll
+<script setup>//one image full width, read down a vertical scroll
 
 /*
 A stub, here so that DiamondTable has a sister in the repository and the shape of a second table is visible before one is written. Nothing switches to it yet.
@@ -11,7 +11,7 @@ function start() {
 	if (started) return
 	started = true
 }
-function onKey(e)   {}
+function onKey(e) {}
 function onResize() {}
 function isFullscreen() { return false }//no way to enter fullscreen from here yet
 

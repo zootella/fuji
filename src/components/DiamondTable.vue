@@ -1,4 +1,4 @@
-<script setup>//./components/DiamondTable.vue - one image sized to an invisible diamond, on an infinite plane that pan and zoom move
+<script setup>//one image sized to an invisible diamond, on an infinite plane that pan and zoom move
 
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
@@ -10,7 +10,7 @@ screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
 import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
-import {meterStart, meterFlip} from '../meter.js'//the performance log, which writes a file instead of painting a number; off unless meter.record says otherwise
+import {meterFlip} from '../meter.js'//the performance log, which writes a file instead of painting a number; the shell starts it, this only adds rows
 import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
 
 //                       _   
@@ -36,7 +36,6 @@ function start() {//the shell calls this when this view first comes on screen; m
 	console.log('⭕ on start - the shell has revealed the window and handed this view the screen')
 	dimensionStart()
 	hudStart()
-	meterStart(`diamond-${settings.flip.back}x${settings.flip.forward}`)//the window is in the name because two window sizes is the comparison anyone reaches for this log to make
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})//on the frame, not the window, so a hidden table is handed nothing; and last, so no wheel can reach the quiver before dimensionStart has filled it
 }
 function isFullscreen() { return fullscreenNow }//the shell asks before recording a window, because a fullscreen one is not one the user placed
@@ -57,6 +56,7 @@ async function onKey(e) {
 	} else if (key == 'Escape') {
 		await changeFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
 	}
+	//the arrows, f, q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
 	else if (key == 'ArrowLeft')  {  }
 	else if (key == 'ArrowRight') {  }
 	else if (key == 'ArrowUp')    {  }
@@ -227,11 +227,13 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 // |_| |_|_| .__/ 
 //         |_|    
 
-async function onDrop(path) {
+async function onDrop(path) { return queue(() => _drop(path)) }//queued with the flips, because a drop replaces the very folder a flip in flight is holding an index into
+async function _drop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
 
 	folder = await listSiblings(path)//list all the images in the same folder as path
 	flipCacheWindow(folder.list, folder.index)//ask for this image and its neighbours before showing anything, because showIndex wants what the window is holding
+	//the card empties here rather than by a display none: sliding the window releases the old folder, and the store takes its element back out; this is blinkey but ok for a drop, ttd august
 	await showIndex(folder.index)
 }
 
@@ -246,14 +248,17 @@ The meter caught it, and only by accident. Each flip's paint and the next load's
 
 Reads are cheap now that disk_read hands its bytes over raw, but decodes still occupy the thread and always will, so the order still holds. The rule for anyone editing below, a later version of whoever wrote this included: show first, then ask. Nothing that can occupy the main thread goes before the paint, and a line that has to move, moves after the second 🥪.
 */
-let flipQueue = Promise.resolve()//do one flip at a time; start with resolved promise
-async function flip(direction) {
-	flipQueue = (flipQueue//queue this flip to run after any pending flips
-		.then(() => _flip(direction))
-		.catch(e => console.error('Flip error:', e))//don't break the chain
-	)
-	return flipQueue
+/*
+Everything that changes what is on the card goes through one queue, and it is not only about flips arriving faster than they finish. Both _flip and _drop read folder, await, and then use what they read — so a drop landing inside a flip's await swaps the folder underneath it, and the flip goes on to show an image from the old listing at an index into the new one. Serialising them means each is the only thing touching folder for its whole run.
+*/
+let workQueue = Promise.resolve()//one change to the card at a time; start with a resolved promise
+function queue(work) {
+	workQueue = workQueue
+		.then(work)
+		.catch(error => console.error('changing what the table shows:', error))//report and carry on, so one failure does not stop every command after it
+	return workQueue
 }
+async function flip(direction) { return queue(() => _flip(direction)) }
 /*ttd august, as with slow big GIFs that should be MPEGs you've been able to mangle the triad
 show Loading... upper right HUD immediately if the flip has to wait at all--if the promise is not already resolved
 and when Loading... is shown, in that mode, ignore all additional commands
@@ -291,10 +296,10 @@ async function learnFrameMs(painted) {//one more frame boundary after the flip h
 }
 
 async function showIndex(index) {//put the image at index on the card, and record where we are
-	let asked = performance.now(), askedDate = Date.now()//two clocks: one to time the wait, one to compare against the load's own Date.now stamps below
+	let asked = performance.now()
 	let entry = await flipCacheImage(folder.list[index])//already decoded if the window reached it in time; otherwise this is the wait
 	storeMs = Math.round(performance.now() - asked)
-	storeHit = entry.rendered > 0 && entry.rendered <= askedDate//decoded before this flip asked, which is the only thing that makes a window worth keeping
+	storeHit = entry.rendered > 0 && entry.rendered <= asked//decoded before this flip asked, which is the only thing that makes a window worth keeping
 	await raf()//🥪 wait for clean frame boundary
 
 	folder.index = index
@@ -318,15 +323,12 @@ function cardShow(img) {//the one place an image becomes visible
 // |_| |_|\__,_|\__,_|
 //                    
 
-const showHud1Ref    = ref(false); const hud1Ref    = ref('')//upper left, on frame
-const showHud2Ref    = ref(false); const hud2Ref    = ref('')//upper right
+const showHud2Ref    = ref(false); const hud2Ref    = ref('')//upper right, empty and unshown: reserved for the Loading the ttd above _flip asks for
 const showHud3Ref    = ref(false); const hud3Ref    = ref('')//bottom, information; starts hidden so one the user turned off never flashes up before hudStart reads the setting
 const showHud4Ref    = ref(false); const hud4Ref    = ref('')//middle, help
 const showCaptionRef = ref(false); const captionRef = ref('')//caption, below card on table; hidden to start for the same reason
 function hudStart() {
 
-hud1Ref.value = 'upper left'
-hud2Ref.value = 'System operating according to normal parameters'
 hud3Ref.value = ``
 hud4Ref.value = `middle of frame
 this HUD will likely be a card showing the user all the
@@ -335,9 +337,9 @@ show and hide, such as by pressing the [H]elp or just [Spacebar]
 and here is yet another line`
 
 captionRef.value = `A multimedia file manager designed
-with privacy and precision in mind`//no terminating newline, if that matters
+with privacy and precision in mind`//placeholder text, set once: the caption is meant to carry the image's path and natural size, and nothing updates it on a flip yet
 
-	showHud3Ref.value    = settings.hud.information//where these two start; [i] toggles this one from there, and nothing toggles the caption yet
+	showHud3Ref.value    = settings.hud.information//where these two start; [i] toggles this one from there, and no key toggles the caption yet
 	showCaptionRef.value = settings.hud.caption
 
 	updateInformation()
@@ -351,7 +353,8 @@ function toggleHelp()        { showHud4Ref.value = !showHud4Ref.value }
 function updateInformation() {
 	if (!showHud3Ref.value) return//a hidden hud builds no string and touches no ref, so measuring with it off measures fuji rather than fuji plus a readout
 	let s = 'no image loaded'
-	if (here?.img && quiverC?.card2) {
+	if (here?.error) s = `${here.path}\ncould not be shown: ${here.error}`//the card is showing the error placeholder, so name the file and what it said rather than claiming nothing is loaded
+	else if (here?.img && quiverC?.card2) {
 		let f = cacheFootprint()//the store's running totals, free to read because they are kept rather than walked
 s = `${here.path}
 natural ${here.img.naturalWidth} width x ${here.img.naturalHeight} height, ${saySize4(here.blobBytes)} (${sayGroupDigits(here.blobBytes)} bytes)
@@ -415,7 +418,6 @@ let here = null//the store's entry for the image on the card, which is where the
 	</div>
 
 	<!-- HUD, inside the frame, next to the card -->
-	<div v-if="showHud1Ref" class="myHud myDry absolute top-4 left-4">{{hud1Ref}}</div>
 	<div v-if="showHud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
 	<div v-if="showHud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
 	<div v-if="showHud4Ref" class="myHud myDry absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">{{hud4Ref}}</div>

@@ -1,4 +1,4 @@
-<script setup>//./components/MyList.vue
+<script setup>
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {

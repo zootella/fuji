@@ -1,5 +1,3 @@
-//./src/cache.js
-
 import parse from 'path-browserify'
 import {diskRead} from './disk.js'
 import {imageTypes} from './components/library.js'
@@ -16,11 +14,10 @@ An entry holds two things over one file. The blob is raw material: any decode at
 
 The store owns the object url for as long as it owns the entry. library.js says why fuji avoided object urls until now — "URL.createObjectURL saves memory, but creates a resource that could leak" — and that is exactly right, so urls are made in one place here and revoked in one place, cacheFree, and no view touches either. Revoking the moment decode() resolves was tried and taken back out: a loaded element does go on displaying without its url, but an element the page is not showing can have its decoded frame dropped by the engine, and then showing it again has to rebuild from source. A revoked url leaves nothing cheap to rebuild through. Whether that is really happening here is what the store and paint halves of the flip on the hud are for; until they say, keeping the url costs one line in a function that already runs.
 
+No judgement about how much is too much lives here either. The store counts what it holds and will tell anyone who asks, but deciding that a number is alarming means knowing what the user is looking at, which is the same knowledge an eviction policy would need and the same reason it is not here. A view that wants to complain about its own footprint is the one with enough context to mean it.
+
 This first iteration decodes only at natural size, because a table is the only caller today. The sheet will want small ones, made from the same blob with createImageBitmap, and that is a second product beside img rather than a second store.
 */
-
-const cacheCeiling = 1024*1024*1024//a gigabyte held, past which something is probably wrong; not a limit, a line to complain at
-const cacheStale = 5*60*1000//five minutes untouched while still referenced, which is what a leak looks like from here
 
 const cacheEntries = new Map()//path to entry, and the only place fuji keeps images
 let cacheBlobBytes = 0//running totals rather than a walk, because the hud reads them from the pan path
@@ -31,20 +28,18 @@ export function cacheNeed(path, holder) {//take a reference and get the image; a
 	if (!entry) {
 		entry = {
 			path,
-			blob: null,//the file's bytes, the raw material for any decode at any size and for a hash later
+			blob: null,//the file's bytes, kept for a decode at another size or a hash later; nothing reads it yet, and it costs nothing, because the url below holds these bytes either way
 			url: '',//one object url over that blob, kept alive so re-showing the element is a rebuild from source rather than a full decode
 			img: null,//the decoded element, which is the thing a table puts on screen
 			blobBytes: 0, pixelBytes: 0,//counted on the entry so dropping it can subtract exactly what it added
 			references: new Map(),//holder name to how many times that holder has asked
-			requested: Date.now(), loaded: 0, rendered: 0,//two durations: getting the bytes, then decoding them
-			touched: Date.now(),//when it was last asked for, which is the only way to spot a holder that has forgotten about it
+			requested: performance.now(), loaded: 0, rendered: 0,//two durations: getting the bytes, then decoding them. performance.now everywhere, because these are intervals and it cannot jump the way a wall clock can
 			error: null,
 		}
 		cacheEntries.set(path, entry)
 		entry.promise = cacheLoad(entry)//two callers arriving together share this one load, which is bookkeeping rather than judgement
 	}
 	entry.references.set(holder, (entry.references.get(holder) || 0) + 1)
-	entry.touched = Date.now()
 	return entry.promise
 }
 
@@ -63,25 +58,10 @@ export function cacheFootprint() {//what fuji is holding, in the two units that 
 	return {count: cacheEntries.size, blobs: cacheBlobBytes, pixels: cachePixelBytes}
 }
 
-export function cacheTrouble() {//everything that looks wrong, said plainly; walks the store, so ask rarely and never from a frame
-	let trouble = []
-	let held = cacheBlobBytes + cachePixelBytes
-	if (held > cacheCeiling) trouble.push(`holding ${Math.round(held/1048576)} MiB, past the ${Math.round(cacheCeiling/1048576)} MiB line`)
-
-	let now = Date.now()
-	let forgotten = new Map()//holder to how many of its references nobody has asked about in a long time
-	for (let entry of cacheEntries.values()) {
-		if (now - entry.touched < cacheStale) continue
-		for (let holder of entry.references.keys()) forgotten.set(holder, (forgotten.get(holder) || 0) + 1)
-	}
-	for (let [holder, count] of forgotten) trouble.push(`${holder} still holds ${count} images nothing has asked for in ${Math.round(cacheStale/60000)} minutes`)
-	return trouble//nothing is freed here on purpose: a safety that tidied up after a leaking view would hide the bug it exists to show
-}
-
 async function cacheLoad(entry) {//read the file and decode it, recording what each half cost
 	try {
 		let bytes = new Uint8Array(await diskRead(entry.path))
-		entry.loaded = Date.now()
+		entry.loaded = performance.now()
 
 		entry.blob = new Blob([bytes.buffer], {type: imageTypes[parse.extname(entry.path).toLowerCase()] || 'application/octet-stream'})//the array is not kept: making a blob copies, so holding both would be two copies of every file
 		entry.blobBytes = entry.blob.size; cacheBlobBytes += entry.blobBytes
@@ -91,7 +71,7 @@ async function cacheLoad(entry) {//read the file and decode it, recording what e
 		entry.img.src = entry.url
 		await entry.img.decode()//throws on data an image decoder cannot use
 		if (entry.img) {//still ours: a release landing during the decode has already run cacheFree, which empties the entry, and measuring what it no longer holds would record a good file as a broken one
-			entry.rendered = Date.now()
+			entry.rendered = performance.now()
 			entry.pixelBytes = entry.img.naturalWidth * entry.img.naturalHeight * 4//an estimate, and known to be low: a decoder may pad rows or keep a copy on the gpu
 			cachePixelBytes += entry.pixelBytes
 		}

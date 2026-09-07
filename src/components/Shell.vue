@@ -1,13 +1,17 @@
-<script setup>//./components/Shell.vue - owns the window; draws nothing
+<script setup>//owns the window; draws nothing
 
 import {ref, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {raf, forwardize, revealWindow} from './library.js'
 import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'
-import {experimentRun} from '../experiment.js'//TEMPORARY
+import {meterStart} from '../meter.js'//the performance log belongs to the run rather than to any one view, and the run is what the shell owns
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
 import ComicTable from './ComicTable.vue'
+import MyFlip from './MyFlip.vue'
+import MyLens from './MyLens.vue'
+import MyList from './MyList.vue'
+import MySpace from './MySpace.vue'
 
 /*
 The shell owns the window and none of the pixels. It reads the settings file, sizes and reveals the window, records where the user puts it, holds the one listener for each window event, and remembers which view was showing. It has no background, no chrome, and no HUD, so a view never has to negotiate with a parent about how it looks.
@@ -18,10 +22,21 @@ There is one sheet and there are several tables, and the two facts are separate:
 
 Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. The window is created hidden at 800 by 600, so a frame measured before the reveal is the wrong size, and a view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it when that view first comes on screen, and the view makes it happen only once.
 
+Every handoff below is optional, start included. A view answers only the calls it has a use for, which is what lets a retired experiment be listed among the tables and shown without first being taught the contract. A real table that forgot start() would measure nothing rather than throw, which is the price.
+
 The settings read is wrapped because the reveal below must happen either way. A window that never appears is an application with no way to tell anyone what went wrong, which is the same reason revealWindow shows the window from a finally.
 */
 
-const tables = {Diamond: DiamondTable, Comic: ComicTable}//every table fuji has; a new one is a line here and nothing else
+const tables = {//everything the shell can show in place of a table; view.table in fuji.toml names one, so trying another is an edit to that file rather than to this one
+	Diamond: DiamondTable,
+	Comic:   ComicTable,
+
+	//retired experiments from before the shell existed, kept runnable rather than only readable. Flip and Space add their own window listeners, from when a table owned its events, so while one of those is showing a key reaches it twice — once from here and once from itself. Harmless for looking at them, and the reason not to build anything new on one
+	Flip:  MyFlip,//data url path and img triad
+	Lens:  MyLens,//img tag with gamma and pixelated
+	List:  MyList,//the images in a dragged folder, and the panel's real resolution from rust
+	Space: MySpace,//pink polka dots
+}
 
 const sheetRef   = ref(null)
 const tableRef   = ref(null)
@@ -42,18 +57,18 @@ onMounted(async () => {
 		whichTable.value = 'Diamond'
 		settings.view.table = whichTable.value; settingsChanged()//written back, so a name fuji cannot use is repaired in the file the same way a bad value anywhere else in it is
 	}
+	meterStart(`${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`)//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	await nextTick()//let vue place the right view before the window appears
 
 	await revealWindow(settingsWindowRect())
 	await raf()//the window is up and resized; let the viewport report its new dimensions before the view measures them
-	activeView().start()
+	activeView()?.start?.()
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
 	unlistenFileDrop = await w.onDragDropEvent(event => {
-		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView().onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
+		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView()?.onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
 	})
-	experimentRun().catch(error => console.error('experiment:', error))//TEMPORARY, and last so nothing above waits on it
 	if (settings.window.remember) {//record where the user puts the window, so it comes back there next launch; both events report physical pixels, as the file holds them
 		await recordWindow(w)//the events below report only changes, so without this a session where the user never touches the window records nothing
 		unlistenMoved   = await w.onMoved(  ({payload}) => { if (isFullscreen()) return; settings.window.x     = payload.x;     settings.window.y      = payload.y;      settingsChanged() })
@@ -74,9 +89,9 @@ function activeView() { return showing.value == 'Sheet' ? sheetRef.value : table
 function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
 	if (e.key == 'c') { reportTrouble(() => showView(showing.value == 'Sheet' ? 'Table' : 'Sheet')); return }//the shell's own key, and never passed down
-	reportTrouble(() => activeView().onKey(e))
+	reportTrouble(() => activeView()?.onKey?.(e))
 }
-function onResize() { reportTrouble(() => activeView().onResize()) }
+function onResize() { reportTrouble(() => activeView()?.onResize?.()) }
 async function reportTrouble(work) {//a window event is where the platform starts fuji's code running, so anything the view throws has nowhere to land but here
 	try { await work() } catch (error) { console.error('handling a window event:', error) }//the work is handed in unrun so this catches a handler that throws on the way in, not only one that rejects later
 }
@@ -86,7 +101,7 @@ async function showView(name) {//show the sheet or the current table; both stay 
 	showing.value = name
 	settings.view.showing = name; settingsChanged()
 	await nextTick()//v-show has been applied, so the view arriving has a layout box and can measure itself
-	activeView().start()
+	activeView()?.start?.()
 }
 
 async function recordWindow(w) {//write down the window fuji has right now, for the settings file to carry to the next launch
@@ -97,7 +112,7 @@ async function recordWindow(w) {//write down the window fuji has right now, for 
 	settingsChanged()
 }
 function isFullscreen() {//a window the size of the screen is not one the user placed, so it must not become the one fuji remembers
-	return tableRef.value.isFullscreen()//the table is asked whichever view is showing, because only a table enters fullscreen and it keeps the flag; the operating system will not report simple fullscreen, so there is nobody else to ask
+	return tableRef.value?.isFullscreen?.()//the table is asked whichever view is showing, because only a table enters fullscreen and it keeps the flag; the operating system will not report simple fullscreen, so there is nobody else to ask. Optional like every other handoff, so a table that does not do fullscreen is simply never in it
 }
 
 </script>

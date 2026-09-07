@@ -15,12 +15,16 @@ Made with
 ### Scripts
 
 ```
-$ yarn install
-$ yarn build
-$ yarn local
+$ pnpm install
+$ pnpm local        # run in dev mode with hot reload
+$ pnpm build        # release build, all the way to the dmg
 ```
 
+pnpm comes from corepack rather than a global install, and reads the `packageManager` field in package.json to run the exact version this project pins. CLAUDE.md lists the rest of the build trail.
+
 ### Scaffolded on macOS
+
+The commands below are the original scaffolding from July 2025, kept as a record. Fuji moved from yarn to pnpm in August 2026.
 
 ```
 $ yarn create tauri-app fuji
@@ -35,14 +39,15 @@ $ yarn create tauri-app fuji
 
 Executable and installer on mac
 ```
-./fuji/src-tauri/target/release/bundle/macos/fuji.app
-./fuji/src-tauri/target/release/bundle/dmg/fuji_0.1.0_aarch64.dmg
+./src-tauri/target/release/bundle/macos/Fuji.app
+./src-tauri/target/release/bundle/dmg/Fuji_0.1.0_aarch64.dmg
 ```
 
-Executable and installer on windows
+Executable and installers on windows
 ```
-./fuji/src-tauri/target/release/fuji.exe
-./fuji/src-tauri/target/release/bundle/windows/fuji-0.1.0-x86_64.exe
+./src-tauri/target/release/fuji.exe
+./src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
+./src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
 ```
 
 ## Setup macOS

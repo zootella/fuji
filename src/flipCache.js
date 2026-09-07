@@ -1,5 +1,3 @@
-//./src/flipCache.js
-
 import {cacheNeed, cacheRelease} from './cache.js'
 import {settings} from './settings.js'
 
@@ -12,10 +10,10 @@ What the triad was also doing, and this file keeps, is showing an element that a
 
 Loads race. There is no queue and no priority here, on purpose — the store has none either, and a table asking for eleven images is not the case that needs scheduling. A sheet asking for five hundred is, and that is the sheet's problem to solve when it exists.
 
-Every reference this file takes is labelled, so if these images are ever held after the table has stopped wanting them, cacheTrouble names the table rather than reporting an anonymous pile of memory.
+Every reference this file takes is labelled, so a leak has a name. The store keeps holder to count on every entry, so if these images are ever held after the table has stopped wanting them, what is holding them says DiamondTable rather than reporting an anonymous pile of memory.
 */
 
-const flipCacheHolder = 'DiamondTable'//the name that appears in cacheTrouble if these references are ever forgotten
+const flipCacheHolder = 'DiamondTable'//the name on every reference this file takes, so a forgotten one is attributable
 
 let flipCacheHeld = new Map()//path to the promise the store gave back, for exactly the paths this window has a reference to
 

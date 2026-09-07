@@ -1,45 +1,37 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
+# dependencies and build output, both sides of the app; one file at the root covers vite and cargo together
 node_modules
 dist
-dist-ssr
-*.local
+/src-tauri/target/
+/src-tauri/gen/schemas
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-#logs and diffs
+# logs and diffs
 logs
 *.log
 *.diff
 diff*.txt
 
-#os and other
+# environment files, kept because these are the patterns that would otherwise commit a secret one day; vite reads .env and .env.<mode>, and tauri's signing and notarization credentials are environment variables
+.env
+.env.*
+*.local
+
+# editors and agents
+.vscode/*
+!.vscode/extensions.json
+.idea
+.fleet
+.claude/RESUME.md
+.claude/settings.local.json
+
+# os junk, mac and windows
 .DS_Store
 ._*
 Thumbs.db
 ehthumbs.db
 desktop.ini
 *.stackdump
-.fleet
-.idea
 
-#private planning and notes; "hide" as a dot-separated part of a file or folder name stays out of the public repo
+# private planning and notes; "hide" as a dot-separated part of a file or folder name stays out of the public repo
 hide
 hide.*
 *.hide

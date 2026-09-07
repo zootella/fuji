@@ -14,6 +14,18 @@ The cache went through three shapes before this one, and each failed for the sam
 
 **What is left is worth centralising precisely because it is not clever**: one place that knows a path's bytes, its object url, its decoded pixels, and what each of those cost. One owner, so nothing is loaded twice and nothing is freed twice or never.
 
+## Whose company this code keeps
+
+There is a second reason for restraint, and it has nothing to do with layering. Fuji's cache is a few hundred lines sitting between two of the most heavily optimised pieces of software most people will ever run.
+
+**Underneath is the operating system.** Decades of work on filesystems, readahead, and a page cache that already keeps recently read files in memory, shared between processes, evicting on system-wide pressure fuji cannot see. Reading a file twice is usually already free, and nothing fuji writes will beat that at its own game.
+
+**Above is the rendering engine.** Google has had something like a thousand engineers on Chromium for over a decade, much of it aimed squarely at making pictures appear quickly, because their business depends on it. WebKit is not far behind. Image decoding, raster caches, texture upload, and what to discard under memory pressure are all decided in there, by people who have measured far more than fuji ever will.
+
+**Both of those have already overruled us once each.** The read that looked like slow disk was fuji's own IPC turning bytes into JSON, and the operating system was never the problem. The window that held eleven decoded images held eleven elements whose pixels the engine dropped on its own schedule, and no policy fuji writes can change that. `performance.md` has both, with numbers.
+
+**So the honest posture is humility.** Any cleverness here is a guess about the behaviour of two systems fuji can only observe from outside, and the guess has been wrong more often than right so far. Write the smallest thing that could work, measure it in the running app, keep what the measurement defends, and take out what it does not. A strategy that cannot be shown to help is not neutral — it is complexity paid for with nothing, sitting in the path of the two systems that were doing fine without it.
+
 ## The commands
 
 Views do all the thinking and say what they want in two words:
@@ -39,7 +51,9 @@ That is the whole protocol. No hints, no priorities, no promises about what will
 
 **Two products over one file, and a name for one of them.** The blob is what anything future is made from — a thumbnail with `createImageBitmap`, a SHA-256 hash, a re-decode after the engine drops one. The img is the finished thing. The url is neither: it is the handle the img was built through, kept because it is the cheap way back if the engine ever drops what it built.
 
-**The blob costs about 6% of the entry**, and the argument for it got weaker the day `disk_read` started returning raw bytes. Re-reading a file is cheap now. The blob stays because it is the raw material for a thumbnail, a hash, and a re-decode, not because reading is expensive.
+**Holding the blob costs nothing at all**, which took a while to see. `createObjectURL` keeps a strong reference to a blob until its url is revoked, so the bytes are retained by the url whether or not the entry also points at them — and the entry does, only so a later product can be made from it without going back to the disk. An earlier version of this file called it a 6% overhead. It is not overhead; it is a name for something already being kept.
+
+Nothing reads it today. A thumbnail with `createImageBitmap` and a SHA-256 hash are the named uses, and both are the sheet's, so the field is a hook waiting for its first caller rather than a cost.
 
 **A table shows the store's element itself.** It does not point an element of its own at the same picture, because that pays the whole decode again. This is the single most important thing in this file and it was learned the hard way.
 
@@ -69,19 +83,13 @@ This is the triad grown up: same job, no fixed three. The half of the triad that
 
 ## The safety
 
-**Nothing else can see the total.** A view knows what it asked for; only the store knows what fuji is actually holding, so noticing that something has gone wrong is its one job that is not simply obedience. The point is not to recover — it is to not smile while broken.
-
 **A reference carries a label, not just a count.** `need(path, holder)` and `release(path, holder)`, where the holder is the view and what it is holding for. The cost is a string; the return is that a leak has a name. Three thousand entries and a number tells you fuji is holding 3.2 GB, which is a mystery. The same three thousand with labels tell you the sheet is holding four hundred thumbnails it stopped showing four minutes ago, which is a bug report.
 
-Three signals, and they deserve different reactions:
+**A release that was never needed** — or one more release than there were needs — is an exact programmer error, and it throws, carrying the path and the holder. This is the guard family from `style.md`: a mistake caught at the boundary the moment it happens rather than corrupting quietly below. It is the one thing the store refuses to be relaxed about, because it is the one mistake the store can be certain of without knowing anything about views.
 
-- **A release that was never needed** — or one more release than there were needs — is an exact programmer error, and it throws, carrying the path and the holder. This is the guard family from `style.md`: a mistake caught at the boundary the moment it happens rather than corrupting quietly below.
-- **Referenced but not touched in a long while** is a leak signal, not a certainty — a table legitimately holds its window while the user studies one image for ten minutes. So it warns rather than throws, and the label is what makes the warning worth reading.
-- **Past a ceiling** is the HUD saying so plainly, in both units, because a number that only ever grows is not an alarm until somebody looks at it.
+**Everything softer than that belongs above.** An earlier iteration had the store decide that a gigabyte was too much, or that five minutes untouched looked like a leak, and say so. Both were taken out: a threshold is a judgement, a judgement needs to know what the user is doing, and that is the same knowledge an eviction policy would need — the knowledge this whole design keeps out of the middle. A store that complains is one short step from a store that tidies up, and a store that tidies up hides the bug it was built to expose.
 
-**Two calls, because they cost differently.** The footprint is running totals, kept as things are held and let go, so a HUD can read it from the pan path for nothing. Finding trouble means walking every entry, so it is a separate call that a HUD asks rarely and never inside a frame.
-
-**None of these free anything.** The store still only lets go on command. A safety that quietly fixed the problem would be intelligence in the middle again, and would hide the bug it was built to expose.
+**What is left is counting.** The footprint is running totals, kept as things are held and let go, so a view can read it from the pan path for nothing. It is a fact rather than an opinion, and the view that reads it is the one with enough context to decide whether the number is alarming. A table watching its own window, or a sheet watching its thumbnails, knows what it asked for and why; the store never will.
 
 ## What is not stored: bytes as a cache
 
@@ -95,9 +103,23 @@ Stateless helpers in `library.js`, holding nothing: read a path into a blob and 
 
 The existing data-url pair stays for now, alongside rather than replaced. A data url is **self-contained** — a string that carries its own bytes and needs no owner — where an object url is a **reference** that means nothing without the blob behind it. That is a real difference, not just convenience, and it may yet find a caller. If it does not, it gets deprecated and then deleted rather than quietly kept.
 
+## What it is worth even if it is never faster
+
+Suppose the honest answer to all of the above is that fuji cannot beat the page cache or outguess the renderer, and the store makes nothing faster. It still earns its place, because speed is not the only thing one owner of every path is good for. These are sketches for a later iteration, not commitments.
+
+**Content identity, hashed when nothing else is happening.** A SHA-256 over an entry's blob gives fuji a name for the bytes rather than for the path. Two paths naming identical bytes — the same photograph in a downloads folder and in a sorted one, a file copied rather than moved — become one entry, decoded once. The hashing is cheap on modern hardware but it is not free, and this session's hardest lesson is that main-thread work lands on somebody's frame, so it belongs in idle time and never on the path of a load a view is waiting for.
+
+**Failures remembered by content, not just by name.** The store already remembers that a path failed, so one broken file in a folder is not read again on every pass. A hash extends that to the same bad bytes under a different name. The distinction is worth being exact about: a file that fails to *read* produces no bytes and so no hash, and stays remembered by path alone. It is the file that reads fine and then fails to *decode* — truncated, mislabelled, a format the engine will not take — that a content hash can recognise anywhere it appears.
+
+**All of this is within one session.** Nothing is written to disk and nothing survives a restart, which is what keeps it simple: a hash taken now describes bytes fuji has in hand right now. Persisting hashes would mean deciding when a stored hash has gone stale, and that is invalidation — a much larger problem, and the reason the current store assumes a file at a path never changes.
+
+**Note what hashing does not give.** It identifies bytes fuji has already read; it does not detect that a file on disk has changed, because noticing that would mean reading it again, which is the cost the hash was meant to avoid. Change detection needs `disk_stat` and a modification time, which is a different mechanism for a different question.
+
 ## What the measurements said
 
 `performance.md` carries everything the running app has measured, with the numbers and the reasoning. What follows is the bench that came before it, kept because two of its lines are still the reason the store holds elements at all — and because one of them was wrong in a way worth remembering.
+
+The bench itself is gone. It lived in `experiment.js`, it ran on every launch, and it left a 26-megapixel decode attached to the document and three object urls unrevoked, which means every measurement fuji took while it existed was taken under a handicap nobody had noticed. Deleted 2026-09-06; `meter.js` asks the better question anyway, which is what a flip costs in the running app rather than what a decode costs on a bench.
 
 One question could not be reasoned out: whether an `<img>` that is not in the document keeps its decoded pixels. `img.decode()` answers it, resolving at once for an image already decoded. On a 6240 × 4160 progressive JPEG, 5.95 MiB on disk and 99 MiB decoded, in the tauri webview on macOS:
 
@@ -144,6 +166,6 @@ Small on purpose, and meant to produce measurements rather than to be right abou
 
 **What the sheet's thumbnail sizes are**, and whether a resize really means releasing everything or whether a larger decode can serve a smaller display without the full-size problem coming back.
 
-**Identity.** Paths, with the assumption that a file at a path never changes. Hashing the bytes with SHA-256 would give a second index by content, so one entry serves every path naming the same file, and it is also where invalidation starts, since a changed file is a changed hash.
+**Identity.** Paths, with the assumption that a file at a path never changes. A second index by content is sketched above, under what the store is worth even if it is never faster; what is open is whether the duplicates it would catch are common enough in real folders to pay for it.
 
 **Whether a hit should be synchronous**, so a view that already has an image can paint in the same frame instead of after an await.

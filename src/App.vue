@@ -1,4 +1,4 @@
-<script setup>//./src/App.vue
+<script setup>
 
 import Shell from './components/Shell.vue'
 

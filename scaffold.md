@@ -28,7 +28,7 @@ If scaffolding inside an existing pnpm workspace: confirm the workspace's pnpm-w
 
 ## 3. Align versions to fuji
 
-Set package.json to fuji's current versions (snapshot: vite ^8.2.2, @vitejs/plugin-vue ^6.0.8, vue ^3.5.41, @tauri-apps/api ^2.11.1, @tauri-apps/cli ^2.11.4, @tauri-apps/plugin-opener ^2.5.4; add @tauri-apps/plugin-fs ^2.5.1 when disk work begins). Then `pnpm install`.
+Set package.json to fuji's current versions (snapshot: vite ^8.2.2, @vitejs/plugin-vue ^6.0.8, vue ^3.5.41, @tauri-apps/api ^2.11.1, @tauri-apps/cli ^2.11.4, @tauri-apps/plugin-opener ^2.5.4). Do not add @tauri-apps/plugin-fs: fuji removed it and wrote disk.rs instead, which is the module section 7 below prepares to receive. Then `pnpm install`.
 
 On the Rust side, keep the scaffold's Cargo.toml shape and `edition = "2021"` (deliberate — matches Tauri's template; fuji stayed there too), and run a full `cargo update`. Two lessons fuji learned the hard way:
 

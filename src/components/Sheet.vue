@@ -1,4 +1,4 @@
-<script setup>//./components/Sheet.vue - the contact sheet: one folder, seen whole
+<script setup>//the contact sheet: one folder, seen whole
 
 /*
 A stub, and the shape is the point. Fuji has one sheet and several tables, and the shell hands a window event to whichever is showing, so every view answers the same small set of calls. This one answers them by doing nothing, which is what lets the switching be built and proven before there is anything to switch to.

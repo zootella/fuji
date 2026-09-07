@@ -12,6 +12,15 @@ Fuji is a multimedia file manager designed with privacy and precision in mind. I
 
 The application displays images in an infinite pannable/zoomable space with keyboard navigation, drag-and-drop support, and full-screen mode.
 
+**The planning documents, and what each is for.** Read the first two before changing anything structural:
+- `structure.md` — the vocabulary: what the parts are called, how many there are of each, and which ones the user swaps between
+- `architecture.md` — the four layers, and where a value or a view belongs
+- `cache.md` — images: what is held, and why the store is deliberately dumb
+- `performance.md` — what any of it costs, measured, with the instrument that measured it
+- `sort.md` — the orders fuji will show a folder in, researched and planned
+- `style.md` — how the code itself is written; read it before the first edit
+- `scaffold.md` — how a project like this one is set up
+
 ## Development Commands
 
 ### Setup
@@ -51,19 +60,27 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **Key Modules**:
 - `disk.rs` - File I/O commands for JavaScript to invoke:
-  - `disk_readdir()` - List directory contents (POSIX-like readdir)
-  - `disk_stat()` - Get file metadata (POSIX-like stat)
-  - `disk_read()` - Read entire file into memory
-  - `disk_copy()` - Efficient file copying using kernel-space operations
+  - `disk_readdir()` - List directory contents (POSIX-like readdir), shallow, skipping entries it cannot stat
+  - `disk_stat()` - Get file metadata (POSIX-like stat), describing a symlink rather than following it
+  - `disk_read()` - Read an entire file, returning `tauri::ipc::Response` so the bytes cross as an ArrayBuffer rather than a JSON array of numbers
+  - `disk_write()` - Create or truncate a file and write bytes
+  - `disk_copy()` - Efficient file copying using kernel-space operations; overwrites the destination
 
 - `panel.rs` - Hardware display resolution detection:
   - `panel_resolution()` - Returns physical pixel dimensions via platform-specific APIs
   - Platform implementations for Windows (Win32), macOS (CoreGraphics), and Linux (xrandr)
+  - Answers about the primary display only, and asks every mode the display offers because no API reports the native one
+
+- `desktop.rs` - The one thing only Rust can do, because only Rust sees a quit coming:
+  - `desktop_exit_hold()` - Replace the text to write to a path when the application exits
+  - `desktop_exit_append()` - Add to the end of it instead, for a caller producing its file a line at a time
+  - Written from `RunEvent::Exit`, the one event every way of quitting reaches
 
 **Command Registration**: All Rust functions exposed to JavaScript must be registered in `lib.rs::run()` using `tauri::generate_handler![]`
 
 **Important Architecture Notes**:
 - File I/O uses synchronous operations; `disk_read()` loads entire files into memory (suitable for images, not large files)
+- `disk.rs` holds no guard on paths, deliberately: its opening essay is the contract, and the walls are outside the file
 - Comments in `disk.rs` extensively document memory efficiency tradeoffs between direct reads vs. streaming
 - Platform-specific code uses `#[cfg(target_os = "...")]` attributes for Windows/macOS/Linux
 
@@ -74,15 +91,27 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 `main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view or a new home for state: it carries the layers, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Key Components**:
-- `DiamondTable.vue` - One of fuji's tables, showing a single image; the shell owns the window and hands it events:
-  - Event handling (keyboard, mouse, wheel, drag-drop, resize)
-  - Triad pattern: maintains 3 image elements (prev, current, next) for smooth navigation
+- `Shell.vue` - Owns the window and none of the pixels: reads settings, sizes and reveals the window, records where the user puts it, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
+- `Sheet.vue` - The contact sheet, a stub. One folder seen whole
+- `DiamondTable.vue` - One of fuji's tables, showing one image sized to an invisible diamond on an infinite pannable plane:
+  - Handles the events the shell hands it, plus wheel, pointer, and double-click on its own element
   - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
+  - Shows the cache's own `<img>` element, adopted into its card — never one of its own pointed at the same picture
   - HUD overlays for help and information display
+- `ComicTable.vue` - Another table, a stub. One image full width, read down a vertical scroll
+
+**Image layer**:
+- `cache.js` - A store, not a strategy: `cacheNeed(path, holder)` and `cacheRelease(path, holder)` with labelled reference counts. Holds a blob, one object url, and a decoded `<img>` per path. No queue, no eviction policy, nothing freed except on command
+- `flipCache.js` - The diamond table's policy over that store: hold a window of `flip.back` and `flip.forward` images around the current one, release what falls out
+- `meter.js` - The performance log, off unless `meter.record` says otherwise. Records every load and every flip, touches no disk during the session, and hands rows to Rust to write at exit
+- `settings.js` - `fuji.toml`: one schema is the only place a setting is defined, and the file repairs itself on every launch
 
 **JavaScript Modules**:
 - `disk.js` - Thin wrapper exposing Rust commands to JavaScript:
-  - `diskRead(path)`, `diskReadDir(path)`, `diskStat(path)`, `diskCopy(source, destination)`
+  - `diskRead(path)`, `diskWrite(path, data)`, `diskReadDir(path)`, `diskStat(path)`, `diskCopy(source, destination)`
+
+- `desktop.js` - Exposes the exit-write commands:
+  - `desktopExitHold(path, text)`, `desktopExitAppend(path, text)`
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`
@@ -91,14 +120,16 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - `xy(a, o, b)` - Vector math for {x, y} arrows (add, subtract, multiply, divide, compare)
   - `forwardize(path)` / `backize(path)` - Path normalization for cross-platform compatibility
   - `listSiblings(path)` - List all image files in same directory
-  - `readAndRenderImage(img, path)` - Load image file and decode into img element
+  - `revealWindow(rect)` - Size the hidden window and show it; the window is created invisible so it never appears at one size and jumps
+  - `readAndRenderImage(img, path)` - Load a file into an img element as a data url; the retired experiment components are its only callers
   - `screenToViewport()` - Calculate viewport position accounting for CSS/backing/physical pixels
   - `sayGroupDigits(n)`, `saySize4(n)` - Format numbers for display
 
 **Key Patterns**:
 - All paths are "forwardized" on entry (backslashes → forward slashes) and "backized" for Windows display
-- Images are loaded as data URLs via: disk → Rust bytes → Blob → data URL → img.src → decode()
-- The "triad" maintains 3 img tags (prev/here/next) to enable instant flipping without loading delays
+- Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed
+- A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
+- A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 
 ### Styling

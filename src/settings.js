@@ -1,5 +1,3 @@
-//./src/settings.js
-
 import {homeDir} from '@tauri-apps/api/path'
 import {parse as parseToml} from 'smol-toml'//parseToml, so the name parse stays free for path-browserify below
 import parse from 'path-browserify'
@@ -12,21 +10,84 @@ const settingsHeader = `# fuji.toml — fuji reads this file when it starts and 
 
 //every setting fuji has, and the only place any of them is defined; a check, where the type alone isn't enough, has to accept the factory value or an ordinary file would report a problem against itself
 const settingsSchema = [
-	{section: 'view',       key: 'showing',     factory: 'Table',   comment: 'which kind of view fuji was showing when it last closed, so it opens there again: Sheet for the contact sheet, Table for whichever table', check: value => value == 'Sheet' || value == 'Table'},
-	{section: 'view',       key: 'table',       factory: 'Diamond', comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead'},
-	{section: 'flip',       key: 'back',        factory: 5,         comment: 'how many images before the one on screen a table keeps decoded, so flipping back to them is instant instead of a fresh read and decode; one is the smallest that works, because a table always holds the image on either side of the one it is showing, and one here with one forward is the behaviour fuji had before it kept a window', check: value => Number.isInteger(value) && value >= 1},
-	{section: 'flip',       key: 'forward',     factory: 5,         comment: 'and how many after it; flipping forward is the common direction, so this is the one to raise first if a folder of large images still makes the user wait', check: value => Number.isInteger(value) && value >= 1},
-	{section: 'window',     key: 'remember',    factory: true, comment: 'remember the size and position of the window from launch to launch; when false, fuji sizes its window to a fraction of the desktop and lets the operating system place it'},
-	{section: 'window',     key: 'x',           factory: 0,    comment: 'the window fuji last recorded, in physical pixels, and read only when remember is true; a width or height that is not positive means fuji has not recorded a window yet, and it sizes itself to the desktop instead'},
-	{section: 'window',     key: 'y',           factory: 0},
-	{section: 'window',     key: 'width',       factory: 0},
-	{section: 'window',     key: 'height',      factory: 0},
-	{section: 'zoom',       key: 'step',        factory: 1.25, comment: 'how much one press of + or - grows or shrinks the image', check: n => n > 1},
-	{section: 'fullscreen', key: 'curtain',     factory: true, comment: 'black out the frame through a fullscreen transition, which hides an occasional one-frame shear at the cost of a blink; the user chose true by feel'},
-	{section: 'hud',        key: 'information', factory: true, comment: 'show the information panel along the bottom of the frame, the one [i] toggles; fuji writes this back as you turn it on and off, so it comes back the way you left it'},
-	{section: 'hud',        key: 'caption',     factory: true, comment: 'show the caption beneath the image at startup'},
-	{section: 'meter',      key: 'record',      factory: false, comment: 'write a performance log: every image load and every flip, with what each cost, saved when fuji closes; off by default because it is for answering a question rather than for running the app, and performance.md says what the numbers mean and what they have already shown', check: value => typeof value == 'boolean'},
-	{section: 'meter',      key: 'folder',      factory: 'Documents/temp/fuji', comment: 'where those logs go, under your home folder; it has to already exist, because fuji will not make it for you, and a run that cannot write says so in the console rather than at exit where nothing could hear it', check: value => value.trim() != ''},
+	{
+		section: 'view',
+		key: 'showing',
+		factory: 'Table',
+		comment: 'which kind of view fuji was showing when it last closed, so it opens there again: Sheet for the contact sheet, Table for whichever table',
+		check: value => value == 'Sheet' || value == 'Table',
+	}, {
+		section: 'view',
+		key: 'table',
+		factory: 'Diamond',
+		comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead',
+	}, {
+		section: 'flip',
+		key: 'back',
+		factory: 5,
+		comment: 'how many images before the one on screen a table keeps decoded, so flipping back to them is instant instead of a fresh read and decode; one is the smallest that works, because a table always holds the image on either side of the one it is showing, and one here with one forward is the behaviour fuji had before it kept a window',
+		check: value => Number.isInteger(value) && value >= 1,
+	}, {
+		section: 'flip',
+		key: 'forward',
+		factory: 5,
+		comment: 'and how many after it; flipping forward is the common direction, so this is the one to raise first if a folder of large images still makes the user wait',
+		check: value => Number.isInteger(value) && value >= 1,
+	}, {
+		section: 'window',
+		key: 'remember',
+		factory: true,
+		comment: 'remember the size and position of the window from launch to launch; when false, fuji sizes its window to a fraction of the desktop and lets the operating system place it. Read once at startup, so changing it takes effect on the next launch',
+	}, {
+		section: 'window',
+		key: 'x',
+		factory: 0,
+		comment: 'the window fuji last recorded, in physical pixels, and read only when remember is true; a width or height that is not positive means fuji has not recorded a window yet, and it sizes itself to the desktop instead',
+	}, {
+		section: 'window',
+		key: 'y',
+		factory: 0,
+	}, {
+		section: 'window',
+		key: 'width',
+		factory: 0,
+	}, {
+		section: 'window',
+		key: 'height',
+		factory: 0,
+	}, {
+		section: 'zoom',
+		key: 'step',
+		factory: 1.25,
+		comment: 'how much one press of + or - grows or shrinks the image',
+		check: value => value > 1,
+	}, {
+		section: 'fullscreen',
+		key: 'curtain',
+		factory: true,
+		comment: 'black out the frame through a fullscreen transition, which hides an occasional one-frame shear at the cost of a blink; the user chose true by feel',
+	}, {
+		section: 'hud',
+		key: 'information',
+		factory: true,
+		comment: 'show the information panel along the bottom of the frame, the one [i] toggles; fuji writes this back as you turn it on and off, so it comes back the way you left it',
+	}, {
+		section: 'hud',
+		key: 'caption',
+		factory: true,
+		comment: 'show the caption beneath the image at startup',
+	}, {
+		section: 'meter',
+		key: 'record',
+		factory: false,
+		comment: 'write a performance log: every image load and every flip, with what each cost, saved when fuji closes; off by default because it is for answering a question rather than for running the app, and performance.md says what the numbers mean and what they have already shown',
+	}, {
+		section: 'meter',
+		key: 'folder',
+		factory: 'Documents/temp/fuji',
+		comment: 'where those logs go, under your home folder; it has to already exist, because fuji will not make it for you, and a run that cannot write says so in the console rather than at exit where nothing could hear it',
+		check: value => value.trim() != '',
+	},
 ]
 
 export const settings = settingsFactory()//the live settings the rest of fuji reads, filled in at startup and never replaced, so an importer keeps the same object
@@ -101,10 +162,12 @@ export async function settingsLoad() {//read the settings file and leave it exac
 	settingsFilePath = parse.join(forwardize(await homeDir()), settingsFileName)
 
 	let text = ''
+	let unreadable = false//a file that is there and will not open, as opposed to one that is not there at all
 	try {
 		text = new TextDecoder().decode(new Uint8Array(await diskRead(settingsFilePath)))
 	} catch (error) {
-		console.log(`⭕ settings: starting a new file at ${settingsFilePath}, because reading one said: ${error}`)//no file is how fuji starts on a new machine, but a file that exists and can't be read lands here too, so say which
+		unreadable = !String(error).includes('os error 2')//both platforms number a missing file 2; anything else is a lock, a permission, or a disk saying no
+		console.log(`⭕ settings: ${unreadable ? 'leaving alone' : 'starting a new file at'} ${settingsFilePath}, because reading one said: ${error}`)
 	}
 	settingsFileText = text
 
@@ -113,6 +176,7 @@ export async function settingsLoad() {//read the settings file and leave it exac
 	for (let problem of problems) console.log(`⭕ settings: ${problem}`)
 
 	let rendered = settingsRender(settings)
+	if (unreadable) return//a file fuji could not read is one it must not overwrite: the settings in it are the user's and are still there, and writing factory values over them would be losing data to a lock
 	if (rendered != settingsFileText) {//the file is missing, or held a value fuji had to repair, or came from a fuji with fewer settings than this one
 		try {
 			await diskWrite(settingsFilePath, Array.from(new TextEncoder().encode(rendered)))//disk.rs speaks bytes because it mirrors posix, and this is the one place fuji encodes; everywhere else text stays text
@@ -126,6 +190,7 @@ export async function settingsLoad() {//read the settings file and leave it exac
 }
 
 export function settingsChanged() {//call after changing a value in settings, the way quiver() gets called after moving an arrow; hands the file down to rust, which writes it on the way out — desktop.rs has why only rust can see a quit coming
+	if (!settingsFilePath) return//settingsLoad has not run, so there is nowhere to hand anything down to
 	let text = settingsRender(settings)
 	if (text == settingsHeldText) return//rust's view already matches, which is what a move event reporting the same position produces
 	settingsHeldText = text

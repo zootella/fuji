@@ -8,7 +8,9 @@ What fuji's speed has actually been measured to be, and what those measurements 
 
 `meter.js` records every image load and every flip into an array and turns that array into a file. It never renders, because the HUD it replaced could not answer honestly — building a string and painting text in the same frame as the image being timed makes the reading part of what it reports.
 
-Turn it on with `meter.record` in `fuji.toml`; it is off at the factory. Files land in `meter.folder` under your home, named for the view and the window — `fuji-meter-diamond-10x10-2026-09-06-131234.txt` — so two runs sit side by side rather than one overwriting the other. The folder has to already exist.
+Turn it on with `meter.record` in `fuji.toml`; it is off at the factory. Files land in `meter.folder` under your home, named for the view and the window — `fuji-meter-diamond-10x10-2026-09-06-131234.txt` — so two runs sit side by side rather than one overwriting the other. The folder has to already exist. One file per run of fuji: the shell starts the log once, and no view does.
+
+**Nothing touches the disk while fuji is running.** Rows go down to Rust a few at a time, Rust holds them in memory, and the whole file is written from `RunEvent::Exit`. That is the reason `desktop_exit_append` exists — a file write on the main thread in the middle of the flips being timed is the HUD's mistake wearing different clothes. The cost is that a crash loses the log, which is the right trade for an instrument, since a crash mid-run invalidates the measurement anyway.
 
 **A flip is recorded as two numbers, not one.** `store` is the wait on the cache and `paint` is the swap reaching the screen. They have unrelated causes and unrelated fixes, and every finding below came from seeing them apart. A third column says `hit` or `miss` — whether the image was decoded *before* the flip asked for it, which is the only thing that makes a window worth keeping.
 
@@ -76,7 +78,19 @@ Twelve cases, no overlap, roughly twenty times apart. `3yellow` shows no such sp
 
 **The theory, and it is a theory.** Three layers sit under an `<img>`, and only the first is fuji's: the encoded bytes, which the blob and url hold; the decoded frame, which the engine caches and evicts on its own policy; and the rasterized layer, which `display: none` destroys outright. Layer three is rebuilt on every re-show and that is the 5–19ms floor. The 230–262ms is layer two having been evicted as well, so the frame is rebuilt before it can be rasterized. That it costs 250ms rather than `1red`'s original 1076ms is consistent — the original was measured while all six images decoded at once.
 
-**Still open: a count or a byte budget.** Two images live, so any third evicts; or roughly 200 MB of frames, which `1red` at 104 MB plus `2orange` at 67 MB fits inside and `3yellow`'s 29 MB tips over. The discriminator is a folder of small images — if the third-image-back is still slow when nothing is large, it is a count; if the effect vanishes, it is bytes and only ever bites on photographs.
+**The next day it was gone, and that is the most useful thing in this file.** The same folder, the same window, a longer walk, and every return to `1red` came back in 11 to 29ms — including returns after three intervening images, and after a full walk out to `6purple` and back past five of them. The split that had been twelve cases with no overlap simply did not appear.
+
+    shown in between                    paint, the following day
+    orange                              13, 16, 15
+    orange and yellow                   15, 29
+    orange, yellow, green               17
+    five others, out to purple and back  19, 11
+
+What changed between the runs was `experiment.js`. It ran on every launch and left a one-pixel, fully transparent `<img>` attached to `document.body` holding a decode of `1red` — about **104 MB pinned for the life of the process**, rooted in the DOM so nothing could collect it, plus three object urls never revoked. Every measurement in this file above that line was taken while fuji carried an invisible second copy of the largest image in the folder. Deleting the file removed it.
+
+**So it is a byte budget, not a count.** Five intervening images with no penalty rules the count out. Six decoded images come to roughly 316 MB and now survive; with the experiment's extra copy the working set was about 420 MB and did not. The threshold sits between, higher than the 200 MB guessed above.
+
+**And the lesson is larger than the number.** The instrument was honest and the folder was controlled, and the finding was still wrong — because something outside the experiment was consuming the resource being measured, and nothing in the log could show it. It took deleting an unrelated file for an unrelated reason to reveal it. When a measurement depends on a shared, invisible budget, the question is never only what the code under test is doing.
 
 ## What the window is worth
 
@@ -86,7 +100,9 @@ Twelve cases, no overlap, roughly twenty times apart. `3yellow` shows no such sp
 
 Holding the whole folder is clearly better than holding three, and the reason is finding two rather than finding three: at 1/1 a decode is always running somewhere near the flip, and at 10/10 nothing is.
 
-**But the ceiling is not fuji's to raise.** Beyond about two large images, holding more `<img>` elements does not hold more decodes — the engine discards them regardless, and fuji can neither observe it nor prevent it. So a byte budget in `flipCache.js` would be budgeting something fuji does not own.
+**And the window works.** An earlier reading of finding three concluded that holding more than about two large images bought nothing, because the engine discarded the rest regardless. That was measured against a handicap and is now retracted: with the leak gone, a six-image window holds six usable decodes and every return is a hit.
+
+**What fuji does not own is the budget, not the window.** The engine still decides when a hidden image's frame goes, and fuji can neither see it happen nor prevent it. What fuji can do is stay under whatever the threshold is, which is an argument for a window measured in bytes rather than in images — not so fuji can evict, but so it can avoid asking for more than the engine will keep.
 
 ## What this means for the design
 
@@ -98,7 +114,7 @@ Finding three is that paragraph, measured. The store's `pixelBytes` is an estima
 
 ## Open
 
-- **Count or bytes**, per finding three. One folder of small images answers it.
+- **Where the byte threshold actually is.** Somewhere between 316 MB, which survives, and about 420 MB, which did not. A folder of progressively more or larger images would find it.
 - **Whether Windows behaves the same.** WebView2 is Chromium and this was all WKWebView. Finding three especially is the sort of thing two engines could differ on.
 - **What a folder of hundreds does.** Everything here is six images. Retention under real pressure is untested.
 - **Whether the first decode can be made honest.** `img.decode()` resolves on a detached element that has never been in a render tree, so the store's `rendered` timestamp records something weaker than "ready to show."

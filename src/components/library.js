@@ -9,7 +9,7 @@
 //keep, this is the new unifed library to keep components short and tell what's a pure function in here
 
 import {invoke} from '@tauri-apps/api/core';
-import {getCurrentWindow, currentMonitor, LogicalSize, PhysicalSize, PhysicalPosition} from '@tauri-apps/api/window'
+import {getCurrentWindow, currentMonitor, availableMonitors, LogicalSize, PhysicalSize, PhysicalPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
@@ -139,7 +139,7 @@ export async function revealWindow(rect) {//size the hidden window and show it; 
 	let w = getCurrentWindow()
 	try {
 		if (await w.isVisible()) return//size once at startup only; a hot reload in development mounts the app again against a window that is already up
-		if (rect) {//fuji is remembering the window and has one recorded, so put it back rather than measuring anything
+		if (rect && await onSomeMonitor(rect)) {//fuji is remembering the window, has one recorded, and it still lands somewhere the user can reach
 			await w.setSize(new PhysicalSize(rect.width, rect.height))
 			await w.setPosition(new PhysicalPosition(rect.x, rect.y))//physical at both ends, exactly as the window reported it, so nothing rounds on the way back
 			return
@@ -156,6 +156,17 @@ export async function revealWindow(rect) {//size the hidden window and show it; 
 	} finally {
 		await w.show()//reveal whatever happened above, including the early returns
 	}
+}
+
+async function onSomeMonitor(rect) {//is the titlebar of this remembered window on a screen that still exists; a monitor unplugged since last launch would otherwise put fuji somewhere the user cannot drag it back from
+	let monitors = await availableMonitors()
+	if (!monitors.length) return true//nothing to check against, so trust what was recorded rather than throwing the window away
+	return monitors.some(m => {
+		let a = m.workArea
+		let grabbable = 80//enough of the top edge inside the work area to get hold of, in physical pixels
+		return rect.x + rect.width > a.position.x + grabbable && rect.x < a.position.x + a.size.width - grabbable
+			&& rect.y >= a.position.y && rect.y < a.position.y + a.size.height - grabbable//the top edge specifically, because that is the part you drag
+	})
 }
 
 export async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar

@@ -1,4 +1,4 @@
-<script setup>//./components/MyFlip.vue - image load pipeline and img triad
+<script setup>//image load pipeline and img triad
 
 //keep, current best image pipeline, and img triad under construction here
 
