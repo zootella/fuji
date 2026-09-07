@@ -36,3 +36,6 @@ hide
 hide.*
 *.hide
 *.hide.*
+
+# tauri icon writes a whole tree for the macos source; only the icns it makes is kept, in icons/mac
+src-tauri/icons/.mac

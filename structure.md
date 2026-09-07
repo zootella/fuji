@@ -75,3 +75,4 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
     performance.md     what any of it costs, measured
     style.md           how the code itself is written
     scaffold.md        how a project like this one is set up
+    icon.md            the application icon, and what each platform expects one to be

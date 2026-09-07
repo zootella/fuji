@@ -20,6 +20,7 @@ The application displays images in an infinite pannable/zoomable space with keyb
 - `sort.md` — the orders fuji will show a folder in, researched and planned
 - `style.md` — how the code itself is written; read it before the first edit
 - `scaffold.md` — how a project like this one is set up
+- `icon.md` — the application icon: fuji's design, and what each platform expects one to be
 
 ## Development Commands
 
@@ -48,6 +49,12 @@ pnpm win          # Launch the built windows exe
 pnpm dev          # Run Vite dev server without Tauri
 pnpm vite-build   # Build frontend only
 ```
+
+### Regenerate the Icons
+```bash
+pnpm icons        # rebuild every platform's icons from src-tauri/icons/app-icon.svg
+```
+One run writes the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Store logos, and the mobile trees together, so no platform needs its own run. These are committed artifacts, which means a Tauri CLI upgrade does not refresh them — re-run this after one. `icon.md` says why that matters and what it has already cost.
 
 ### Clean Build Environment
 There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair were yarn-classic-era crutches — that ecosystem needed frequent clean reinstalls; pnpm's store does not. If a genuine mess ever needs clearing, delete `dist`, `node_modules`, or `src-tauri/target` by hand — and never delete the tracked lockfiles: pnpm-lock.yaml and Cargo.lock serve both mac and windows, and removing them to fix a problem is the anti-pattern that motivated the pnpm switch.

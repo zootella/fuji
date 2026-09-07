@@ -71,3 +71,13 @@ Fuji's git history (August 2026, the modernization sprint commits) records how e
 The sister project will take a copy of fuji's disk access module: `disk.rs` (Rust commands built on std::fs) plus its JS wrapper `disk.js`. Do **not** copy fuji's io.rs — disk.rs is that module *after* a rename and a correctness/security audit that is in progress in fuji. When it's ready, it arrives with its wrapper and registration instructions (module declaration in lib.rs, `generate_handler![]` entries, any capabilities the audit settles on).
 
 Until then, the scaffold just needs to be structurally ready: the standard lib.rs shape (the scaffold provides it), and the knowledge that new Rust commands follow fuji's CLAUDE.md pattern — define with `#[tauri::command]`, register in `generate_handler![]`, wrap in a JS file, import in components.
+
+## 8. The application icon
+
+The scaffold ships a correct default icon, and the first thing anybody does is replace it. That replacement is where two traps live, both of them measured and written up in fuji's `icon.md` — read it before running the generator, not after.
+
+**Use a CLI new enough to have the alpha fix.** `tauri icon` before `@tauri-apps/cli` 2.9.3 leaves a grey fringe on every curved edge, on every platform. The target stack above is well past that, so this only bites a project pinned older, or one whose icons were generated once and never regenerated — the second case is the one that catches people, because upgrading the CLI does not touch committed output.
+
+**macOS needs padding the generator will never add.** Apple's grid is an 824 body on a 1024 canvas, about 80.5%; `tauri icon` fills the canvas edge to edge, and every version of it does. An icon generated from one shared source is roughly a quarter too big in the Dock beside everything else. Windows wants close to the opposite, so a single padded source is not the fix either.
+
+Fuji's answer is a second source file and one line of config: `app-icon-mac.svg` identical to the shared artwork but inset to the grid, generated into `src-tauri/icons/mac/` where the shared run cannot overwrite it, with `bundle.icon` pointing at that `.icns`. One `pnpm icons` script runs both. Copy the shape if it fits; `icon.md` has the reasoning, the measurements, and what fourteen shipping applications do.
