@@ -12,15 +12,7 @@ Fuji is a multimedia file manager designed with privacy and precision in mind. I
 
 The application displays images in an infinite pannable/zoomable space with keyboard navigation, drag-and-drop support, and full-screen mode.
 
-**The planning documents, and what each is for.** Read the first two before changing anything structural:
-- `structure.md` — the vocabulary: what the parts are called, how many there are of each, and which ones the user swaps between
-- `architecture.md` — the four layers, and where a value or a view belongs
-- `cache.md` — images: what is held, and why the store is deliberately dumb
-- `performance.md` — what any of it costs, measured, with the instrument that measured it
-- `sort.md` — the orders fuji will show a folder in, researched and planned
-- `style.md` — how the code itself is written; read it before the first edit
-- `scaffold.md` — how a project like this one is set up
-- `icon.md` — the application icon: fuji's design, and what each platform expects one to be
+**The planning documents are listed in `contents.md`**, which says what each one owns and which to read first. Read `structure.md` and `architecture.md` before changing anything structural, and `style.md` before the first edit.
 
 ## Development Commands
 
@@ -83,6 +75,10 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - `desktop_exit_append()` - Add to the end of it instead, for a caller producing its file a line at a time
   - Written from `RunEvent::Exit`, the one event every way of quitting reaches
 
+- `thumbnail.rs` - The operating system's thumbnailer, ImageIO on macOS and WIC on Windows, behind one command:
+  - `thumbnail_render(path, maximum, gamut)` - Decode the file at the path scaled so its longer side is at most `maximum` pixels, oriented and color-converted, returning one buffer: an 8-byte header of width and height, then straight-alpha RGBA. Runs on Tauri's thread pool. Rejects on Linux
+  - Nothing calls it yet; `canvas.md` holds the decision to route every format the operating system decodes to it, and the probe and table that would do the routing; `security.md` holds the walls to build before it is called
+
 **Command Registration**: All Rust functions exposed to JavaScript must be registered in `lib.rs::run()` using `tauri::generate_handler![]`
 
 **Important Architecture Notes**:
@@ -93,13 +89,16 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Frontend (src/)
 
-**Entry Point**: `main.js` → `App.vue` → `Shell.vue` → `DiamondTable.vue`
+**Entry Point**: `main.js` → `App.vue` → `Shell.vue` → `Sheet.vue` or `DiamondTable.vue`
 
 `main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view or a new home for state: it carries the layers, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Key Components**:
 - `Shell.vue` - Owns the window and none of the pixels: reads settings, sizes and reveals the window, records where the user puts it, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
-- `Sheet.vue` - The contact sheet, a stub. One folder seen whole
+- `Sheet.vue` - The contact sheet: one folder seen whole, as a top-to-bottom scroll over a stack of cards
+- `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to a flow; holds the register of flows
+- `TagFlow.vue` - The first flow: plain img tags sized inside the chosen `thumbnail` square, wrapped like words, everything else left to the renderer
+- `CanvasFlow.vue` - The other flow: reads a few images at a time, paints each into a canvas at the display's backing resolution, and releases the original, so the store holds nothing once a card is drawn
 - `DiamondTable.vue` - One of fuji's tables, showing one image sized to an invisible diamond on an infinite pannable plane:
   - Handles the events the shell hands it, plus wheel, pointer, and double-click on its own element
   - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
@@ -107,8 +106,12 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - HUD overlays for help and information display
 - `ComicTable.vue` - Another table, a stub. One image full width, read down a vertical scroll
 
+**Model**:
+- `model.js` - What the user is looking at, and no view owns it: the folder, the sort, the ordered list, and the current path. The position is a path rather than an index, so changing the sort leaves the user on the same picture
+- `AlphabetSort.js` - The first sort, and the plainest: javascript's own `sort()`. A sort returns the order rather than a comparator, so a shuffle can be one too
+
 **Image layer**:
-- `cache.js` - A store, not a strategy: `cacheNeed(path, holder)` and `cacheRelease(path, holder)` with labelled reference counts. Holds a blob, one object url, and a decoded `<img>` per path. No queue, no eviction policy, nothing freed except on command
+- `cache.js` - A store, not a strategy: `cacheNeed(path, holder)` and `cacheRelease(path, holder)` with labelled reference counts, and `cacheNeed(path, holder, {decode: false})` for a caller that wants the bytes and the url without an element. Holds a blob, one object url, and a decoded `<img>` per path. No queue, no eviction policy, nothing freed except on command
 - `flipCache.js` - The diamond table's policy over that store: hold a window of `flip.back` and `flip.forward` images around the current one, release what falls out
 - `meter.js` - The performance log, off unless `meter.record` says otherwise. Records every load and every flip, touches no disk during the session, and hands rows to Rust to write at exit
 - `settings.js` - `fuji.toml`: one schema is the only place a setting is defined, and the file repairs itself on every launch
@@ -122,6 +125,10 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`
+
+- `thumbnail.js` - Exposes the operating system thumbnailer:
+  - `thumbnailRender(path, maximum, gamut)` - One ArrayBuffer, header then pixels
+  - `thumbnailUnpack(buffer)` - `{width, height, pixels}` shaped for `new ImageData()`
 
 - `library.js` - Pure utility functions:
   - `xy(a, o, b)` - Vector math for {x, y} arrows (add, subtract, multiply, divide, compare)

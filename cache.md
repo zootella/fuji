@@ -30,7 +30,7 @@ There is a second reason for restraint, and it has nothing to do with layering. 
 
 Views do all the thinking and say what they want in two words:
 
-- **need** — a path and who is asking. Taking a reference and asking for the image are the same act, so nothing can be had without saying who wants it, and there is no way to load something and forget to say so. If the store has it, it comes back at once; if not, the store loads it and the caller waits. Two callers arriving together share one load, because that is bookkeeping rather than judgement.
+- **need** — a path, who is asking, and which steps they want. Taking a reference and asking for the image are the same act, so nothing can be had without saying who wants it, and there is no way to load something and forget to say so. If the store has it, it comes back at once; if not, the store loads it and the caller waits. Two callers arriving together share one load, because that is bookkeeping rather than judgement. The read is always taken; the decode is a step a caller can leave out with `{decode: false}`, getting back the bytes and the url alone. `TagFlow` does that, because it hands the engine an `img` of its own and a decode in the store would be the same work done twice with the engine's lazy option taken away. A caller that wants the element later starts the decode then, on the same entry, and the meter reports it as a row of its own.
 - **release** — the same path and the same holder. When the last reference goes, the store revokes the url and drops what it held.
 
 That is the whole protocol. No hints, no priorities, no promises about what will still be there later.
@@ -41,7 +41,7 @@ That is the whole protocol. No hints, no priorities, no promises about what will
 
     blob         the file's bytes: raw material for any decode at any size, and for a hash later
     url          one object url over that blob, made once and held as long as the entry is
-    img          the decoded element, which is the thing a table puts on screen
+    img          the decoded element, which is the thing a table puts on screen; null until a caller asks for one
     references   a map of holder name to count, so a leak has a name
     requested    Date.now() when a caller first asked
     loaded       when the bytes arrived

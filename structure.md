@@ -20,6 +20,7 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
     Table     several             one                 rarely
     Sort      several             one                 often, while in the sheet
     Flow      several             one                 often, while in the sheet
+    Size      four                one                 often, while in the sheet
 
 **Frequency is the useful column.** It is why moving between the Sheet and a Table has to be instant with nothing reloading, and why choosing a different Table can afford to be slower. `architecture.md` turns that into the `v-show` and `v-if` rule.
 
@@ -29,6 +30,8 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
 
 **One order, two consumers.** The Sheet lays its thumbnails out in that order, and a Table flips through the same order — so the picture after this one is the same picture whether the user is looking at a wall of thumbnails or at one image. Changing the Sort changes both at once, because there is one sequence and both are reading it. That is why the choice belongs below both of them rather than to the Sheet that offers it.
 
+**One is written.** `Alphabet` is javascript's own `sort()`, kept deliberately: no locale, no numeric guessing, no opinion. The other seven are planned.
+
 `sort.md` is the whole subject: how Windows and macOS actually order filenames and dates, which of those fuji reproduces, which it departs from, and what each one costs to build.
 
 ## Flows
@@ -37,7 +40,11 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
 
 One worked example, the kind Flickr uses: resize every image to a constant height, then set the thumbnails left to right like words in a left-aligned paragraph, wrapping at the edge. Wide images take more width than tall ones, rows come out ragged on the right, and **nothing is cropped** — every picture is shown whole. A Flow that instead squared everything to a grid would have to crop, and that is precisely the sort of trade a Flow exists to make.
 
-Flows are open: which ones fuji ships, what each is called, and how a Flow describes itself to the Sheet are all undecided. What is settled is that they are a named, switchable family the user picks from, one at a time, the way Sorts are.
+**Two are written.** `TagFlow` hands the renderer full-size originals in plain img tags and lets it decide everything about decoding and what to keep. `CanvasFlow` paints each image down into a canvas and releases the original, so what a card holds is a size fuji chose. They are the two halves of one question — whether fuji should be writing this code at all — and `card.md` says what running them against each other is meant to reveal.
+
+**How big a thumbnail is belongs to the Sizes, not to a Flow.** `Small`, `Medium`, `Large` and `Xl` are four named squares a thumbnail fits inside — 120, 240, 360 and 480 css pixels at the factory — and the user says once what each one means, in `fuji.toml`. Every Flow reads the same chosen Size, so switching Flows never changes how big anything is, and nothing in fuji is tuned to the particular numbers.
+
+**A Flow arranges within one Card, and one Flow governs every Card at once.** Two Cards in the same scroll always look alike; switching Flows switches all of them together, and a Flow that sizes thumbnails differently changes how tall every Card renders.
 
 ## Sorts and Flows are orthogonal, and not equally shared
 
@@ -48,6 +55,14 @@ Flows are open: which ones fuji ships, what each is called, and how a Flow descr
 Whether that asymmetry should show up as two different homes for the two values, or whether both simply live wherever the Sheet's state lives, is not settled. What is settled is the rule that decides it, in `architecture.md`: a value two views need belongs below both of them.
 
 Both survive a restart, by the test in `architecture.md` — the user would be annoyed to reopen fuji and find their order and their layout thrown away.
+
+## Cards
+
+**A Card is a box of thumbnails inside the Sheet's one scroll.** It holds up to a capped number of images, all from the same folder, and hands them to a Flow. The Sheet's scroll runs over a stack of Cards rather than over the thumbnails themselves, and a Card boundary falls in exactly two places: the cap was reached, or a new folder began.
+
+**A Card is scaffolding, not something the user asked for.** No file manager shows this box, and `card.md` is honest that it is here because it makes the Sheet's hard problems measurable before they are solved.
+
+**The word is already taken, and that is not settled.** `DiamondTable` calls its single image container the card — `cardRef`, `cardShow()`, `.myCard`. That is a different thing at a different altitude, and one of the two names will have to move.
 
 ## Tables
 
@@ -70,6 +85,7 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
 ## Where the rest is written down
 
     architecture.md    the four layers, and where a value or a view belongs
+    card.md            the box of thumbnails the sheet scrolls over, and why it is temporary
     sort.md            the orders, researched and planned
     cache.md           images: what is held, and why the store is deliberately dumb
     performance.md     what any of it costs, measured

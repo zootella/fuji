@@ -41,8 +41,9 @@ export function meterStart(label) {//name this run and find somewhere to put it;
 		.catch(error => { meterRecording = false; console.error('meter, finding somewhere to write:', error) })//a recording nobody can write is worse than none
 }
 
-export function meterLoad(entry) {//one completed load, however it turned out; the store knows these times whether anything ever flipped to the image or not
+export function meterLoad(entry, note) {//one completed load, however it turned out; the store knows these times whether anything ever flipped to the image or not, and says in the note which kind of row this is: blank for a read and decode together, bytes only for a read nobody asked to decode, decoded later for a decode that followed such a read (its disk column repeats the earlier row, because it is the same read), or released while loading
 	if (!meterRecording) return
+	if (entry.error && note != 'released while loading') note = String(entry.error)//a file that would not read or decode; a release mid-decode aborts the decode, which looks like an error and is not one
 	meterPush({
 		what: 'load',
 		path: entry.path,
@@ -50,7 +51,7 @@ export function meterLoad(entry) {//one completed load, however it turned out; t
 		render: entry.rendered ? entry.rendered - entry.loaded : 0,
 		bytes: entry.blobBytes,
 		natural: entry.img ? `${entry.img.naturalWidth}x${entry.img.naturalHeight}` : '',
-		note: entry.error ? String(entry.error) : (entry.img ? '' : 'released while loading'),//an entry with no element was let go before its decode finished, which is ordinary
+		note,
 	})
 }
 

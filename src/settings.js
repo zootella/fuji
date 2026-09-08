@@ -8,6 +8,8 @@ import {forwardize} from './components/library.js'
 const settingsFileName = 'fuji.toml'//in the user's home folder for now; portable installs and the per-platform config folders are a later decision
 const settingsHeader = `# fuji.toml — fuji reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
 
+const settingsThumbnailSizes = ['Small', 'Medium', 'Large', 'Xl']//the four named thumbnail sizes; each names the setting below it, lowercased
+
 //every setting fuji has, and the only place any of them is defined; a check, where the type alone isn't enough, has to accept the factory value or an ordinary file would report a problem against itself
 const settingsSchema = [
 	{
@@ -21,6 +23,49 @@ const settingsSchema = [
 		key: 'table',
 		factory: 'Diamond',
 		comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead',
+	}, {
+		section: 'sort',
+		key: 'order',
+		factory: 'Alphabet',
+		comment: 'which order fuji puts a folder in: Alphabet is the order javascript itself puts an array of names in, capitals before lowercase and page10 before page9, with no locale and no opinion; the sorts fuji has are known to the model rather than here, so a name it does not recognize is reported there and Alphabet used instead',
+	}, {
+		section: 'card',
+		key: 'images',
+		factory: 200,
+		comment: 'how many images one card holds before the next card starts, so a folder of 220 at this setting is a card of 200 and then a card of 20; a card never mixes two folders. card.md says why the sheet scrolls over cards rather than over the thumbnails themselves, and is honest that this is scaffolding',
+		check: value => Number.isInteger(value) && value >= 1,
+	}, {
+		section: 'card',
+		key: 'flow',
+		factory: 'CanvasFlow',
+		comment: 'which flow arranges the thumbnails inside every card: CanvasFlow paints each image small and lets the original go, so a card holds a size fuji chose; TagFlow hands the renderer plain img tags and lets it decide everything, which is the rudimentary one the other is measured against. One flow governs the whole sheet at once, and the flows fuji has are known to the card rather than here',
+	}, {
+		section: 'thumbnail',
+		key: 'size',
+		factory: 'Medium',
+		comment: 'which of the four sizes below every flow uses; one choice for the whole sheet, so changing it changes every card at once',
+		check: value => settingsThumbnailSizes.includes(value),
+	}, {
+		section: 'thumbnail',
+		key: 'small',
+		factory: 120,
+		comment: 'what each size means: the side of the square a thumbnail fits inside, in css pixels. A square image lands exactly on it, a wide one hits the limit on width alone, and an image already smaller is left at its own size rather than blown up. Nothing is tuned to these particular numbers, so raise them all or just the one you live in',
+		check: value => Number.isInteger(value) && value >= 1,
+	}, {
+		section: 'thumbnail',
+		key: 'medium',
+		factory: 240,
+		check: value => Number.isInteger(value) && value >= 1,
+	}, {
+		section: 'thumbnail',
+		key: 'large',
+		factory: 360,
+		check: value => Number.isInteger(value) && value >= 1,
+	}, {
+		section: 'thumbnail',
+		key: 'xl',
+		factory: 480,
+		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'flip',
 		key: 'back',
@@ -150,6 +195,10 @@ function sayValue(value) {//a value as the toml text that means it
 	if (typeof value == 'boolean') return value ? 'true' : 'false'
 	if (typeof value == 'number')  return String(value)
 	return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`//a basic string, escaping the backslash that starts an escape and the quote that would end it early
+}
+
+export function settingsThumbnailBox() {//the side of the square a thumbnail fits inside, for the size the user chose; the one place the name becomes a number, so a flow asks rather than looks up
+	return settings.thumbnail[settings.thumbnail.size.toLowerCase()]
 }
 
 export function settingsWindowRect() {//the window fuji recorded and should return to, or false to size itself to the desktop the way it always has

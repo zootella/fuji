@@ -7,11 +7,13 @@ It says what fuji does, not what it might. It is the only architecture document:
 ```
 App.vue
 └── Shell.vue            the window: settings, reveal, window events, which view is showing
-    ├── Sheet.vue        v-show   one sheet: thumbnails, tree, path box, sorts
-    └── DiamondTable.vue v-if     one of several tables: one image, sized to a diamond
+    ├── Sheet.vue        v-show   one sheet: a scroll of cards over one folder
+    │   └── Card.vue              a capped number of images, all from one folder
+    │       └── CanvasFlow.vue    the flow that sizes and arranges them; TagFlow.vue beside it
+    └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
                 ↓ both import, neither knows the other exists
-        the model                 folder, sort order, list, index, back
+        the model                 folder, sort, ordered list, current path
                 ↓
         the cache                 path → pixels, bounded
                 ↓
@@ -30,6 +32,8 @@ App.vue
 
 **A table is named for what makes it different, not for what they all are.** They are all light tables, which is why none of them is called one: `DiamondTable` is the one that keeps a diamond, and the next is the one that keeps whatever it keeps instead.
 
+**The sheet scrolls over cards, not over thumbnails.** A card holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every card at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `card.md` carries what a card is for and why it is scaffolding.
+
 **`c` switches between the sheet and the current table, and they swap with `v-show`.** That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
 
 **Tables switch between each other with `v-if`.** Choosing a different table is rare, a lost frame is fine, and a table nobody is using should not exist — five mounted tables each holding decoded bitmaps is the memory the cache exists to bound. Destroying one is affordable precisely because everything worth keeping lives below it: the new table reads the same model and asks the same cache, which answers from memory.
@@ -38,7 +42,7 @@ App.vue
 
 ## The model
 
-**The model holds what the user is looking at, and no view owns it.** The current folder, the sort order, the ordered list of images in it, the current index, and the history of where the user has been.
+**The model holds what the user is looking at, and no view owns it.** The current folder, the sort order, the ordered list of images in it, the current path, and the history of where the user has been.
 
 **Tables are interchangeable views of the same thing, and that is what forces the model down here.** A user on image 47 who switches from one table to another expects to still be on image 47. If the folder listing and the index lived inside a table, the second table would either duplicate them or reach into the first, and reaching in is how two components stop being separable. The same argument settles sort order: the user sets it in the sheet, then double-clicks a thumbnail and flips — and expects to flip in the order they set. So sort order is not the sheet's, even though the sheet is where it is chosen.
 
@@ -96,9 +100,11 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What is built today
 
-`Shell.vue` and `DiamondTable.vue` are real, `Sheet.vue` and `ComicTable.vue` are stubs, and `settings.js`, `cache.js`, `flipCache.js` and `meter.js` are real. The model is the last piece of the plan above that has not been started. `DiamondTable.vue` still holds folder and index as local bindings; they move to the model when it exists, and until then nothing new should join them there.
+`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js` and `meter.js`. `ComicTable.vue` is a stub.
 
-Sorts and Flows are named and planned and neither is written — `sort.md` for the first, `structure.md` for both.
+The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
+
+`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. Both flows are written. `CanvasFlow` paints each image small and releases the original, so a card holds a size fuji chose; `TagFlow` hands the renderer full-size originals in plain img tags and does nothing else. They are the two halves of one question — whether fuji should be doing this work at all — and `card.md` says what running them against each other is meant to reveal.
 
 There is no router and no store library. `App.vue` renders the one view directly and `main.js` mounts the app and does nothing else.
 

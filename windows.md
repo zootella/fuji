@@ -38,6 +38,24 @@ The fixes: everything was regenerated on the current CLI, which cleared the frin
 
    Note that fuji already ships the `Square*Logo.png` set that `tauri icon` generates. Those are Microsoft Store / MSIX assets and are probably *not* what the Win32 tile reads — check before reusing them, and if they are unrelated, say so, because that is worth writing down.
 
+## Added 2026-09-08, from the mac session that wrote thumbnail.rs
+
+A second job for you, separate from the icons and larger. Read `thumbnail-plan.md` first, then `canvas.md` and `security.md`; the plan is the answer and the other two are the reasons.
+
+**What exists.** `src-tauri/src/thumbnail.rs` asks the operating system to make a thumbnail: ImageIO on the mac, the Windows Imaging Component on yours. Its Windows body has been type-checked against the MSVC target and has never run. The mac body ran against real files and is right. Nothing in the app calls the command yet, on either platform.
+
+**What to do, in order.**
+
+1. **Run the Windows body against real files.** Make a scratch crate outside the repo, copy `thumbnail.rs` into it, delete the `use tauri::ipc::Response;` line and the `thumbnail_render` function, add `pub use platform::render;` at the end, and write a `main` that calls `render(path, 480, false)` on every file in a folder, prints the milliseconds, and writes one result out as a BMP to look at. The mac session did exactly this; the images to use are the six in the user's `Documents/temp/images`, plus any photograph from a phone. Look at the output for four things: upright orientation on the phone photograph, since WIC leaves EXIF orientation to the caller and the code reads the tag by hand; colors that match the same file in a browser; a time under twenty milliseconds for a web-sized JPEG, which is what says the scaled decode through `IWICBitmapSourceTransform` engaged; and no failure on PNG. If the scaled decode did not engage, the symptom is a JPEG taking as long as its full decode would.
+
+2. **Type-check after any edit the way `CLAUDE.md` says**, or simply build the scratch crate, since on your machine it is the native target.
+
+3. **Do not add codec probing.** The plan gives Windows a native list of JPEG and PNG only, on purpose, and sends WebP, AVIF and BMP to the page. WIC can decode more with store extensions; fuji does not ask.
+
+4. **When SquareFlow exists, measure the page path on Chromium.** On the mac, the page's own thumbnail drawing costs the main thread 50 to 220 milliseconds per large photograph, because of the halving through intermediate canvases in `CanvasFlow.vue`. That number is WebKit's. Chromium's is unknown, and on Windows it is what WebP and AVIF thumbnails will cost, so it is worth a row in the meter when the plan's step five lands.
+
+Report into `canvas.md`'s measured section, beside the mac numbers, in the same shape: file, native, page decode, page main thread.
+
 ## Reporting
 
 **Edit `icon.md` directly** — it is built to grow this way and already has a Windows section marked as researched only as far as the current files. Replace that section with what you find. Keep its conventions: measured numbers rather than impressions, and say plainly where something is still unresearched instead of rounding it up to a conclusion.

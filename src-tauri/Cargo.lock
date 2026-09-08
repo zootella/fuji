@@ -1085,6 +1085,7 @@ dependencies = [
 name = "fuji"
 version = "0.1.0"
 dependencies = [
+ "core-foundation",
  "core-graphics",
  "display-info",
  "foreign-types-shared",

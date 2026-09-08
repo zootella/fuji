@@ -65,22 +65,23 @@ export const imageTypes = {
 	'.avif': 'image/avif',//2019, Alliance for Open Media: from AV1 codec, supports HDR and wide color gamut
 	'.webp': 'image/webp',//2010, Google: recent format for smaller file size
 }
-export async function listSiblings(path) {//given a path, return text all about it
-	let folder = parse.dirname(path)
+export async function listFolder(folder) {//the image files in one folder, in whatever order the disk handed them over; a sort is what puts them in one
 	let contents = await diskReadDir(folder)
 	let files = contents.filter(f => f.is_file && !f.is_dir && !f.is_symlink)//only include files
 	files = files.map(f => ({...f,
 		path: parse.join(folder, f.name),
 		extension: parse.extname(f.name).toLowerCase(),
 	}))
-	let images = files
+	return files
 		.filter(f => !f.name.startsWith('.'))//skip the .name.ext files macos makes for every file on a removable drive
 		.filter(f => imageTypes[f.extension])//only include known extensions
 		.map(f => ({
 		...f,
 		mime: imageTypes[f.extension],//include the mime type that goes with that extension
 	}))
-
+}
+export async function listSiblings(path) {//the same listing, ordered and with the given path found in it; the retired experiments are the only callers left, because the model lists and sorts for itself
+	let images = await listFolder(parse.dirname(path))
 	let list = images.map(f => f.path).sort()
 	let index = list.indexOf(path)
 	if (index == -1) index = 0//ttd august

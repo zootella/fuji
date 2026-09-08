@@ -4,6 +4,7 @@ import {ref, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {raf, forwardize, revealWindow} from './library.js'
 import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'
+import {modelStart} from '../model.js'//the sort comes out of the settings file the same way the table below does
 import {meterStart} from '../meter.js'//the performance log belongs to the run rather than to any one view, and the run is what the shell owns
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
@@ -57,6 +58,7 @@ onMounted(async () => {
 		whichTable.value = 'Diamond'
 		settings.view.table = whichTable.value; settingsChanged()//written back, so a name fuji cannot use is repaired in the file the same way a bad value anywhere else in it is
 	}
+	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	meterStart(`${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`)//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	await nextTick()//let vue place the right view before the window appears
 

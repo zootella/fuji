@@ -5,9 +5,10 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 
 import {ref, onBeforeUnmount} from 'vue'
 import {
-xy, raf, listSiblings,
+xy, raf,
 screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
+import {modelList, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
 import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
 import {meterFlip} from '../meter.js'//the performance log, which writes a file instead of painting a number; the shell starts it, this only adds rows
@@ -231,10 +232,11 @@ async function onDrop(path) { return queue(() => _drop(path)) }//queued with the
 async function _drop(path) {
 	console.log(`⭕ on dropped path "${path}" - load and show right away`)
 
-	folder = await listSiblings(path)//list all the images in the same folder as path
-	flipCacheWindow(folder.list, folder.index)//ask for this image and its neighbours before showing anything, because showIndex wants what the window is holding
+	await modelOpen(path)//the model lists the folder and puts it in the current order, and every other view is reading that list already
+	if (modelIndex() < 0) { console.log('❌ no images in that folder, ignoring the drop'); return }
+	flipCacheWindow(modelList.value, modelIndex())//ask for this image and its neighbours before showing anything, because showIndex wants what the window is holding
 	//the card empties here rather than by a display none: sliding the window releases the old folder, and the store takes its element back out; this is blinkey but ok for a drop, ttd august
-	await showIndex(folder.index)
+	await showIndex(modelIndex())
 }
 
 /*
@@ -249,7 +251,7 @@ The meter caught it, and only by accident. Each flip's paint and the next load's
 Reads are cheap now that disk_read hands its bytes over raw, but decodes still occupy the thread and always will, so the order still holds. The rule for anyone editing below, a later version of whoever wrote this included: show first, then ask. Nothing that can occupy the main thread goes before the paint, and a line that has to move, moves after the second 🥪.
 */
 /*
-Everything that changes what is on the card goes through one queue, and it is not only about flips arriving faster than they finish. Both _flip and _drop read folder, await, and then use what they read — so a drop landing inside a flip's await swaps the folder underneath it, and the flip goes on to show an image from the old listing at an index into the new one. Serialising them means each is the only thing touching folder for its whole run.
+Everything that changes what is on the card goes through one queue, and it is not only about flips arriving faster than they finish. Both _flip and _drop read the model's list, await, and then use what they read — so a drop landing inside a flip's await swaps the listing underneath it, and the flip goes on to show an image from the old folder at an index into the new one. Serialising them means each is the only thing reading the model for its whole run.
 */
 let workQueue = Promise.resolve()//one change to the card at a time; start with a resolved promise
 function queue(work) {
@@ -264,10 +266,10 @@ show Loading... upper right HUD immediately if the flip has to wait at all--if t
 and when Loading... is shown, in that mode, ignore all additional commands
 */
 async function _flip(direction) {
-	if (!folder) return//nothing loaded yet
+	if (!modelList.value.length) return//nothing loaded yet
 
-	let ahead = folder.index + direction//index where the user wants us to flip to
-	if (ahead < 0 || ahead >= folder.list.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
+	let ahead = modelIndex() + direction//index where the user wants us to flip to
+	if (ahead < 0 || ahead >= modelList.value.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
 	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
 
 	let began = performance.now()//the wall clock from the command to pixels on the screen
@@ -280,10 +282,10 @@ async function _flip(direction) {
 	learnFrameMs(painted)//deliberately not awaited: the flip is over, and the queue behind it must not wait on a measurement
 	meterFlip({//before the window slides, so nothing the instrument does can land inside what it just measured
 		sequence: ++flipSequence, index: ahead, direction: direction > 0 ? 'fwd' : 'back', hit: storeHit ? 'hit' : 'miss',
-		store: storeMs, paint: paintMs, flip: flipMs, frames: flipFrames, path: folder.list[ahead],
+		store: storeMs, paint: paintMs, flip: flipMs, frames: flipFrames, path: modelList.value[ahead],
 	})
 
-	flipCacheWindow(folder.list, ahead)//last of all, and this order is the whole point: a read started before the paint blocks the very frame it was meant to help, which is what the triad's "wait for above paint to hit the screen" was protecting and what this file lost when it stopped being a triad
+	flipCacheWindow(modelList.value, ahead)//last of all, and this order is the whole point: a read started before the paint blocks the very frame it was meant to help, which is what the triad's "wait for above paint to hit the screen" was protecting and what this file lost when it stopped being a triad
 }
 let flipSequence = 0//so the log reads in the order the user flipped
 let flipMs = 0, flipFrames = 0//what the last flip cost end to end
@@ -297,12 +299,13 @@ async function learnFrameMs(painted) {//one more frame boundary after the flip h
 
 async function showIndex(index) {//put the image at index on the card, and record where we are
 	let asked = performance.now()
-	let entry = await flipCacheImage(folder.list[index])//already decoded if the window reached it in time; otherwise this is the wait
+	let path = modelList.value[index]
+	let entry = await flipCacheImage(path)//already decoded if the window reached it in time; otherwise this is the wait
 	storeMs = Math.round(performance.now() - asked)
 	storeHit = entry.rendered > 0 && entry.rendered <= asked//decoded before this flip asked, which is the only thing that makes a window worth keeping
 	await raf()//🥪 wait for clean frame boundary
 
-	folder.index = index
+	modelStand(path)//the model keeps the path rather than the index, so a change of sort leaves the user on this picture
 	here = entry
 	cardShow(entry.error ? errorRef.value : entry.img)//the store's own element goes on the card rather than one of ours pointed at the same picture, which would pay the whole decode again
 	quiverA.natural = entry.error ? xy(64, 64) : xy(entry.img.naturalWidth, entry.img.naturalHeight); quiver()//position and size the card for the aspect ratio we are showing, and quiver updates the hud on its way out
@@ -386,7 +389,6 @@ const frameRef = ref(null)//frame around boundaries of this component, likely th
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
 
 const errorRef = ref(null)//the one img tag the template still owns, shown in place of a picture fuji could not read
-let folder//set on drop, holds listing.list of images in current folder, and listing.index of the image we're on
 let here = null//the store's entry for the image on the card, which is where the hud reads everything about it
 
 </script>

@@ -16,31 +16,36 @@ The store owns the object url for as long as it owns the entry. library.js says 
 
 No judgement about how much is too much lives here either. The store counts what it holds and will tell anyone who asks, but deciding that a number is alarming means knowing what the user is looking at, which is the same knowledge an eviction policy would need and the same reason it is not here. A view that wants to complain about its own footprint is the one with enough context to mean it.
 
-This first iteration decodes only at natural size, because a table is the only caller today. The sheet will want small ones, made from the same blob with createImageBitmap, and that is a second product beside img rather than a second store.
+A need says which steps it wants. The read is always taken, and the decode is a step a caller can leave out with {decode: false}, getting back the bytes and the url alone. TagFlow does that: it hands the engine an img of its own, so a decode here would be the same work done twice, with the engine's option of doing it lazily taken away. The element is decoded only at natural size; a small one made from the same blob would be another step beside it rather than a second store.
 */
 
 const cacheEntries = new Map()//path to entry, and the only place fuji keeps images
 let cacheBlobBytes = 0//running totals rather than a walk, because the hud reads them from the pan path
 let cachePixelBytes = 0
 
-export function cacheNeed(path, holder) {//take a reference and get the image; asking and holding are the same act, so nothing can be had without saying who wants it
+export function cacheNeed(path, holder, steps = {}) {//take a reference and get the image; asking and holding are the same act, so nothing can be had without saying who wants it. steps lets a caller leave out work it has no use for: {decode: false} answers with the bytes and the url and never builds an element, for a view that hands the engine an img of its own
 	let entry = cacheEntries.get(path)
 	if (!entry) {
 		entry = {
 			path,
 			blob: null,//the file's bytes, kept for a decode at another size or a hash later; nothing reads it yet, and it costs nothing, because the url below holds these bytes either way
 			url: '',//one object url over that blob, kept alive so re-showing the element is a rebuild from source rather than a full decode
-			img: null,//the decoded element, which is the thing a table puts on screen
+			img: null,//the decoded element, which is the thing a table puts on screen; null for as long as nobody has asked for one
 			blobBytes: 0, pixelBytes: 0,//counted on the entry so dropping it can subtract exactly what it added
 			references: new Map(),//holder name to how many times that holder has asked
 			requested: performance.now(), loaded: 0, rendered: 0,//two durations: getting the bytes, then decoding them. performance.now everywhere, because these are intervals and it cannot jump the way a wall clock can
 			error: null,
+			reading: null, decoding: null,//the two steps as promises, each made once and shared by everyone who arrives while it runs, which is bookkeeping rather than judgement; decoding stays null until the first caller asks for an element
 		}
 		cacheEntries.set(path, entry)
-		entry.promise = cacheLoad(entry)//two callers arriving together share this one load, which is bookkeeping rather than judgement
+		entry.reading = cacheRead(entry)
 	}
 	entry.references.set(holder, (entry.references.get(holder) || 0) + 1)
-	return entry.promise
+
+	let decode = steps.decode ?? true//the one step a caller can leave out
+	if (!decode) return entry.reading//the same entry, resolved as soon as the bytes and the url are in hand
+	if (!entry.decoding) entry.decoding = cacheDecode(entry)//the first caller to want an element starts the decode, on an entry that may have been read long ago for someone who wanted only the url
+	return entry.decoding
 }
 
 export function cacheRelease(path, holder) {//give a reference back; when the last one goes, so does everything the store was holding
@@ -58,7 +63,7 @@ export function cacheFootprint() {//what fuji is holding, in the two units that 
 	return {count: cacheEntries.size, blobs: cacheBlobBytes, pixels: cachePixelBytes}
 }
 
-async function cacheLoad(entry) {//read the file and decode it, recording what each half cost
+async function cacheRead(entry) {//read the file into a blob and make its url, recording what that cost; every need waits on this, and a need that wants no element waits on nothing else
 	try {
 		let bytes = new Uint8Array(await diskRead(entry.path))
 		entry.loaded = performance.now()
@@ -67,6 +72,19 @@ async function cacheLoad(entry) {//read the file and decode it, recording what e
 		entry.blobBytes = entry.blob.size; cacheBlobBytes += entry.blobBytes
 
 		entry.url = URL.createObjectURL(entry.blob)//kept until cacheFree, because a hidden element can lose its decoded frame and needs this source to get it back cheaply
+	} catch (error) {
+		entry.error = error//remembered, so one broken file in a folder is not read again on every pass
+	}
+	if (cacheEntries.get(entry.path) != entry) { meterLoad(entry, 'released while loading'); cacheFree(entry) }//released while it was still reading, so let go of what arrived after nobody wanted it any more; the row first, while the entry still says what it cost
+	else if (!entry.decoding) meterLoad(entry, 'bytes only')//nobody has asked for an element, so this is the whole load as far as anyone knows; a decode asked for later reports a row of its own
+	return entry
+}
+
+async function cacheDecode(entry) {//decode the bytes into an element, once the read has them, recording what that cost
+	let later = entry.loaded > 0//the read had already finished when this was asked for, so the log has a row for it and this row should say it is the same read
+	await entry.reading
+	if (!entry.url) return entry//the read failed, or the entry was released before it finished; either way there is nothing to decode, and the read has already reported
+	try {
 		entry.img = new Image()
 		entry.img.src = entry.url
 		await entry.img.decode()//throws on data an image decoder cannot use
@@ -76,10 +94,10 @@ async function cacheLoad(entry) {//read the file and decode it, recording what e
 			cachePixelBytes += entry.pixelBytes
 		}
 	} catch (error) {
-		entry.error = error//remembered, so one broken file in a folder is not read again on every pass
+		entry.error = error//remembered like a failed read: a file the decoder will not take is not tried again
 	}
-	meterLoad(entry)//before the free below, while the entry still says what it cost
-	if (cacheEntries.get(entry.path) != entry) cacheFree(entry)//released while it was still loading, so let go of what arrived after nobody wanted it any more
+	if (cacheEntries.get(entry.path) != entry) { meterLoad(entry, 'released while loading'); cacheFree(entry) }//released while it was still decoding
+	else meterLoad(entry, later ? 'decoded later' : '')
 	return entry
 }
 
