@@ -3,6 +3,7 @@
 import {onMounted, onBeforeUnmount} from 'vue'
 import {cacheNeed, cacheRelease} from '../cache.js'
 import {settingsThumbnailBox} from '../settings.js'
+import {logTrouble} from '../log.js'
 import {xy} from './library.js'
 
 /*
@@ -60,7 +61,7 @@ async function flowPaint(path) {//one image, from the store to a canvas and back
 		let context = canvas.getContext('2d', {colorSpace: flowGamut})//in the screen's own gamut, explained above; everything else about the context is left at its default, alpha included, so a png's transparency shows the sheet through it
 		flowShrink(context, entry.img, natural, backing)//by halving, not in one draw: the essay above says why one draw came out rough
 	} catch (error) {
-		console.error('painting a thumbnail:', error)//one image that will not paint must not break the loop and quietly stop the rest of the card
+		logTrouble('CanvasFlow: painting a thumbnail', error)//one image that will not paint must not break the loop and quietly stop the rest of the card
 	} finally {
 		cacheRelease(path, flowHolder)//the canvas holds these pixels now; the store may drop the bytes, the url, and the full-size decode
 	}

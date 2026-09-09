@@ -7,7 +7,7 @@ Two commands. thumbnail_probe takes a card's paths and says, for each, what its 
 
 The render returns one buffer, so the bytes cross as an ArrayBuffer rather than a json array of numbers, which performance.md has the cost of. Twelve bytes of header — width, height, and whether the pixels are Display P3 — as little-endian unsigned 32-bit integers, then straight-alpha RGBA, top row first; thumbnail.js unpacks it for ImageData. The longer side is the maximum asked for, or the picture's own when it was smaller, because neither library enlarges.
 
-The Mac body is short because ImageIO does the whole job in one call given three options, and drawing the result into a bitmap context of the wanted color space is where CoreGraphics does the color management. The Windows body is long because WIC is a pipeline of separate objects, each initialised over the last, and because WIC leaves EXIF orientation to the caller. The page owns two things: the color space, since only it knows the screen's gamut, and Windows answers sRGB whatever is asked, which the header says; and the fit, since it turns the returned size back into a css size by one rule, longer side to the box, never enlarged.
+The Mac body is short because ImageIO does the whole job in one call given three options, and drawing the result into a bitmap context of the wanted color space is where CoreGraphics does the color management. The Windows body is long because WIC is a pipeline of separate objects, each initialised over the last, and because WIC leaves EXIF orientation to the caller. WIC is a COM library, which is how Windows hands an application an object out of a system DLL: a thread calls CoInitializeEx once before it asks for anything, and then every piece of the pipeline arrives through CoCreateInstance. There is no plain function to call instead, so the initialisation is the price of using the library at all, and it is not the heavier embedding layer of the same name that puts a spreadsheet inside a document. The page owns two things: the color space, since only it knows the screen's gamut, and Windows answers sRGB whatever is asked, which the header says; and the fit, since it turns the returned size back into a css size by one rule, longer side to the box, never enlarged.
 */
 
 use serde::Serialize;
@@ -43,7 +43,8 @@ pub fn thumbnail_render(path: String, format: String, maximum: u32, gamut: Strin
 	if maximum == 0 { return Err("thumbnail_render: expected a longest side of at least 1".into()) }
 	let head = head(&path)?;
 	let found = sniff(&head);
-	if found != format { return Err(format!("thumbnail: the bytes say {} and the caller expected {format}: {path}", if found.is_empty() { "nothing fuji knows" } else { found })) }//the first wall, held here as well as in the probe, so a caller that skipped the probe cannot hand this a mystery
+	if found.is_empty() { return Err(format!("thumbnail: the first bytes are not an image fuji knows: {path}")) }//before the comparison below, because blank matches blank: a caller that named no format would otherwise walk an unknown file straight past this wall
+	if found != format { return Err(format!("thumbnail: the bytes say {found} and the caller expected {format}: {path}")) }//the first wall, held here as well as in the probe, so a caller that skipped the probe cannot hand this a mystery
 	let wide = gamut == "display-p3";//anything else is srgb, which is what a canvas is unless asked
 	let t = platform::render(&path, maximum, wide)?;//which holds the second wall, the ceiling, because it has the header in hand before it decodes
 
@@ -253,40 +254,60 @@ mod platform {
 	use windows::Win32::System::Variant::VT_UI2;
 	use super::Thumbnail;
 
+	struct Opened {//one open of one file, and everything both commands need before any pixel is decoded
+		_decoder: IWICBitmapDecoder,//nothing reads it: the frame below pulls its pixels through the decoder's stream, so the decoder is held for as long as the frame is
+		factory: IWICImagingFactory,
+		frame: IWICBitmapFrameDecode,
+		width: u32, height: u32,//the size as the pixels are stored, before the orientation turns them
+		orientation: u16,//1 through 8, and 1 when the file says nothing
+	}
+
 	pub fn render(path: &str, maximum: u32, _wide: bool) -> Result<Thumbnail, String> {//wide is ignored: everything comes back srgb, because wic has no display p3 context without a profile file, and the header says so
-		let (width, height) = size(path)?;//the header, read before anything decodes
-		super::check_ceiling(width, height)?;
-		unsafe { render_com(path, maximum).map_err(|e| format!("thumbnail: {path}: {e}")) }
+		unsafe {
+			start_com();
+			let o = open(path).map_err(|e| format!("thumbnail: {path}: {e}"))?;//one open for the whole thumbnail: the header here, the pixels below
+			let (width, height) = shown(&o);
+			super::check_ceiling(width, height)?;//the second wall, from the header, before anything decodes
+			render_com(&o, maximum).map_err(|e| format!("thumbnail: {path}: {e}"))
+		}
 	}
 
 	pub fn size(path: &str) -> Result<(u32, u32), String> {//the size the picture will show at, from the header alone
 		unsafe {
-			let _ = CoInitializeEx(None, COINIT_MULTITHREADED);//once per thread and harmless again; a pool thread keeps it for its life, and a thread already in the other mode says so and works anyway
-			size_com(path).map_err(|e| format!("thumbnail: {path}: {e}"))
+			start_com();
+			let o = open(path).map_err(|e| format!("thumbnail: {path}: {e}"))?;
+			Ok(shown(&o))
 		}
 	}
 
-	unsafe fn size_com(path: &str) -> windows::core::Result<(u32, u32)> {
-		let factory: IWICImagingFactory = CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_INPROC_SERVER)?;
-		let decoder = factory.CreateDecoderFromFilename(&HSTRING::from(path), None, GENERIC_READ, WICDecodeMetadataCacheOnDemand)?;//opens and reads the header; the pixels wait until something asks for them
-		let frame = decoder.GetFrame(0)?;
-		let (mut width, mut height) = (0u32, 0u32);
-		frame.GetSize(&mut width, &mut height)?;
-		if exif_orientation(&frame) >= 5 { Ok((height, width)) } else { Ok((width, height)) }
+	unsafe fn start_com() {//wic is a com library, so every object below arrives through CoCreateInstance, and that answers nothing on a thread that has not said this first. Once per thread and harmless again; a pool thread keeps it for its life, and a thread already in the other mode says so and works anyway
+		let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
 	}
 
-	unsafe fn render_com(path: &str, maximum: u32) -> windows::core::Result<Thumbnail> {
+	unsafe fn open(path: &str) -> windows::core::Result<Opened> {//the file, opened once: the header is read now and the pixels wait until something asks for them
 		let factory: IWICImagingFactory = CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_INPROC_SERVER)?;
 		let decoder = factory.CreateDecoderFromFilename(&HSTRING::from(path), None, GENERIC_READ, WICDecodeMetadataCacheOnDemand)?;//wic opens and reads the file itself
 		let frame = decoder.GetFrame(0)?;//the first frame, which is the whole picture for anything but an animation
 		let (mut width, mut height) = (0u32, 0u32);
 		frame.GetSize(&mut width, &mut height)?;
+		let orientation = exif_orientation(&frame);
+		Ok(Opened { _decoder: decoder, factory, frame, width, height, orientation })
+	}
 
-		let orientation = exif_orientation(&frame);//1 through 8, and 1 when the file says nothing
-		let sideways = orientation >= 5;//the four that turn width into height
-		let (shown_width, shown_height) = if sideways { (height, width) } else { (width, height) };
+	fn sideways(o: &Opened) -> bool { o.orientation >= 5 }//exif's 5 through 8 are the four orientations that turn width into height, and this is the only line that knows it
+
+	fn shown(o: &Opened) -> (u32, u32) {//the size the picture shows at, which is the stored size turned over when the orientation turns it
+		if sideways(o) { (o.height, o.width) } else { (o.width, o.height) }
+	}
+
+	unsafe fn render_com(o: &Opened, maximum: u32) -> windows::core::Result<Thumbnail> {
+		let (factory, frame) = (&o.factory, &o.frame);
+		let (mut width, mut height) = (o.width, o.height);//what the source holds right now, which the scaled decode below can change
+		let orientation = o.orientation;
+
+		let (shown_width, shown_height) = shown(o);
 		let (target_width, target_height) = fit(shown_width, shown_height, maximum);
-		let (want_width, want_height) = if sideways { (target_height, target_width) } else { (target_width, target_height) };//the size to decode at, in the file's own orientation, before the rotation below
+		let (want_width, want_height) = if sideways(o) { (target_height, target_width) } else { (target_width, target_height) };//the size to decode at, in the file's own orientation, before the rotation below
 
 		//a scaled decode, where the codec can do one: jpeg decodes at a half, a quarter or an eighth by skipping most of the inverse transform
 		let mut source: IWICBitmapSource = frame.cast()?;
@@ -320,7 +341,7 @@ mod platform {
 		}
 
 		//the file's color profile to srgb, when it carries one; a file without one is taken as srgb, which is what the engine assumes too
-		if let Some(profile) = first_color_context(&factory, &frame) {
+		if let Some(profile) = first_color_context(factory, frame) {
 			let srgb = factory.CreateColorContext()?;
 			srgb.InitializeFromExifColorSpace(1)?;//1 is srgb in exif's numbering
 			let color = factory.CreateColorTransformer()?;

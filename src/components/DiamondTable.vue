@@ -11,7 +11,7 @@ screenToViewport, sayGroupDigits, saySize4,
 import {modelList, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
 import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
-import {logFlip} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
+import {log, logFlip, logTrouble} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
 import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
 
 //                       _   
@@ -34,7 +34,7 @@ let started = false//start() comes every time this view is shown, and the setup 
 function start() {//the shell calls this when this view first comes on screen; measuring any earlier reads the hidden window's size, or nothing at all
 	if (started) return
 	started = true
-	console.log('⭕ on start - the shell has revealed the window and handed this view the screen')
+	log('⭕ table: the shell has revealed the window and handed this view the screen')
 	dimensionStart()
 	hudStart()
 	frameRef.value.addEventListener('wheel', onWheel, {passive: false})//on the frame, not the window, so a hidden table is handed nothing; and last, so no wheel can reach the quiver before dimensionStart has filled it
@@ -48,11 +48,11 @@ async function onKey(e) {
 	let Shift = e.shiftKey
 	let key = e.key
 
-	if      (key == 'f') { console.log('my key F') }
-	else if (key == 'q') { console.log('my key Q') }
+	if      (key == 'f') { log('⭕ table: key f, a branch with nothing behind it yet') }
+	else if (key == 'q') { log('⭕ table: key q, a branch with nothing behind it yet') }
 	else if (key == 'h') { toggleHelp()        }
 	else if (key == 'i') { toggleInformation() }
-	else if (Ctrl && key == 's') { console.log('my key Ctrl+S')
+	else if (Ctrl && key == 's') { log('⭕ table: key ctrl+s, a branch with nothing behind it yet')
 		e.preventDefault()//tell the browser not to show the file save dialog box
 	} else if (key == 'Escape') {
 		await changeFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
@@ -124,7 +124,7 @@ function onPointerDown(e) {
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
 		//ignoring this because listening for browser double click event
 	} else if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
-		console.log('pointer down: right double click')
+		log('⭕ table: pointer down, right double click')
 	} else {
 		dragStart(e)
 	}
@@ -230,10 +230,10 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 
 async function onDrop(path) { return queue(() => _drop(path)) }//queued with the flips, because a drop replaces the very folder a flip in flight is holding an index into
 async function _drop(path) {
-	console.log(`⭕ on dropped path "${path}" - load and show right away`)
+	log(`⭕ table: dropped ${path}, loading and showing it right away`)
 
 	await modelOpen(path)//the model lists the folder and puts it in the current order, and every other view is reading that list already
-	if (modelIndex() < 0) { console.log('❌ no images in that folder, ignoring the drop'); return }
+	if (modelIndex() < 0) { log('❌ table: no images in that folder, ignoring the drop'); return }
 	flipCacheWindow(modelList.value, modelIndex())//ask for this image and its neighbours before showing anything, because showIndex wants what the window is holding
 	//the card empties here rather than by a display none: sliding the window releases the old folder, and the store takes its element back out; this is blinkey but ok for a drop, ttd august
 	await showIndex(modelIndex())
@@ -257,7 +257,7 @@ let workQueue = Promise.resolve()//one change to the card at a time; start with 
 function queue(work) {
 	workQueue = workQueue
 		.then(work)
-		.catch(error => console.error('changing what the table shows:', error))//report and carry on, so one failure does not stop every command after it
+		.catch(error => logTrouble('table: changing what it shows', error))//report and carry on, so one failure does not stop every command after it
 	return workQueue
 }
 async function flip(direction) { return queue(() => _flip(direction)) }
@@ -269,8 +269,7 @@ async function _flip(direction) {
 	if (!modelList.value.length) return//nothing loaded yet
 
 	let ahead = modelIndex() + direction//index where the user wants us to flip to
-	if (ahead < 0 || ahead >= modelList.value.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
-	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
+	if (ahead < 0 || ahead >= modelList.value.length) { log('❌ table: cannot flip off the edge, ignoring the command'); return }
 
 	let began = performance.now()//the wall clock from the command to pixels on the screen
 	await showIndex(ahead)//no need to ask the store for anything first: a flip moves one step and the window already reaches one step, so the image ahead is held before the command arrives

@@ -4,6 +4,7 @@ import parse from 'path-browserify'
 import {diskRead, diskWrite} from './disk.js'
 import {desktopExitHold} from './desktop.js'
 import {forwardize} from './components/library.js'
+import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
 
 const settingsFileName = 'fuji.toml'//in the user's home folder for now; portable installs and the per-platform config folders are a later decision
 const settingsHeader = `# fuji.toml — fuji reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
@@ -201,8 +202,9 @@ export function settingsWindowRect() {//the window fuji recorded and should retu
 	return {x: w.x, y: w.y, width: w.width, height: w.height}
 }
 
-export async function settingsLoad() {//read the settings file and leave it exactly as fuji would write it, which is what creates a missing one, repairs a bad value, and adds a setting fuji has gained since the last launch; call once, before anything reads a setting
+export async function settingsLoad() {//read the settings file and leave it exactly as fuji would write it, which is what creates a missing one, repairs a bad value, and adds a setting fuji has gained since the last launch; call once, before anything reads a setting. Answers with the lines this load wants remembered, for the shell to log the moment it has started one
 	settingsFilePath = parse.join(forwardize(await homeDir()), settingsFileName)
+	let notices = []//what happened while reading the file, said here and logged by the shell a few lines later
 
 	let text = ''
 	let unreadable = false//a file that is there and will not open, as opposed to one that is not there at all
@@ -210,26 +212,27 @@ export async function settingsLoad() {//read the settings file and leave it exac
 		text = new TextDecoder().decode(new Uint8Array(await diskRead(settingsFilePath)))
 	} catch (error) {
 		unreadable = !String(error).includes('os error 2')//both platforms number a missing file 2; anything else is a lock, a permission, or a disk saying no
-		console.log(`⭕ settings: ${unreadable ? 'leaving alone' : 'starting a new file at'} ${settingsFilePath}, because reading one said: ${error}`)
+		notices.push(`⭕ settings: ${unreadable ? 'leaving alone' : 'starting a new file at'} ${settingsFilePath}, because reading one said: ${error}`)
 	}
 	settingsFileText = text
 
 	let {settings: found, problems} = settingsParse(text)
 	for (let entry of settingsSchema) settings[entry.section][entry.key] = found[entry.section][entry.key]//fill the live object rather than replacing it, so importers keep theirs
-	for (let problem of problems) console.log(`⭕ settings: ${problem}`)
+	for (let problem of problems) notices.push(`⭕ settings: ${problem}`)
 
 	let rendered = settingsRender(settings)
-	if (unreadable) return//a file fuji could not read is one it must not overwrite: the settings in it are the user's and are still there, and writing factory values over them would be losing data to a lock
+	if (unreadable) return notices//a file fuji could not read is one it must not overwrite: the settings in it are the user's and are still there, and writing factory values over them would be losing data to a lock
 	if (rendered != settingsFileText) {//the file is missing, or held a value fuji had to repair, or came from a fuji with fewer settings than this one
 		try {
 			await diskWrite(settingsFilePath, Array.from(new TextEncoder().encode(rendered)))//disk.rs speaks bytes because it mirrors posix, and this is the one place fuji encodes; everywhere else text stays text
 			settingsFileText = rendered//only once the write happened
 		} catch (error) {
-			console.error('writing settings:', error)
+			notices.push(sayTrouble(`settings: writing ${settingsFilePath}`, error))
 		}
 	}
 	settingsHeldText = settingsFileText
 	settingsChanged()//a no-op after a write that worked; after one that didn't, this is what leaves the file with rust to try again on the way out
+	return notices
 }
 
 export function settingsChanged() {//call after changing a value in settings, the way quiver() gets called after moving an arrow; hands the file down to rust, which writes it on the way out — desktop.rs has why only rust can see a quit coming
@@ -238,5 +241,5 @@ export function settingsChanged() {//call after changing a value in settings, th
 	if (text == settingsHeldText) return//rust's view already matches, which is what a move event reporting the same position produces
 	settingsHeldText = text
 	desktopExitHold(settingsFilePath, text == settingsFileText ? '' : text)//blank when the settings are back to what is on the disk, so an undone change writes nothing at all
-		.catch(error => console.error('handing settings down:', error))
+		.catch(error => logTrouble('settings: handing the file down to rust', error))
 }

@@ -3,6 +3,7 @@ import parse from 'path-browserify'
 import {listFolder} from './components/library.js'
 import {settings, settingsChanged} from './settings.js'
 import AlphabetSort from './AlphabetSort.js'
+import {log} from './log.js'//the shell starts the log before it starts the model, so a line from here always has somewhere to land
 
 /*
 The model holds what the user is looking at, and no view owns it: the folder, the order it is in, the images in that order, and which one the user is on. It sits here because the sheet and the tables are interchangeable views of the same thing — a user who presses c, or switches tables, expects the same folder in the same order. If the listing lived inside a table, the sheet would have to duplicate it or reach in for it, and reaching in is how two components stop being separable. architecture.md carries the longer argument.
@@ -41,7 +42,7 @@ export function modelStand(path) { modelPath.value = path }//what a flip and a c
 
 export function modelSortSet(name) {//choose an order; the list is rebuilt from the listing already in hand, and every view is reading that list
 	if (!modelSorts[name]) {//a name settings cannot check, because the sorts fuji has are known here and not there
-		console.log(`⭕ settings: no sort named ${name}, using Alphabet instead`)
+		log(`⭕ settings: no sort named ${name}, using Alphabet instead`)
 		name = 'Alphabet'
 	}
 	modelSort.value = name

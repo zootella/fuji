@@ -2,6 +2,7 @@
 
 import {ref, onBeforeUnmount} from 'vue'
 import {cacheNeed, cacheRelease} from '../cache.js'
+import {logTrouble} from '../log.js'
 import {settingsThumbnailBox} from '../settings.js'
 
 /*
@@ -24,7 +25,7 @@ const flowTiles = ref(props.paths.map(path => ({path, url: ''})))//blank url unt
 for (let tile of flowTiles.value) {
 	cacheNeed(tile.path, flowHolder, {decode: false})//bytes and a url, and no element: the img below is the engine's to decode when and how it likes, which is the whole experiment. The loads race, and a file that would not read leaves its tile blank rather than showing a broken picture
 		.then(entry => { if (!entry.error) tile.url = entry.url })
-		.catch(error => console.error('loading a thumbnail:', error))//the store answers trouble with entry.error rather than a rejection, so this is the gate for a store that broke rather than a file that did
+		.catch(error => logTrouble('TagFlow: loading a thumbnail', error))//the store answers trouble with entry.error rather than a rejection, so this is the gate for a store that broke rather than a file that did
 }
 onBeforeUnmount(() => {
 	for (let tile of flowTiles.value) cacheRelease(tile.path, flowHolder)

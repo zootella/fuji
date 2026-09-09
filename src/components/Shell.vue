@@ -5,7 +5,7 @@ import {getCurrentWindow} from '@tauri-apps/api/window'
 import {raf, forwardize, revealWindow} from './library.js'
 import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'
 import {modelStart, modelShowing} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it
-import {logStart} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
+import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -26,6 +26,8 @@ Startup runs in one order for one reason: a view cannot measure itself until the
 Every handoff below is optional, start included. A view answers only the calls it has a use for, which is what lets a retired experiment be listed among the tables and shown without first being taught the contract. A real table that forgot start() would measure nothing rather than throw, which is the price.
 
 The settings read is wrapped because the reveal below must happen either way. A window that never appears is an application with no way to tell anyone what went wrong, which is the same reason revealWindow shows the window from a finally.
+
+The log starts as early as the settings allow, which is the moment the file has been read, because that file is what says whether to keep one at all. Everything after that line reports to it in the ordinary way. The only lines that cannot are the ones the settings read makes about itself, so settingsLoad hands those back and they go in here.
 */
 
 const tables = {//everything the shell can show in place of a table; view.table in fuji.toml names one, so trying another is an edit to that file rather than to this one
@@ -46,20 +48,22 @@ const whichTable = ref('Diamond')//which table is behind the sheet, whether or n
 
 onMounted(async () => {
 	let w = getCurrentWindow()
+	let notices = []//everything worth saying from before the log existed, which is the settings read and the table name it may have repaired
 	try {
-		await settingsLoad()//before the reveal, because the window's size and position come out of the file
+		notices = await settingsLoad()//before the reveal, because the window's size and position come out of the file
 	} catch (error) {
-		console.error('reading settings:', error)//carry on to the reveal on factory settings rather than leave the window hidden
+		notices.push(sayTrouble('shell: reading settings', error))//carry on to the reveal on factory settings rather than leave the window hidden
 	}
 	showing.value = settings.view.showing//before the reveal, so the first frame the user sees is the view they left
 	whichTable.value = settings.view.table
 	if (!tables[whichTable.value]) {//a name settings cannot check, because the tables fuji has are known here and not there
-		console.log(`⭕ settings: no table named ${whichTable.value}, showing Diamond instead`)
+		notices.push(`⭕ settings: no table named ${whichTable.value}, showing Diamond instead`)
 		whichTable.value = 'Diamond'
 		settings.view.table = whichTable.value; settingsChanged()//written back, so a name fuji cannot use is repaired in the file the same way a bad value anywhere else in it is
 	}
-	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	logStart(`${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`)//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
+	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
+	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
 
 	await revealWindow(settingsWindowRect())
@@ -95,7 +99,7 @@ function onKey(e) {
 }
 function onResize() { reportTrouble(() => activeView()?.onResize?.()) }
 async function reportTrouble(work) {//a window event is where the platform starts fuji's code running, so anything the view throws has nowhere to land but here
-	try { await work() } catch (error) { console.error('handling a window event:', error) }//the work is handed in unrun so this catches a handler that throws on the way in, not only one that rejects later
+	try { await work() } catch (error) { logTrouble('shell: handling a window event', error) }//the work is handed in unrun so this catches a handler that throws on the way in, not only one that rejects later
 }
 
 async function showView(name) {//show the sheet or the current table; both stay mounted, so the one going away keeps its scroll, its pan, and its decoded images

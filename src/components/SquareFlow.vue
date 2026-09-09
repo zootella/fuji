@@ -6,7 +6,7 @@ import {cacheNeed, cacheRelease} from '../cache.js'
 import {modelShowing} from '../model.js'
 import {settingsThumbnailBox} from '../settings.js'
 import {thumbnailProbe, thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
-import {logThumbnail, logCard} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every card is a row in it
+import {logTrouble, logThumbnail, logCard} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every card is a row in it
 import {xy, imageTypes, errorImageData} from './library.js'
 
 /*
@@ -58,7 +58,7 @@ function platform() {
 	return 'linux'
 }
 
-onMounted(() => { flowFill().catch(error => console.error('filling a card:', error)) })//the top gate for this card: anything that escapes the loops lands here, loudly
+onMounted(() => { flowFill().catch(error => logTrouble('SquareFlow: filling a card', error)) })//the top gate for this card: anything that escapes the loops lands here, loudly
 onBeforeUnmount(() => {
 	flowClosed = true
 	for (let path of flowHeld) cacheRelease(path, flowHolder)
@@ -82,7 +82,7 @@ async function flowFill() {//probe, lay out, then fill by path
 function flowApply(tile, probe) {//what the probe said about one file: a reason to refuse it, or its size, which reserves its box
 	if (probe.problem) { flowRefuse(tile, probe.problem); return }
 	if (probe.format != tile.format) { flowRefuse(tile, `the bytes say ${probe.format} and the name says ${tile.format}`); return }
-	if (probe.width > 0) tile.css = flowFit(xy(probe.width, probe.height))
+	if (probe.width > 0) tile.css = flowFit(xy(probe.width, probe.height)).css
 }
 function flowRefuse(tile, why) {//the placeholder, and a row saying which file and why; nothing is tried twice
 	tile.kind = 'placeholder'
@@ -137,8 +137,7 @@ async function flowPage1(tile) {//one thumbnail made by the page from the store'
 		let natural = xy(entry.img.naturalWidth, entry.img.naturalHeight)
 		if (!(natural.x > 0 && natural.y > 0)) { flowRefuse(tile, 'the picture has no size'); return }
 
-		let css = flowFit(natural)
-		let scale = Math.min(flowBox / natural.x, flowBox / natural.y, 1)//the same fit, as a ratio for the next line
+		let {scale, css} = flowFit(natural)//the size it will show at, and the ratio that got it there
 		let detail = Math.min(window.devicePixelRatio, 1 / scale)//never more backing pixels than the file has; from the scale rather than the sizes, because a sliver rounds up to one css pixel
 		let backing = xy(Math.max(1, Math.round(css.x * detail)), Math.max(1, Math.round(css.y * detail)))
 		flowSize(tile, canvas, backing)
@@ -160,18 +159,18 @@ function flowImg(tile) {//a gif or an svg: the store's url, no decode; the css f
 			tile.url = entry.url
 			logThumbnail({hit: 'img', render: Math.round(performance.now() - began), path: tile.path})//the read only; what the engine then spends showing it, nothing here can see
 		})
-		.catch(error => console.error('loading an img thumbnail:', error))//the store answers a bad file with entry.error, so this catches only a store that broke
+		.catch(error => logTrouble('SquareFlow: loading an img thumbnail', error))//the store answers a bad file with entry.error, so this catches only a store that broke
 }
 
 function flowSize(tile, canvas, backing) {//size a canvas to its pixels; assigning width or height also clears it and resets its context, so it comes before any drawing
 	canvas.width = backing.x; canvas.height = backing.y
-	tile.css = flowFit(backing)//a returned thumbnail's longer side is the box times the ratio when it was shrunk and its own when it was not, and this rule fits both
+	tile.css = flowFit(backing).css//a returned thumbnail's longer side is the box times the ratio when it was shrunk and its own when it was not, and this rule fits both
 	canvas.style.width = tile.css.x + 'px'; canvas.style.height = tile.css.y + 'px'//set here as well as by the template, so the element is right in the frame it is painted
 	flowBytes += backing.x * backing.y * 4
 }
-function flowFit(size) {//the css size a picture of size pixels shows at: longer side to the box, never enlarged, whole pixels
-	let scale = Math.min(flowBox / size.x, flowBox / size.y, 1)
-	return xy(Math.max(1, Math.round(size.x * scale)), Math.max(1, Math.round(size.y * scale)))
+function flowFit(size) {//the css size a picture of size pixels shows at, and the ratio that got it there: longer side to the box, never enlarged, whole pixels
+	let scale = Math.min(flowBox / size.x, flowBox / size.y, 1)//the 1 keeps a small picture at its own size rather than blowing it up
+	return {scale, css: xy(Math.max(1, Math.round(size.x * scale)), Math.max(1, Math.round(size.y * scale)))}
 }
 function flowStyle(tile) { return tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {} }//a tile with a known size holds its box before its pixels arrive
 

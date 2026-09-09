@@ -9,7 +9,7 @@ Fuji's log: every line the page or Rust chose to keep, in one text file per run,
 
 It exists because console.log cannot get over any of five fences, and a file gets over all of them.
 
-The first fence is the platform. A console is a different tool on the Mac and on Windows, reached through a different browser's inspector, and a note left in one is not readable from the other; a file is the same file on both. The second is who is looking. The user cannot see a console without opening an inspector, and a Claude session cannot see one at all; a file can be opened by either and handed from one to the other, which is the whole reason to keep a note. The third is development against production. A console exists only in a development build with the inspector open; a production build of fuji has no console, and a line written to it goes nowhere; a file is written by the same code in both. The fourth is where fuji is installed, in an application folder, a portable folder, or a checkout being run with pnpm local; the file lands under the user's home folder whichever it is. The fifth, and the one that made this a redesign rather than a rename, is the language. console.log belongs to the page, and Rust has only stderr, which goes somewhere else again; a line that matters can be born on either side, and this log takes both into one file. So the rule is: a line meant to be read later goes here, and console is for a programmer error at a top gate, during development, and nothing else.
+The first fence is the platform. A console is a different tool on the Mac and on Windows, reached through a different browser's inspector, and a note left in one is not readable from the other; a file is the same file on both. The second is who is looking. The user cannot see a console without opening an inspector, and a Claude session cannot see one at all; a file can be opened by either and handed from one to the other, which is the whole reason to keep a note. The third is development against production. A console exists only in a development build with the inspector open; a production build of fuji has no console, and a line written to it goes nowhere; a file is written by the same code in both. The fourth is where fuji is installed, in an application folder, a portable folder, or a checkout being run with pnpm local; the file lands under the user's home folder whichever it is. The fifth, and the one that made this a redesign rather than a rename, is the language. console.log belongs to the page, and Rust has only stderr, which goes somewhere else again; a line that matters can be born on either side, and this log takes both into one file. So the rule is: every line fuji wants kept comes here, from any file and from either language, and the console is used in exactly two places, both of them below, where the log is reporting that the log itself is broken and has nowhere else to say it.
 
 Two functions called log, one here and one in log.rs, each taking a string the way console.log does. This one gathers lines and hands them down after things go quiet, so even that small crossing never lands beside a flip being timed; performance.md has why nothing else may touch the disk during a session. Rust's appends in place. Lines from the two sides keep no exact order against each other, and console.log never promised one either. The cost of writing at exit is that a crash loses the log, which is the right trade for an instrument, since a crash mid-run invalidates the measurement anyway.
 
@@ -36,7 +36,7 @@ export function logStart(label) {//name this run and hand rust the file; the she
 	homeDir()
 		.then(home => invoke('log_start', {path: parse.join(forwardize(home), logFolder, `fuji-log-${stamp}.txt`)}))
 		.then(() => { logStarted = true; logHeader(label, stamp); logLater() })//the header first, then whatever lines gathered while the path was crossing
-		.catch(error => { logRecording = false; console.error('log, starting:', error) })//a recording nobody can write is worse than none
+		.catch(error => { logRecording = false; console.error('log, starting:', error) })//a recording nobody can write is worse than none; the console because the thing that would have taken this line is the thing that just failed
 }
 
 export function log(text) {//one line, handed to rust when things go quiet
@@ -62,6 +62,11 @@ export function logLoad(entry, note) {//one completed load, however it turned ou
 		note,
 	}))
 }
+export function sayTrouble(where, error) {//one line for something that reached a top gate: where it landed, what it said, and the stack, which is the part that says where it came from. Rust rejects with a plain string and the page throws real errors, so a stack is there or it is not
+	return `❌ ${where}: ${error?.stack || error}`
+}
+export function logTrouble(where, error) { log(sayTrouble(where, error)) }//the same line straight into the log, which is what a top gate wants; sayTrouble is for the one caller that has no log yet
+
 export function logFlip(row)      { log(sayRow({what: 'flip',  ...row})) }//one flip, already measured by the view, which is the only place that can see both halves of it
 export function logThumbnail(row) { log(sayRow({what: 'thumb', ...row})) }//one thumbnail the sheet made or refused: hit says by which path, render the milliseconds, bytes its canvas, natural its pixels, and the note why it was refused
 export function logCard(row)      { log(sayRow({what: 'card',  ...row})) }//one card filled: index is how many images it holds, render the milliseconds to fill it, bytes what its canvases cost, and the note the count by path
@@ -74,7 +79,7 @@ function logSend() {
 	if (!logRecording || !logStarted || !logPending.length) return
 	let text = logPending.join('\n') + '\n'
 	logPending = []//rust has them now, so nothing here holds the log
-	invoke('log_append', {text}).catch(error => console.error('log, handing down:', error))
+	invoke('log_append', {text}).catch(error => console.error('log, handing down:', error))//the console again, and for the same reason: these lines are the ones that did not make it into the file
 }
 
 function logHeader(label, stamp) {//once, ahead of the first lines

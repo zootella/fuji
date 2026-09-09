@@ -13,6 +13,7 @@ import {getCurrentWindow, currentMonitor, availableMonitors, LogicalSize, Physic
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
+import {log, logTrouble} from '../log.js'//log.js imports forwardize from here in return, which is fine: neither file calls the other while the modules are loading, only later from inside a function
 
 //promises
 
@@ -161,7 +162,7 @@ export async function revealWindow(rect) {//size the hidden window and show it; 
 			Math.round(logical.x * startingWindowSize.widthFraction),
 			Math.round(logical.y * startingWindowSize.heightFraction)))
 	} catch (e) {
-		console.error('sizing the window:', e)//whatever went wrong measuring or resizing, the fallback size stands
+		logTrouble('library: sizing the window', e)//whatever went wrong measuring or resizing, the fallback size stands
 	} finally {
 		await w.show()//reveal whatever happened above, including the early returns
 	}
@@ -224,7 +225,7 @@ export async function screenToViewport() {//arrow from the screen corner above t
 	let title = cssWindowOuter.y - border - cssWindowInner.y - border
 	let cssScreenToViewport = xy(cssPosition.x + border, cssPosition.y + border + title)
 
-if (false) console.log(`in backing units:
+if (false) log(`in backing units:
 ${backingScreen.x} × ${backingScreen.y} screen
 ${backingWindowOuter.x} × ${backingWindowOuter.y} outer window
 ${backingPosition.x} × ${backingPosition.y} position
@@ -253,7 +254,7 @@ export async function measureScreen() {//get the screen resolution as {x, y} in 
 		backingScreen: xy(m.size.width, m.size.height),
 		physicalScreen: await panelResolution(),//custom Rust code we wrote to system APIs to get the real physical pixel counts
 	}
-	console.log(q)
+	log(`⭕ library: measured the screen ${JSON.stringify(q)}`)
 	return q
 }
 let _screen//{when, physicalScreen} ttd august, save here if not 0,0; report from here not api call if within 50ms
