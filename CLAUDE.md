@@ -5,12 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Fuji is a multimedia file manager designed with privacy and precision in mind. It's a Tauri desktop application built with:
-- **Backend**: Rust (src-tauri/)
-- **Frontend**: Vue 3 + JavaScript (src/)
+- **Backend**: Rust (`desktop/src-tauri/`)
+- **Frontend**: Vue 3 + JavaScript (`desktop/src/`)
 - **Build Tools**: Vite, Tailwind CSS
 - **Package Manager**: pnpm
 
 The application displays images in an infinite pannable/zoomable space with keyboard navigation, drag-and-drop support, and full-screen mode.
+
+### The repository is a pnpm monorepo
+
+The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. A second workspace, `site`, holding the VitePress website for fujidesktop.app, arrives from the `fuji-site` repository.
+
+The root has no scripts, deliberately. `pnpm install` runs there and installs every workspace; everything else runs from inside the workspace it belongs to, so `cd desktop` comes first. **Throughout this document a path written `src/` or `src-tauri/` is relative to `desktop/`**, which is how the code refers to itself; only paths written from the root, like the build outputs below, carry the `desktop/` prefix.
 
 **The planning documents are listed in `contents.md`**, which says what each one owns and which to read first. Read `structure.md` and `architecture.md` before changing anything structural, and `style.md` before the first edit.
 
@@ -18,7 +24,8 @@ The application displays images in an infinite pannable/zoomable space with keyb
 
 ### Setup
 ```bash
-pnpm install
+pnpm install      # at the repository root; installs every workspace
+cd desktop        # every command below runs from the workspace, not the root
 ```
 
 ### Run Development Mode
@@ -49,11 +56,11 @@ pnpm icons        # rebuild every platform's icons from src-tauri/icons/app-icon
 One run writes the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Store logos, and the mobile trees together, so no platform needs its own run. These are committed artifacts, which means a Tauri CLI upgrade does not refresh them — re-run this after one. `icon.md` says why that matters and what it has already cost.
 
 ### Clean Build Environment
-There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair were yarn-classic-era crutches — that ecosystem needed frequent clean reinstalls; pnpm's store does not. If a genuine mess ever needs clearing, delete `dist`, `node_modules`, or `src-tauri/target` by hand — and never delete the tracked lockfiles: pnpm-lock.yaml and Cargo.lock serve both mac and windows, and removing them to fix a problem is the anti-pattern that motivated the pnpm switch.
+There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair were yarn-classic-era crutches — that ecosystem needed frequent clean reinstalls; pnpm's store does not. If a genuine mess ever needs clearing, delete `desktop/dist`, `node_modules`, or `desktop/src-tauri/target` by hand — and never delete the tracked lockfiles: pnpm-lock.yaml and Cargo.lock serve both mac and windows, and removing them to fix a problem is the anti-pattern that motivated the pnpm switch.
 
 ## Architecture
 
-### Rust Backend (src-tauri/src/)
+### Rust Backend (desktop/src-tauri/src/)
 
 **Entry Point**: `main.rs` → `lib.rs::run()`
 
@@ -93,7 +100,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - Comments in `disk.rs` extensively document memory efficiency tradeoffs between direct reads vs. streaming
 - Platform-specific code uses `#[cfg(target_os = "...")]` attributes for Windows/macOS/Linux
 
-### Frontend (src/)
+### Frontend (desktop/src/)
 
 **Entry Point**: `main.js` → `App.vue` → `Shell.vue` → `Sheet.vue` or `DiamondTable.vue`
 
@@ -167,15 +174,15 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **macOS**:
 ```
-./src-tauri/target/release/bundle/macos/Fuji.app
-./src-tauri/target/release/bundle/dmg/Fuji_0.1.0_aarch64.dmg
+./desktop/src-tauri/target/release/bundle/macos/Fuji.app
+./desktop/src-tauri/target/release/bundle/dmg/Fuji_0.1.0_aarch64.dmg
 ```
 
 **Windows**:
 ```
-./src-tauri/target/release/fuji.exe
-./src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
-./src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
+./desktop/src-tauri/target/release/fuji.exe
+./desktop/src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
+./desktop/src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
 ```
 
 `fuji.exe` is the application itself — the same binary both installers wrap and install. `pnpm win` launches it in place, without installing.

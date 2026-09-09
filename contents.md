@@ -36,3 +36,11 @@ A letter is written to a specific reader — usually a Claude Code session on th
 Private planning is kept out of the public repository by the `hide` naming pattern that `.gitignore` describes — `hide/`, `*.hide`, `hide.*`, `*.hide.*`. Those files hold the roadmap and the user stories, they are where an idea lives before it is adopted, and this list does not enumerate them. A planning document in this list holds work the user has adopted; anything still being decided belongs in conversation or in a private file until it is.
 
 `README.md` is the repository's front door — what fuji is, and how to build it on each platform — rather than a design document.
+
+## The shape of the repository
+
+The documents above live at the repository root, which is a pnpm monorepo. The application is the `desktop` workspace, so a path a document writes as `src/` or `src-tauri/` is relative to `desktop/`. The website for fujidesktop.app arrives later as a second workspace, `site`, and some of the finished documents above eventually become pages there.
+
+`notes/` is a plain folder rather than a workspace, and it is the raw material rather than a document of record: the four `fuji` text files the roadmap was distilled from in August 2026, and a few early sketches of brand and pointer work. Nothing imports it and nothing builds it, which is exactly the rule — a directory holding a `package.json` is a workspace, and everything else is just a folder.
+
+**Keep notes out of `desktop/src/`, where these files used to live.** Tailwind's Vite plugin finds its own source files by scanning the project rather than by following imports, and it reads plain text as readily as markup — so a `.txt` file in the source tree contributes class names to the shipped stylesheet whether or not anything renders it. Measured on 2026-09-09, moving this folder to the root removed seven rules from the production CSS: four from an HTML snippet pasted into `marble1.txt`, and three — `grid`, `grayscale`, `rounded` — read out of ordinary English sentences in `fuji1.txt` and `fuji3.txt`. Only 390 bytes, but they were rules for classes no component uses, and nothing would ever have reported them.

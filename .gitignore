@@ -1,41 +1,171 @@
-# dependencies and build output, both sides of the app; one file at the root covers vite and cargo together
-node_modules
-dist
-/src-tauri/target/
-/src-tauri/gen/schemas
+# ============================================================================
+# .gitignore for this pnpm monorepo
+# Workspaces: desktop (Tauri), and site (VitePress) when it arrives
+# One file at the root covers every workspace; there are no nested ignore files
+# ============================================================================
 
-# logs and diffs
-logs
-*.log
-*.diff
-diff*.txt
+# ----------------------------------------------------------------------------
+# Operating systems
+# ----------------------------------------------------------------------------
 
-# environment files, kept because these are the patterns that would otherwise commit a secret one day; vite reads .env and .env.<mode>, and tauri's signing and notarization credentials are environment variables
-.env
-.env.*
-*.local
-
-# editors and agents
-.vscode/*
-!.vscode/extensions.json
-.idea
-.fleet
-.claude/RESUME.md
-.claude/settings.local.json
-
-# os junk, mac and windows
+# macOS
 .DS_Store
 ._*
+
+# Windows
 Thumbs.db
+Desktop.ini
 ehthumbs.db
-desktop.ini
 *.stackdump
 
-# private planning and notes; "hide" as a dot-separated part of a file or folder name stays out of the public repo
+# Linux, and Emacs backup files
+*~
+.directory
+
+# ----------------------------------------------------------------------------
+# Node, JavaScript, TypeScript
+# ----------------------------------------------------------------------------
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Build output
+dist/
+# a build can leave a `dist` symlink beside the real output; the slash above only matches dirs
+dist
+dist-ssr/
+build/
+out/
+.cache/
+
+# Local overrides (Vite convention)
+*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Testing
+coverage/
+
+# ----------------------------------------------------------------------------
+# VitePress (site workspace, arriving)
+# ----------------------------------------------------------------------------
+
+# dist is covered above, but name it here too, so that editing another
+# section can never quietly unignore a build output
+**/.vitepress/cache/
+**/.vitepress/dist/
+
+# installer sidecars belong in the downloads directory on the server, never in the site
+# build. these only ever appear in public/ as throwaway fixtures for local development
+site/docs/public/fuji.*.json
+
+# ----------------------------------------------------------------------------
+# Rust
+# ----------------------------------------------------------------------------
+
+target/
+**/*.rs.bk
+
+# Cargo.lock is committed — Tauri produces binaries, and Rust convention is to
+# commit Cargo.lock for binary projects. Like pnpm-lock.yaml it serves both mac
+# and windows, and deleting one to fix a problem is never the fix.
+
+# ----------------------------------------------------------------------------
+# Tauri (desktop workspace)
+# ----------------------------------------------------------------------------
+
+# desktop/src-tauri/target/ is already covered by target/ above
+desktop/src-tauri/WixTools/
+desktop/src-tauri/gen/
+desktop/src-tauri/binaries/
+
+# `tauri icon` writes a whole tree for the macOS source; only the icns it makes
+# is kept, in icons/mac, so the icons themselves stay committed
+desktop/src-tauri/icons/.mac
+
+# The staged release. The installers themselves stay out — they are large, and git never
+# forgets a blob — but their sidecars are tracked, so the repository keeps a dated record
+# of what hash each release had, on a different system from the one serving the download.
+# Excluding the contents rather than the directory is what makes the negation work: git
+# does not descend into an excluded directory, so !desktop/release/*.json under a plain
+# desktop/release/ would silently match nothing.
+desktop/release/*
+!desktop/release/*.json
+
+# ----------------------------------------------------------------------------
+# Private planning and notes
+# ----------------------------------------------------------------------------
+
+# "hide" as a dot-separated part of a file or folder name stays out of the public
+# repository, so an idea can live in the tree before it is adopted; contents.md
+# describes the pattern and what it holds back
 hide
 hide.*
 *.hide
 *.hide.*
 
-# tauri icon writes a whole tree for the macos source; only the icns it makes is kept, in icons/mac
-src-tauri/icons/.mac
+# ----------------------------------------------------------------------------
+# IDEs and editors
+# ----------------------------------------------------------------------------
+
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.fleet/
+*.iml
+*.swp
+*.swo
+
+# Claude Code writes a session resume and per-machine settings here; anything else
+# under .claude is shared configuration and can be committed
+.claude/RESUME.md
+.claude/settings.local.json
+
+# ----------------------------------------------------------------------------
+# Secrets, kept because these are the patterns that would otherwise commit one
+# some day. Vite reads .env and .env.<mode>, and Tauri's signing and notarization
+# credentials are environment variables
+# ----------------------------------------------------------------------------
+
+.env
+.env.*
+*.env
+*.vars
+*.pem
+*.key
+*.cert
+*.p12
+
+# Deploy scripts, which name a real destination
+upload*.sh
+
+# ----------------------------------------------------------------------------
+# Logs, diffs, and temporary files
+# ----------------------------------------------------------------------------
+
+logs/
+*.log
+*.diff
+diff*.txt
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# ----------------------------------------------------------------------------
+# Lock files — pnpm-lock.yaml SHOULD be committed.
+# package-lock.json and yarn.lock should not exist in a pnpm monorepo.
+# ----------------------------------------------------------------------------
+
+package-lock.json
+yarn.lock

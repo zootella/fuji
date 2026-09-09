@@ -132,6 +132,8 @@ Worth remembering beyond icons: every generated-and-committed asset in this repo
 
 added to `package.json` for that, taking `app-icon.svg` directly — the CLI accepts SVG as readily as PNG, and the default output directory is already `src-tauri/icons` because that is where `tauri.conf.json` lives.
 
+Run it from `desktop/`, the workspace that owns the script; every path in this document is written from there, the way the code refers to itself.
+
 **The `.ico` carries the fringe today and one run clears it**, verified layer by layer:
 
     layer   committed, old cli        after pnpm icons, 2.11.4

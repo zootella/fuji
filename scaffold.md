@@ -4,6 +4,8 @@ This guide is for a Claude Code session scaffolding a new Tauri desktop client t
 
 The target stack: Tauri 2.11.x (npm packages and Rust crates on the same minor — the Tauri CLI enforces this), Vue 3.5.x in plain JavaScript, Vite 8.2.x with @vitejs/plugin-vue 6, Tailwind 4.3.x via the vite plugin only, pnpm 10.28.2 through corepack, Rust edition 2021.
 
+**Fuji is itself a pnpm monorepo, as of 2026-09-09.** The application lives in a `desktop` workspace that owns the scripts and dependencies; the root package.json holds only identity and the toolchain pins, and has no scripts at all. So where this guide says "fuji's package.json" it means `desktop/package.json`, and where it says "fuji's .gitignore" it means the single one at the root that covers every workspace. A sister client that is one application and nothing else does not need that shape — a plain repository is fine, and every step below reads the same either way.
+
 ## Ground rules (read these first)
 
 - **Git**: run read-only git commands freely; all mutating git commands — add, commit, push, pull — are the user's alone. When it's time to commit, end your response with one line: 📌 followed by the suggested commit message in boldface.
@@ -55,7 +57,7 @@ pnpm add -D tailwindcss @tailwindcss/vite
 - Scripts, following fuji's package.json: `local` (tauri dev); the build trail `build-binary` (--no-bundle, quickest compile-and-link proof) → `build-app` (--bundles app, runnable without dmg theatrics) → `build-dmg`/`build` (everything); `app`/`win` (launch the built app per platform); `vite-build`. A script cannot be named `run` — pnpm's builtin shadows it. Deliberately no cleanup scripts: those were yarn-classic-era crutches, pnpm doesn't need clean reinstalls — and no script ever deletes the tracked lockfiles.
 - Router: decide by the app's nature, and revisit as the app grows. A many-screened app — lists, detail views, settings, the shape of a management console — earns vue-router: the route table is its table of contents. A single-space immersive app switches modes with plain Vue (`v-if` or `<component :is>` on a mode ref) — two or three modes sharing live state don't need URL serialization, history, or guards, and routers unmount components by default, which fights kept-alive state. If a router is adopted in a tauri app, use hash mode: history-mode paths expect a server to answer on reload, and a tauri bundle has none. Neither choice is dogma — an app that grows enough screens converts, with a reason attached.
 - Line endings: copy fuji's .gitattributes (`* text=auto eol=lf`) and .editorconfig — LF in the repo and both working trees, policy living in the repo rather than machines' git configs.
-- .gitignore: fuji's current one is the reference — including the OS-junk entries for both platforms and the hide-convention block if the project adopts it.
+- .gitignore: fuji's current one is the reference — including the OS-junk entries for both platforms and the hide-convention block if the project adopts it. It is one file at the repository root covering every workspace; nested ignore files are deliberately avoided, so a single place answers what is ignored.
 
 ## 6. Verify
 

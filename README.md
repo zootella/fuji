@@ -12,15 +12,26 @@ Made with
 [Vite](https://vite.dev/) in
 [Tauri](https://tauri.app/).
 
+### Workspaces
+
+This repository is a pnpm monorepo. The application is one workspace; the planning documents stay at the root.
+
+```
+./desktop           the Fuji desktop application, made with Tauri
+```
+
 ### Scripts
+
+Install from the root, which installs every workspace, then work from inside the one you mean.
 
 ```
 $ pnpm install
+$ cd desktop
 $ pnpm local        # run in dev mode with hot reload
 $ pnpm build        # release build, all the way to the dmg
 ```
 
-pnpm comes from corepack rather than a global install, and reads the `packageManager` field in package.json to run the exact version this project pins. CLAUDE.md lists the rest of the build trail.
+The root has no scripts of its own, on purpose — a command belongs to the workspace it acts on. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to run the exact version this project pins. CLAUDE.md lists the rest of the build trail.
 
 ### Scaffolded on macOS
 
@@ -39,15 +50,15 @@ $ yarn create tauri-app fuji
 
 Executable and installer on mac
 ```
-./src-tauri/target/release/bundle/macos/Fuji.app
-./src-tauri/target/release/bundle/dmg/Fuji_0.1.0_aarch64.dmg
+./desktop/src-tauri/target/release/bundle/macos/Fuji.app
+./desktop/src-tauri/target/release/bundle/dmg/Fuji_0.1.0_aarch64.dmg
 ```
 
 Executable and installers on windows
 ```
-./src-tauri/target/release/fuji.exe
-./src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
-./src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
+./desktop/src-tauri/target/release/fuji.exe
+./desktop/src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
+./desktop/src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
 ```
 
 ## Setup macOS
@@ -138,10 +149,11 @@ $ git --version, git version 2.55.0.windows.3
 $ git clone https://github.com/zootella/fuji
 $ cd fuji
 $ pnpm install --frozen-lockfile
+$ cd desktop
 $ pnpm build
 $ pnpm local
 ```
-`pnpm` isn't installed globally — it comes from corepack, which ships with Node. Run `corepack enable` once from an elevated *PowerShell*; after that `pnpm` reads the `packageManager` field in package.json and runs the exact version this project pins, downloading it on first use. Use `--frozen-lockfile` when you're installing what's committed rather than changing dependencies; it refuses to quietly rewrite pnpm-lock.yaml, which is what keeps one lockfile serving both mac and windows.
+`pnpm` isn't installed globally — it comes from corepack, which ships with Node. Run `corepack enable` once from an elevated *PowerShell*; after that `pnpm` reads the `packageManager` field in the root package.json and runs the exact version this project pins, downloading it on first use. Use `--frozen-lockfile` when you're installing what's committed rather than changing dependencies; it refuses to quietly rewrite pnpm-lock.yaml, which is what keeps one lockfile serving both mac and windows.
 
 No global `tauri-cli` either — the `@tauri-apps/cli` in devDependencies is what `pnpm local` and `pnpm build` run, and keeping it there means the CLI can't drift out of step with the Rust crates.
 

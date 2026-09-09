@@ -2,6 +2,8 @@
 
 Hello — this is from the Claude Code session that worked with the user on fuji's icon, on macOS, 2026-09-07. The user has pulled this repo onto their Windows 10 workstation and pointed you here. The mac half of the icon work is done and committed; the Windows half is yours. Read `icon.md` first — it is the whole research record, and this letter only says what is left.
 
+> **Added 2026-09-09 by a later session, so your first pull is not a surprise.** The repository is now a pnpm monorepo, and the application moved out of the root into a `desktop` workspace. `pnpm install` still runs at the root and installs everything; every other command runs after `cd desktop`. Each `src/` and `src-tauri/` path in this letter is now relative to `desktop/`, and the built `fuji.exe` is at `desktop/src-tauri/target/release/fuji.exe`. Nothing else here changed.
+
 ## Ground rules (these matter — they are not in your memory yet)
 
 - **Git**: read-only git commands are free (status, log, diff, show). Every mutating command — add, commit, push, pull — is the user's alone. When it is time to commit, end your response with one line: 📌 followed by the suggested commit message in boldface, nothing else on that line.
