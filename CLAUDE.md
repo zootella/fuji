@@ -37,8 +37,9 @@ pnpm local        # Run Tauri in dev mode with hot reload
 ```bash
 pnpm build-binary # Quickest proof the release build compiles and links; no bundles
 pnpm build-app    # Also bundle the runnable app; skips the dmg and its finder theatrics
-pnpm build-dmg    # Everything, including the dmg installer
+pnpm build-dmg    # Everything in the targets list, including the dmg installer
 pnpm build        # Same as build-dmg
+pnpm release      # That, then stage the installer under its publishing name and hash it
 pnpm app          # Launch the built mac app
 pnpm win          # Launch the built windows exe
 ```
@@ -192,11 +193,26 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 **Windows**:
 ```
 ./desktop/src-tauri/target/release/fuji.exe
-./desktop/src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
 ./desktop/src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
 ```
 
-`fuji.exe` is the application itself — the same binary both installers wrap and install. `pnpm win` launches it in place, without installing.
+**Linux**:
+```
+./desktop/src-tauri/target/release/bundle/deb/Fuji_0.1.0_amd64.deb
+```
+
+**The staged release**, written by `pnpm release` on whichever machine built it:
+```
+./desktop/release/fuji.dmg      ./desktop/release/fuji.dmg.json
+./desktop/release/fuji.exe      ./desktop/release/fuji.exe.json
+./desktop/release/fuji.deb      ./desktop/release/fuji.deb.json
+```
+
+`fuji.exe` is the application itself — the binary the NSIS installer wraps. `pnpm win` launches it in place, without installing.
+
+`bundle.targets` names the four packages fuji ships, rather than Tauri's default `"all"` — which also builds an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package, neither of which anything links to. One list serves all three platforms: a target that does not apply to the machine doing the build is skipped, and **the skipping is silent**, so a build producing one file is not evidence that anything went wrong.
+
+`pnpm release` copies the bundle out from under its versioned, architecture-specific name into `release/` under a stable publishing name, and writes the sidecar beside it from the bytes that landed. The rename happens here rather than at upload time, which is what lets the site side copy known filenames from a known path with no rules about versions or architectures. The installers stay out of git; the sidecars are committed, so history keeps a dated record of what hash each release had.
 
 ## Path Handling
 

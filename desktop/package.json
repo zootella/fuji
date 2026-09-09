@@ -11,6 +11,7 @@
 		"build-app": "tauri build --bundles app",
 		"build-dmg": "tauri build",
 		"build": "tauri build",
+		"release": "tauri build && node release.js",
 		"app": "open src-tauri/target/release/bundle/macos/Fuji.app",
 		"win": "start src-tauri/target/release/fuji.exe",
 		"icons": "tauri icon src-tauri/icons/app-icon.svg && tauri icon src-tauri/icons/app-icon-mac.svg -o src-tauri/icons/.mac && node -e \"const f=require('fs');f.mkdirSync('src-tauri/icons/mac',{recursive:true});f.copyFileSync('src-tauri/icons/.mac/icon.icns','src-tauri/icons/mac/icon.icns')\"",

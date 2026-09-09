@@ -30,6 +30,7 @@ $ pnpm install
 $ cd desktop
 $ pnpm local        # run in dev mode with hot reload
 $ pnpm build        # release build, all the way to the dmg
+$ pnpm release      # that, then stage and hash the installer for publishing
 ```
 
 The root has no scripts of its own, on purpose — a command belongs to the workspace it acts on. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to run the exact version this project pins. CLAUDE.md lists the rest of the build trail.
@@ -55,12 +56,25 @@ Executable and installer on mac
 ./desktop/src-tauri/target/release/bundle/dmg/Fuji_0.1.0_aarch64.dmg
 ```
 
-Executable and installers on windows
+Executable and installer on windows
 ```
 ./desktop/src-tauri/target/release/fuji.exe
-./desktop/src-tauri/target/release/bundle/msi/Fuji_0.1.0_x64_en-US.msi
 ./desktop/src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
 ```
+
+Installer on linux
+```
+./desktop/src-tauri/target/release/bundle/deb/Fuji_0.1.0_amd64.deb
+```
+
+Staged for publishing by `pnpm release`, on whichever machine built it
+```
+./desktop/release/fuji.dmg      ./desktop/release/fuji.dmg.json
+./desktop/release/fuji.exe      ./desktop/release/fuji.exe.json
+./desktop/release/fuji.deb      ./desktop/release/fuji.deb.json
+```
+
+Fuji ships those four packages and no more, so `bundle.targets` names them instead of Tauri's default `"all"`, which would also build an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package. The installers themselves stay out of git; their sidecars are committed, so the repository keeps a dated record of what hash each release had.
 
 ## Setup macOS
 
