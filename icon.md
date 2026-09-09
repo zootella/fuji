@@ -182,20 +182,65 @@ The question is not academic: every cross-platform team with a Mac developer mee
     balenaEtcher              256     204     79.7%
     fuji                      256     256    100.0%
 
-**Fourteen applications, one answer, and fuji is the only outlier.** Most of that list is Electron — the same cross-platform problem, the same tooling gap, and every one of those teams supplies a macOS icon drawn to the grid rather than generated from a shared source. There is no clever alternative in the field. The mainstream way *is* the hand-made `.icns`.
+**Fourteen applications, one answer, and fuji is the only outlier.** Most of that list is Electron — the same cross-platform problem, the same tooling gap, and every one of those teams supplies a macOS icon drawn to the grid rather than generated from a shared source. There is no clever alternative in the field. The mainstream way *is* the hand-made `.icns`. (Fuji is no longer at 100%, and no longer at 80.5% either — the circle section below says why a round icon is sized against Apple’s round icons instead.)
 
 **Tauri's maintainers reached the same conclusion the hard way.** In [discussion #10999](https://github.com/tauri-apps/tauri/discussions/10999), FabianLars calls it "one of the cross-platform problems", confirms macOS needs the padding inside the file, and reports attempting to automate it in PR #11037 — abandoned, because generating a padded macOS icon from one shared source came out "uncanny" at different scales. The conclusion offered was that developers should provide multiple input icons, and that remains unimplemented. So there is no Tauri feature coming to rescue this, and no configuration to wait for.
 
 **And padding the single source would be the wrong fix, because Windows wants the opposite.** Microsoft's guidance has app icons filling roughly 90% or more of their canvas, and artwork at 78.9% has been reported as a bug for looking *too small* beside its neighbours. The number macOS requires is very close to the number Windows treats as a defect. One source padded to please the Dock would shrink the icon in the taskbar, which is fuji's present complaint reproduced on the other platform in reverse.
 
+## A circle is not a squircle, and the grid is a squircle's
+
+The 824 grid settled the blimp, and immediately raised a question the blimp had been hiding: fuji sat exactly on the grid and still looked small. That was not a misreading. Measured 2026-09-09.
+
+**Two shapes filling the same box are not the same size.** Counting the opaque pixels in the 1024 layer of every installed application whose artwork fills the mask:
+
+    Karabiner-Elements     649,638
+    DiffusionBee           648,366
+    Path Finder            648,314
+    Discord                648,233
+    Slack                  647,779
+    Spotify                647,704
+    balenaEtcher           647,264
+
+Eight applications spanning 0.37% end to end, which is what makes this a property of Apple's shape rather than of anyone's artwork. Median 648,300. A circle inscribed in the same 824 box carries π × 412², which is 533,267 — **17.7% less**. On the grid, fuji matched its neighbours on width and height while giving up a sixth of its weight, and a sixth is visible.
+
+**Apple's own circular icons are not on the grid.** Three survive on macOS 15.7.4, never redrawn for Big Sur:
+
+    Rosetta 2 Updater      848     82.8% of canvas
+    Paired Devices         892     87.1%
+    AddPrinter             903     88.2%
+
+Against which every application Apple *did* redraw measures 206 × 206 on 256, to the pixel — Finder, Terminal, Preview, Grapher, Siri, Control Center, Keychain Access, Screenshot, and about twenty-five more. The grid is followed exactly where the shape is a squircle and departed from where it is a circle, by the same designers on the same system. That is the argument for going past it, and it is Apple's rather than fuji's.
+
+**The measuring vocabulary: invasion.** The grid leaves a 100-pixel frame on each side. Invasion is how much of that frame the disc takes, and because the frame is exactly 100 pixels it doubles as a percentage. The radius is `412 + invasion`, so the vocabulary converts straight into the file.
+
+    invasion   diameter   what sits there
+    0          824        the squircle grid
+    12         848        Rosetta 2 Updater
+    34         892        Paired Devices          <- fuji
+    40         904        AddPrinter
+    42         908        equal area with the squircle
+    50         924        halfway to the canvas
+    100        1024       the full canvas, the blimp
+
+**Built and looked at, rather than calculated.** Each candidate went through `pnpm icons` and `pnpm build` whole, and was judged in the dmg window, in /Applications at several icon sizes, and in the dock beside real neighbours:
+
+    50   owns its space, but blimpy — reads as never having understood the safe area
+    42   still reads as a mistake, as though the safe area had been aimed at and missed
+    34   present among the squircles, neither diminutive nor intruding
+
+Worth recording that 42 lost. It is the diameter at which a circle has equal area with the 824 squircle, it lands two pixels from AddPrinter, and it was the number the arithmetic argued hardest for — and in the dock it read as an error rather than a decision. The geometry located the neighbourhood and the eye picked the house.
+
+**Fuji sits at 34, which is Paired Devices exactly.** That is the line to keep if this ever needs defending. Fuji's disc is not a number somebody liked: it is the diameter of a circular icon Apple ships on this operating system, and it sits between Apple's other two.
+
 ## How fuji's icons are built now
 
-Applied 2026-09-07. This is the current arrangement; everything above is why it is this one.
+Applied 2026-09-07, and revised 2026-09-09 when the disc grew off the grid. This is the current arrangement; everything above is why it is this one.
 
 **Two sources, because two platforms want opposite things.**
 
     src-tauri/icons/app-icon.svg       r="512"   the disc filling its canvas
-    src-tauri/icons/app-icon-mac.svg   r="412"   the same disc on apple's 824 grid
+    src-tauri/icons/app-icon-mac.svg   r="446"   the same disc drawn for the dock
 
 That is the entire difference: one number. `structure.md`'s rule about a family sharing a leading noun is why the second is `app-icon-mac` rather than `mac-app-icon`.
 
@@ -215,21 +260,23 @@ That is the entire difference: one number. `structure.md`'s rule about a family 
 
 runs `tauri icon` twice and copies the second run's `icon.icns` into `mac/`. The copy is `node -e` rather than `cp` because this repository is built on Windows too. Run it after changing artwork, and after a Tauri CLI upgrade — the section above says why the second case is the one that gets forgotten.
 
-**Why the macOS icon is generated rather than hand-drawn.** Every other application solves this with a hand-made `.icns`, and fuji does not have to, because its artwork is arithmetic: Apple's body is 824 of 1024, so the macOS disc is a radius of 412 instead of 512 and nothing else changes. Feeding a correctly padded source to `tauri icon` gets a correctly padded icon out — the tool was never wrong about resizing, only about padding, and this hands it a source that needs none. Fuji's simplicity, which made both defects visible, is also what makes this fix a one-line file rather than a binary asset to maintain by hand.
+**Why the macOS icon is generated rather than hand-drawn.** Every other application solves this with a hand-made `.icns`, and fuji does not have to, because its artwork is arithmetic: the macOS disc is a radius of 446 instead of 512 and nothing else changes. Feeding a correctly padded source to `tauri icon` gets a correctly padded icon out — the tool was never wrong about resizing, only about padding, and this hands it a source that needs none. Fuji's simplicity, which made both defects visible, is also what makes this fix a one-line file rather than a binary asset to maintain by hand.
 
 **What was measured after applying it:**
 
-    macOS icon.icns          1024 canvas   824 body   80.5%   edge 159,255,223 clean
-                              512 canvas   412 body   80.5%   edge 159,255,223 clean
-                              256 canvas   206 body   80.5%   edge 159,255,223 clean
+    macOS icon.icns          1024 canvas   892 body   87.1%   edge 159,255,223 clean
+                              512 canvas   446 body   87.1%   edge 159,255,223 clean
+                              256 canvas   222 body   86.7%   edge 159,255,223 clean
     icon.ico, all six layers            full bleed, unchanged   edge 159,255,223 clean
     linux pngs, all three               full bleed, unchanged   edge 159,255,223 clean
 
-80.5% is Calculator, Figma, Slack and VS Code to the pixel. The other platforms keep the full-bleed disc on purpose — Windows treats a macOS-sized margin as a defect, and Linux is not researched yet.
+87.1% is Paired Devices to the pixel; the section above says why a circle is sized against Apple’s circles rather than against the squircle grid. The other platforms keep the full-bleed disc on purpose — Windows treats a macOS-sized margin as a defect, and Linux is not researched yet.
 
-## An oddity worth recording
+## Two oddities worth recording
 
 **`ic14` holds the wrong size, in every version.** That entry means 512@2x and should carry a 1024 image; `tauri icon` writes a 512 into it, old CLI and new alike. `ic10` does carry a true 1024, and macOS reads that, so nothing visibly suffers. Recorded because it will look like a discovery to whoever next opens the file with a hex editor.
+
+**`tauri icon` does not write `.icns` entries in a stable order.** Regenerating from an unchanged source produces a file of the same length, holding the same twelve entries, with every image byte-identical — shuffled. So `git status` reports `icon.icns` and `mac/icon.icns` as modified after every `pnpm icons` run whether or not the artwork changed, and a clean status there proves nothing either way. The `.ico` and the PNGs do not have this property, and did come back byte-identical.
 
 ## Windows — researched only as far as the current files
 
