@@ -18,6 +18,7 @@ This repository is a pnpm monorepo. The application is one workspace; the planni
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri
+./site              the website and documentation, made with VitePress
 ```
 
 ### Scripts

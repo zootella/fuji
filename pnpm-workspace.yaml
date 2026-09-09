@@ -9,5 +9,6 @@ packages:
   # repository root until September 2026 lives here now
   - desktop
 
-  # fujidesktop.app — the website and its documentation — arrives from the fuji-site
-  # repository as a second workspace, `site`, alongside this one
+  # fujidesktop.app — the website and its documentation, built by VitePress to static
+  # files that our own reverse proxy serves
+  - site

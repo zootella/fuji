@@ -1,0 +1,14 @@
+/*
+Six Helvetica Neue faces, packaged with the repository, for the home page logotype. font-display is block, not swap: show up in this face or not at all.
+
+Nothing else is here on purpose. The documentation pages are stock VitePress — default colors, default Inter — and the home page sets its own fonts in components/HomePage.vue rather than moving the theme's variables, so the two can never pull on each other.
+
+When we do want to theme the documentation, this is where it goes; the variables are listed at https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
+*/
+
+@font-face { font-display: block; font-weight: 300; font-style: normal; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-light.woff2')        format('woff2'); }
+@font-face { font-display: block; font-weight: 400; font-style: normal; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-roman.woff2')        format('woff2'); }
+@font-face { font-display: block; font-weight: 700; font-style: normal; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-bold.woff2')         format('woff2'); }
+@font-face { font-display: block; font-weight: 300; font-style: italic; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-light-italic.woff2') format('woff2'); }
+@font-face { font-display: block; font-weight: 400; font-style: italic; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-roman-italic.woff2') format('woff2'); }
+@font-face { font-display: block; font-weight: 700; font-style: italic; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-bold-italic.woff2')  format('woff2'); }

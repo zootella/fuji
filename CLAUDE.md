@@ -14,7 +14,7 @@ The application displays images in an infinite pannable/zoomable space with keyb
 
 ### The repository is a pnpm monorepo
 
-The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. A second workspace, `site`, holding the VitePress website for fujidesktop.app, arrives from the `fuji-site` repository.
+The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. The second workspace is `site`, the VitePress website and documentation for fujidesktop.app, built to static files that our own reverse proxy serves.
 
 The root has no scripts, deliberately. `pnpm install` runs there and installs every workspace; everything else runs from inside the workspace it belongs to, so `cd desktop` comes first. **Throughout this document a path written `src/` or `src-tauri/` is relative to `desktop/`**, which is how the code refers to itself; only paths written from the root, like the build outputs below, carry the `desktop/` prefix.
 
@@ -48,6 +48,17 @@ pnpm win          # Launch the built windows exe
 pnpm dev          # Run Vite dev server without Tauri
 pnpm vite-build   # Build frontend only
 ```
+
+### The Site Workspace
+```bash
+cd site
+pnpm local        # VitePress dev server
+pnpm build        # Static files into docs/.vitepress/dist/
+pnpm preview      # Serve the built output
+pnpm upload       # Build, then ship dist/ to the server
+pnpm fixtures     # Copy the desktop workspace's sidecars in for local development
+```
+The desktop workspace **produces** a release — the installer and the sidecar describing it, made together on the machine that can build them. The site workspace **publishes**, copying finished files to the server without thinking about them. That split is why the site build never learns a hash: the page fetches each sidecar at runtime.
 
 ### Regenerate the Icons
 ```bash

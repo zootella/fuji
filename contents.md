@@ -39,7 +39,7 @@ Private planning is kept out of the public repository by the `hide` naming patte
 
 ## The shape of the repository
 
-The documents above live at the repository root, which is a pnpm monorepo. The application is the `desktop` workspace, so a path a document writes as `src/` or `src-tauri/` is relative to `desktop/`. The website for fujidesktop.app arrives later as a second workspace, `site`, and some of the finished documents above eventually become pages there.
+The documents above live at the repository root, which is a pnpm monorepo. The application is the `desktop` workspace, so a path a document writes as `src/` or `src-tauri/` is relative to `desktop/`. The website for fujidesktop.app is the `site` workspace, and some of the finished documents above eventually become pages there.
 
 `notes/` is a plain folder rather than a workspace, and it is the raw material rather than a document of record: the four `fuji` text files the roadmap was distilled from in August 2026, and a few early sketches of brand and pointer work. Nothing imports it and nothing builds it, which is exactly the rule — a directory holding a `package.json` is a workspace, and everything else is just a folder.
 

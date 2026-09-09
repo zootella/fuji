@@ -1,0 +1,19 @@
+{
+	"name": "site",
+	"description": "Static website at fujidesktop.app",
+	"homepage": "https://fujidesktop.app/",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"local": "vitepress dev docs",
+		"fixtures": "cp ../desktop/release/*.json docs/public/",
+		"build": "vitepress build docs",
+		"upload": "rm -f docs/public/fuji.*.json && vitepress build docs && ./upload.hide.sh",
+		"preview": "vitepress preview docs"
+	},
+	"devDependencies": {
+		"vitepress": "^1.6.4",
+		"vue": "^3.5.42"
+	}
+}
