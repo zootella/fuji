@@ -107,7 +107,9 @@ desktop/release/*
 
 # "hide" as a dot-separated part of a file or folder name stays out of the public
 # repository, so an idea can live in the tree before it is adopted; contents.md
-# describes the pattern and what it holds back
+# describes the pattern and what it holds back. It covers deploy scripts too — a
+# workspace's upload.hide.sh names a real destination, so the name carries its own
+# reason for being hidden rather than needing a rule of its own
 hide
 hide.*
 *.hide
@@ -144,9 +146,6 @@ hide.*
 *.key
 *.cert
 *.p12
-
-# Deploy scripts, which name a real destination
-upload*.sh
 
 # ----------------------------------------------------------------------------
 # Logs, diffs, and temporary files
