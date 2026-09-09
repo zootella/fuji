@@ -2,10 +2,12 @@
 
 import TagFlow from './TagFlow.vue'
 import CanvasFlow from './CanvasFlow.vue'
+import SquareFlow from './SquareFlow.vue'
 
 export const cardFlows = {//adding a flow is one entry here
 	TagFlow,//plain img tags, everything left to the engine
 	CanvasFlow,//fuji paints its own thumbnails and owns the memory
+	SquareFlow,//the one that replaces both: the operating system makes the pixels where it can, the page where it cannot, and thumbnail-plan.md says which
 }
 
 </script>

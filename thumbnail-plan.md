@@ -41,7 +41,7 @@ One flow, SquareFlow, does all of this for a card: it probes the card's files in
 
 **One flow, in one file for now.** It takes a card's paths and the box, probes them as a batch, lays out the boxes, and fills them in the model's order. The table, the probe call, the unpack and the halving all live in `SquareFlow.vue` until a second arrangement exists to share them with.
 
-**Two loops and a list.** The native loop keeps a few thumbnails in flight, four to start, because each is a pool thread that never touches the page and the machine has cores. The page loop keeps one in flight, because each is a full decode held in the store and a draw on the main thread. The img tiles are set at once and the engine loads them as it likes. Both loops stop when the card goes away and wait while the sheet is hidden, which closes the item flagged in `Sheet.vue`.
+**Two loops and a list.** The native loop keeps a few thumbnails in flight, four to start, because each is a pool thread that never touches the page and the machine has cores. The page loop keeps one in flight, because each is a full decode held in the store and a draw on the main thread. The img tiles are set at once and the engine loads them as it likes. Both loops stop when the card goes away and wait while the sheet is hidden, so a sheet behind the table does none of its work inside the table's frames.
 
 **What it counts and what it keeps.** Every canvas is width times height times four bytes, totalled per card, so what a card costs is a number the sheet can read, exact for all but the imgs. Nothing is kept between cards or launches; a page Next discards is remade on the way back, and a cache on disk is a separate document. A change of thumbnail size is every card made again.
 
@@ -51,13 +51,17 @@ One flow, SquareFlow, does all of this for a card: it probes the card's files in
 2. **SquareFlow**, beside TagFlow and CanvasFlow in the register, so the three can be compared on one folder.
 3. **The switch and the retirement.** `card.flow` becomes SquareFlow and then goes away as a setting; TagFlow and CanvasFlow are deleted, their essays' lessons already in `canvas.md`. The img control lives outside the app, as the page beside the test images does.
 4. **The documents.** `structure.md` says there is one flow; `card.md` drops the experiment and points here; `contents.md`, `CLAUDE.md` and `settings.js` lose the two names; `architecture.md`'s tree names SquareFlow.
-5. **The meter.** A row per thumbnail, with its path, which path made it, and the milliseconds, so `performance.md` gets numbers from the running app in place of the bench in `canvas.md`.
+5. **The log.** A row per thumbnail, with its path, which path made it, and the milliseconds, so `performance.md` gets numbers from the running app in place of the bench in `canvas.md`.
 6. **The path scope**, `security.md`'s first wall, for every disk and thumbnail command. Independent of the rest, and built before fuji goes to anyone else.
+
+## Status
+
+Steps one, two and five are built, 2026-09-08. `thumbnail_probe` and both walls are in `thumbnail.rs`, type-checked on both platforms and run on the Mac against the six test images, a PNG named `.jpg`, a text file named `.jpg`, an empty file, a header claiming ten gigapixels, and SVGs with and without a byte order mark, each answered as the plan says. `SquareFlow.vue` is in the register beside the old two, is chosen by `card.flow`, and passed its first smoke test on the six. Every thumbnail and every card it fills is a row in the log, which `performance.md` describes. The switch and the retirement, steps three and four, have not happened, and neither has the path scope.
 
 ## Open
 
 - **Fault tolerance is its own session, and these are for it.** For now every file fuji cannot show gets the placeholder, and nothing is tried twice. The session decides the rest: a file whose extension lies in either direction, an image saved with no image extension and a non-image saved with one; a file the operating system refuses that the page might show; whether imgs are probed at all, since a GIF has its size in its first ten bytes and an SVG has nothing to check but a leading `<`; HEIC, which this Mac thumbnails natively in sixteen milliseconds and Windows without the paid codec cannot show at all, so listing it means placeholders there; and the size ceiling. On the ceiling: it exists only because a header can lie, claiming a hundred thousand pixels a side so that a PNG decodes to forty gigabytes, and a fixed number would also refuse the legitimate gigapixel files Wikimedia keeps. The recommendation is a ceiling relative to the machine's own memory, so it never limits capable hardware, now or later, and only turns away what could not have fit anyway. JPEG never needs it, because both operating systems decode a JPEG scaled and the full raster never exists; PNG, BMP, WebP and AVIF decode whole, and that is where a lie costs memory.
 - **Animated WebP**, a still on the native path until the probe reads the animation flag in its header and sends it to an img the way a GIF goes.
-- **The native loop's width.** Four is a guess for the meter to correct.
+- **The native loop's width.** Four is a guess for the log to correct.
 - **A thumbnail cache on disk**, which is how Finder is instant on a folder it has seen and would make Next and back free.
 - **The Linux size gate**, which would need a header parser of fuji's own.

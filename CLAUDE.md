@@ -72,12 +72,18 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 - `desktop.rs` - The one thing only Rust can do, because only Rust sees a quit coming:
   - `desktop_exit_hold()` - Replace the text to write to a path when the application exits
-  - `desktop_exit_append()` - Add to the end of it instead, for a caller producing its file a line at a time
-  - Written from `RunEvent::Exit`, the one event every way of quitting reaches
 
-- `thumbnail.rs` - The operating system's thumbnailer, ImageIO on macOS and WIC on Windows, behind one command:
-  - `thumbnail_render(path, maximum, gamut)` - Decode the file at the path scaled so its longer side is at most `maximum` pixels, oriented and color-converted, returning one buffer: an 8-byte header of width and height, then straight-alpha RGBA. Runs on Tauri's thread pool. Rejects on Linux
-  - Nothing calls it yet; `canvas.md` holds the decision to route every format the operating system decodes to it, and the probe and table that would do the routing; `security.md` holds the walls to build before it is called
+- `log.rs` - Fuji's log, the half that holds the text and writes it:
+  - `log(text)` - One line from any Rust code, appended to the run's log; a no-op unless the page started a log
+  - `log_start(path)` - The page names the file, once, only when `log.record` is on
+  - `log_append(text)` - The page's lines, a batch at a time
+  - `log_write()` - Called from `RunEvent::Exit`, making the folder if needed; `src/log.js` is the page's half and carries the essay on why a file and not a console
+  - Written from `RunEvent::Exit`, the one event every way of quitting reaches, making the file's folder first if it is missing
+
+- `thumbnail.rs` - The operating system's thumbnailer, ImageIO on macOS and WIC on Windows, behind two commands:
+  - `thumbnail_probe(paths)` - For each path, what its first bytes say it is and what its header says its size is, without decoding; one call per card. Refuses bytes fuji does not know and a header claiming a raster over half the machine's memory
+  - `thumbnail_render(path, format, maximum, gamut)` - Decode the file scaled so its longer side is at most `maximum` pixels, oriented and color-converted, returning one buffer: a 12-byte header of width, height and whether the pixels are Display P3, then straight-alpha RGBA. Refuses a file whose bytes are not `format`. Runs on Tauri's thread pool. Rejects on Linux
+  - `SquareFlow.vue` is the caller; `thumbnail-plan.md` says which files go here and which the page makes for itself
 
 **Command Registration**: All Rust functions exposed to JavaScript must be registered in `lib.rs::run()` using `tauri::generate_handler![]`
 
@@ -99,6 +105,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to a flow; holds the register of flows
 - `TagFlow.vue` - The first flow: plain img tags sized inside the chosen `thumbnail` square, wrapped like words, everything else left to the renderer
 - `CanvasFlow.vue` - The other flow: reads a few images at a time, paints each into a canvas at the display's backing resolution, and releases the original, so the store holds nothing once a card is drawn
+- `SquareFlow.vue` - The flow that replaces both, per `thumbnail-plan.md`: probes a card's files in one call, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden
 - `DiamondTable.vue` - One of fuji's tables, showing one image sized to an invisible diamond on an infinite pannable plane:
   - Handles the events the shell hands it, plus wheel, pointer, and double-click on its own element
   - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
@@ -107,13 +114,13 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `ComicTable.vue` - Another table, a stub. One image full width, read down a vertical scroll
 
 **Model**:
-- `model.js` - What the user is looking at, and no view owns it: the folder, the sort, the ordered list, and the current path. The position is a path rather than an index, so changing the sort leaves the user on the same picture
+- `model.js` - What the user is looking at, and no view owns it: the folder, the sort, the ordered list, the current path, and which of the sheet and a table is showing. The position is a path rather than an index, so changing the sort leaves the user on the same picture
 - `AlphabetSort.js` - The first sort, and the plainest: javascript's own `sort()`. A sort returns the order rather than a comparator, so a shuffle can be one too
 
 **Image layer**:
 - `cache.js` - A store, not a strategy: `cacheNeed(path, holder)` and `cacheRelease(path, holder)` with labelled reference counts, and `cacheNeed(path, holder, {decode: false})` for a caller that wants the bytes and the url without an element. Holds a blob, one object url, and a decoded `<img>` per path. No queue, no eviction policy, nothing freed except on command
 - `flipCache.js` - The diamond table's policy over that store: hold a window of `flip.back` and `flip.forward` images around the current one, release what falls out
-- `meter.js` - The performance log, off unless `meter.record` says otherwise. Records every load and every flip, touches no disk during the session, and hands rows to Rust to write at exit
+- `log.js` - The performance log, off unless `log.record` says otherwise. Records every load and every flip, touches no disk during the session, and hands rows to Rust to write at exit
 - `settings.js` - `fuji.toml`: one schema is the only place a setting is defined, and the file repairs itself on every launch
 
 **JavaScript Modules**:
@@ -121,7 +128,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - `diskRead(path)`, `diskWrite(path, data)`, `diskReadDir(path)`, `diskStat(path)`, `diskCopy(source, destination)`
 
 - `desktop.js` - Exposes the exit-write commands:
-  - `desktopExitHold(path, text)`, `desktopExitAppend(path, text)`
+  - `desktopExitHold(path, text)`
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`
@@ -144,6 +151,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
+- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `thumbnail-plan.md` is the plan and `SquareFlow.vue` is it built
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 
 ### Styling

@@ -9,20 +9,21 @@ App.vue
 └── Shell.vue            the window: settings, reveal, window events, which view is showing
     ├── Sheet.vue        v-show   one sheet: a scroll of cards over one folder
     │   └── Card.vue              a capped number of images, all from one folder
-    │       └── CanvasFlow.vue    the flow that sizes and arranges them; TagFlow.vue beside it
+    │       └── SquareFlow.vue    the flow that sizes and arranges them; TagFlow.vue and CanvasFlow.vue beside it, retiring
     └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
                 ↓ both import, neither knows the other exists
-        the model                 folder, sort, ordered list, current path
+        the model                 folder, sort, ordered list, current path, which view is showing
                 ↓
         the cache                 path → pixels, bounded
                 ↓
         disk.js → disk.rs
+        thumbnail.js → thumbnail.rs   beside the cache, for the sheet only: the operating system's thumbnailer
 ```
 
 ## The shell
 
-**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, sizes and reveals the window, records where the user puts it, holds which view is showing, and owns the `c` key that switches between them. It draws nothing: no background, no HUD, no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
+**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, sizes and reveals the window, records where the user puts it, decides which view is showing and writes that to the model so a flow can wait on it, and owns the `c` key that switches between them. It draws nothing: no background, no HUD, no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
 
 **It exists because window events are global and everything else is not.** A view's `wheel`, `pointerdown`, and `dblclick` handlers live on its own element, so a hidden view receives none of them and two views cannot collide. But `window.addEventListener` fires regardless of what is visible, so `keydown` and `resize` are the entire interference surface between views. The shell holds one listener each and hands the event to whichever view is active. A hidden view cannot react to a key because it is never given one, rather than because it remembered to check.
 
@@ -32,7 +33,7 @@ App.vue
 
 **A table is named for what makes it different, not for what they all are.** They are all light tables, which is why none of them is called one: `DiamondTable` is the one that keeps a diamond, and the next is the one that keeps whatever it keeps instead.
 
-**The sheet scrolls over cards, not over thumbnails.** A card holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every card at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `card.md` carries what a card is for and why it is scaffolding.
+**The sheet scrolls over cards, not over thumbnails.** A card holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every card at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `card.md` carries what a card is for, and `thumbnail-plan.md` how the flow gets its pixels.
 
 **`c` switches between the sheet and the current table, and they swap with `v-show`.** That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
 
@@ -42,7 +43,7 @@ App.vue
 
 ## The model
 
-**The model holds what the user is looking at, and no view owns it.** The current folder, the sort order, the ordered list of images in it, the current path, and the history of where the user has been.
+**The model holds what the user is looking at, and no view owns it.** The current folder, the sort order, the ordered list of images in it, the current path, which of the sheet and a table is on screen, and the history of where the user has been.
 
 **Tables are interchangeable views of the same thing, and that is what forces the model down here.** A user on image 47 who switches from one table to another expects to still be on image 47. If the folder listing and the index lived inside a table, the second table would either duplicate them or reach into the first, and reaching in is how two components stop being separable. The same argument settles sort order: the user sets it in the sheet, then double-clicks a thumbnail and flips — and expects to flip in the order they set. So sort order is not the sheet's, even though the sheet is where it is chosen.
 
@@ -56,9 +57,9 @@ App.vue
 
 **The cache is a plain module keyed by path, and it knows nothing else.** Not which folder a path came from, not what order anything is in, not which view asked. That ignorance is what makes it correct: a user who clicks into a folder, clicks away, and clicks back gets a rebuilt listing, an unchanged sort order, and images that appear at once because the cache never heard about any of it.
 
-**Getting an image on screen has two costs, and the second is the larger one.** Reading the bytes off the disk is noticeable. Decoding those bytes into pixels usually takes longer, and the result is far bigger than the file: a 6000 × 4000 photograph is about 96 MB of RGBA regardless of how small its JPEG was. A hundred of those is not a cache, it is an out-of-memory. So the cache is a few full-size decodes for the table and many small ones for the sheet, over one byte-reading layer they share.
+**Getting an image on screen has two costs, and the second is the larger one.** Reading the bytes off the disk is noticeable. Decoding those bytes into pixels usually takes longer, and the result is far bigger than the file: a 6000 × 4000 photograph is about 96 MB of RGBA regardless of how small its JPEG was. A hundred of those is not a cache, it is an out-of-memory. So the cache is a few full-size decodes for the table. The sheet's small ones are canvases its flow owns, outside the cache.
 
-**Prefer pixels fuji owns.** An image handed to the page as a data URL on an `img.src` is decoded by the browser, and fuji can neither measure that memory nor free it except by clearing the source. An `ImageBitmap` is an object with a size fuji can account for and a `close()` that releases it. A cache with a real byte budget needs the second kind.
+**Prefer pixels fuji owns.** An image handed to the page as a data URL on an `img.src` is decoded by the browser, and fuji can neither measure that memory nor free it except by clearing the source. A canvas is memory fuji sized, with a byte count it can total and that the engine cannot take back. The sheet's thumbnails are that kind: a canvas per picture, its pixels from the operating system through `thumbnail.rs` where the platform allows and from the page where it does not, per `thumbnail-plan.md`.
 
 **A bound goes in from the first line.** Fuji runs for weeks, and a cache without eviction fails slowly enough that no short test will show it.
 
@@ -100,11 +101,11 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What is built today
 
-`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js` and `meter.js`. `ComicTable.vue` is a stub.
+`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js`, `log.js`, and `thumbnail.js` over `thumbnail.rs`. `ComicTable.vue` is a stub.
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 
-`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. Both flows are written. `CanvasFlow` paints each image small and releases the original, so a card holds a size fuji chose; `TagFlow` hands the renderer full-size originals in plain img tags and does nothing else. They are the two halves of one question — whether fuji should be doing this work at all — and `card.md` says what running them against each other is meant to reveal.
+`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. Three flows are in the register: `SquareFlow`, which goes forward and which `thumbnail-plan.md` describes, and `TagFlow` and `CanvasFlow`, the two halves of the experiment `card.md` records, kept beside it for one comparison and then retired.
 
 There is no router and no store library. `App.vue` renders the one view directly and `main.js` mounts the app and does nothing else.
 

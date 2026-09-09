@@ -14,7 +14,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 - **`cache.md`** — images: what is held per path, and why the store is deliberately dumb. Three designs failed before this one, and the reasoning for each failure is here.
 - **`performance.md`** — what any of it costs, measured, with the instrument that measured it. Three findings so far, including the one where a cache reported perfect behaviour while the app got slower.
-- **`card.md`** — the box of thumbnails the sheet's scroll runs over, why fuji is putting a level there that no file manager shows, how two of them side by side become an experiment, and the walk through a whole drive in constant memory that the box makes possible.
+- **`card.md`** — the box of thumbnails the sheet's scroll runs over, why fuji is putting a level there that no file manager shows, what the experiment it hosted found, and the walk through a whole drive in constant memory that the box makes possible.
 - **`canvas.md`** — what WebKit on the Mac and Chromium on Windows actually do with a canvas, read from their sources: when one is GPU-backed, when it is a layer of its own, what it costs and can never give back, what makes a scaled thumbnail look right, and what colors it can hold. Also where a thumbnail should be made at all, in the web layer or by the operating system, and the direction fuji has taken.
 - **`thumbnail-plan.md`** — fuji has a path and needs a thumbnail: how it chooses between the page and the operating system, the one flow that replaces TagFlow and CanvasFlow, and the steps in order.
 - **`security.md`** — where untrusted bytes are parsed, why the web engine's sandbox is not protecting fuji as things stand, and the walls to build, in order.

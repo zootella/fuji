@@ -9,7 +9,7 @@ import Card, {cardFlows} from './Card.vue'
 
 const sheetFlow = ref('')//blank until start(), because setup runs while the shell is still reading the settings file, so a value read here at creation would be the factory one
 
-//fix this soon: the guard on the first line below covers only a sheet that has never been shown. After the first c, every drop on the table rebuilds these cards behind it, and CanvasFlow starts reading, decoding and drawing at once — each draw of a large photograph is synchronous work on the main thread, longer than a frame, landing inside the very flips the table is protecting. The shape of the fix is a visible gate the flow loop awaits, with the shell telling this view when it goes away the way it already calls start
+//the guard on the first line below covers only a sheet that has never been shown. After the first c, every drop on the table rebuilds these cards behind it. SquareFlow waits on modelShowing before it reads, decodes or draws anything, so a hidden sheet does none of that inside the table's frames; TagFlow and CanvasFlow do not wait, which is one reason they are being retired
 const sheetCards = computed(() => {
 	if (!sheetFlow.value) return []//v-show hides without unmounting, so without this an unlooked-at sheet would still render and quietly load a whole folder on the table's drop
 	let cards = []
@@ -21,8 +21,8 @@ function start() {//the shell calls this when this view first comes on screen, w
 	if (sheetFlow.value) return
 	let name = settings.card.flow
 	if (!cardFlows[name]) {//a name settings cannot check, because the flows fuji has are known to the card and not there
-		console.log(`⭕ settings: no flow named ${name}, using TagFlow instead`)
-		name = 'TagFlow'
+		console.log(`⭕ settings: no flow named ${name}, using SquareFlow instead`)
+		name = 'SquareFlow'
 		settings.card.flow = name; settingsChanged()//repair the file, the way a bad value anywhere else in it is repaired
 	}
 	sheetFlow.value = name

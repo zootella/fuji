@@ -1,20 +1,22 @@
 # Performance
 
-What fuji's speed has actually been measured to be, and what those measurements mean. Everything here comes from `meter.js` writing files during real use on 2026-09-06; nothing in it is reasoned from first principles, and where a cause is still a theory it says so.
+What fuji's speed has actually been measured to be, and what those measurements mean. Everything here comes from the log, `log.js` and `log.rs`, writing files during real use on 2026-09-06; nothing in it is reasoned from first principles, and where a cause is still a theory it says so.
 
 `architecture.md` says where things live, `cache.md` says what the store is and why it is dumb, and this file says what any of it costs.
 
 ## The instrument
 
-`meter.js` records every image load and every flip into an array and turns that array into a file. It never renders, because the HUD it replaced could not answer honestly — building a string and painting text in the same frame as the image being timed makes the reading part of what it reports.
+The log is two functions named `log`, one in `log.js` for the page and one in `log.rs` for Rust, each taking a string and adding it to one text file per run. The page's lines go down to Rust; Rust's are already there; when fuji exits, if the setting says so, Rust writes the file. Every load, every flip and every thumbnail is a row of aligned columns written through the page's `log`, and any other line either side wants kept goes through the same call. It never renders, because the HUD it replaced could not answer honestly — building a string and painting text in the same frame as the image being timed makes the reading part of what it reports. `log.js` carries the essay on why a file and not a console: a console is trapped behind the platform, behind who is looking, behind a development build, behind where fuji is installed, and behind the language, and a file crosses all five.
 
-Turn it on with `meter.record` in `fuji.toml`; it is off at the factory. Files land in `meter.folder` under your home, named for the view and the window — `fuji-meter-diamond-10x10-2026-09-06-131234.txt` — so two runs sit side by side rather than one overwriting the other. The folder has to already exist. One file per run of fuji: the shell starts the log once, and no view does.
+Turn it on with `log.record` in `fuji.toml`; it is off at the factory. Files land in `fuji-temp` under your home folder, on every platform, and Rust makes that folder on the way out if it is missing. Each is named for the moment its run began, in UTC to the millisecond — `fuji-log-2026-09-08T18-29-27-123Z.txt` — so runs sort by time and never share a name, and the first line inside says which table and which flip window the run used. One file per run of fuji: the shell starts the log once, and no view does.
 
-**Nothing touches the disk while fuji is running.** Rows go down to Rust a few at a time, Rust holds them in memory, and the whole file is written from `RunEvent::Exit`. That is the reason `desktop_exit_append` exists — a file write on the main thread in the middle of the flips being timed is the HUD's mistake wearing different clothes. The cost is that a crash loses the log, which is the right trade for an instrument, since a crash mid-run invalidates the measurement anyway.
+**Nothing touches the disk while fuji is running.** The page's lines go down to Rust a few at a time after things go quiet, Rust holds them in memory, and the whole file is written from `RunEvent::Exit` — a file write on the main thread in the middle of the flips being timed would be the HUD's mistake wearing different clothes. The cost is that a crash loses the log, which is the right trade for an instrument, since a crash mid-run invalidates the measurement anyway.
 
 **A flip is recorded as two numbers, not one.** `store` is the wait on the cache and `paint` is the swap reaching the screen. They have unrelated causes and unrelated fixes, and every finding below came from seeing them apart. A third column says `hit` or `miss` — whether the image was decoded *before* the flip asked for it, which is the only thing that makes a window worth keeping.
 
 **Loads and flips share one list, in the order they happened.** A decode landing in the middle of a flip is exactly what explains a slow flip, and two separate tables would have hidden the first finding entirely.
+
+**The sheet's thumbnails are in the same list, as `thumb` and `card` rows.** A `thumb` row is one thumbnail: `hit` says which path made it — `native` through the operating system, `page` through the engine, `img` for a GIF or SVG the engine shows itself — or `refused`, with the reason in the note; `render` is the milliseconds it took, `bytes` what its canvas costs, `natural` its pixels. A `card` row closes each card, with how many images it held in `index`, the milliseconds to fill it in `render`, its canvases' bytes, and the count by path in the note. So a folder opened on the sheet reads as its thumb rows, one card row, and whatever the table loaded beside them.
 
 ## The subject
 
@@ -48,7 +50,7 @@ Flat and linear in file size, which no SSD is. `cache.md` had predicted this in 
 
 The first window implementation slid the window at the top of `_flip`, before showing anything. Every flip then began a read and tried to paint through it. The result was the worst shape a performance bug can take — the cache reported perfect behaviour, every flip a `hit` with `store` at 0, and the app was slower than the triad it replaced.
 
-The meter caught it by accident. Each flip's `paint` and the next load's `disk` came back as the same number:
+The log caught it by accident. Each flip's `paint` and the next load's `disk` came back as the same number:
 
     flip 2   paint 372      load 4green    disk 371
     flip 6   paint 366      load 4green    disk 366
@@ -110,7 +112,7 @@ Holding the whole folder is clearly better than holding three, and the reason is
 
 > **Prefer pixels fuji owns.** An image handed to the page as a data URL on an `img.src` is decoded by the browser, and fuji can neither measure that memory nor free it except by clearing the source. An `ImageBitmap` is an object with a size fuji can account for and a `close()` that releases it. A cache with a real byte budget needs the second kind.
 
-Finding three is that paragraph, measured. The store's `pixelBytes` is an estimate of memory the store does not control, and its retention is a request rather than a guarantee. Moving to `ImageBitmap` and a canvas would make both real, at the cost of drawing images rather than showing them — a genuinely larger change, and not one this evidence yet demands.
+Finding three is that paragraph, measured. The store's `pixelBytes` is an estimate of memory the store does not control, and its retention is a request rather than a guarantee. The sheet took the road that paragraph points down on 2026-09-08, differently than it imagined: its thumbnails are canvases, with pixels from the operating system where the platform allows, and `canvas.md` has the measurements, taken outside the app. The table keeps its `img`, where showing beats drawing.
 
 ## Open
 
@@ -118,8 +120,8 @@ Finding three is that paragraph, measured. The store's `pixelBytes` is an estima
 - **Whether Windows behaves the same.** WebView2 is Chromium and this was all WKWebView. Finding three especially is the sort of thing two engines could differ on.
 - **What a folder of hundreds does.** Everything here is six images. Retention under real pressure is untested.
 - **Whether the first decode can be made honest.** `img.decode()` resolves on a detached element that has never been in a render tree, so the store's `rendered` timestamp records something weaker than "ready to show."
-- **What the sheet costs.** No thumbnail path has been measured at all.
+- **What the sheet costs, from inside the app.** Its thumbnail paths were measured outside it, in `canvas.md`, from a scratch binary and a headless webview. Rows from the running app, one per thumbnail, are `thumbnail-plan.md`'s fifth step, and until then nothing here says what a card costs to fill.
 
 ## Reproducing any of this
 
-Set `meter.record = true` in `fuji.toml`, confirm `meter.folder` exists, restart fuji, drag in a folder, and flip. Pause a second or two before quitting so the last rows are written. Then read down the `paint` column, not along the rows — every finding above came from one column disagreeing with itself.
+Set `log.record = true` in `fuji.toml`, restart fuji, drag in a folder, and flip. Pause a second or two before quitting so the last rows are written. Then read down the `paint` column, not along the rows — every finding above came from one column disagreeing with itself.

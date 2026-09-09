@@ -18,6 +18,7 @@ export const modelFolder = ref('')//the folder the user is in
 export const modelList = shallowRef([])//its images as paths, in the current order; shallow because it is replaced whole, never edited
 export const modelPath = ref('')//the image the user is on, and the durable answer to where they are
 export const modelSort = ref('Alphabet')//chosen in the sheet, read by every table
+export const modelShowing = ref('Table')//Sheet or Table: which kind of view is on screen. The shell writes it on every switch, and it is here rather than in the shell so a flow filling a hidden sheet can wait on it, doing none of its decoding behind the table's frames
 
 let modelFiles = []//the listing every sort orders, as it came off the disk; nothing renders it, so it stays out of vue
 

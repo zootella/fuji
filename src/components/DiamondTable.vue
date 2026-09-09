@@ -5,13 +5,13 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 
 import {ref, onBeforeUnmount} from 'vue'
 import {
-xy, raf,
+xy, raf, errorImageData,
 screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 import {modelList, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
 import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
-import {meterFlip} from '../meter.js'//the performance log, which writes a file instead of painting a number; the shell starts it, this only adds rows
+import {logFlip} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
 import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
 
 //                       _   
@@ -246,7 +246,7 @@ The last moment is the one that gets lost. Asking for the next image is the obvi
 
 Fuji made it anyway. The triad had this order, and one line of comment explaining it. When the triad became a store and a window, the rewrite moved the window slide to the top of the flip and kept the words without their meaning. Every flip was then a cache hit that took three hundred milliseconds, which is the worst shape a bug can take: the cache reported perfect behaviour while the app grew slower than the thing the cache replaced.
 
-The meter caught it, and only by accident. Each flip's paint and the next load's read came back as the same number, to the millisecond, again and again — 372 against 371, 366 against 366, 251 against 251. That is two clocks timing one interval, which is what a blocked frame looks like from outside. No test would have found it, because nothing was broken: no exception, no wrong picture, nothing to assert against, just a frame that took twenty times too long.
+The log caught it, and only by accident. Each flip's paint and the next load's read came back as the same number, to the millisecond, again and again — 372 against 371, 366 against 366, 251 against 251. That is two clocks timing one interval, which is what a blocked frame looks like from outside. No test would have found it, because nothing was broken: no exception, no wrong picture, nothing to assert against, just a frame that took twenty times too long.
 
 Reads are cheap now that disk_read hands its bytes over raw, but decodes still occupy the thread and always will, so the order still holds. The rule for anyone editing below, a later version of whoever wrote this included: show first, then ask. Nothing that can occupy the main thread goes before the paint, and a line that has to move, moves after the second 🥪.
 */
@@ -280,7 +280,7 @@ async function _flip(direction) {
 	paintMs = Math.round(painted - shownAt)//the half of the flip that is the engine putting an image the store says is ready onto the screen
 	updateInformation()
 	learnFrameMs(painted)//deliberately not awaited: the flip is over, and the queue behind it must not wait on a measurement
-	meterFlip({//before the window slides, so nothing the instrument does can land inside what it just measured
+	logFlip({//before the window slides, so nothing the log does can land inside what it just measured
 		sequence: ++flipSequence, index: ahead, direction: direction > 0 ? 'fwd' : 'back', hit: storeHit ? 'hit' : 'miss',
 		store: storeMs, paint: paintMs, flip: flipMs, frames: flipFrames, path: modelList.value[ahead],
 	})
@@ -362,7 +362,7 @@ function updateInformation() {
 s = `${here.path}
 natural ${here.img.naturalWidth} width x ${here.img.naturalHeight} height, ${saySize4(here.blobBytes)} (${sayGroupDigits(here.blobBytes)} bytes)
 displayed ${Math.round(quiverC.card2.x)} width x ${Math.round(quiverC.card2.y)} height (CSS, not physical, pixels)
-${here.loaded - here.requested}ms disk + ${here.rendered - here.loaded}ms render, to load this one
+${Math.round(here.loaded - here.requested)}ms disk + ${Math.round(here.rendered - here.loaded)}ms render, to load this one
 flip ${flipMs}ms (${flipFrames} frames) = ${storeMs}ms store + ${paintMs}ms paint
 cache ${f.count} images, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`
 	}
@@ -375,15 +375,6 @@ cache ${f.count} images, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} o
 // | || (_| | (_| |
 //  \__\__,_|\__, |
 //           |___/ 
-
-//dashed box with center X as a visual placeholder for an image we couldn't render
-const errorData = `data:image/svg+xml;base64,${btoa(`
-	<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
-		<rect width="300" height="300" fill="none" stroke="#444" stroke-width="1" stroke-dasharray="2,1"/>
-		<line x1="140" y1="140" x2="160" y2="160" stroke="#444" stroke-width="1"/>
-		<line x1="160" y1="140" x2="140" y2="160" stroke="#444" stroke-width="1"/>
-	</svg>
-`)}`
 
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport
@@ -412,7 +403,7 @@ let here = null//the store's entry for the image on the card, which is where the
 	>
 
 		<!-- the images the card shows are the store's own elements, put here by cardShow; this one is only for a file fuji could not read -->
-		<img ref="errorRef" class="myImage" :src="errorData" />
+		<img ref="errorRef" class="myImage" :src="errorImageData" />
 
 		<!-- caption lives inside the card, but sits below its border -->
 		<div v-if="showCaptionRef" class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap font-mono myEmbossed">{{captionRef}}</div>

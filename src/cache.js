@@ -1,7 +1,7 @@
 import parse from 'path-browserify'
 import {diskRead} from './disk.js'
 import {imageTypes} from './components/library.js'
-import {meterLoad} from './meter.js'//the store already records what a load cost; this is only reporting it, and a load nothing ever flipped to counts too
+import {logLoad} from './log.js'//the log already records what a load cost; this is only reporting it, and a load nothing ever flipped to counts too
 
 /*
 A store, not a strategy. It holds what the views tell it to hold and lets go when they say to let go. It does not decide, schedule, prioritise, or expire, and it knows nothing about folders, order, or who is asking. Every clever decision fuji makes about images lives in the view that is showing them; cache.md carries the long version of why.
@@ -75,8 +75,8 @@ async function cacheRead(entry) {//read the file into a blob and make its url, r
 	} catch (error) {
 		entry.error = error//remembered, so one broken file in a folder is not read again on every pass
 	}
-	if (cacheEntries.get(entry.path) != entry) { meterLoad(entry, 'released while loading'); cacheFree(entry) }//released while it was still reading, so let go of what arrived after nobody wanted it any more; the row first, while the entry still says what it cost
-	else if (!entry.decoding) meterLoad(entry, 'bytes only')//nobody has asked for an element, so this is the whole load as far as anyone knows; a decode asked for later reports a row of its own
+	if (cacheEntries.get(entry.path) != entry) { logLoad(entry, 'released while loading'); cacheFree(entry) }//released while it was still reading, so let go of what arrived after nobody wanted it any more; the row first, while the entry still says what it cost
+	else if (!entry.decoding) logLoad(entry, 'bytes only')//nobody has asked for an element, so this is the whole load as far as anyone knows; a decode asked for later reports a row of its own
 	return entry
 }
 
@@ -96,8 +96,8 @@ async function cacheDecode(entry) {//decode the bytes into an element, once the 
 	} catch (error) {
 		entry.error = error//remembered like a failed read: a file the decoder will not take is not tried again
 	}
-	if (cacheEntries.get(entry.path) != entry) { meterLoad(entry, 'released while loading'); cacheFree(entry) }//released while it was still decoding
-	else meterLoad(entry, later ? 'decoded later' : '')
+	if (cacheEntries.get(entry.path) != entry) { logLoad(entry, 'released while loading'); cacheFree(entry) }//released while it was still decoding
+	else logLoad(entry, later ? 'decoded later' : '')
 	return entry
 }
 

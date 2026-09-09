@@ -37,8 +37,8 @@ const settingsSchema = [
 	}, {
 		section: 'card',
 		key: 'flow',
-		factory: 'CanvasFlow',
-		comment: 'which flow arranges the thumbnails inside every card: CanvasFlow paints each image small and lets the original go, so a card holds a size fuji chose; TagFlow hands the renderer plain img tags and lets it decide everything, which is the rudimentary one the other is measured against. One flow governs the whole sheet at once, and the flows fuji has are known to the card rather than here',
+		factory: 'SquareFlow',
+		comment: 'which flow arranges the thumbnails inside every card: SquareFlow fits every picture in a square and has the operating system make the pixels where it can and the page where it cannot; CanvasFlow and TagFlow are the two experiments it replaced, kept until they are retired. One flow governs the whole sheet at once, and the flows fuji has are known to the card rather than here',
 	}, {
 		section: 'thumbnail',
 		key: 'size',
@@ -122,16 +122,10 @@ const settingsSchema = [
 		factory: true,
 		comment: 'show the caption beneath the image at startup',
 	}, {
-		section: 'meter',
+		section: 'log',
 		key: 'record',
 		factory: false,
-		comment: 'write a performance log: every image load and every flip, with what each cost, saved when fuji closes; off by default because it is for answering a question rather than for running the app, and performance.md says what the numbers mean and what they have already shown',
-	}, {
-		section: 'meter',
-		key: 'folder',
-		factory: 'Documents/temp/fuji',
-		comment: 'where those logs go, under your home folder; it has to already exist, because fuji will not make it for you, and a run that cannot write says so in the console rather than at exit where nothing could hear it',
-		check: value => value.trim() != '',
+		comment: 'write the log: every image load, every flip and every thumbnail with what each cost, and any line the code chose to keep, from the page or from rust, saved when fuji closes into fuji-temp under your home folder, which fuji makes if it is missing; off by default because it is for answering a question rather than for running the app, and performance.md says what the numbers mean and what they have already shown',
 	},
 ]
 

@@ -14,6 +14,7 @@ For a reader new to Rust: `mod desktop;` compiles the sibling file desktop.rs as
 
 mod desktop;//each of these compiles the sibling .rs file of the same name
 mod disk;
+mod log;
 mod panel;
 mod thumbnail;
 
@@ -30,14 +31,16 @@ pub fn run() {
 				disk::disk_write,
 				disk::disk_copy,
 				desktop::desktop_exit_hold,//and in desktop.rs
-				desktop::desktop_exit_append,
+				log::log_start,//and in log.rs
+				log::log_append,
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
+				thumbnail::thumbnail_probe,
 			]
 		)
 		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
 		.expect("error while building tauri application")//panic if startup fails (e.g. bad config)
 		.run(|app, event| {//this closure sees every event the application loop produces, for the life of the process
-			if let tauri::RunEvent::Exit = event { desktop::desktop_exit_write(app) }//the one event every quit path reaches; desktop.rs says why
+			if let tauri::RunEvent::Exit = event { desktop::desktop_exit_write(app); log::log_write() }//the one event every quit path reaches; desktop.rs says why
 		});
 }

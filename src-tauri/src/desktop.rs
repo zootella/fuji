@@ -5,13 +5,13 @@ use tauri::{command, AppHandle, Manager, State};
 use crate::disk;
 
 /*
-Where fuji meets the actions the user takes on the desktop itself rather than inside the window. Today that is one action, the way out: hand it a path and the text that ought to be at that path, and it writes them when the application exits. Text arrives one of two ways — hold replaces what is held for a path, append adds to the end of it — and this file does not track which a caller uses, because a path is just a string being built either way. It never looks inside the text, and a second caller with a different path needs nothing added here, even though the settings file is why it exists.
+Where fuji meets the actions the user takes on the desktop itself rather than inside the window. Today that is one action, the way out: hand it a path and the text that ought to be at that path, and it writes them when the application exits. It never looks inside the text, and a second caller with a different path needs nothing added here, even though the settings file is why it exists.
 
 It takes text rather than bytes because fuji speaks UTF-8 everywhere and never offers a choice of encoding. Rust's String is UTF-8 by construction, so what arrives is already the bytes JavaScript would have encoded, guaranteed by the type rather than by agreement — and it crosses as a string the size of the file, where a byte array would cross as one JSON number per byte.
 
 The reason it lives down here is that the page cannot do it. RunEvent::Exit is the one event every quit path reaches: closing the last window raises RunEvent::ExitRequested first, but that never fires for the macOS Quit menu item, the Dock's Quit, or a logout, which all send terminate: straight to the application; tao turns that into applicationWillTerminate:, then LoopDestroyed, which arrives here as Exit. The webview is in fact still alive at that moment — what is gone is the opportunity, because Exit arrives on the main thread inside an operating system callback. Synchronous work like a file write is fine, but a round trip to JavaScript needs the main thread's run loop to turn, and it will not turn again before the process is gone.
 
-Know what this cannot do, because it shapes what should be trusted to it. A write that fails at exit has nowhere to report: the page is unreachable, and stderr in a bundled application goes somewhere nobody is looking. So a file held here is written on a best effort, once, unwitnessed. That is an honest trade for settings, which are small and rewritten every launch, and a bad one for anything a session's work would be lost with — which is why meter.js writes as it goes and leaves this only the tail.
+Know what this cannot do, because it shapes what should be trusted to it. A write that fails at exit has nowhere to report: the page is unreachable, and stderr in a bundled application goes somewhere nobody is looking. So a file held here is written on a best effort, once, unwitnessed. That is an honest trade for settings, which are small and rewritten every launch. The log is written from the same event by log.rs, which holds its own text because lines reach it from Rust as well as from the page.
 */
 
 //a tuple struct, reached below as .0; the Mutex is required because tauri may hand this to commands on different threads
@@ -23,13 +23,6 @@ pub struct ExitFiles(pub Mutex<HashMap<String, String>>);//the text to write whe
 pub fn desktop_exit_hold(files: State<'_, ExitFiles>, path: String, text: String) {//State borrows what lib.rs manages
 	let mut files = files.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());//take the map even if a previous holder panicked
 	if text.is_empty() { files.remove(&path); } else { files.insert(path, text); }//blank text is how a caller says this path needs no write
-}
-
-/// Add text to the end of what will be written to a path when the application exits
-#[command]
-pub fn desktop_exit_append(files: State<'_, ExitFiles>, path: String, text: String) {
-	let mut files = files.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-	files.entry(path).or_default().push_str(&text);//makes the entry if this is the first line for this path
 }
 
 /// Write everything held; called from RunEvent::Exit

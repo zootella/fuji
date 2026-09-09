@@ -90,6 +90,14 @@ export async function listSiblings(path) {//the same listing, ordered and with t
 
 //images
 
+export const errorImageData = `data:image/svg+xml;base64,${btoa(`
+	<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+		<rect width="300" height="300" fill="none" stroke="#444" stroke-width="1" stroke-dasharray="2,1"/>
+		<line x1="140" y1="140" x2="160" y2="160" stroke="#444" stroke-width="1"/>
+		<line x1="160" y1="140" x2="140" y2="160" stroke="#444" stroke-width="1"/>
+	</svg>
+`)}`//a dashed box with a cross: what every view shows in place of a picture it could not read
+
 export async function readAndRenderImage(img, path) {
 	let details = await readImage(path)
 	return await renderImage(img, details)
