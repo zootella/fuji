@@ -71,7 +71,7 @@ mod platform {
 	pub fn panel_resolution() -> Arrow {
 		panic::catch_unwind(|| unsafe {
 			let id = CGMainDisplayID();//the display with the menu bar on it, not necessarily the one fuji is showing on
-			let modes = CGDisplayCopyAllDisplayModes(id, std::ptr::null());//Copy in the name, so this array is ours to release below
+			let modes = CGDisplayCopyAllDisplayModes(id, std::ptr::null());//Copy in the name, so this array is ours to release below. The null options are load-bearing: pass kCGDisplayShowDuplicateLowResolutionModes instead and the list gains the scaled modes' backing stores, so the tallest below becomes 3420 by 2224 on a machine whose glass is 2560 by 1664 — the backing store, which is the one answer this function exists not to give. fidelity.md has the measurement
 			if modes.is_null() {
 				return Arrow { x: 0, y: 0 };
 			}

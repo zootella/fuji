@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working agreements
+
+These are the rules a session works under here. They live in this file rather than in any one machine's memory, for the reason the second one gives.
+
+**Kevin alone runs git commands that change anything.** A session uses git to look — `status`, `log`, `diff`, `show`, `blame` — and never to commit, add, push, checkout, restore, reset, merge, rebase, stash, or tag. Finish the work, leave it in the working tree, say plainly what changed and what a commit would cover, and hand over the command rather than running it. Every commit in this repository is authored by Kevin, with a lowercase one-line subject and no body and no trailers, and it stays that way; a commit carrying a `Co-Authored-By` or a session link looks nothing like the rest of the history and has had to be rewritten once already. One consequence is worth stating on its own: **`git checkout <file>` is not an undo.** It discards every uncommitted change to that file, including work that has nothing to do with the mistake being fixed, and it has already cost a finished fix here once. Use the editing tools.
+
+**Notes belong in this repository, because sessions do not travel and it does.** Fuji is cross-platform, so it is built and tested by moving between machines — a Mac for the Mac build, a Windows box for the Windows one — and each visit brings a version of the code that was developed somewhere else. A Claude Code session keeps notes of its own, per project and per machine, and those stay behind: written on the MacBook they are invisible on the Mac mini and on Windows, and by the next visit the code they describe has moved on without them. So anything worth knowing next time goes in a file here. `contents.md` lists the design documents and says what each one owns, and separates them from letters, which are addressed to whoever comes next rather than settling a subject.
+
+**A measurement names the machine that produced it.** On a cross-platform project the same code gives different numbers on different hardware, and a figure with no machine attached cannot be compared against or repeated. `fidelity.md` is the worked example: it says which Mac, which display mode, and which of its numbers were measured on hardware rather than reasoned from the code.
+
 ## Project Overview
 
 Fuji is a multimedia file manager designed with privacy and precision in mind. It's a Tauri desktop application built with:
@@ -171,6 +181,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
 - A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `thumbnail-plan.md` is the plan and `SquareFlow.vue` is it built
+- A canvas is sized to its box in device pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one device pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `SquareFlow.vue` hold this; `fidelity.md` has the measurement
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 
 ### Styling

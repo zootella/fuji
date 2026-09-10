@@ -8,6 +8,12 @@ Everything below was measured on hardware. Where a claim comes from reading the 
 
 ## The machine, in three units
 
+Every number below came off one machine, and a cross-platform project should always say which:
+
+    13.6" MacBook Air, Apple M3, 16 GB, macOS 26.2 (build 25C56)
+    Apple clang 17.0.0, arm64-apple-darwin25.2.0
+    display set to "looks like" 1710 × 1112, the mode Kevin works in
+
 Three pixel units are at work, and confusing two of them is the whole risk.
 
 **Points** are what CSS, the user, and the macOS display settings speak — the "looks like" resolution. **Backing pixels** are the bitmap macOS renders into, always exactly 2× points on a Retina panel, because macOS scale factors are only ever 1 or 2 and never fractional. **Native pixels** are the panel's own lights.
