@@ -12,13 +12,13 @@ Every number below came off one machine, and a cross-platform project should alw
 
     13.6" MacBook Air, Apple M3, 16 GB, macOS 26.2 (build 25C56)
     Apple clang 17.0.0, arm64-apple-darwin25.2.0
-    display set to "looks like" 1710 × 1112, the mode Kevin works in
+    display set to "looks like" 1710 × 1112, the mode the user works in
 
 Three pixel units are at work, and confusing two of them is the whole risk.
 
 **Points** are what CSS, the user, and the macOS display settings speak — the "looks like" resolution. **Backing pixels** are the bitmap macOS renders into, always exactly 2× points on a Retina panel, because macOS scale factors are only ever 1 or 2 and never fractional. **Native pixels** are the panel's own lights.
 
-On this machine, in the mode this audit ran in:
+On that machine, in the mode this audit ran in:
 
     points          1710 × 1112     what CSS and the user see
     backing         3420 × 2224     what macOS renders, and what devicePixelRatio reaches
@@ -36,7 +36,7 @@ The backing → native squish is invisible to every web API, and it happens to e
 
 **Tauri reports the backing store, not the panel.** That single fact is what makes `screenToViewport` correct, and it is the kind of thing only hardware can settle.
 
-The native 2560 × 1664 figure comes from the earlier code-reading audit, which replicated `panel.rs`'s heuristic in C on this machine; it was not re-measured in this session. That heuristic — enumerate every display mode and keep the tallest by pixel height — is right *only* because it passes null options to `CGDisplayCopyAllDisplayModes`. With `kCGDisplayShowDuplicateLowResolutionModes` the list gains the scaled modes' backing stores and the winner becomes 3420 × 2224, which is exactly the wrong answer. The null is load-bearing.
+The native 2560 × 1664 figure comes from the earlier code-reading audit, which replicated `panel.rs`'s heuristic in C on the MacBook; it was not re-measured in this session. That heuristic — enumerate every display mode and keep the tallest by pixel height — is right *only* because it passes null options to `CGDisplayCopyAllDisplayModes`. With `kCGDisplayShowDuplicateLowResolutionModes` the list gains the scaled modes' backing stores and the winner becomes 3420 × 2224, which is exactly the wrong answer. The null is load-bearing.
 
 `panel.rs` is rightly unused by the thumbnail pipeline. A canvas can only address the backing store, so native-resolution pixels would be resampled twice on the way down. It exists for a different promise — that "100%" on a table can one day mean one image pixel on one light — and its only caller today is diagnostics.
 
@@ -50,7 +50,7 @@ Four ways of looking, each answering a different question.
 
 **Single-window capture.** `screencapture -x -o -l <CGWindowID>` grabs one window's own buffer at 1972 × 1716, also tagged Display P3, regardless of what is stacked in front of it. The window id comes from `CGWindowListCopyWindowInfo` filtered by owner name. This is what made the audit scriptable, because fuji could not be brought to the front — Tauri's capability list has no `core:window:allow-set-focus`.
 
-**Scratch tools in C.** The `swift` CLI is broken on this machine (SDK and toolchain version mismatch), but `clang -framework ApplicationServices -framework CoreFoundation` compiles and runs fine, and every generator and inspector below was built that way. Two tools: one that authors test images through `CGBitmapContext` and `CGImageDestination`, and one that reports an image's embedded color space and its stored bytes *without converting them*, plus region statistics.
+**Scratch tools in C.** The `swift` CLI is broken on the MacBook (SDK and toolchain version mismatch), but `clang -framework ApplicationServices -framework CoreFoundation` compiles and runs fine, and every generator and inspector below was built that way. Two tools: one that authors test images through `CGBitmapContext` and `CGImageDestination`, and one that reports an image's embedded color space and its stored bytes *without converting them*, plus region statistics.
 
 One methodological point carries the color half of the audit. **A screenshot is tagged with the display's profile, so comparing two regions of the same screenshot sidesteps every question about what that profile is.** The test images are built so that the answer is a difference between two halves of one picture, not an absolute value.
 
@@ -207,11 +207,11 @@ Not one pixel of movement, in either direction, with an identical pixel count ea
 
 Fuji records the window in physical pixels at both ends, which is self-consistent on one machine. Driven through Tauri's own `setPosition` and `setSize` so the real listeners fired: the window was moved to `300,200` and sized to `1400×1000` physical, and on a clean exit `fuji.toml` held exactly `x = 300, y = 200, width = 1400, height = 1000`. Relaunching put it back at 150,100 points and 700 × 500 — the same rectangle. Restore was separately confirmed twice at the original `1036,78 / 1972×1716`.
 
-Worth knowing rather than testing: a rectangle recorded on a `devicePixelRatio` 1 machine restores at half size here. That is cross-machine settings migration, not a defect in this code.
+Worth knowing rather than testing: a rectangle recorded on a `devicePixelRatio` 1 machine restores at half size on the MacBook. That is cross-machine settings migration, not a defect in this code.
 
 ## Smaller things the audit settled
 
-**The page canvas route is dead code on the Mac.** `imageTypes` in `library.js` contains no canvas-kind extension that is off the Mac's native allow list — GIF and SVG go to `<img>`, and everything else (`jpeg`, `png`, `webp`, `avif`, `bmp`) is on the list. There is no `.heic` entry at all. The route is live on Linux and reachable on Windows, and it was exercised here only by emptying the list.
+**The page canvas route is dead code on the Mac.** `imageTypes` in `library.js` contains no canvas-kind extension that is off the Mac's native allow list — GIF and SVG go to `<img>`, and everything else (`jpeg`, `png`, `webp`, `avif`, `bmp`) is on the list. There is no `.heic` entry at all. The route is live on Linux and reachable on Windows, and it was exercised in this audit only by emptying the list.
 
 **A canvas is never remade when its window changes monitors**, so a `devicePixelRatio` or gamut change goes stale until the sheet rebuilds. Read from the code; not exercised.
 
@@ -221,11 +221,21 @@ Three things that only matter to someone driving fuji from outside, all met whil
 
 ## What is still not established
 
-- **The `wide: false` path.** When the screen is not P3, `flowGamut` is `srgb` and `thumbnail.rs` converts into sRGB instead. Untestable here for want of an sRGB display.
+- **The `wide: false` path.** When the screen is not P3, `flowGamut` is `srgb` and `thumbnail.rs` converts into sRGB instead. Untestable on the MacBook for want of an sRGB display.
 - **Windows.** `flowSnap` is written for fractional ratios, but a `devicePixelRatio` of 1.25 or 1.5 is untested, and there a whole-CSS box lands on a half device pixel no matter what fuji does. The most that can be claimed for Windows today is "no worse than before".
 - **WIC's color behaviour**, which reports sRGB whatever is asked and says so in the header. Read from the code, never run.
 - **The native panel resolution**, 2560 × 1664, carried from the earlier code-reading audit and not re-measured in this session.
 - **Monitor changes**, per the stale-canvas note above.
+
+## What the MacBook is still needed for
+
+Three things can only be settled on a Retina, wide-gamut Mac, so they wait for the next visit rather than travelling.
+
+**`ctrl+0`, and the first real use of `panel_resolution()`.** `DiamondTable.vue` carries the stub — `else if (key == '0' && Ctrl) {}` with a `ttd` on it — for the browser convention of resetting zoom to 100%. Everything else in fuji stops at the backing store, but "100%" is the one promise that reaches past it: on this panel it means sizing the image so that one image pixel survives the 342 → 256 squish and lands on one light. That is the computation no 1:1:1 machine can check, and it is why `panel.rs` exists at all.
+
+**Whether the engine still snaps the way it does now.** The fix in `flowSnap` rests on observed WKWebView behaviour — a canvas box rounded to whole CSS pixels — not on anything a specification guarantees. A macOS or Safari update is a reason to re-run the odd-and-even measurement below; it takes about ten minutes and the answer is a single percentage.
+
+**A second display.** Canvases are never remade when a window changes monitors, so a change of ratio or gamut goes stale until the sheet rebuilds. Read from the code and never exercised, because it needs two screens with different characters — which the MacBook can have and the sRGB machines cannot.
 
 ## Repeating this
 
