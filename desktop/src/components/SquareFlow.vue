@@ -119,8 +119,9 @@ async function flowNative1(tile) {//one thumbnail from the operating system, ont
 		if (flowClosed || !canvas) return
 		flowSize(tile, canvas, xy(width, height))
 		let context = canvas.getContext('2d', {colorSpace: flowGamut})
-		context.putImageData(new ImageData(pixels, width, height, {colorSpace: gamut}), 0, 0)//tagged with what the pixels are, so windows' srgb pixels are right on a wide-gamut canvas
-		logThumbnail({hit: 'native', render: Math.round(performance.now() - began), bytes: width * height * 4, natural: `${width}x${height}`, path: tile.path})
+		context.putImageData(new ImageData(pixels, width, height, {colorSpace: gamut}), 0, 0)//tagged with what the pixels are, so windows' srgb pixels are right on a wide-gamut canvas; anything past the canvas is clipped
+		flowEdge(context, canvas, width, height)//the sliver flowSnap may have added, if this thumbnail came back a device pixel short of its box
+		logThumbnail({hit: 'native', render: Math.round(performance.now() - began), bytes: canvas.width * canvas.height * 4, natural: `${width}x${height}`, path: tile.path})
 	} catch (error) {
 		flowRefuse(tile, String(error))
 	}
@@ -141,8 +142,8 @@ async function flowPage1(tile) {//one thumbnail made by the page from the store'
 		let detail = Math.min(window.devicePixelRatio, 1 / scale)//never more backing pixels than the file has; from the scale rather than the sizes, because a sliver rounds up to one css pixel
 		let backing = xy(Math.max(1, Math.round(css.x * detail)), Math.max(1, Math.round(css.y * detail)))
 		flowSize(tile, canvas, backing)
-		flowShrink(canvas.getContext('2d', {colorSpace: flowGamut}), entry.img, natural, backing)
-		logThumbnail({hit: 'page', render: Math.round(performance.now() - began), bytes: backing.x * backing.y * 4, natural: `${backing.x}x${backing.y}`, path: tile.path})
+		flowShrink(canvas.getContext('2d', {colorSpace: flowGamut}), entry.img, natural, xy(canvas.width, canvas.height))//the canvas rather than the ask, so this route fills whatever flowSnap sized it to and never leaves an edge
+		logThumbnail({hit: 'page', render: Math.round(performance.now() - began), bytes: canvas.width * canvas.height * 4, natural: `${canvas.width}x${canvas.height}`, path: tile.path})
 	} catch (error) {
 		flowRefuse(tile, String(error))
 	} finally {
@@ -163,14 +164,28 @@ function flowImg(tile) {//a gif or an svg: the store's url, no decode; the css f
 }
 
 function flowSize(tile, canvas, backing) {//size a canvas to its pixels; assigning width or height also clears it and resets its context, so it comes before any drawing
-	canvas.width = backing.x; canvas.height = backing.y
 	tile.css = flowFit(backing).css//a returned thumbnail's longer side is the box times the ratio when it was shrunk and its own when it was not, and this rule fits both
+	canvas.width = flowSnap(tile.css.x, backing.x); canvas.height = flowSnap(tile.css.y, backing.y)
 	canvas.style.width = tile.css.x + 'px'; canvas.style.height = tile.css.y + 'px'//set here as well as by the template, so the element is right in the frame it is painted
-	flowBytes += backing.x * backing.y * 4
+	flowBytes += canvas.width * canvas.height * 4
+}
+function flowSnap(side, have) {//how many pixels a canvas gets for one axis: the css box in device pixels, or the pixels in hand where those cannot reach it
+	/*
+	A canvas is laid out on whole css pixels and painted at the device ratio, so its box is a whole number of css pixels times the ratio however the fit above rounded. A bitmap that is not exactly that many device pixels is not blitted one to one, it is resampled, and the phase of that resample walks a full pixel across the picture: on a retina panel a thumbnail one device row short of its box comes back sharp at both ends and flat grey through the middle. Half of the thumbnails the operating system makes have an odd short side, so half of them land in that state, and none of it was visible on a machine where a css pixel and a device pixel were the same thing.
+
+	So the canvas is sized to the box rather than to the picture, and the picture is put in the corner of it. Two cases, and the constant tells them apart. A thumbnail shrunk to fit misses its box by at most one device pixel of rounding, and that sliver is worth taking, because filling it buys a one to one blit for every row; flowEdge repeats the last row and column into it so the seam is the picture's own color. A picture smaller than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an img tag would, so that one keeps the pixels it has.
+	*/
+	let ratio = window.devicePixelRatio
+	let want = Math.round(side * ratio)
+	return want > have + ratio ? have : want
+}
+function flowEdge(context, canvas, width, height) {//fill whatever flowSnap left over by repeating the picture's last row and column into it; the row goes first, so the column carries it into the corner
+	if (canvas.height > height) context.drawImage(canvas, 0, height - 1, width, 1, 0, height, width, canvas.height - height)
+	if (canvas.width > width) context.drawImage(canvas, width - 1, 0, 1, canvas.height, width, 0, canvas.width - width, canvas.height)
 }
 function flowFit(size) {//the css size a picture of size pixels shows at, and the ratio that got it there: longer side to the box, never enlarged, whole pixels
 	let scale = Math.min(flowBox / size.x, flowBox / size.y, 1)//the 1 keeps a small picture at its own size rather than blowing it up
-	return {scale, css: xy(Math.max(1, Math.round(size.x * scale)), Math.max(1, Math.round(size.y * scale)))}
+	return {scale, css: xy(Math.max(1, Math.round(size.x * scale)), Math.max(1, Math.round(size.y * scale)))}//whole css pixels, because that is the grid the engine lays a box out on however this rounds; flowSize is where the pixels are then made to match it
 }
 function flowStyle(tile) { return tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {} }//a tile with a known size holds its box before its pixels arrive
 
