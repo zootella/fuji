@@ -312,7 +312,7 @@ async function showIndex(index) {//put the image at index on the card, and recor
 }
 let showing = null//the element the card is showing right now, which is the store's and not ours
 function cardShow(img) {//the one place an image becomes visible
-	if (img.parentNode != cardRef.value) { img.className = 'myImage'; cardRef.value.insertBefore(img, cardRef.value.firstChild) }//adopted on first showing; the store takes it back out when it lets the image go
+	if (img.parentNode != cardRef.value) { img.className = 'myImage'; cardRef.value.insertBefore(img, cardRef.value.firstChild) }//adopted on first showing; the store takes it back out when it lets the image go. The class only styles this element because the rule for it is written with :deep(), as this element is not the template's
 	if (showing && showing != img) showing.style.display = 'none'
 	img.style.display = 'block'
 	showing = img
@@ -433,7 +433,12 @@ let here = null//the store's entry for the image on the card, which is where the
 .myFrame {}
 .myCard {} /* not using these yet, but they're here */
 
-.myImage {
+/*
+The image on the card is the store's own element: cache.js makes it with new Image() and cardShow adopts it into the card. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
+
+Without this the only rule landing on an adopted image was tailwind's own img{max-width:100%; height:auto}, which shrinks a picture to fit the card but will never enlarge one. The card kept sizing to the diamond in both directions while the picture stopped at its natural size, sitting at one to one in the card's top left corner with black around it, so the table could zoom out but not in.
+*/
+.myCard :deep(.myImage) {
 	position: absolute; /* position outside the normal document flow; note the card should not be positioned absolute! */
 	top: 0; left: 0; width: 100%; height: 100%;
 	object-fit: fill; /* stretch to all four edges; script will set the aspect ratio of the card to match the image's natural dimensions */
