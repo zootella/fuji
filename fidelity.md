@@ -40,6 +40,36 @@ The native 2560 × 1664 figure comes from the earlier code-reading audit, which 
 
 `panel.rs` is rightly unused by the thumbnail pipeline. A canvas can only address the backing store, so native-resolution pixels would be resampled twice on the way down. It exists for a different promise — that "100%" on a table can one day mean one image pixel on one light — and its only caller today is diagnostics.
 
+## Windows, in two units
+
+Measured on the Windows box, 2026-09-11, and it is the counterpart to the section above: the same questions asked of a machine that works in one unit fewer.
+
+    Windows 10 Pro 19045, Intel UHD Graphics 630
+    one display, 1920 × 1200 at its native resolution
+    rustc 1.98.0, stable-x86_64-pc-windows-msvc
+
+**Windows has two pixel units where macOS has three, and the missing one is the backing store.** macOS renders a scaled mode into a bitmap at exactly 2× the points, then the compositor resamples that down to the panel — the 3420 × 2224 → 2560 × 1664 squish above, invisible to every web API. Windows does not do that. At a given scale factor it renders directly at scale × logical, and that framebuffer *is* the panel. So CSS pixels times `devicePixelRatio` are physical pixels, full stop.
+
+That was confirmed by measuring twice, because at 100% every model predicts the same numbers and the measurement cannot tell them apart. The scale factor was changed in Settings between the two runs — which is the whole reason this machine can answer a question the Macs cannot, since macOS has no fractional scale factor to offer:
+
+    at 100%                          at 150%
+    devicePixelRatio   1             devicePixelRatio   1.5
+    tauri window       1             tauri window       1.5
+    tauri monitor      1             tauri monitor      1.5
+    cssScreen          1920 × 1200   cssScreen          1280 ×  800
+    backingScreen      1920 × 1200   backingScreen      1920 × 1200
+    physicalScreen     1920 × 1200   physicalScreen     1920 × 1200
+
+At 150% the CSS screen separates from the other two and `1280 × 1.5 = 1920`, `800 × 1.5 = 1200` exactly, while **`backingScreen` and `physicalScreen` stay equal to each other**. Two units, and `panel.rs` agrees with Tauri rather than departing from it.
+
+**That last agreement is the real difference from the Mac.** There, "Tauri reports the backing store, not the panel" is the load-bearing fact, and `monitor.size` and `panel_resolution()` disagree — 3420 × 2224 against 2560 × 1664. Here they are the same number, and `GetSystemMetrics(SM_CXSCREEN)` is telling the truth because the process is DPI aware. One consequence is that `ctrl+0` — the "100%" promise `panel.rs` exists for — is arithmetically trivial on Windows: one image pixel on one light is just `devicePixelRatio`, with nothing to survive afterwards.
+
+**The assumption this rests on, stated as an assumption.** All of it holds while the display is set to its native resolution. A user who picks a lower resolution to make things bigger — a common and incorrect fix for "it's too small" — gets the monitor's own scaler stretching the framebuffer onto the panel, which restores a third step. That step happens in the display hardware rather than in the compositor, and it is invisible to every API named above, including `panel.rs`. Fuji assumes it away and cannot detect it.
+
+**But fewer units is not easier, and this is the part that matters for `flowSnap`.** macOS scale factors are only ever 1 or 2, so `css × ratio` is always a whole number and a canvas can always be sized to its box exactly. Windows offers 125%, 150% and 175%, so the ratio is fractional and a whole-CSS box lands on a fraction of a device pixel: at 1.5, a 135-pixel box is 202.5 device pixels and a canvas can only be 202 or 203. Windows trades a unit away and buys worse arithmetic with it. Whether Chromium snaps such a box to a whole device pixel, and whether fuji can predict which way, is the open question — and it is the reason the one-device-pixel audit has to be run again here rather than carried over.
+
+**One measuring gotcha, recorded so nobody loses an hour to it.** `HKCU:\Control Panel\Desktop\WindowMetrics\AppliedDPI` still read 96 after the scale factor had been changed to 150% and fuji had already measured 1.5. That registry value is not the live answer. Ask a running DPI-aware process instead.
+
 ## The instrument
 
 Four ways of looking, each answering a different question.
@@ -222,7 +252,7 @@ Three things that only matter to someone driving fuji from outside, all met whil
 ## What is still not established
 
 - **The `wide: false` path.** When the screen is not P3, `flowGamut` is `srgb` and `thumbnail.rs` converts into sRGB instead. Untestable on the MacBook for want of an sRGB display.
-- **Windows.** `flowSnap` is written for fractional ratios, but a `devicePixelRatio` of 1.25 or 1.5 is untested, and there a whole-CSS box lands on a half device pixel no matter what fuji does. The most that can be claimed for Windows today is "no worse than before".
+- **Windows, the geometry half.** The units are now settled — see *Windows, in two units* above, where a `devicePixelRatio` of 1.5 was measured and CSS, backing and physical were pinned to each other. What is still untested is the thing that matters: `flowSnap` is written for fractional ratios but has never run at one, and at 1.5 a whole-CSS box lands on a half device pixel no matter what fuji does. Whether Chromium snaps that box to a whole device pixel, and whether fuji can predict which way it goes, is exactly the measurement the odd-and-even test images settled for WKWebView — and it has to be redone here rather than carried over, since the fix rests on observed engine behaviour and not on any specification. Until then the most that can be claimed for Windows is still "no worse than before".
 - **WIC's color behaviour**, which reports sRGB whatever is asked and says so in the header. Read from the code, never run.
 - **The native panel resolution**, 2560 × 1664, carried from the earlier code-reading audit and not re-measured in this session.
 - **Monitor changes**, per the stale-canvas note above.

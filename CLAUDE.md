@@ -75,7 +75,9 @@ The desktop workspace **produces** a release — the installer and the sidecar d
 ```bash
 pnpm icons        # rebuild every platform's icons from src-tauri/icons/app-icon.svg
 ```
-One run writes the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Store logos, and the mobile trees together, so no platform needs its own run. These are committed artifacts, which means a Tauri CLI upgrade does not refresh them — re-run this after one. `icon.md` says why that matters and what it has already cost.
+One run writes the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Store logos, and the mobile trees together, so no platform needs its own run. It reads three sources, not one — `app-icon.svg` for everything shared, `app-icon-mac.svg` for the dock, and `app-icon-tile.svg` for the Windows Start menu tile — because those three want the disc at different sizes and nothing else differs between them. These are committed artifacts, which means a Tauri CLI upgrade does not refresh them — re-run this after one. `icon.md` says why that matters and what it has already cost.
+
+**Expect exactly two modified files afterwards, both `.icns`.** `tauri icon` writes that container's records in an unstable order, so `icon.icns` and `mac/icon.icns` come back reordered on every run, on every machine, with every image byte-identical — verified record by record. Committing them is lossless. Any *other* file appearing in `git status` after a run is a real change worth looking at.
 
 ### Clean Build Environment
 There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair were yarn-classic-era crutches — that ecosystem needed frequent clean reinstalls; pnpm's store does not. If a genuine mess ever needs clearing, delete `desktop/dist`, `node_modules`, or `desktop/src-tauri/target` by hand — and never delete the tracked lockfiles: pnpm-lock.yaml and Cargo.lock serve both mac and windows, and removing them to fix a problem is the anti-pattern that motivated the pnpm switch.
@@ -219,7 +221,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 ./desktop/release/fuji.deb      ./desktop/release/fuji.deb.json
 ```
 
-`fuji.exe` is the application itself — the binary the NSIS installer wraps. `pnpm win` launches it in place, without installing.
+**Two different files are named `fuji.exe`, and their sizes tell them apart at a glance.** `src-tauri/target/release/fuji.exe` is the application itself — the binary the NSIS installer wraps, and the one `pnpm win` launches in place without installing. `release/fuji.exe` is the staged **installer**, a copy of `Fuji_0.1.0_x64-setup.exe` under its publishing name, and it is what the website offers for download. Measured on the Windows box 2026-09-11: the binary is 9,512,448 bytes and the installer 2,042,921, because NSIS compresses what it wraps.
 
 `bundle.targets` names the four packages fuji ships, rather than Tauri's default `"all"` — which also builds an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package, neither of which anything links to. One list serves all three platforms: a target that does not apply to the machine doing the build is skipped, and **the skipping is silent**, so a build producing one file is not evidence that anything went wrong.
 

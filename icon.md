@@ -239,20 +239,23 @@ Worth recording that 42 lost. It is the diameter at which a circle has equal are
 
 Applied 2026-09-07, and revised 2026-09-09 when the disc grew off the grid. This is the current arrangement; everything above is why it is this one.
 
-**Two sources, because two platforms want opposite things.**
+**Three sources, because three places want different things.** The third was added 2026-09-11 for the Windows Start menu tile, and the section on that tile says why.
 
-    src-tauri/icons/app-icon.svg       r="512"   the disc filling its canvas
-    src-tauri/icons/app-icon-mac.svg   r="446"   the same disc drawn for the dock
+    src-tauri/icons/app-icon.svg        r="512"   the disc filling its canvas
+    src-tauri/icons/app-icon-mac.svg    r="446"   the same disc drawn for the dock
+    src-tauri/icons/app-icon-tile.svg   r="338"   and drawn for the Start menu tile
 
-That is the entire difference: one number. `structure.md`'s rule about a family sharing a leading noun is why the second is `app-icon-mac` rather than `mac-app-icon`.
+That is the entire difference between them: one number each. `structure.md`'s rule about a family sharing a leading noun is why they are `app-icon-mac` and `app-icon-tile` rather than `mac-app-icon` and `tile-app-icon`.
 
-**Two destinations, so neither can overwrite the other.**
+**Three destinations, so none can overwrite another, and a scratch tree behind each of the extra runs.**
 
     src-tauri/icons/          everything tauri icon generates from app-icon.svg
     src-tauri/icons/mac/      icon.icns alone, generated from app-icon-mac.svg
-    src-tauri/icons/.mac/     the scratch tree the second run leaves behind, gitignored
+    src-tauri/icons/tile/     two logos, generated from app-icon-tile.svg, beside the manifest that names them
+    src-tauri/icons/.mac/     what the app-icon-mac.svg run leaves behind, gitignored
+    src-tauri/icons/.tile/    what the app-icon-tile.svg run leaves behind, gitignored
 
-`tauri icon` owns the first directory completely and never writes into `mac/`, which is what makes the macOS fix permanent rather than something to remember. The full-bleed `icons/icon.icns` is still generated and is simply not used by anything.
+Each extra run generates a whole tree and only one or two files are wanted out of it, so the run is pointed at a dotted scratch directory and the wanted files are copied into the plain one beside it. `tauri icon` owns the first directory completely and never writes into `mac/` or `tile/`, which is what makes both fixes permanent rather than something to remember. The full-bleed `icons/icon.icns` is still generated and is simply not used by anything.
 
 **One line of configuration selects it.** `bundle.icon` in `tauri.conf.json` lists `icons/mac/icon.icns` where it used to list `icons/icon.icns`. There is no per-platform icon setting in Tauri — the array is picked over by file extension, one `.icns` for macOS and one `.ico` for Windows — so pointing that one entry somewhere else *is* the per-platform mechanism, used as intended rather than worked around.
 
@@ -293,6 +296,43 @@ Fuji's are full bleed at every size, for the same reason as the `.icns`, and all
 **What has not been researched** is whether fuji's full-bleed disc is already right for Windows or merely close, how Windows 11's rounded taskbar treatment interacts with a circle, and whether the 16 and 24 layers need their own artwork rather than a downscale. Nothing should change here until it has been looked at on a real Windows machine.
 
 `fuji.exe` is the binary both installers wrap; the `.ico` reaches the taskbar, explorer, and the two installers.
+
+## The Windows Start menu tile
+
+Researched and built on the Windows 10 box, 2026-09-11. A pinned Start menu entry can be small or medium, and by default a medium tile is the app's icon sitting small in the middle of a larger square, on a background colour Windows picks out of that icon. An application can replace both.
+
+**The mechanism is one file, and it is old and stable.** Windows reads `<exename>.VisualElementsManifest.xml` from the directory holding the executable — so `fuji.VisualElementsManifest.xml` beside `fuji.exe`. It has been there since Windows 8.1 and Microsoft's page for it is now in the archived documentation, which is worth knowing: this is a finished feature, neither growing nor being removed from Windows 10.
+
+**Three applications, three looks, one mechanism.** Firefox shows its logo comfortably inset; Dropbox shows a white logo on solid blue; Minecraft fills the whole tile with artwork. Those are not three techniques. All three ship the same file, and what differs is only the content of the PNG and the value of `BackgroundColor` — Dropbox's blue *is* the background showing through a transparent logo. Any of the three costs the same to build, which is what makes this a choice about how fuji should look rather than about what is achievable.
+
+**The schema, and its one trap.** `BackgroundColor`, `ForegroundText` and `ShowNameOnSquare150x150Logo` are all required, `ForegroundText` even when the name is switched off. The two logo attributes are optional — but **all or nothing: name one without the other and the whole file is silently ignored**, and the tile falls back to the default. Every failure is silent that way, including malformed XML and an image that cannot be found. The diagnosis channel is Event Viewer, event 28032 under `Applications and Services Logs\Microsoft\Windows\Shell-Core\Operational`, which records the manifest's path and an HRESULT. Images must be at most 1024 × 1024 and 200 KB, in PNG, JPEG or GIF. The `Resources.pri` machinery the documentation goes on to describe is only for per-DPI, high-contrast and localised variants, and is skippable.
+
+**Windows 11 ignores it, which is the good outcome.** Live tiles were removed there and Start is a grid of icons, so the manifest is inert rather than broken — it cannot make Windows 11 worse. Stated at the strength it was established: that tiles are gone from Windows 11 is documented, that the manifest is then harmlessly ignored is inference from the feature's absence, not a source.
+
+**Getting the file beside the exe turned out to be free.** This was expected to be the expensive part, because `bundle.resources` sounds like it implies a `resources/` subfolder and the manifest must be a sibling of the executable. It does not. Tauri's `resource_dir()` on Windows "resolves to the directory that contains the main executable", and `bundle.resources` accepts a map whose values are destinations relative to that directory — so a bare filename lands exactly where Windows looks. Measured rather than trusted: after a build, all three files sit in `target/release/` beside `fuji.exe`, and no `resources/` directory is created. **No custom NSIS or WiX template is involved**, which was the outcome worth checking before anything else.
+
+**How fuji's tile is made.** The disc is arithmetic here as everywhere else, so the tile gets a third source in the same shape as the macOS one:
+
+    src-tauri/icons/app-icon.svg        r="512"   the disc filling its canvas
+    src-tauri/icons/app-icon-mac.svg    r="446"   the same disc drawn for the dock
+    src-tauri/icons/app-icon-tile.svg   r="338"   and drawn for the Start menu tile
+
+`pnpm icons` runs `tauri icon` over that third source into the gitignored `icons/.tile`, then copies two of the Store logos out under names that do not claim a size, since the manifest attribute names the tile and the file is just an asset:
+
+    icons/.tile/Square284x284Logo.png  →  icons/tile/tile-medium.png    Square150x150Logo
+    icons/.tile/Square142x142Logo.png  →  icons/tile/tile-small.png     Square70x70Logo
+
+The larger sources are taken deliberately: Windows scales whatever it is given, and the documentation notes that scaling down gives a better result than scaling up. Measured by alpha bounding box, both come out **66.2% of their canvas**, against the stock `Square150x150Logo.png` at 100% — which is the whole reason the existing Store assets could not simply be reused. They are full bleed, so pointing the manifest at them would have produced Minecraft's look rather than Firefox's.
+
+`BackgroundColor` is `#000000`. The intent was no branded colour at all, and the schema does not allow that — the attribute is required and there is no "leave it to Windows" value — so black is the nearest thing: it is the sheet's own colour, and it reads as an absence of decoration rather than as a brand statement.
+
+**Seen, and it works.** The user looked at the medium tile on this machine the same day and judged it right at the first radius — a cyan disc at two-thirds of a black square, the name beneath it. No adjustment was called for, so 338 stands where the macOS disc needed two attempts to reach 446.
+
+It was looked at **without installing**, which is worth recording because it makes this cheap to re-check. Windows reads the manifest from whatever directory holds the executable, so a Start menu shortcut pointed at `target/release/fuji.exe` — where `pnpm build` has already placed the manifest and both logos — produces the real tile. Make the shortcut in `%APPDATA%\Microsoft\Windows\Start Menu\Programs`, touch its `lastwritetime`, pin it, and look.
+
+**That the installed layout matches was checked too**, by listing the NSIS payload rather than by installing: `fuji.exe`, `fuji.VisualElementsManifest.xml`, `tile-medium.png` and `tile-small.png` all sit at the archive root together, so the installer puts them in one directory exactly as the build does.
+
+**What remains unestablished** is only ordering. Microsoft's instructions say the manifest must be in place *before* the shortcut is created, and that an existing shortcut must be nudged — touching its `lastwritetime` — for a changed manifest to be picked up. A first install should be fine, since installers write their files before creating shortcuts, but that was inferred rather than watched. **An upgrade over an existing install may keep a stale tile**, and fixing that would need an NSIS hook, which is the machinery this was meant to avoid. The symptom would be a default tile after an upgrade, and the workaround is one `lastwritetime` touch.
 
 ## Linux — researched only as far as the current files
 

@@ -14,7 +14,7 @@
 		"release": "tauri build && node release.js",
 		"app": "open src-tauri/target/release/bundle/macos/Fuji.app",
 		"win": "start src-tauri/target/release/fuji.exe",
-		"icons": "tauri icon src-tauri/icons/app-icon.svg && tauri icon src-tauri/icons/app-icon-mac.svg -o src-tauri/icons/.mac && node -e \"const f=require('fs');f.mkdirSync('src-tauri/icons/mac',{recursive:true});f.copyFileSync('src-tauri/icons/.mac/icon.icns','src-tauri/icons/mac/icon.icns')\"",
+		"icons": "tauri icon src-tauri/icons/app-icon.svg && tauri icon src-tauri/icons/app-icon-mac.svg -o src-tauri/icons/.mac && tauri icon src-tauri/icons/app-icon-tile.svg -o src-tauri/icons/.tile && node -e \"const f=require('fs');f.mkdirSync('src-tauri/icons/mac',{recursive:true});f.copyFileSync('src-tauri/icons/.mac/icon.icns','src-tauri/icons/mac/icon.icns');f.mkdirSync('src-tauri/icons/tile',{recursive:true});f.copyFileSync('src-tauri/icons/.tile/Square284x284Logo.png','src-tauri/icons/tile/tile-medium.png');f.copyFileSync('src-tauri/icons/.tile/Square142x142Logo.png','src-tauri/icons/tile/tile-small.png')\"",
 		"dev": "vite",
 		"vite-build": "vite build",
 		"preview": "vite preview",

@@ -92,6 +92,10 @@ desktop/src-tauri/binaries/
 # is kept, in icons/mac, so the icons themselves stay committed
 desktop/src-tauri/icons/.mac
 
+# and the same for the Windows Start menu tile source: only the two logos it makes
+# are kept, in icons/tile, beside the manifest that names them
+desktop/src-tauri/icons/.tile
+
 # The staged release. The installers themselves stay out — they are large, and git never
 # forgets a blob — but their sidecars are tracked, so the repository keeps a dated record
 # of what hash each release had, on a different system from the one serving the download.

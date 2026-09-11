@@ -17,7 +17,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 - **`card.md`** — the box of thumbnails the sheet's scroll runs over, why fuji is putting a level there that no file manager shows, what the experiment it hosted found, and the walk through a whole drive in constant memory that the box makes possible.
 - **`canvas.md`** — what WebKit on the Mac and Chromium on Windows actually do with a canvas, read from their sources: when one is GPU-backed, when it is a layer of its own, what it costs and can never give back, what makes a scaled thumbnail look right, and what colors it can hold. Also where a thumbnail should be made at all, in the web layer or by the operating system, and the direction fuji has taken.
 - **`thumbnail-plan.md`** — fuji has a path and needs a thumbnail: how it chooses between the page and the operating system, the one flow that replaces TagFlow and CanvasFlow, and the steps in order.
-- **`fidelity.md`** — whether a picture arrives with its pixels and its colors intact. The three pixel units a Retina Mac works in, the Display P3 path measured end to end, and the one-device-pixel defect that was making half of all thumbnails resample. Measured on hardware rather than reasoned, and the record of the audit that found and fixed that defect.
+- **`fidelity.md`** — whether a picture arrives with its pixels and its colors intact. The three pixel units a Retina Mac works in and the two a Windows box works in, the Display P3 path measured end to end, and the one-device-pixel defect that was making half of all thumbnails resample. Measured on hardware rather than reasoned, on two machines that say which numbers are whose, and the record of the audit that found and fixed that defect.
 - **`security.md`** — where untrusted bytes are parsed, why the web engine's sandbox is not protecting fuji as things stand, and the walls to build, in order.
 - **`sort.md`** — the orders fuji will show a folder in. Half prior art, researched rather than remembered — how Windows and macOS actually sort names and date files — and half plan. Nothing in the plan is written yet.
 
@@ -30,7 +30,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 A letter is written to a specific reader — usually a Claude Code session on the other machine, or on the other side of a long gap — and it starts a conversation rather than settling a subject. Read a letter, then talk; do not treat one as a document of record the way the files above are.
 
-- **`windows.md`** — from the macOS session that did the icon work, to whoever picks it up on Windows.
+- **`windows.md`** — begun by the macOS session that did the icon work, for whoever picks it up on Windows, and added to twice since. The Windows session answered most of it on 2026-09-11 and replaced each question with its answer in place, so it now reads as a record as much as an ask; a block at the top says what is settled and what is still open. Findings that outlive the conversation were written into `icon.md` and `fidelity.md` rather than left here.
 
 ## What is not here
 
