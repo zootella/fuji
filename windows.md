@@ -67,3 +67,39 @@ Report into `canvas.md`'s measured section, beside the mac numbers, in the same 
 If you change how icons are built, update the *arrangement* section too, and the `pnpm icons` description in `CLAUDE.md`, so the two cannot drift apart.
 
 The user commits and pushes; the mac session reads it from there.
+
+## Added 2026-09-10, from the mac session setting up releases
+
+Publishing a release is being built, and your machine is the one that makes and ships `fuji.exe`. Three things below are yours. **The first is a short inventory, and the shape of your upload script depends on it — please run it and report it before anything else**, because the session writing that script is waiting on the answer.
+
+**1. Report this machine's SSH tooling, before anything else.** The upload script for Windows has to be written against whatever is actually installed here, and none of it can be checked from the Mac. Run these and paste the output verbatim:
+
+```
+ssh -V
+where.exe ssh
+where.exe scp
+where.exe sftp
+where.exe rsync
+```
+
+Use `where.exe` rather than `where` in PowerShell, where the bare name is an alias for something else. Then, if Git for Windows is installed, the version of the SSH it bundles, which is a different binary from the system's and often years newer:
+
+```
+"C:\Program Files\Git\usr\bin\ssh.exe" -V
+```
+
+Five things matter in the answer, so please do not summarize it:
+
+- **The exact version string**, not "8-something". The behavior that decides this changes at 9.0 precisely.
+- **Which directory each binary resolves from.** `C:\Windows\System32\OpenSSH\` is the copy Windows ships; `C:\Program Files\Git\usr\bin\` is Git's. Both are commonly on PATH and they can be far apart in version.
+- **Whether `sftp` exists** as its own executable, and its version if it does.
+- **Whether `rsync` exists at all**, and from where if it does.
+- **Which copy a Node script would actually invoke** — that is whichever `where.exe` lists first, since a script inherits PATH.
+
+That inventory is the whole ask. Report what is there rather than what you think is wanted — you do not need to know what gets built on top of it. Windows 10 and 11 bundle different OpenSSH versions depending on build, and this box is an old Windows 10, so 8.x is a real possibility. Hand the output to the user and he will carry it where it needs to go.
+
+**2. `pnpm release` has never run on Windows.** It is a new command in the desktop workspace: it builds, copies the installer out from under Tauri's versioned name into `desktop/release/` as `fuji.exe`, and writes a small JSON sidecar beside it holding the size and a SHA-256 of the bytes. The macOS half is verified against a real disk image; the Windows half is reasoning only. It expects to find exactly one `Fuji_<version>_*-setup.exe` in `src-tauri/target/release/bundle/nsis/`, and if it finds none or several it throws a message listing what is actually in that directory. **If it throws, paste the message rather than working around it** — the fix belongs in `release.js`, and a mismatch there means the assumption about NSIS filenames was wrong.
+
+**3. A build now produces one installer, not two.** `bundle.targets` in `tauri.conf.json` was narrowed from `"all"` to the four packages fuji ships, which on your machine means the NSIS `.exe` alone — the `.msi` that used to appear beside it is gone on purpose, since nothing links to it. Tauri skips targets that do not apply to the build machine **silently**, so one file appearing where two used to is the correct new behavior rather than a failure. `README.md` and `CLAUDE.md` have been updated to match.
+
+One layout note, since it has changed since the top of this letter was written: the repository is now a pnpm monorepo. The application is the `desktop` workspace and the website is `site`. A release from your machine will be `cd desktop`, `pnpm release`, then `cd ../site`, `pnpm upload-exe` — the upload scripts live with the website because the mental model is "I am updating the website," even for an installer. They are Node rather than shell scripts — an argument list handed to `child_process` is never re-parsed by a shell, and JSON and SHA-256 are in Node's standard library — and they are named with a `.hide.` segment so git never sees them.
