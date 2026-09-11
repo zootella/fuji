@@ -10,7 +10,7 @@ A working session on the Windows box answered most of what was asked below. The 
 
 **Answered, and needing nothing further:**
 
-- **`pnpm icons` reproduces** — 54 of the 56 tracked icon files byte-identical; the two `.icns` shuffle on every run everywhere, which `icon.md` already knew and this confirmed record by record.
+- **`pnpm icons` reproduces** — every tracked icon file comes back byte-identical except the two `.icns`, which shuffle on every run on every machine, as `icon.md` already knew and this confirmed record by record.
 - **The grey fringe is gone on Windows**, seen in File Explorer at every size, light and dark.
 - **The Start menu tile is built and seen.** `icon.md` has a section of its own on it. It needed no installer template, which was the thing feared most.
 - **The SSH inventory, and the upload decision:** `scp`, not `sftp`, for reasons recorded below.
@@ -50,7 +50,7 @@ The fixes: everything was regenerated on the current CLI, which cleared the frin
 
 ## Your sequence
 
-1. **`pnpm icons` — checked 2026-09-11 on Windows, and the answer is not the one this question was shaped to get.** The script is genuinely portable: it ran to completion, wrote every platform's icons including the macOS `.icns`, and shelled out to nothing mac-only. Git tracked 56 files under `src-tauri/icons` at the time, and **54 of them reproduced byte-identically** — the `.ico`, every PNG, the Store logos, and the whole iOS and Android trees. Only two came back changed, and both are `.icns`.
+1. **`pnpm icons` — checked 2026-09-11 on Windows, and the answer is not the one this question was shaped to get.** The script is genuinely portable: it ran to completion, wrote every platform's icons including the macOS `.icns`, and shelled out to nothing mac-only. **Every tracked file under `src-tauri/icons` came back byte-identical except two** — the `.ico`, every PNG, the Store logos, and the whole iOS and Android tree all reproduced exactly. The two that changed are both `.icns`.
 
    **The two `.icns` files did not, and they do not reproduce anywhere.** `icons/icon.icns` and `icons/mac/icon.icns` came out different from the committed copies, which looks at first like exactly the mac-versus-Windows churn this question feared. It is not that. Running `pnpm icons` a second time on this same machine produced two `.icns` files different again:
 
