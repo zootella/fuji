@@ -12,6 +12,18 @@ These are the rules a session works under here. They live in this file rather th
 
 **So write for a reader who is somewhere else.** A Claude Code session keeps notes of its own, per project folder and per machine, and those do not travel: written on one computer they are invisible on the next, and the session that reads a file is almost never the session that wrote it. Weeks may have passed and many revisions may have landed in between. So anything worth knowing next time goes in a file here rather than in a note only one computer can see; a document says which machine a measurement came from, because the same code gives different numbers on different hardware; and it says what is settled against what is still assumed, since the reader cannot ask the session that found out. `contents.md` lists the design documents and says what each one owns, and separates them from letters, which are addressed to whoever comes next rather than settling a subject. `fidelity.md` is the worked example of all three habits.
 
+## Planning documents
+
+**They live at the repository root, in markdown, and `contents.md` says what each one owns.** They are where a subject gets decided, and they are written for a reader on another machine who cannot ask the session that wrote them.
+
+**A document has three lives, and which one it is in says how to edit it.** At the start it is a whiteboard — goals, requirements, scope, and the questions worth researching, with far more asked than settled. In the middle it is a plan about how to code, replete with design and decisions. At the end, once the work has landed, it is boiled down to nothing: what is worth keeping moves into comments and short essays in the code, following `style.md`, and what remains is only the part still open. `thumbnail-open.md` is what that boiling leaves behind, and `contents.md` records which documents became pages on the site instead.
+
+**Keep them current as the work goes, and replace questions with answers.** A document that has learned something says the answer where it used to ask; it does not keep both.
+
+**They are scaffolding and they are not precious the way code is.** A stray passive voice in a comment earns a correction, a review, and a push — the same sentence in a planning document is fine, and loose prose here costs nothing. What they do have to be is complete, correct, and verbose, because they are what a reader has instead of the session.
+
+**Do not write a trail of what happened.** Not "first we thought this, so we tried that, but it did not work, and we were wrong about the other thing, which is how we got here." Just: what was decided and briefly why, where the work stands and briefly why, and what is next. A failed attempt earns its place only when the failure is the reason the design is what it is — `cache.md` keeps three of them because each names a constraint the store still has to meet.
+
 ## Project Overview
 
 Fuji is a multimedia file manager designed with privacy and precision in mind. It's a Tauri desktop application built with:
@@ -84,6 +96,12 @@ One run writes the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Store 
 There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair were yarn-classic-era crutches — that ecosystem needed frequent clean reinstalls; pnpm's store does not. If a genuine mess ever needs clearing, delete `desktop/dist`, `node_modules`, or `desktop/src-tauri/target` by hand — and never delete the tracked lockfiles: pnpm-lock.yaml and Cargo.lock serve both mac and windows, and removing them to fix a problem is the anti-pattern that motivated the pnpm switch.
 
 ## Architecture
+
+**The two layers are not coworkers.** Fuji's Rust and its JavaScript do not confer, do not split a problem between them, and do not solve one together. Every Rust command is dumb, atomic and simple; all the orchestration — the sequencing, the routing, the deciding what to call and when — happens in the page. `SquareFlow.vue` is the worked example: it decides per file whether a thumbnail comes from the operating system or from the page, runs two loops at different widths, and stops them when a card goes away, while the Rust underneath does nothing but answer one question about one file.
+
+**The Rust codebase grows for three reasons and no others: speed, operating-system proximity, and a permission or security necessity.** Never because a task is "mostly Rust" or "involves Rust." When a feature needs both layers, the question is what single dumb thing Rust has to do that JavaScript cannot — write that, and put the rest in the page.
+
+**The payoff is fewer commands and a smaller conversation across the boundary,** which is what keeps the whole reliable and easy to reason about. `disk.rs` is five atomic calls, `thumbnail.rs` is two, `panel.rs` answers one question, and `log.rs` and `desktop.rs` each hold some text and write it on the way out. None of them knows what it is part of. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
 
 ### Rust Backend (desktop/src-tauri/src/)
 
