@@ -1,9 +1,21 @@
 /*
-Six Helvetica Neue faces, packaged with the repository, for the home page logotype. font-display is block, not swap: show up in this face or not at all.
+Every face the site sets text in, and one change to how it shows code. Two of the three families are packaged with the repository and declared below; the third, Inter, is not in this repository at all, and the paragraph before the rules says where it lives instead.
 
-Nothing else is here on purpose. The documentation pages are stock VitePress — default colors, default Inter — and the home page sets its own fonts in components/HomePage.vue rather than moving the theme's variables, so the two can never pull on each other.
+Helvetica Neue, six faces, for the home page logotype and nothing else. font-display is block, not swap: show up in this face or not at all. Only one of the six is ever downloaded, because .mark h1 in components/HomePage.vue is the one rule in the workspace that names the family and it asks for bold; the other five complete a family nothing else uses.
 
-When we do want to theme the documentation, this is where it goes; the variables are listed at https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
+IBM Plex, twenty-two faces across its three families, taken from IBM's own packages — @ibm/plex-mono 2.5.0, @ibm/plex-sans 1.1.0, @ibm/plex-serif 2.0.0 — and committed here rather than fetched. The weights are chosen rather than complete, because each family ships eight of them and IBM ships no variable font to collapse them into one file. Mono has six, every step from Light to Bold: 300, 400, 450, 500, 600 and 700. Those middle three are the ones worth knowing about — 450 is a weight IBM calls Text and draws specifically for body copy, one notch above Regular, and it exists because a monospace set at a small size on a light background reads thinner than it measures. Sans comes at 400, 500 and 600, the only three weights VitePress's own stylesheet asks for anywhere. Serif comes at 400 and 600, enough to set prose in if the choice goes that way. Each of those has its italic beside it, and IBM's license sits in the folder with them.
+
+Because the faces are static, those numbers are the whole of the granularity: a request for 550 lands on one of them rather than between them, and nothing interpolates. Declaring 450, 500 and 600 is also what stops them resolving upward — with only 300, 400 and 700 present, as it was until now, font-weight: 500 quietly rendered as Bold.
+
+font-display is swap for all twenty-two rather than block, and the difference from Helvetica above is deliberate: a logotype is the identity and may as well wait for the right face, while body text should appear at once in the fallback and change when the real face arrives. It is also what the Google Fonts link did, so nothing about the cover's behaviour changed when the files moved here.
+
+Which faces are declared is also what decides the deploy. Vite copies a font into dist/assets only when some CSS references it, so a file added to the folder and named nowhere costs the repository its bytes and the server nothing at all.
+
+Inter sets the prose, and it is the one face not committed here: it arrives inside the vitepress package, and the build copies fourteen woff2 of it into dist/assets, so it is served from our own domain despite never being in the repository. It is VitePress's default and it stayed by choice rather than by inertia — Plex Sans was put in its place, looked at, and set aside.
+
+So of the twenty-two Plex faces, only Mono's twelve can be reached by anything today, and Sans and Serif are on hand rather than in use. That is deliberate: keeping them declared means changing the documentation's prose is one line rather than another afternoon of downloads, and the cost falls in places that do not matter — their bytes sit in the repository and get copied to the server, while a reader downloads nothing but the faces some rule actually asks for.
+
+With these files local, the Google Fonts stylesheet and the two preconnect hints beside it came out of config.js, and the site now asks nobody else's server for anything.
 */
 
 @font-face { font-display: block; font-weight: 300; font-style: normal; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-light.woff2')        format('woff2'); }
@@ -12,3 +24,294 @@ When we do want to theme the documentation, this is where it goes; the variables
 @font-face { font-display: block; font-weight: 300; font-style: italic; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-light-italic.woff2') format('woff2'); }
 @font-face { font-display: block; font-weight: 400; font-style: italic; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-roman-italic.woff2') format('woff2'); }
 @font-face { font-display: block; font-weight: 700; font-style: italic; font-family: "Helvetica Neue"; src: url('./fonts/helvetica-neue-bold-italic.woff2')  format('woff2'); }
+
+@font-face { font-display: swap; font-weight: 300; font-style: normal; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-light.woff2')            format('woff2'); }
+@font-face { font-display: swap; font-weight: 400; font-style: normal; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-regular.woff2')          format('woff2'); }
+@font-face { font-display: swap; font-weight: 700; font-style: normal; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-bold.woff2')             format('woff2'); }
+@font-face { font-display: swap; font-weight: 300; font-style: italic; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-light-italic.woff2')     format('woff2'); }
+@font-face { font-display: swap; font-weight: 400; font-style: italic; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-italic.woff2')           format('woff2'); }
+@font-face { font-display: swap; font-weight: 700; font-style: italic; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-bold-italic.woff2')      format('woff2'); }
+@font-face { font-display: swap; font-weight: 450; font-style: normal; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-text.woff2')             format('woff2'); }
+@font-face { font-display: swap; font-weight: 500; font-style: normal; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-medium.woff2')           format('woff2'); }
+@font-face { font-display: swap; font-weight: 600; font-style: normal; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-semibold.woff2')         format('woff2'); }
+@font-face { font-display: swap; font-weight: 450; font-style: italic; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-text-italic.woff2')      format('woff2'); }
+@font-face { font-display: swap; font-weight: 500; font-style: italic; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-medium-italic.woff2')    format('woff2'); }
+@font-face { font-display: swap; font-weight: 600; font-style: italic; font-family: "IBM Plex Mono";  src: url('./fonts/ibm-plex-mono-semibold-italic.woff2')  format('woff2'); }
+
+@font-face { font-display: swap; font-weight: 400; font-style: normal; font-family: "IBM Plex Sans";  src: url('./fonts/ibm-plex-sans-regular.woff2')          format('woff2'); }
+@font-face { font-display: swap; font-weight: 500; font-style: normal; font-family: "IBM Plex Sans";  src: url('./fonts/ibm-plex-sans-medium.woff2')           format('woff2'); }
+@font-face { font-display: swap; font-weight: 600; font-style: normal; font-family: "IBM Plex Sans";  src: url('./fonts/ibm-plex-sans-semibold.woff2')         format('woff2'); }
+@font-face { font-display: swap; font-weight: 400; font-style: italic; font-family: "IBM Plex Sans";  src: url('./fonts/ibm-plex-sans-italic.woff2')           format('woff2'); }
+@font-face { font-display: swap; font-weight: 500; font-style: italic; font-family: "IBM Plex Sans";  src: url('./fonts/ibm-plex-sans-medium-italic.woff2')    format('woff2'); }
+@font-face { font-display: swap; font-weight: 600; font-style: italic; font-family: "IBM Plex Sans";  src: url('./fonts/ibm-plex-sans-semibold-italic.woff2')  format('woff2'); }
+
+@font-face { font-display: swap; font-weight: 400; font-style: normal; font-family: "IBM Plex Serif"; src: url('./fonts/ibm-plex-serif-regular.woff2')         format('woff2'); }
+@font-face { font-display: swap; font-weight: 600; font-style: normal; font-family: "IBM Plex Serif"; src: url('./fonts/ibm-plex-serif-semibold.woff2')        format('woff2'); }
+@font-face { font-display: swap; font-weight: 400; font-style: italic; font-family: "IBM Plex Serif"; src: url('./fonts/ibm-plex-serif-italic.woff2')          format('woff2'); }
+@font-face { font-display: swap; font-weight: 600; font-style: italic; font-family: "IBM Plex Serif"; src: url('./fonts/ibm-plex-serif-semibold-italic.woff2') format('woff2'); }
+
+/*
+The face every code block, every fence and every piece of inline code is set in, from the files in the folder above, and the two numbers that size it.
+
+What this replaces is not another face but the absence of a choice. VitePress leaves the monospace to the reader's machine — ui-monospace, then Menlo, Monaco, Consolas — so until now a code block was SF Mono on a Mac, Consolas on Windows, and something else again on Linux, and a page of code was the one thing on the site that could not be relied on to look the way it was written. Naming a face makes it the same everywhere, which matters more here than on most sites: half of what these pages do is show fuji's own source.
+
+The stack keeps VitePress's own list behind our name, so a reader whose browser will not take the woff2 lands exactly where they used to.
+
+The prose above it stays Inter, which is VitePress's default. Plex Sans is packaged and declared and was tried here as --vp-font-family-base; putting it back is that one line again.
+*/
+
+:root {
+	--vp-font-family-mono: 'IBM Plex Mono', ui-monospace, 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+
+	/*
+	Two numbers about code, both arrived at by looking rather than by rule, with the steps on either side written down so a different taste can move them.
+
+	The size is relative to the prose around it, and VitePress's default is 0.875em — 14px against a 16px body. 0.8125em is 13px, which fits about eight per cent more characters on a line, since characters per line scale inversely with the size. Whole steps from here: 0.84375em is 13.5px, 0.78125em is 12.5px, 0.75em is 12px. Three things read this one variable — the block, inline code in prose, and the line-number column — so they shrink together. Code inside a heading does not: VitePress excludes h1 through h6 from the inline-code size, so it scales with the heading instead.
+
+	The line height was 1.7, which is a prose figure and loose for code; 1.5 is the common choice on the web and 1.4 is about what an editor gives you. At 13px the difference between 1.7 and 1.5 is 2.6px a line, so a twelve-line block loses about 31px of height and a twenty-four-line one about 62px. The line-number column reads this variable too, which is what keeps the numbers level with the lines.
+
+	The 20px of padding above and below a block is separate from both and does not move with them. It is the third knob if the blocks still feel tall.
+	*/
+	--vp-code-font-size: 0.8125em;
+	--vp-code-line-height: 1.5;
+}
+
+/*
+Six-pixel corners rather than eight, a step in from VitePress's figure rather than all the way down to the 4px it gives inline code and the copy button. Four was tried first and read as nearly square at this size.
+
+Four selectors carry the figure and all four have to agree, or a block and the thing capping it round differently. The container is the fence itself, and its radius lives inside a min-width query on purpose: below 640px a block has no corners at all, bleeding to both screen edges on negative margins, and the radius arrives at the same breakpoint as the margin that pulls it back in. The tab bar of a code group caps the block beneath it, so it takes the same figure on its top two corners only. Both of those repeat inside a custom block, where VitePress states them again without a query. And a fence nested in a list item on a phone keeps its left corners alone, because it is indented and never reaches the right edge.
+
+Each rule matches VitePress's own selector exactly, so the correspondence is readable and the cascade decides it by order — this file is imported after the theme.
+*/
+
+@media (min-width: 640px) {
+	.vp-doc div[class*='language-'],
+	.vp-block {
+		border-radius: 6px;
+	}
+
+	.vp-code-group .tabs {
+		border-radius: 6px 6px 0 0;
+	}
+}
+
+@media (max-width: 639px) {
+	.vp-doc li div[class*='language-'] {
+		border-radius: 6px 0 0 6px;
+	}
+}
+
+.vp-doc .custom-block div[class*='language-'] {
+	border-radius: 6px;
+}
+
+.vp-doc .custom-block .vp-code-group .tabs {
+	border-radius: 6px 6px 0 0;
+}
+
+/*
+The brand color, everywhere outside the fences.
+
+#9FFFE0 is the whole of fuji's identity and it cannot be typed on a white page: it measures 1.18:1 against white, where prose runs at 10.94:1. So the mint is never ink in light mode — it is the field. Two further shades come off it for the jobs it cannot do itself, and both hold hue 161 and saturation 100 exactly, moving lightness alone, so all three are demonstrably the same color at different strengths rather than three colors that resemble each other.
+
+	#9FFFE0  hue 161, saturation 100%, lightness 81%   the brand, unmodified. The mark behind a code
+	         word, the bar behind a link, and every ink in dark mode
+	#154739  hue 163, saturation  55%, lightness 18%   ink, for a word inside the mark. Cyan with the
+	         page's own #3c3c43 mixed into it, so the saturation falls by nearly half and it reads as
+	         black ink stained rather than as a green. 8.96:1 on the mint field, 10.54:1 on white
+
+A third shade, #00A370 at lightness 32%, was derived and then retired. It was the rule under a link while
+the rule sat below the text and needed 3:1 against white to be seen at all; once the bar moved behind the
+glyphs the mint carried it unmodified and nothing needed the middle value. It survived one revision longer
+than it should have, wired to brand-3 — which VitePress spends on --vp-button-brand-bg behind white text,
+where 3.24:1 is well under the 4.5:1 that text wants. brand-3 is the ink now, at 10.54:1.
+
+Dark mode inverts the story rather than dimming it. There the mint is 14.6:1 against the page, so it becomes the ink in all 43 places brand-1 reaches, and the pill behind a code word becomes a 14% wash of itself — pigment and field trade places. The brand color is used literally wherever it is ink, which is the one place it can be.
+
+Which is why dark mode does not have a highlighter at all. A mark has to sit between the page and the ink in luminance: on white the mint does — the page above it, the prose far below — so a bar under a link can be the brand unmodified and the words still read at 9.3:1 where they cross it. On the dark page the mint is above the ink instead of below it, and light prose crossing a full-strength bar measures 1.14:1, which is not dimmer but gone. Dimming the bar to 30% alpha fixes the arithmetic and was tried, and what it buys is a muddy stripe: the whole idea of a highlighter is a bright mark on a pale ground, and there is no bright left to go to when the page is already dark.
+
+So the dark page gets an ordinary link instead, and the way that is written matters more than it looks. **Dark mode has no link rules at all.** It is VitePress's own link — underlined, offset 2px, colored from brand-1 — and brand-1 is mint there, so the color is the only thing that ever changed. Everything below is scoped to html:not(.dark), which means the highlighter is a light-mode feature rather than a global one that dark has to undo.
+
+That ordering was arrived at backwards and is worth recording. The mark was written as the base rule first and dark mode given overrides to turn it off, which works for everything that was remembered and fails for everything that was not: the hover flooded a mint field on the dark page too, because the hover rule was never scoped. Anything global that only suits one page color will do that again. The test is whether dark mode can be described without mentioning light mode, and now it can: a mint link on a dark page, and nothing else.
+
+The brand buttons need their text changed too, not their background. VitePress paints --vp-button-brand-bg from brand-3 and puts --vp-button-brand-text on it, and that text is --vp-c-white in all three states with no dark override — so mint behind white is 1.18:1 and unreadable. In dark mode the button keeps the mint and takes the ink instead, at 8.96:1.
+
+The chrome is a third value, and the reason is rank rather than legibility. Navigation — the prev/next titles, the sidebar's active item, the outline marker, the return-to-top link — was painted in the ink, which measures 10.54:1 on white against the prose's 10.94:1. Nothing was wrong with it except that it carried the same weight as the words it serves. #00855B is the lightest value at the brand's own hue and saturation that still clears 4.5:1 as body text, at 4.66:1, which is 43% of the prose's weight — clearly below it, still unmistakably the brand, and full saturation so it reads as an accent rather than as stained ink.
+
+The dark page needs the same rank and cannot get it the same way. Walking the lightness down does almost nothing there: a saturated cyan holds its luminance, so L45 still measures 10.47:1 against the page where L81 measures 14.6:1, and by the time it dims it has stopped looking like the brand. Alpha is what works, because compositing toward the page drops saturation and lightness together — the mint at 60% is 6.0:1, which is 47% of the dark prose's 12.81:1. It is the same operation that made the ink, pointed at the page instead of at the prose.
+
+brand-3 stays the raw mint in dark mode alone. It is a button's background rather than text, and the ink on 60% mint reads 3.69:1 where the ink on full mint reads 8.96:1 — a field wants to be solid.
+
+brand-2 is set equal to brand-1 on purpose. VitePress spends it on hover states, and a link here does not change on hover, or on visit — the theme never styled :visited at all, and browsers restrict what it may change in any case. Making the two variables equal turns every hover shift into a no-op without a rule to enforce it.
+
+What this does not touch: the warning and danger containers keep their own amber and red, because a caution that reads as brand-colored is not a caution. And the fences keep Catppuccin, which is a separate system entirely — a theme's colors are baked into each token at build time and are not variables at all.
+*/
+
+:root {
+	--fuji-mint:     #9FFFE0;  /* the brand, and never ink on a light page */
+	--fuji-mint-ink: #154739;  /* a word the mark petrified: cyan with the page's ink mixed in */
+	--fuji-chrome:   #00855B;  /* navigation, which should rank below the prose it serves */
+
+	--vp-c-brand-1: var(--fuji-chrome);
+	--vp-c-brand-2: var(--fuji-chrome);   /* equal to brand-1, so hovers do not move */
+	--vp-c-brand-3: var(--fuji-chrome);   /* button backgrounds carry white text, at 4.66:1 */
+	--vp-c-brand-soft: rgba(159, 255, 224, 0.4);
+
+	--vp-code-bg: var(--fuji-mint);         /* the industrial highlighter mark */
+	--vp-code-color: var(--fuji-mint-ink);  /* and the word it petrified */
+	--vp-code-link-color: var(--fuji-mint-ink);
+	--vp-code-link-hover-color: var(--fuji-mint-ink);
+}
+
+.dark {
+	--fuji-chrome: rgba(159, 255, 224, 0.6);
+
+	--vp-c-brand-1: var(--fuji-chrome);
+	--vp-c-brand-2: var(--fuji-chrome);
+	--vp-c-brand-3: var(--fuji-mint);     /* the button wants a solid field under its ink */
+	--vp-c-brand-soft: rgba(159, 255, 224, 0.16);
+
+	--vp-code-bg: rgba(159, 255, 224, 0.14);
+	--vp-code-color: var(--fuji-mint);
+	--vp-code-link-color: var(--fuji-mint);
+	--vp-code-link-hover-color: var(--fuji-mint);
+
+	/* the button keeps its mint and changes its text; white on mint is 1.18:1 */
+	--vp-button-brand-text: var(--fuji-mint-ink);
+	--vp-button-brand-hover-text: var(--fuji-mint-ink);
+	--vp-button-brand-active-text: var(--fuji-mint-ink);
+}
+
+/*
+On the light page, a link is the prose it sits in with a mint bar behind the base of its letters, and on hover the bar becomes a full field the shape of a code pill with the same stained ink in it. Nothing moves and nothing animates. On the dark page none of this applies — see the brand essay above for why, and for the scoping that keeps it out.
+
+The bar is a background layer rather than a text decoration, and the reason is the only reason: an underline cannot be wider than the text it underlines, and this one runs 2px past the word at each end, because a felt tip is wider than what it marks and a stroke cut to the exact edge of a word reads as a rule. Everything else about text-decoration was better — the browser positions it from the font's own metrics, and it is four declarations instead of six — so if that overshoot ever stops mattering, the simpler tool is the one to go back to.
+
+Three custom properties hold the geometry. --stroke is the bar's height in em, so it scales with the type and a link in a heading gets a proportionally heavier mark. --lift is in px rather than em on purpose, because its whole job is to cancel the pill's 3px bottom padding, and a value that scaled would stop cancelling.
+
+--inset is the dial, and it runs backwards, which is worth stating because the number that matters is not written anywhere: it says how far short of the box's edge the bar stops, and the box is 3px wider than the word at each end, so the overshoot is 3px minus this. 1px therefore means 2px past the word, which is where it is; 3px would be flush with the word, which was tried and reads as mechanically perfect in the wrong way.
+
+The box takes a code pill's vertical padding and half its horizontal: 3px all round against the pill's 3px 6px. The heights therefore agree — a hovered link and a code word are the same height, give or take the two points of font size between 16px prose and 13px code — while the flood is narrower than a pill, which is the point. Nothing reflows, because vertical padding on an inline element paints outside the line box without changing its height, and the horizontal padding is cancelled by an equal negative margin.
+
+That negative margin is why the sides are 3px and not 6px. It pulls the box past the link's first letter, and since inline boxes paint in document order — background, then text, box by box — a hovered link's field covers the descender of whatever glyph precedes it: at 6px the tail of the y in "by" went under the mark on "WebKit". A word space at prose size is only around four pixels, so 6px reached well into the previous word and 3px stops short of it. Taking the padding off altogether fixes it completely and was tried, and the field then hugs the word and looks mean; 3px is the middle that keeps a field worth having.
+
+The flood is a background-color rather than a change to the bar, which is a paint-order trick: background-color is painted beneath every background-image layer, so the field appears behind the bar and the bar is simply absorbed into it. The bar itself never changes size, position or shape in any state.
+
+transition: none is load-bearing rather than tidy. VitePress transitions every link's color over 0.25s of its own accord, so removing our transition left the ink still fading in while the field arrived instantly — half an animation, which is worse than either. One declaration turns the whole thing off, and with nothing transitioning there is no longer any reduced-motion case to handle.
+
+What was tried and taken back out, so none of it gets tried twice: a text decoration with a negative offset, which cannot overshoot; rounded ends built from three background layers, a semicircular cap at each end and a rectangle between, which worked but gave only one radius — half the bar's height, a full capsule, where what was wanted was slight; animating the bar's own size and position into the field, which morphed the shape on the way; and a transition on the whole thing at 200ms, 160, 120 and 100, none of which earned its keep. A pseudo-element carrying a real border-radius was never built, for two reasons: an absolutely positioned pseudo-element gets one box for an inline fragmented across two lines, and putting it behind the text needs z-index: -1, which can drop it behind an ancestor's background.
+*/
+/* both pages: the prose's own weight rather than VitePress's 500, and none of its 0.25s color fade */
+.vp-doc a {
+	font-weight: inherit;
+	transition: none;
+}
+
+/* and everything that follows is the light page only */
+html:not(.dark) .vp-doc a {
+	--stroke: 0.45em;               /* the bar's height */
+	--inset: 1px;                   /* how far short of the box it stops, so: 2px past the word */
+	--lift: 3px;                    /* off the box's bottom edge, cancelling the bottom padding */
+
+	color: var(--vp-c-text-1);      /* the prose's own ink, so the bar is the whole signal */
+	text-decoration: none;
+
+	border-radius: 4px;             /* the flood's shape; a code pill's corners */
+	padding: 3px 3px;               /* 3 above and below like a pill, 3 at the sides where a pill has 6 */
+	margin: 0 -3px;                 /* and back out again, so the line does not reflow */
+
+	background-image: linear-gradient(var(--fuji-mint), var(--fuji-mint));
+	background-repeat: no-repeat;
+	background-position: left var(--inset) bottom var(--lift);
+	background-size: calc(100% - 2 * var(--inset)) var(--stroke);
+	box-decoration-break: clone;    /* a complete bar on each fragment when a link wraps */
+	-webkit-box-decoration-break: clone;
+}
+
+html:not(.dark) .vp-doc a:hover {
+	color: var(--fuji-mint-ink);
+	background-color: var(--fuji-mint);
+}
+
+/*
+The one change to how the documentation shows code brings the editor fuji is written in to a reader who has no editor, and it touches no file.
+
+Fuji indents with tabs, and .editorconfig at the repository root says indent_size = 2, so every editor on every machine here shows a tab two columns wide. VitePress sets tab-size: 4 on every code block, which rendered every excerpt on this site at exactly twice the depth its file reads at — most of a screenful of extra left margin on anything three levels in.
+
+Soft wrapping the blocks was tried alongside this and taken back out, so the fences keep the horizontal scrollbar VitePress gives them. Two things learned in the attempt, for whoever tries it again. A block carrying line numbers cannot wrap: VitePress draws the numbers as one absolutely positioned column at a fixed line height, one number per logical line, so a line taking two rows puts every number below it one row out of true. And white-space: pre-wrap alone does not finish the job, because VitePress gives the code element width: fit-content — its width is the longest thing inside it, and overflow-wrap: break-word does not lower that figure, so a block holding one token longer than a line grows wider than the block, the token then has room, nothing breaks, and the scrollbar returns for that block alone. Measured on the Mac mini at a 609px block, the json sidecar on the code examples page overflowed by exactly 4px that way; overflow-wrap: anywhere does feed the intrinsic width and fixes it.
+*/
+
+/* a tab is two columns, as .editorconfig asks of every editor here */
+.vp-doc [class*='language-'] pre code {
+	tab-size: 2;
+}
+
+/*
+Code set in Medium rather than Regular, because Plex Mono at 13px on a light ground reads lighter than it measures. VitePress has no variable for this, so it takes a rule. Medium is 500, and the two steps below it were looked at on the way here: Regular 400 is what this replaces, and Text 450, the weight IBM draws for body copy, turned out to be too small a correction to be worth having.
+
+The first selector is VitePress's own for inline code, borrowed exactly because of what it leaves out: a heading is 600 already, and code inside one would go lighter than the words around it if this reached that far. The second is the fenced block. The line numbers keep Regular, which is what holds them back from competing with the code they count.
+*/
+.vp-doc :not(pre, h1, h2, h3, h4, h5, h6) > code,
+.vp-doc [class*='language-'] pre code {
+	font-weight: 500;
+}
+
+/*
+Italic comments, in whatever face the syntax theme asked for them in.
+
+This is the other half of something VitePress leaves unfinished rather than a new idea of ours. A VS Code theme can set fontStyle on a scope as well as a color, and Shiki carries both onto the page: a comment token under a theme that italicizes comments comes out holding --shiki-light-font-style and --shiki-dark-font-style beside its two colors. VitePress consumes the colors and not the styles, so the instruction sat on hundreds of tokens per page doing nothing — 610 of them on the code examples page under the theme in use. These two rules mirror its own pair exactly — same .vp-code span selector, same html:not(.dark) and .dark split — and read the variable it skipped.
+
+So what is italic is the theme's decision, not ours, and it is worth knowing that a theme swap can take the italics away without touching a line of this. Catppuccin italicizes comments in both its flavors, which is why they are there; of the fifteen light themes Shiki bundles only seven do, and no github-* variant is among them, so returning to VitePress's default would silently lose them. These rules would stay correct and simply have nothing to apply.
+
+The italic that arrives is a real one. Plex Mono is declared at italic in all six of its weights, including the 500 the code above is set in, so the browser loads a drawn italic rather than slanting the roman by matrix — which is the whole reason to do this in a monospace.
+*/
+html:not(.dark) .vp-code span {
+	font-style: var(--shiki-light-font-style, normal);
+}
+
+.dark .vp-code span {
+	font-style: var(--shiki-dark-font-style, normal);
+}
+
+/*
+Two page-specific rules, and they are page-specific on purpose: the Meet Aki portrait runs to the footer's own rule rather than floating above it, the way a mascot sits at the foot of a box.
+
+VitePress puts 64px between a document and its footer, and the grey line is the border-top on the prev/next navigation, which is the footer's first child — so closing that margin is the whole of it. The page carries pageClass: meet-aki in its frontmatter, which is VitePress's documented way to scope a rule to one document, and nothing else on the site changes.
+
+Only the desktop layout is exact: below 960px VitePress gives .VPDoc 96 to 128px of bottom padding, but that sits under the footer rather than between the image and the line, so the portrait still meets it.
+*/
+.meet-aki .VPDocFooter {
+	margin-top: 0;
+}
+
+/*
+The profile is one row of two cells: the prose in whatever width is left, the portrait in a fixed 416px track, and the two aligned to opposite ends of the row — text to the top, portrait to the floor. The row is as tall as the prose, which runs about 815px against her 608px, so the difference becomes air above her rather than a gap anywhere else.
+
+This is deliberately not a wrap. A float was tried in several arrangements and each one traded something: placed early the text outran her and she rose off the footer's rule, placed late only a paragraph flanked her, and pushed down with margin-top and shape-outside: border-box — which does genuinely let text run full width above a float, the one CSS mechanism for it — the full-width portion came to a single line, correct to the flow and not worth having. A grid cannot flow text around the portrait at all, and here that limitation is the feature: nothing depends on how long the prose is, so editing it moves nothing.
+
+The name and the profile line stay outside the grid, full width, where a caption belongs.
+
+Two columns only from 960px, which is where VitePress brings in the sidebar and settles the content column at 688px. Below that they stack.
+*/
+.meet-aki .profile {
+	display: grid;
+	gap: 24px;
+	align-items: start;
+}
+
+.meet-aki .profile img {
+	align-self: end;
+}
+
+/*
+A grid item establishes an independent formatting context, so the first paragraph's top margin cannot collapse with the profile line's bottom margin above it the way two adjacent paragraphs would. Both 16px land, and the gap comes out doubled. Taking the top margin off the first thing in the cell restores the ordinary rhythm.
+*/
+.meet-aki .profile > div > :first-child {
+	margin-top: 0;
+}
+
+@media (min-width: 960px) {
+	.meet-aki .profile {
+		grid-template-columns: 1fr 416px;
+	}
+}
