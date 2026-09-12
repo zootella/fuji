@@ -4,7 +4,19 @@ How fuji becomes an application the operating system will hand a picture to. Wha
 
 The research came first and is kept below, because every decision in the plan is a consequence of one of those findings and the reasons go stale faster than the rules do.
 
-**Nothing in this document has been measured.** It is read from Apple's and Microsoft's documentation, from Tauri's bundler source, and from the registry macros Tauri's installer inserts, in September 2026. The first paragraph of the last section says what has to be run on which machine before any of it is a fact. That is unusual for a document here and it is deliberate: the subject is mostly other people's rules, and the rules are written down.
+**The research is read rather than measured, and the macOS half is now run.** The rules below come from Apple's and Microsoft's documentation, from Tauri's bundler source, and from the registry macros Tauri's installer inserts, in September 2026 — unusual for a document here and deliberate, because the subject is mostly other people's rules and the rules are written down. What has since been run on hardware is the macOS pass, on the Mac mini on 2026-09-12, and the open section at the end says what it found. Nothing on Windows has been run at all.
+
+## Where this stands
+
+**The first pass is built and works, and its last step is not fit for a human.**
+
+Built and verified on the Mac mini: the ten types declared in a hand-written `Info.plist` that Tauri merges into the bundle; LaunchServices recording every one of them at rank Alternate; a double-click after *Change All* launching fuji onto that picture with its folder behind it and flipping and the `c` key working from the first frame; and a second double-click while fuji runs turning the same window to the new picture.
+
+Built and not run anywhere: the whole Windows half — the runtime registration in `associate.rs`, the command-line path in `open.rs`. It compiles against the Windows target and that is all that can be said for it from here.
+
+Not built: the uninstall hook, document icons, single instance, and any way for a user to discover or use any of this from inside fuji.
+
+**The concession, stated plainly, because a later reader will otherwise assume this shipped in a usable state.** Fuji registers correctly and a person cannot reasonably be expected to find how to use it. Making fuji the default on macOS means Get Info, then expanding a collapsed *Open with:* section, then a small button reading *Change All…* — while the Open With submenu, which is the obvious place and the one a user will actually open, offers no way to set a default at all. The route took the person who had just written this document several tries to find. Nothing fuji does from outside Finder improves it. So the honest description of the first pass is that it works and that nobody will find it, which is tolerable only while the only user is the one who built it. The settings panel in the second pass is what fixes this, and that is now its reason rather than the milder one recorded below.
 
 ## The two questions, which are not the same question
 
@@ -34,7 +46,9 @@ The keys that matter:
 
 **Setting the default programmatically is possible.** `NSWorkspace.setDefaultApplication(at:toOpen:)`, macOS 12 and later, replaces the deprecated `LSSetDefaultRoleHandlerForContentType`. For a document type it succeeds silently — the confirmation sheet Apple added in Monterey is for URL schemes, which is to say for the default browser, and a content type does not raise it. So on the Mac the restraint would have to be fuji's own; the system will not enforce it. A menu item that asks first and then makes this one call is the honest shape, and it is unbuilt.
 
-**The user's own route, needing nothing from fuji, is Get Info.** Select a `.webp`, ⌘I, the *Open with* popup, then *Change All…*, which asks for confirmation and applies to every file of that type. That is the one-time action available to someone who wants it, whatever fuji does or does not build.
+**The user's own route, needing nothing from fuji, is Get Info.** Select a `.webp`, ⌘I, expand *Open with*, choose the application, then *Change All…*, which asks for confirmation and applies to every file of that type. That is the one-time action available to someone who wants it, whatever fuji does or does not build — and the section above is honest about how findable it is.
+
+**The popup above that button sets one file, not the type, and that inversion is inherited rather than designed.** Classic Mac OS gave every file a type code and a creator code, and the creator code named the application that made it; double-clicking a document opened it in that application rather than in any system-wide default, so a JPEG from Photoshop and a JPEG from GraphicConverter opened in different places on the same machine. Files carried their provenance and that was the point. Mac OS X carried the behaviour into LaunchServices, extensions and then UTIs took over the typing, and creator codes were ignored by around 10.6 — but the per-file binding survived as the thing the popup does, with the type-wide choice demoted to a button beside it. So the common case takes the extra step and the rare case is the default, which reads as bad design and is really an old model's priorities left standing after the model was replaced. The rare case is still real — one text file that should open in an editor when the rest go to TextEdit — but it is rare, and it is what the interface puts first.
 
 ## Windows
 
@@ -191,9 +205,11 @@ In `Shell.vue`'s existing startup order, four additions:
 
 A listener for the macOS event does 1 and 3 again while fuji is running.
 
-### Where fuji tells the user any of this
+### Where fuji tells the user any of this, and the hole it leaves
 
-**The help HUD, and nowhere else.** `h` already shows a centred block of plain text, so this is lines in a string rather than new interface, and fuji has no chrome a picker could live in yet. Per platform: the Get Info and *Change All* route on macOS, and on Windows the Open with route and the Settings page.
+**Nowhere, in this pass, and that is a change from the plan as first written.** The intention was the help HUD, since `h` already shows a centred block of plain text and that is lines in a string rather than new interface. Opening it found placeholder copy — "this HUD will likely be a card showing the user all the keyboard shortcuts" — rather than a help screen, and putting real instructions inside acknowledged filler makes both worse. So the HUD is left alone, and the discovery lines go in when help is designed: the Get Info and *Change All* route on macOS, and on Windows the Open with route and the Settings page. Until then fuji is silently available and the user has to know.
+
+**That was too casual, and the smoke test is why.** Making fuji the default on macOS means Get Info, then expanding a collapsed *Open with:* section, then a small button labelled *Change All…*. It works, and it took the person who had just written this document several tries to find, with the Open With submenu — the obvious place — offering no way to set a default at all. The route is not hard once known and it is close to invisible before, and nothing fuji can do from outside Finder improves it. This is the argument for the settings panel in the second pass, and it is a stronger argument than the one recorded there, which was only that a user might reasonably start in the application.
 
 **Fuji never checks whether it is the default.** Not at startup, not on a launch with a file, not anywhere in this pass. That single restraint is what keeps fuji from ever growing the banner that started this conversation.
 
@@ -240,7 +256,21 @@ Not built here, and recorded now so the first pass can be checked against it. Ag
 - Does Explorer still draw thumbnails for a type fuji has been chosen for? A thumbnail handler hangs off a `ShellEx` key that can sit on the extension or on the ProgID. If it sits on the ProgID, a folder of pictures becomes a folder of identical fuji icons, which would change the plan rather than merely disappoint.
 - What `Software\Classes\.webp` and the `FileExts` key hold before and after, which is the check that the registration did what this document says it does.
 
-**What the Mac mini has to answer.** That the plist merge produces the expected `CFBundleDocumentTypes`; that Fuji appears in Open With for all ten types; that *Change All* makes a double-click reach fuji with its folder; and what the file icons look like in Finder afterwards.
+**What the Mac mini answered, 2026-09-12.** All of it works. Tauri merged the hand-written plist without disturbing its own keys, LaunchServices recorded every type, and a double-click after *Change All* reaches fuji with its folder behind it. Read out of `lsregister -dump`:
+
+    claim id:     JPG Image
+    rank:         Alternate
+    roles:        Viewer
+    bindings:     .jpg
+    claimed UTIs: public.jpeg, public.png, public.svg-image, public.avif,
+                  org.webmproject.webp, com.compuserve.gif, com.microsoft.bmp,
+                  dyn.ah62d4rv4ge80y3xmq2 (.jfif)
+
+**Declaring by extension is enough, which settles the question this document left open.** macOS synthesised the right system UTIs from bare `CFBundleTypeExtensions` — `public.jpeg`, `public.svg-image`, and the rest — with no `LSItemContentTypes` written anywhere. The caution about a mistyped UTI failing silently stands, and there is now no reason to take the risk.
+
+**`.jfif` is the exception and gets a dynamic UTI,** because macOS has no system type for it. It works, but a synthesised type is its own type: *Change All* on a `.jpg` sets `public.jpeg` and does not cover `.jfif`, which has to be set separately. Nothing to fix, worth knowing.
+
+**Two bundles claim these types on a development machine, and they share a bundle identifier.** The copy in `/Applications` and the copy under `target/release/bundle/macos/` are both registered, and LaunchServices stores the user's choice by identifier rather than by path, so it may launch either. Usually the installed one wins. If it ever picks the build directory, the next build replaces the binary underneath it.
 
 **Generating `Info.plist` from `imageTypes`** with a small Node script, the way `release.js` set the precedent, so the list exists once. It needs `imageTypes` moved out of `library.js` into a module with no imports, since `library.js` pulls in Tauri APIs that Node cannot load.
 

@@ -49,9 +49,9 @@ function tileFor(path) {//what the extension says a path will be, before its byt
 	return tile
 }
 function formatOf(path) {//jpeg from image/jpeg, svg from image/svg+xml: the names the probe answers with, so the two compare
-	let mime = imageTypes[parse.extname(path).toLowerCase()]
-	if (!mime) return ''
-	return mime.split('/')[1].replace('+xml', '')
+	let type = imageTypes[parse.extname(path).toLowerCase()]
+	if (!type) return ''
+	return type.mime.split('/')[1].replace('+xml', '')
 }
 function platform() {
 	let p = navigator.platform//MacIntel on every mac, apple silicon included; Win32 on every windows

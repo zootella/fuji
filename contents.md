@@ -32,7 +32,9 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 A letter is written to a specific reader — usually a Claude Code session on the other machine, or on the other side of a long gap — and it starts a conversation rather than settling a subject. Read a letter, then talk; do not treat one as a document of record the way the files above are.
 
-None open right now. The last was `windows.md`, written for the Windows machine and retired in September 2026 once it had been answered — everything in it that outlived the conversation went into `icon.md`, `fidelity.md`, `performance.md` and `CLAUDE.md`, which is what a letter is supposed to leave behind.
+**`windows.md`** is open, written 2026-09-12 for the Windows machine. File associations: the macOS half is built and verified, the Windows half is built and has never run, and the letter says where to start and what only that box can answer. `associations.md` is the record behind it.
+
+An earlier letter also called `windows.md` was retired in September 2026 once it had been answered — everything in it that outlived the conversation went into `icon.md`, `fidelity.md`, `performance.md` and `CLAUDE.md`, which is what a letter is supposed to leave behind.
 
 ## What has moved to the site
 

@@ -2,10 +2,13 @@
 
 import {ref, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
+import {listen} from '@tauri-apps/api/event'
 import {raf, forwardize, revealWindow} from './library.js'
 import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'
 import {modelStart, modelShowing} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
+import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
+import {associateRegister} from '../associate.js'//and what fuji tells the operating system it can open in return
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -54,7 +57,13 @@ onMounted(async () => {
 	} catch (error) {
 		notices.push(sayTrouble('shell: reading settings', error))//carry on to the reveal on factory settings rather than leave the window hidden
 	}
-	showing.value = settings.view.showing//before the reveal, so the first frame the user sees is the view they left
+	let opened = []//the pictures the operating system handed fuji, which is empty on an ordinary launch
+	try {
+		opened = (await openFiles()).map(forwardize)//forwardized here, at the same boundary a dropped path crosses; windows hands these over with backslashes and everything below assumes forward ones
+	} catch (error) {
+		notices.push(sayTrouble('shell: asking what fuji was opened with', error))//the same reasoning as above: nothing here is worth leaving the window hidden for
+	}
+	showing.value = opened.length ? 'Table' : settings.view.showing//before the reveal, so the first frame the user sees is the view they left — or a table, when they double-clicked a picture and asked to see that picture rather than the folder around it. Not written back to the file, because opening one image is not a decision about where fuji opens next time
 	whichTable.value = settings.view.table
 	if (!tables[whichTable.value]) {//a name settings cannot check, because the tables fuji has are known here and not there
 		notices.push(`⭕ settings: no table named ${whichTable.value}, showing Diamond instead`)
@@ -69,9 +78,17 @@ onMounted(async () => {
 	await revealWindow(settingsWindowRect())
 	await raf()//the window is up and resized; let the viewport report its new dimensions before the view measures them
 	activeView()?.start?.()
+	if (opened.length) reportTrouble(() => activeView()?.onDrop?.(opened[0]))//a launch with a file is a drop that fuji was not running for, so it takes the path a drop already takes: the model lists the folder, applies the sort, and stands on the image. Only the first of them, because fuji has one window and instances.md owns what more than one would mean
+	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a build with nothing to do, and only windows has anything to say
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
+	unlistenOpen = await listen('open', () => reportTrouble(async () => {//macos hands a running fuji another picture this way; on windows it never fires, because explorer starts a second fuji instead
+		let more = (await openFiles()).map(forwardize)
+		if (!more.length) return
+		await showView('Table', false)//a picture the user just asked for belongs on a table, and without remembering it, for the same reason as at startup
+		await activeView()?.onDrop?.(more[0])
+	}))
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView()?.onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
 	})
@@ -81,11 +98,12 @@ onMounted(async () => {
 		unlistenResized = await w.onResized(({payload}) => { if (isFullscreen()) return; settings.window.width = payload.width; settings.window.height = payload.height; settingsChanged() })
 	}
 })
-let unlistenFileDrop, unlistenMoved, unlistenResized//will hold the unsubscribe functions set above and called below
+let unlistenFileDrop, unlistenMoved, unlistenResized, unlistenOpen//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
 	if (unlistenFileDrop) unlistenFileDrop()
+	if (unlistenOpen) unlistenOpen()
 	if (unlistenMoved) unlistenMoved()
 	if (unlistenResized) unlistenResized()
 })
@@ -102,10 +120,10 @@ async function reportTrouble(work) {//a window event is where the platform start
 	try { await work() } catch (error) { logTrouble('shell: handling a window event', error) }//the work is handed in unrun so this catches a handler that throws on the way in, not only one that rejects later
 }
 
-async function showView(name) {//show the sheet or the current table; both stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
+async function showView(name, remember = true) {//show the sheet or the current table; both stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
 	if (showing.value == name) return
 	showing.value = name
-	settings.view.showing = name; settingsChanged()
+	if (remember) { settings.view.showing = name; settingsChanged() }//the user pressing c is choosing where fuji opens next time; fuji switching to show a picture the user double-clicked is not
 	await nextTick()//v-show has been applied, so the view arriving has a layout box and can measure itself
 	activeView()?.start?.()
 }

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	What fuji tells macOS it can open. Tauri merges this file with the Info.plist it generates from tauri.conf.json, so everything else about the bundle — the identifier, the version, the icon, the minimum system — still comes from there and nothing needs repeating here.
+
+	LSHandlerRank is Alternate on every one of these, and that is the whole design: Alternate says fuji can open this kind of file and is not claiming it. Fuji appears in Finder's Open With menu the moment the app is dragged into Applications, and every file on the machine still opens with whatever opened it before. A user who wants fuji uses Get Info and Change All, which macOS confirms with a sheet of its own. Nothing fuji does takes a file type.
+
+	The list is the same one as imageTypes in src/components/library.js, and these are the two places it exists — this file cannot read that one, because the bundle is built before any of fuji's code runs. Keep them in step by hand; associations.md carries the plan for generating this file from that list instead.
+
+	One dict per extension rather than one per format, even though a dict can carry several extensions and the four JPEG spellings really are one format. CFBundleTypeName is per dict, and the name is per extension so that sorting by type in Windows Explorer groups a folder's .jpe files together. Keeping both platforms reading from one shape is worth three extra dictionaries.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key><string>BMP Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>bmp</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>GIF Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>gif</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>JPG Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>jpg</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>JPEG Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>jpeg</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>JPE Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>jpe</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>JFIF Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>jfif</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>PNG Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>png</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>SVG Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>svg</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AVIF Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>avif</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>WebP Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>webp</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+	</array>
+</dict>
+</plist>

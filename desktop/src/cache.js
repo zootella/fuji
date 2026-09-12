@@ -68,7 +68,8 @@ async function cacheRead(entry) {//read the file into a blob and make its url, r
 		let bytes = new Uint8Array(await diskRead(entry.path))
 		entry.loaded = performance.now()
 
-		entry.blob = new Blob([bytes.buffer], {type: imageTypes[parse.extname(entry.path).toLowerCase()] || 'application/octet-stream'})//the array is not kept: making a blob copies, so holding both would be two copies of every file
+		let type = imageTypes[parse.extname(entry.path).toLowerCase()]//blank for an extension fuji does not know, which the folder listing never offers but a caller with a path of its own could
+		entry.blob = new Blob([bytes.buffer], {type: type ? type.mime : 'application/octet-stream'})//the array is not kept: making a blob copies, so holding both would be two copies of every file
 		entry.blobBytes = entry.blob.size; cacheBlobBytes += entry.blobBytes
 
 		entry.url = URL.createObjectURL(entry.blob)//kept until cacheFree, because a hidden element can lose its decoded frame and needs this source to get it back cheaply

@@ -52,19 +52,21 @@ export function backize(path) {
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
 }
 
+//every kind of picture fuji can show, and the only list of them anywhere: the folder listing filters by it, the flow routes by it, the store types its blobs from it, and associate.js hands it to the operating system as what fuji is offering to open
+//the name is what windows prints in explorer's type column, and it carries the extension rather than the format on purpose. All four jpeg spellings are honestly one format, and Finder's kind column calls them all JPEG image, but that column is also the only way to sort a folder by extension, and a shared name scatters the three .jpe files through the sort instead of grouping them. WebP keeps its own capitalization, being the one extension whose real name is not simply its letters in capitals
 export const imageTypes = {
-	'.bmp': 'image/bmp',//1986, Microsoft: Simple uncompressed raster format for Windows graphics, easy to decode
-	'.gif': 'image/gif',//1987, CompuServe: 256-color palette with animation support, early web staple, now 😺🍔
+	'.bmp':  {mime: 'image/bmp',     name: 'BMP Image'},//1986, Microsoft: Simple uncompressed raster format for Windows graphics, easy to decode
+	'.gif':  {mime: 'image/gif',     name: 'GIF Image'},//1987, CompuServe: 256-color palette with animation support, early web staple, now 😺🍔
 
-	'.jpg':  'image/jpeg',//1992, Joint Photographic Experts Group: Lossy compression for photographs
-	'.jpeg': 'image/jpeg',
-	'.jpe':  'image/jpeg',
-	'.jfif': 'image/jpeg',
+	'.jpg':  {mime: 'image/jpeg',    name: 'JPG Image'},//1992, Joint Photographic Experts Group: Lossy compression for photographs
+	'.jpeg': {mime: 'image/jpeg',    name: 'JPEG Image'},
+	'.jpe':  {mime: 'image/jpeg',    name: 'JPE Image'},
+	'.jfif': {mime: 'image/jpeg',    name: 'JFIF Image'},
 
-	'.png':  'image/png',//1996, PNG Development Group/W3C: lossless compression and full alpha transparency
-	'.svg':  'image/svg+xml',//2001, W3C: Scalable vector graphics for resolution-independent diagrams and icons
-	'.avif': 'image/avif',//2019, Alliance for Open Media: from AV1 codec, supports HDR and wide color gamut
-	'.webp': 'image/webp',//2010, Google: recent format for smaller file size
+	'.png':  {mime: 'image/png',     name: 'PNG Image'},//1996, PNG Development Group/W3C: lossless compression and full alpha transparency
+	'.svg':  {mime: 'image/svg+xml', name: 'SVG Image'},//2001, W3C: Scalable vector graphics for resolution-independent diagrams and icons
+	'.avif': {mime: 'image/avif',    name: 'AVIF Image'},//2019, Alliance for Open Media: from AV1 codec, supports HDR and wide color gamut
+	'.webp': {mime: 'image/webp',    name: 'WebP Image'},//2010, Google: recent format for smaller file size
 }
 export async function listFolder(folder) {//the image files in one folder, in whatever order the disk handed them over; a sort is what puts them in one
 	let contents = await diskReadDir(folder)
@@ -78,7 +80,7 @@ export async function listFolder(folder) {//the image files in one folder, in wh
 		.filter(f => imageTypes[f.extension])//only include known extensions
 		.map(f => ({
 		...f,
-		mime: imageTypes[f.extension],//include the mime type that goes with that extension
+		mime: imageTypes[f.extension].mime,//include the mime type that goes with that extension; the filter above has already dropped anything the table does not name
 	}))
 }
 export async function listSiblings(path) {//the same listing, ordered and with the given path found in it; the retired experiments are the only callers left, because the model lists and sorts for itself

@@ -123,6 +123,15 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `desktop.rs` - The one thing only Rust can do, because only Rust sees a quit coming:
   - `desktop_exit_hold()` - Replace the text to write to a path when the application exits
 
+- `open.rs` - A file the operating system handed fuji, because the user double-clicked a picture:
+  - `open_files()` - The paths handed over since the page last asked, emptying the list as it answers
+  - Filled from `RunEvent::Opened` on macOS and from the command line on Windows and Linux, and held rather than delivered because at launch both arrive before the page exists
+
+- `associate.rs` - What fuji has told the operating system it can open:
+  - `associate_register(types)` - Write the Windows registry entries that offer fuji for a list of extensions; a no-op on macOS, on Linux, and in a debug build
+  - Offers and never claims: the one value it does not write is the extension's own default, which is what would take a file type. macOS needs nothing here, since its declaration is `CFBundleDocumentTypes` in `src-tauri/Info.plist`, which Tauri merges into the bundle at build time
+  - `associations.md` is the whole subject
+
 - `log.rs` - Fuji's log, the half that holds the text and writes it:
   - `log(text)` - One line from any Rust code, appended to the run's log; a no-op unless the page started a log
   - `log_start(path)` - The page names the file, once, only when `log.record` is on
@@ -177,6 +186,12 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 - `desktop.js` - Exposes the exit-write commands:
   - `desktopExitHold(path, text)`
+
+- `open.js` - Exposes the files fuji was opened with:
+  - `openFiles()`
+
+- `associate.js` - Composes the type list out of `imageTypes` and hands it down:
+  - `associateRegister()`
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`
