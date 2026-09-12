@@ -2,7 +2,7 @@
 
 A card is a box of thumbnails, and the sheet's one scroll runs over a stack of them rather than over the pictures themselves. This document records what a card is, what it is for, and where it is meant to go. It began as a temporary cheat, a box no file manager shows, put there because it made the sheet's hard problems buildable and measurable before they were solved. It has turned out to be the unit that would let fuji look at a whole drive in constant memory, and the second half of this file is that vision, written down so it is decided here rather than rediscovered.
 
-`structure.md` names the parts and `architecture.md` says where each one lives. This says what the box between them is. `thumbnail-plan.md` says how the thumbnails inside it are made, `canvas.md` has the measurements behind that, and `performance.md` is where a number goes once fuji has seen it happen.
+`structure.md` names the parts and `architecture.md` says where each one lives. This says what the box between them is. The thumbnail pipeline document on the site says how the thumbnails inside it are made, `canvas.md` has the engine facts behind that, and `performance.md` is where a number goes once fuji has seen it happen.
 
 ## What everybody expects
 
@@ -45,9 +45,9 @@ A card is a box of thumbnails, and the sheet's one scroll runs over a stack of t
 
 **Two flows in one slot asked whether fuji should make its own thumbnails at all.** `TagFlow` handed the engine plain img tags and let it decide everything; `CanvasFlow` painted each picture down into a canvas fuji sized. The card was what made them comparable: the same folder, the same scroll, one variable. `canvas.md` records the answers, measured. The engine's img thumbnails are smaller than a full decode on both platforms, but they are the engine's to keep or drop, and up to twenty megabytes each on the Mac; a canvas is a known number of bytes fuji owns and the engine cannot take back. A one-pass draw into a canvas came out rough on the Mac, and halving fixed it at a cost to the main thread. And the operating system makes the same thumbnail three to twenty-five times faster and costs the main thread nothing.
 
-**So the answer is neither flow.** `SquareFlow` replaces both: every raster thumbnail is a canvas, its pixels from the operating system where the platform's list allows and from the page where it does not, and a GIF or an SVG is an img. `thumbnail-plan.md` is its plan. The confound the experiment worried over, a canvas card raising the memory pressure the engine handles the other card's decodes under, is moot once every raster thumbnail is a canvas.
+**So the answer is neither flow.** `SquareFlow` replaces both: every raster thumbnail is a canvas, its pixels from the operating system where the platform's list allows and from the page where it does not, and a GIF or an SVG is an img. The thumbnail pipeline document on the site is what it does and why. The confound the experiment worried over, a canvas card raising the memory pressure the engine handles the other card's decodes under, is moot once every raster thumbnail is a canvas.
 
-**What fuji can measure honestly is frames, and it is the number to keep taking.** `log.js` and the frame-time learning in `DiamondTable.vue` establish the technique: record what something cost in milliseconds and in frames, and refuse to claim a frame it only spilled into. A scroll is a stream of frames, and a card that hitches is a card that drops them. That is visible from inside the app, needs no view into the engine's memory, and is the closest number to what a person feels. Rows per thumbnail are `thumbnail-plan.md`'s fifth step.
+**What fuji can measure honestly is frames, and it is the number to keep taking.** `log.js` and the frame-time learning in `DiamondTable.vue` establish the technique: record what something cost in milliseconds and in frames, and refuse to claim a frame it only spilled into. A scroll is a stream of frames, and a card that hitches is a card that drops them. That is visible from inside the app, needs no view into the engine's memory, and is the closest number to what a person feels. Rows per thumbnail and per card are written now, and nobody has read them yet; `thumbnail-open.md` keeps that as the first test to run.
 
 ## What a canvas thumbnail costs
 
@@ -67,13 +67,13 @@ At Medium, five hundred thumbnails cost about what three full-size 26-megapixel 
 
 ## What is built
 
-**A card and three flows, on a sheet that scrolls.** `Card.vue` takes a list of images and a flow name and decides nothing else. `SquareFlow.vue` is the flow going forward; `TagFlow.vue` and `CanvasFlow.vue` sit beside it in the register for one comparison on one folder, and then retire. In `fuji.toml`, `card.images` is the cap at 200, `card.flow` names which flow the sheet uses, and `thumbnail.size` picks one of four squares a thumbnail fits inside — 120, 240, 360 and 480 css pixels, shared by every flow so the user says once what Medium means.
+**A card and one flow, on a sheet that scrolls.** `Card.vue` takes a list of images and decides nothing else; `SquareFlow.vue` is the flow, and `TagFlow.vue` and `CanvasFlow.vue` were deleted once the experiment below had answered. In `fuji.toml`, `card.images` is the cap at 200 and `thumbnail.size` picks one of four squares a thumbnail fits inside — 120, 240, 360 and 480 css pixels, so the user says once what Medium means. There is no setting naming the flow, because there is one flow; the name is in `Card.vue` and a second one brings a register back with it.
 
 **A flow acts within one card, and one flow governs the whole sheet.** That was the open question when this file was first written and it is settled: the sheet holds the name and hands the same one to every card, so switching switches all of them together.
 
 **Every card the folder needs is rendered.** The count of cards, the page, and Next are the walk above, and none of it is built.
 
-**A card lays its boxes out before its pictures arrive.** `SquareFlow` probes a card's files in one call and knows every size from the header alone, on the Mac and Windows, so thumbnails land in boxes already there and nothing shifts as a card fills. On Linux, and for an SVG, a box appears with its picture. The two retiring flows reflow on every arrival, and a hidden sheet fills nothing under `SquareFlow`, where the other two keep working behind the table.
+**A card lays its boxes out before its pictures arrive.** `SquareFlow` probes a card's files in one call and gets every size from the header alone, so thumbnails land in boxes already there and nothing shifts as a card fills. PNG, GIF and BMP are sized by fuji's own Rust and reflow nowhere; JPEG, WebP and AVIF need the platform library and so reflow on Linux, which has none; an SVG has no size to read and reflows everywhere. The two flows this one replaced reflowed on every arrival, and a hidden sheet fills nothing under `SquareFlow`, where both of them kept working behind the table.
 
 ## Open
 

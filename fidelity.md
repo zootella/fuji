@@ -4,7 +4,7 @@ Whether a picture arrives on the screen with its pixels and its colors intact. F
 
 Everything below was measured on hardware. Where a claim comes from reading the code rather than from a measurement, it says so, and where something remains untested it is listed at the end rather than quietly assumed. The audit found one defect, and fixing it is the change that came out of the day.
 
-`canvas.md` says what a canvas can hold and why a thumbnail is made where it is; `thumbnail-plan.md` is the plan `SquareFlow.vue` implements; `performance.md` says what any of it costs. This file says whether it is *right*.
+`canvas.md` says what a canvas can hold and why a thumbnail is made where it is; the thumbnail pipeline document on the site is what `SquareFlow.vue` does, and carries the geometry and color findings below in their settled form; `performance.md` says what any of it costs. This file says whether it is *right*.
 
 ## The machine, in three units
 

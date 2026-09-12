@@ -36,11 +36,6 @@ const settingsSchema = [
 		comment: 'how many images one card holds before the next card starts, so a folder of 220 at this setting is a card of 200 and then a card of 20; a card never mixes two folders. card.md says why the sheet scrolls over cards rather than over the thumbnails themselves, and is honest that this is scaffolding',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
-		section: 'card',
-		key: 'flow',
-		factory: 'SquareFlow',
-		comment: 'which flow arranges the thumbnails inside every card: SquareFlow fits every picture in a square and has the operating system make the pixels where it can and the page where it cannot; CanvasFlow and TagFlow are the two experiments it replaced, kept until they are retired. One flow governs the whole sheet at once, and the flows fuji has are known to the card rather than here',
-	}, {
 		section: 'thumbnail',
 		key: 'size',
 		factory: 'Medium',

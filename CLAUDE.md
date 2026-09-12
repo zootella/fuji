@@ -115,7 +115,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `thumbnail.rs` - The operating system's thumbnailer, ImageIO on macOS and WIC on Windows, behind two commands:
   - `thumbnail_probe(paths)` - For each path, what its first bytes say it is and what its header says its size is, without decoding; one call per card. Refuses bytes fuji does not know and a header claiming a raster over half the machine's memory
   - `thumbnail_render(path, format, maximum, gamut)` - Decode the file scaled so its longer side is at most `maximum` pixels, oriented and color-converted, returning one buffer: a 12-byte header of width, height and whether the pixels are Display P3, then straight-alpha RGBA. Refuses a file whose bytes are not `format`. Runs on Tauri's thread pool. Rejects on Linux
-  - `SquareFlow.vue` is the caller; `thumbnail-plan.md` says which files go here and which the page makes for itself
+  - `SquareFlow.vue` is the caller; the thumbnail pipeline document on the site says which files go here and which the page makes for itself
 
 **Command Registration**: All Rust functions exposed to JavaScript must be registered in `lib.rs::run()` using `tauri::generate_handler![]`
 
@@ -134,10 +134,8 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 **Key Components**:
 - `Shell.vue` - Owns the window and none of the pixels: reads settings, sizes and reveals the window, records where the user puts it, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
 - `Sheet.vue` - The contact sheet: one folder seen whole, as a top-to-bottom scroll over a stack of cards
-- `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to a flow; holds the register of flows
-- `TagFlow.vue` - The first flow: plain img tags sized inside the chosen `thumbnail` square, wrapped like words, everything else left to the renderer
-- `CanvasFlow.vue` - The other flow: reads a few images at a time, paints each into a canvas at the display's backing resolution, and releases the original, so the store holds nothing once a card is drawn
-- `SquareFlow.vue` - The flow that replaces both, per `thumbnail-plan.md`: probes a card's files in one call, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden
+- `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to the flow; names the one flow there is, and a second one brings a register back with it
+- `SquareFlow.vue` - The one flow, and the whole of how a path becomes a tile: probes a card's files in one call, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden. `TagFlow.vue` and `CanvasFlow.vue` were the experiment it replaced and are deleted
 - `DiamondTable.vue` - One of fuji's tables, showing one image sized to an invisible diamond on an infinite pannable plane:
   - Handles the events the shell hands it, plus wheel, pointer, and double-click on its own element
   - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
@@ -183,7 +181,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
-- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `thumbnail-plan.md` is the plan and `SquareFlow.vue` is it built
+- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `SquareFlow.vue` is the code, and the thumbnail pipeline document on the site is why it is shaped that way
 - A canvas is sized to its box in device pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one device pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `SquareFlow.vue` hold this; `fidelity.md` has the measurement
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 

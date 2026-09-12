@@ -16,7 +16,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 - **`performance.md`** — what any of it costs, measured, with the instrument that measured it. Three findings so far, including the one where a cache reported perfect behaviour while the app got slower.
 - **`card.md`** — the box of thumbnails the sheet's scroll runs over, why fuji is putting a level there that no file manager shows, what the experiment it hosted found, and the walk through a whole drive in constant memory that the box makes possible.
 - **`canvas.md`** — what WebKit on the Mac and Chromium on Windows actually do with a canvas, read from their sources: when one is GPU-backed, when it is a layer of its own, what it costs and can never give back, what makes a scaled thumbnail look right, and what colors it can hold. Also where a thumbnail should be made at all, in the web layer or by the operating system, and the direction fuji has taken.
-- **`thumbnail-plan.md`** — fuji has a path and needs a thumbnail: how it chooses between the page and the operating system, the one flow that replaces TagFlow and CanvasFlow, and the steps in order.
+- **`thumbnail-open.md`** — what is left to decide, build and measure about thumbnails. Short on purpose: the pipeline itself has moved to the site, and this is the list of what that page does not get to claim yet.
 - **`fidelity.md`** — whether a picture arrives with its pixels and its colors intact. The three pixel units a Retina Mac works in and the two a Windows box works in, the Display P3 path measured end to end, and the one-device-pixel defect that was making half of all thumbnails resample. Measured on hardware rather than reasoned, on two machines that say which numbers are whose, and the record of the audit that found and fixed that defect.
 - **`security.md`** — where untrusted bytes are parsed, why the web engine's sandbox is not protecting fuji as things stand, and the walls to build, in order.
 - **`sort.md`** — the orders fuji will show a folder in. Half prior art, researched rather than remembered — how Windows and macOS actually sort names and date files — and half plan. Nothing in the plan is written yet.
@@ -32,6 +32,14 @@ A letter is written to a specific reader — usually a Claude Code session on th
 
 None open right now. The last was `windows.md`, written for the Windows machine and retired in September 2026 once it had been answered — everything in it that outlived the conversation went into `icon.md`, `fidelity.md`, `performance.md` and `CLAUDE.md`, which is what a letter is supposed to leave behind.
 
+## What has moved to the site
+
+A planning document is written while something is being built and is finished the day it is. The ones worth keeping do not get deleted — they get rewritten as engineering documents on the website, in `site/docs/`, where they are addressed to a reader who does not have this repository open. What stays behind, in a file here, is only the part that is still open.
+
+- **`site/docs/thumbnail-pipeline.md`** — how a path becomes a thumbnail: the fork between an img tile and a canvas, between the operating system's decoder and the page's, and what was measured to choose each one. Speed, and fidelity of size, sharpness and color. It replaced the planning document written while the pipeline was being built, and `thumbnail-open.md` is the remainder.
+
+**Code refers to these pages and never to a planning document.** A planning document churns and is eventually retired, so a comment pointing at one goes stale or dangles; a page on the site is where an explanation has settled. A comment that needs the long version says "the thumbnail pipeline document on fuji's site" and stops there.
+
 ## What is not here
 
 Private planning is kept out of the public repository by the `hide` naming pattern that `.gitignore` describes — `hide/`, `*.hide`, `hide.*`, `*.hide.*`. Those files hold the roadmap and the user stories, they are where an idea lives before it is adopted, and this list does not enumerate them. A planning document in this list holds work the user has adopted; anything still being decided belongs in conversation or in a private file until it is.
@@ -40,7 +48,7 @@ Private planning is kept out of the public repository by the `hide` naming patte
 
 ## The shape of the repository
 
-The documents above live at the repository root, which is a pnpm monorepo. The application is the `desktop` workspace, so a path a document writes as `src/` or `src-tauri/` is relative to `desktop/`. The website for fujidesktop.app is the `site` workspace, and some of the finished documents above eventually become pages there.
+The documents above live at the repository root, which is a pnpm monorepo. The application is the `desktop` workspace, so a path a document writes as `src/` or `src-tauri/` is relative to `desktop/`. The website for fujidesktop.app is the `site` workspace, and a finished document eventually becomes a page there — the section above lists the ones that have.
 
 `notes/` is a plain folder rather than a workspace, and it is the raw material rather than a document of record: the four `fuji` text files the roadmap was distilled from in August 2026, and a few early sketches of brand and pointer work. Nothing imports it and nothing builds it, which is exactly the rule — a directory holding a `package.json` is a workspace, and everything else is just a folder.
 

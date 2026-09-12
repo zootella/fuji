@@ -10,18 +10,20 @@ import {logTrouble, logThumbnail, logCard} from '../log.js'//the log, off unless
 import {xy, imageTypes, errorImageData} from './library.js'
 
 /*
-thumbnail-plan.md is the plan; this is it built, in one file for now. A card hands this its paths. The extension says what kind of tile each gets: a GIF or an SVG is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count. A canvas gets its pixels one of two ways. A format on this platform's native list goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
+The one flow, and the whole of how a path becomes a tile. A card hands this its paths. The extension says what kind of tile each gets: a GIF or an SVG is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count. A canvas gets its pixels one of two ways. A format on this platform's native list goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
 First, one probe for the whole card: Rust reads each file's first bytes and its header and says what it is and how big, without decoding. A file whose bytes are not what its name claims, or not any format fuji knows, or whose header claims a raster that would not fit in memory, gets the placeholder and nothing is tried. Every other tile is laid out at its final size at once, so the flow does not reflow as it fills.
 
 Two loops. The native loop keeps a few thumbnails in flight, each a pool thread that never touches the page. The page loop keeps one, each a full decode held in the store and a draw on the main thread. Both stop when the card goes away, and both wait while the sheet is hidden, so a sheet behind the table does no work inside the table's frames.
+
+Two flows came before this one and are gone, and both of their lessons are in this file. TagFlow handed the engine full-size originals in plain img tags and let it decide everything, which is why every raster tile here is a canvas instead: the engine's thumbnail is smaller than a full decode but it is the engine's to keep or drop, and a canvas is a number of bytes fuji owns and can total. CanvasFlow painted each picture down into a canvas by hand, which is the page route below, and the halving in flowShrink is the part of it that had to be got right. The thumbnail pipeline document on fuji's site is the long version, with the measurements that chose each path.
 */
 
 const flowHolder = 'SquareFlow'//on every reference this flow takes, so a leak has a name
 const flowBox = settingsThumbnailBox()//read once: every tile is sized to it, and a change means making them all again
-const flowGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space every canvas is made in, asked of the screen rather than the engine; canvas.md says why that is safe everywhere
+const flowGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space every canvas is made in, read once like the box. A canvas is sRGB unless asked, and drawing a Display P3 photograph into an sRGB canvas clamps its most saturated colors away for good, so the thumbnail would come out duller than a table shows the same file. Asking the screen what it can show, rather than asking the engine whether it knows the name, is what keeps this from being a feature check: webkitgtk has no display-p3 value and throws when handed one, and is never handed one, because the query is always false there. Stale on a change of monitor, exactly as devicePixelRatio is
 const flowPlatform = platform()//mac, windows or linux, read once
-const flowNative = {//the allow lists from thumbnail-plan.md: what each platform's operating system makes thumbnails of; nothing off a list is tried there
+const flowNative = {//what each platform's operating system makes thumbnails of, and nothing off a list is tried there. Short and conservative on purpose, and not a guess at what the machine could manage: windows gets the two decoders that have shipped in every version of windows since XP, and the mac gets the formats fuji has run ImageIO against and watched decode
 	mac:     ['jpeg', 'png', 'webp', 'avif', 'bmp'],
 	windows: ['jpeg', 'png'],
 	linux:   [],
@@ -127,7 +129,7 @@ async function flowNative1(tile) {//one thumbnail from the operating system, ont
 	}
 }
 
-async function flowPage1(tile) {//one thumbnail made by the page from the store's decoded element, halved down; CanvasFlow.vue carries the essay on why halving
+async function flowPage1(tile) {//one thumbnail made by the page from the store's decoded element, halved down; the essay above flowShrink says why halving rather than one draw
 	let began = performance.now()
 	let promise = cacheNeed(tile.path, flowHolder)//the reference is taken before any await, so the release below is owed from this line on
 	try {
@@ -189,16 +191,21 @@ function flowFit(size) {//the css size a picture of size pixels shows at, and th
 }
 function flowStyle(tile) { return tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {} }//a tile with a known size holds its box before its pixels arrive
 
+/*
+Why this halves rather than drawing once. Fuji's first thumbnails aliased on the Mac — the roof tiles of a 26-megapixel photograph turned to jaggies at 240 pixels, while Safari showed the same file smooth as an img — and two things caused it. CoreGraphics' high interpolation reads a fixed footprint of source pixels around each output pixel, so at 26 to 1 most of the picture is never read, and pixels that are never read alias. And WebKit hands drawImage a subsampled frame only when it has to decode one: a frame already decoded at full size counts as good enough for any smaller request, and the store's decode() makes exactly that frame, so drawImage was given all 26 megapixels where Safari's img, which never called decode(), was given a quarter of them. Halving until the last draw is within two to one puts every source pixel into the average. Chromium's high quality is already a chain of halvings under a cubic filter, so on Windows this is work the engine would have done anyway.
+
+createImageBitmap looks like the purpose-built tool here, and on Chromium it is: ask it for resizeWidth and resizeQuality and it decodes straight to the size wanted. WebKit has the code and does not ship the options, so on the Mac it handed back a full-size bitmap — a whole second copy of a large photograph, allocated for nothing, then scaled by the same drawImage that could have done the job alone. It was tried and taken back out.
+*/
 function flowShrink(context, source, size, target) {//draw source, of size pixels, into context at target pixels, halving through scratch canvases until the last draw is within two to one; a fixed-footprint filter is only an honest average at that ratio
 	let scratch = [document.createElement('canvas'), document.createElement('canvas')]//two, taken in turn, because a canvas cannot be shrunk into itself
 	let step = 0
-	while (size.x > target.x * 2) {//one axis is enough, because the fit kept the aspect
+	while (size.x > target.x * 2) {//one axis is enough, because the fit kept the aspect; strictly more than double, so the last draw below is between one to one and two to one
 		let half = xy(Math.ceil(size.x / 2), Math.ceil(size.y / 2))
-		let canvas = scratch[step % 2]
+		let canvas = scratch[step % 2]//never the one that is the current source
 		canvas.width = half.x; canvas.height = half.y//sizing clears it and resets its context, so the quality is set again below
-		let c = canvas.getContext('2d', {colorSpace: flowGamut})
+		let c = canvas.getContext('2d', {colorSpace: flowGamut})//the same gamut all the way down, so nothing is converted twice
 		c.imageSmoothingQuality = 'high'
-		c.drawImage(source, 0, 0, half.x, half.y)//the first step reads the store's element, and the engine applies the file's orientation there
+		c.drawImage(source, 0, 0, half.x, half.y)//the first step reads the store's element, and the engine applies the file's orientation there; every later step reads a canvas
 		source = canvas; size = half; step++
 	}
 	context.imageSmoothingQuality = 'high'//rather than the default low, which reads only the four nearest source pixels per output pixel

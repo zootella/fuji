@@ -2,32 +2,22 @@
 
 import {ref, computed} from 'vue'
 import {modelList} from '../model.js'
-import {settings, settingsChanged} from '../settings.js'
-import {log} from '../log.js'
-import Card, {cardFlows} from './Card.vue'
+import {settings} from '../settings.js'
+import Card from './Card.vue'
 
-//one scroll, top to bottom, running over a stack of cards rather than over the thumbnails themselves; each card holds up to a capped number of images from one folder, so 220 at a cap of 200 is a card of 200 and then a card of 20. This file cuts the list and names the flow; sizing, arranging, loading and holding are the flow's, one level down. card.md says why that box is there and is honest that it is scaffolding
+//one scroll, top to bottom, running over a stack of cards rather than over the thumbnails themselves; each card holds up to a capped number of images from one folder, so 220 at a cap of 200 is a card of 200 and then a card of 20. This file cuts the list; sizing, arranging, loading and holding are the flow's, one level down
 
-const sheetFlow = ref('')//blank until start(), because setup runs while the shell is still reading the settings file, so a value read here at creation would be the factory one
+const sheetStarted = ref(false)//the shell has shown this view at least once, which is what the guard below turns on
 
-//the guard on the first line below covers only a sheet that has never been shown. After the first c, every drop on the table rebuilds these cards behind it. SquareFlow waits on modelShowing before it reads, decodes or draws anything, so a hidden sheet does none of that inside the table's frames; TagFlow and CanvasFlow do not wait, which is one reason they are being retired
+//that guard covers only a sheet that has never been shown. After the first c, every drop on the table rebuilds these cards behind it. The flow waits on modelShowing before it reads, decodes or draws anything, so a hidden sheet does none of that inside the table's frames
 const sheetCards = computed(() => {
-	if (!sheetFlow.value) return []//v-show hides without unmounting, so without this an unlooked-at sheet would still render and quietly load a whole folder on the table's drop
+	if (!sheetStarted.value) return []//v-show hides without unmounting, so without this an unlooked-at sheet would still render and quietly load a whole folder on the table's drop
 	let cards = []
 	for (let i = 0; i < modelList.value.length; i += settings.card.images) cards.push(modelList.value.slice(i, i + settings.card.images))
 	return cards
 })
 
-function start() {//the shell calls this when this view first comes on screen, which is the first moment the settings file has been read
-	if (sheetFlow.value) return
-	let name = settings.card.flow
-	if (!cardFlows[name]) {//a name settings cannot check, because the flows fuji has are known to the card and not there
-		log(`⭕ settings: no flow named ${name}, using SquareFlow instead`)
-		name = 'SquareFlow'
-		settings.card.flow = name; settingsChanged()//repair the file, the way a bad value anywhere else in it is repaired
-	}
-	sheetFlow.value = name
-}
+function start()    { sheetStarted.value = true }//the shell calls this when this view first comes on screen
 function onKey(e)   {}//nothing to do with a key yet
 function onResize() {}//and nothing to remeasure: the wrapping is the engine's job, and this view measures nothing, which is what lets it stay mounted
 
@@ -40,7 +30,7 @@ defineExpose({start, onKey, onResize})//the same calls every view answers; onDro
 <div class="mySheet w-screen h-screen overflow-y-auto select-none">
 	<div v-if="!sheetCards.length" class="myEmpty w-screen h-screen flex items-center justify-center">contact sheet - drop an image on the table to open a folder</div>
 	<!-- keyed on contents, so a card whose images changed is rebuilt rather than reused: a reused card keeps canvases painted from images it no longer holds and never paints the new ones -->
-	<Card v-for="card in sheetCards" :key="card.join()" :paths="card" :flow="sheetFlow" />
+	<Card v-for="card in sheetCards" :key="card.join()" :paths="card" />
 </div>
 
 </template>

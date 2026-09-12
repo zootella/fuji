@@ -19,7 +19,7 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
     Sheet     one                 it or a table       often, between it and a table
     Table     several             one                 rarely
     Sort      several             one                 often, while in the sheet
-    Flow      one                 one                 never; two experiments beside it are retiring
+    Flow      one                 one                 never; there is nothing yet to choose between
     Size      four                one                 often, while in the sheet
 
 **Frequency is the useful column.** It is why moving between the Sheet and a Table has to be instant with nothing reloading, and why choosing a different Table can afford to be slower. `architecture.md` turns that into the `v-show` and `v-if` rule.
@@ -40,7 +40,7 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
 
 One worked example, the kind Flickr uses: resize every image to a constant height, then set the thumbnails left to right like words in a left-aligned paragraph, wrapping at the edge. Wide images take more width than tall ones, rows come out ragged on the right, and **nothing is cropped** — every picture is shown whole. A Flow that instead squared everything to a grid would have to crop, and that is precisely the sort of trade a Flow exists to make.
 
-**One goes forward, `SquareFlow`, and two are retiring.** `TagFlow` handed the renderer full-size originals in plain img tags, and `CanvasFlow` painted each image down into a canvas fuji sized; they were the two halves of an experiment, and `card.md` says what it found. `SquareFlow` is the answer: every raster thumbnail is a canvas, with pixels from the operating system where the platform allows and from the page where it does not, and a GIF or an SVG is an img. `thumbnail-plan.md` is its plan.
+**There is one, `SquareFlow`, and two came before it.** `TagFlow` handed the renderer full-size originals in plain img tags, and `CanvasFlow` painted each image down into a canvas fuji sized; they were the two halves of an experiment, and `card.md` says what it found. `SquareFlow` is the answer and both were deleted once it was: every raster thumbnail is a canvas, with pixels from the operating system where the platform allows and from the page where it does not, and a GIF or an SVG is an img. The thumbnail pipeline document on the site is the whole of it, and `thumbnail-open.md` is what is left.
 
 **How big a thumbnail is belongs to the Sizes, not to a Flow.** `Small`, `Medium`, `Large` and `Xl` are four named squares a thumbnail fits inside — 120, 240, 360 and 480 css pixels at the factory — and the user says once what each one means, in `fuji.toml`. Every Flow reads the same chosen Size, so switching Flows never changes how big anything is, and nothing in fuji is tuned to the particular numbers.
 
@@ -86,7 +86,7 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
 
     architecture.md    the four layers, and where a value or a view belongs
     card.md            the box of thumbnails the sheet scrolls over, and the walk it makes possible
-    thumbnail-plan.md  how a thumbnail is made, from a path to a tile
+    thumbnail-open.md  what is left to decide and measure about thumbnails; the pipeline itself is a page on the site
     canvas.md          what the two engines do with a canvas, measured, and where a thumbnail is made
     security.md        where untrusted bytes are parsed, and the walls to build
     sort.md            the orders, researched and planned

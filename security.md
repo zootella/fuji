@@ -11,7 +11,7 @@ Where untrusted bytes are parsed in fuji, what stands between them and the user'
 **Three paths, and only one of them is sandboxed by anyone but fuji.**
 
     the table, an img in the page          the web engine's content process, sandboxed on the mac and on windows
-    CanvasFlow, drawImage in the page      the same process
+    the sheet's page route, drawImage      the same process
     thumbnail.rs                           fuji's own process, which nothing sandboxes
 
 On the Mac the decoder is the same library either way — WebKit decodes through ImageIO — so the bugs are identical and only the process differs. On Windows they are different code, Chromium's own decoders, among the most fuzzed in the world, against WIC's, patched by Windows Update. Both are patched without fuji shipping anything, which is the one thing fuji gets right by never carrying a decoder of its own.

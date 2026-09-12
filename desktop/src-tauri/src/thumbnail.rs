@@ -1,11 +1,11 @@
 /*
-The operating system's thumbnailer, called from Rust: ImageIO on the Mac and the Windows Imaging Component on Windows, the libraries Finder and Explorer use. Given a path and a longest side, each decodes the file scaled where the codec allows, a JPEG at an eighth of its size, resamples the rest of the way with a filter that reads every source pixel, applies the file's orientation, converts its colors into the space asked for, and hands back the small pixels. The full-size raster never exists, nothing here runs on the thread that runs the window, and a thumbnail crosses to the page rather than a file. thumbnail-plan.md says which files come here and which the page makes for itself; canvas.md has the measurements that decided it.
+The operating system's thumbnailer, called from Rust: ImageIO on the Mac and the Windows Imaging Component on Windows, the libraries Finder and Explorer use. Given a path and a longest side, each decodes the file scaled where the codec allows, a JPEG at an eighth of its size, resamples the rest of the way with a filter that reads every source pixel, applies the file's orientation, converts its colors into the space asked for, and hands back the small pixels. The full-size raster never exists, nothing here runs on the thread that runs the window, and a thumbnail crosses to the page rather than a file. The thumbnail pipeline document on fuji's site says which files come here and which the page makes for itself, and carries the measurements that decided it.
 
 Both libraries take a path or bytes, and the path is right: the library reads the file itself and the page never holds it. That is the same trust disk_read extends, under the contract disk.rs states.
 
-Two commands. thumbnail_probe takes a card's paths and says, for each, what its first bytes are and what its header claims its size is, without decoding, so the page can route every file and lay out every box before any thumbnail is made. thumbnail_render makes one thumbnail. Both hold the two walls from security.md: bytes that are not a format fuji handles are refused whatever the extension, and a header claiming a raster that would not fit in half this machine's memory is refused before any decoder allocates. That second is the decompression bomb, which needs no bug in anything, and it is a share of the machine's memory rather than a number, so it never limits capable hardware.
+Two commands. thumbnail_probe takes a card's paths and says, for each, what its first bytes are and what its header claims its size is, without decoding, so the page can route every file and lay out every box before any thumbnail is made. thumbnail_render makes one thumbnail. Both hold the same two walls: bytes that are not a format fuji handles are refused whatever the extension, and a header claiming a raster that would not fit in half this machine's memory is refused before any decoder allocates. That second is the decompression bomb, which needs no bug in anything, and it is a share of the machine's memory rather than a number, so it never limits capable hardware.
 
-The render returns one buffer, so the bytes cross as an ArrayBuffer rather than a json array of numbers, which performance.md has the cost of. Twelve bytes of header — width, height, and whether the pixels are Display P3 — as little-endian unsigned 32-bit integers, then straight-alpha RGBA, top row first; thumbnail.js unpacks it for ImageData. The longer side is the maximum asked for, or the picture's own when it was smaller, because neither library enlarges.
+The render returns one buffer, so the bytes cross as an ArrayBuffer rather than a json array of numbers — that serialization was measured at about 150 milliseconds a megabyte, flat and linear in file size, which no disk is. Twelve bytes of header — width, height, and whether the pixels are Display P3 — as little-endian unsigned 32-bit integers, then straight-alpha RGBA, top row first; thumbnail.js unpacks it for ImageData. The longer side is the maximum asked for, or the picture's own when it was smaller, because neither library enlarges.
 
 The Mac body is short because ImageIO does the whole job in one call given three options, and drawing the result into a bitmap context of the wanted color space is where CoreGraphics does the color management. The Windows body is long because WIC is a pipeline of separate objects, each initialised over the last, and because WIC leaves EXIF orientation to the caller. WIC is a COM library, which is how Windows hands an application an object out of a system DLL: a thread calls CoInitializeEx once before it asks for anything, and then every piece of the pipeline arrives through CoCreateInstance. There is no plain function to call instead, so the initialisation is the price of using the library at all, and it is not the heavier embedding layer of the same name that puts a spreadsheet inside a document. The page owns two things: the color space, since only it knows the screen's gamut, and Windows answers sRGB whatever is asked, which the header says; and the fit, since it turns the returned size back into a css size by one rule, longer side to the box, never enlarged.
 */
@@ -100,7 +100,7 @@ fn sniff(head: &[u8]) -> &'static str {//the format the first bytes announce, or
 	""
 }
 
-fn head_size(format: &str, head: &[u8]) -> (u32, u32) {//the size written in the first bytes, for the formats that write it there; 0 for the others
+fn head_size(format: &str, head: &[u8]) -> (u32, u32) {//the size written in the first bytes, for the three formats that write it there; 0 for the others. Plain rust rather than a library call, so those three are sized on every platform, linux included; only the four probe() hands to the library go unsized there
 	let le16 = |i: usize| u16::from_le_bytes([head[i], head[i + 1]]) as u32;
 	let be32 = |i: usize| u32::from_be_bytes([head[i], head[i + 1], head[i + 2], head[i + 3]]);
 	let le32 = |i: usize| i32::from_le_bytes([head[i], head[i + 1], head[i + 2], head[i + 3]]).unsigned_abs();//a bmp stores a negative height to mean top-down rows
@@ -410,11 +410,11 @@ mod platform {
 	use super::Thumbnail;
 
 	pub fn render(_path: &str, _maximum: u32, _wide: bool) -> Result<Thumbnail, String> {
-		Err("thumbnail: the operating system's thumbnailer is not used on this platform".into())//linux stays in the web renderer, which thumbnail-plan.md decides and the page carries out
+		Err("thumbnail: the operating system's thumbnailer is not used on this platform".into())//linux makes every thumbnail in the web renderer, so the page routes nothing here and this answers only a caller that got it wrong
 	}
 
 	pub fn size(_path: &str) -> Result<(u32, u32), String> {
-		Err("thumbnail: no library to read a header with on this platform".into())//so the probe answers 0, and the page lays the box out when the picture arrives
+		Err("thumbnail: no library to read a header with on this platform".into())//so a jpeg, webp, avif or heic probes at 0 here and the page lays its box out when the picture arrives; png, gif and bmp are sized by head_size above and reflow nowhere
 	}
 
 	pub fn memory() -> u64 {//MemTotal from the kernel's own listing, in kilobytes there

@@ -9,7 +9,7 @@ App.vue
 └── Shell.vue            the window: settings, reveal, window events, which view is showing
     ├── Sheet.vue        v-show   one sheet: a scroll of cards over one folder
     │   └── Card.vue              a capped number of images, all from one folder
-    │       └── SquareFlow.vue    the flow that sizes and arranges them; TagFlow.vue and CanvasFlow.vue beside it, retiring
+    │       └── SquareFlow.vue    the flow that sizes and arranges them, and routes each file to a decoder
     └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
                 ↓ both import, neither knows the other exists
@@ -33,7 +33,7 @@ App.vue
 
 **A table is named for what makes it different, not for what they all are.** They are all light tables, which is why none of them is called one: `DiamondTable` is the one that keeps a diamond, and the next is the one that keeps whatever it keeps instead.
 
-**The sheet scrolls over cards, not over thumbnails.** A card holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every card at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `card.md` carries what a card is for, and `thumbnail-plan.md` how the flow gets its pixels.
+**The sheet scrolls over cards, not over thumbnails.** A card holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every card at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `card.md` carries what a card is for, and the thumbnail pipeline document on the site how the flow gets its pixels.
 
 **`c` switches between the sheet and the current table, and they swap with `v-show`.** That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
 
@@ -59,7 +59,7 @@ App.vue
 
 **Getting an image on screen has two costs, and the second is the larger one.** Reading the bytes off the disk is noticeable. Decoding those bytes into pixels usually takes longer, and the result is far bigger than the file: a 6000 × 4000 photograph is about 96 MB of RGBA regardless of how small its JPEG was. A hundred of those is not a cache, it is an out-of-memory. So the cache is a few full-size decodes for the table. The sheet's small ones are canvases its flow owns, outside the cache.
 
-**Prefer pixels fuji owns.** An image handed to the page as a data URL on an `img.src` is decoded by the browser, and fuji can neither measure that memory nor free it except by clearing the source. A canvas is memory fuji sized, with a byte count it can total and that the engine cannot take back. The sheet's thumbnails are that kind: a canvas per picture, its pixels from the operating system through `thumbnail.rs` where the platform allows and from the page where it does not, per `thumbnail-plan.md`.
+**Prefer pixels fuji owns.** An image handed to the page as a data URL on an `img.src` is decoded by the browser, and fuji can neither measure that memory nor free it except by clearing the source. A canvas is memory fuji sized, with a byte count it can total and that the engine cannot take back. The sheet's thumbnails are that kind: a canvas per picture, its pixels from the operating system through `thumbnail.rs` where the platform allows and from the page where it does not.
 
 **A bound goes in from the first line.** Fuji runs for weeks, and a cache without eviction fails slowly enough that no short test will show it.
 
@@ -105,7 +105,7 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 
-`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. Three flows are in the register: `SquareFlow`, which goes forward and which `thumbnail-plan.md` describes, and `TagFlow` and `CanvasFlow`, the two halves of the experiment `card.md` records, kept beside it for one comparison and then retired.
+`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. There is one flow, `SquareFlow`, named by `Card.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of the experiment `card.md` records, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
 
 There is no router and no store library. `App.vue` renders the one view directly and `main.js` mounts the app and does nothing else.
 

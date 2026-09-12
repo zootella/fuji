@@ -122,7 +122,7 @@ Finding three is that paragraph, measured. The store's `pixelBytes` is an estima
 - **Whether Windows behaves the same.** WebView2 is Chromium and this was all WKWebView. Finding three especially is the sort of thing two engines could differ on.
 - **What a folder of hundreds does.** Everything here is six images. Retention under real pressure is untested.
 - **Whether the first decode can be made honest.** `img.decode()` resolves on a detached element that has never been in a render tree, so the store's `rendered` timestamp records something weaker than "ready to show."
-- **What the sheet costs, from inside the app.** Its thumbnail paths were measured outside it, in `canvas.md`, from a scratch binary and a headless webview. Rows from the running app, one per thumbnail, are `thumbnail-plan.md`'s fifth step, and until then nothing here says what a card costs to fill.
+- **What the sheet costs, from inside the app.** Its thumbnail paths were measured outside it, in `canvas.md`, from a scratch binary and a headless webview. Rows from the running app, one per thumbnail and one per card, are written now and have not been read, which `thumbnail-open.md` keeps as its first test; until somebody does, nothing here says what a card costs to fill.
 
 ## Reproducing any of this
 

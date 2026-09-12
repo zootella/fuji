@@ -16,7 +16,7 @@ The store owns the object url for as long as it owns the entry. library.js says 
 
 No judgement about how much is too much lives here either. The store counts what it holds and will tell anyone who asks, but deciding that a number is alarming means knowing what the user is looking at, which is the same knowledge an eviction policy would need and the same reason it is not here. A view that wants to complain about its own footprint is the one with enough context to mean it.
 
-A need says which steps it wants. The read is always taken, and the decode is a step a caller can leave out with {decode: false}, getting back the bytes and the url alone. TagFlow does that: it hands the engine an img of its own, so a decode here would be the same work done twice, with the engine's option of doing it lazily taken away. The element is decoded only at natural size; a small one made from the same blob would be another step beside it rather than a second store.
+A need says which steps it wants. The read is always taken, and the decode is a step a caller can leave out with {decode: false}, getting back the bytes and the url alone. The sheet's GIF and SVG tiles do that: they hand the engine an img of their own, so a decode here would be the same work done twice, with the engine's option of doing it lazily taken away — and an SVG has nothing to decode at a size in the first place. The element is decoded only at natural size; a small one made from the same blob would be another step beside it rather than a second store.
 */
 
 const cacheEntries = new Map()//path to entry, and the only place fuji keeps images

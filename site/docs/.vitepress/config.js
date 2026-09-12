@@ -36,7 +36,18 @@ export default defineConfig({
 			{ text: 'Home', link: '/' },
 		],
 
+		// Under the hood is where the engineering documents go: how one part of fuji works, why it
+		// works that way, and what was measured to decide it. Examples below is still VitePress's
+		// own scaffolding and goes when the navigation is arranged properly.
+		//
+		// Links are written without .html and VitePress appends it, because cleanUrls is off above.
 		sidebar: [
+			{
+				text: 'Under the hood',
+				items: [
+					{ text: 'The thumbnail pipeline', link: '/thumbnail-pipeline' },
+				],
+			},
 			{
 				text: 'Examples',
 				items: [
