@@ -30,7 +30,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 A letter is written to a specific reader — usually a Claude Code session on the other machine, or on the other side of a long gap — and it starts a conversation rather than settling a subject. Read a letter, then talk; do not treat one as a document of record the way the files above are.
 
-- **`windows.md`** — begun by the macOS session that did the icon work, for whoever picks it up on Windows, and added to twice since. The Windows session answered most of it on 2026-09-11 and replaced each question with its answer in place, so it now reads as a record as much as an ask; a block at the top says what is settled and what is still open. Findings that outlive the conversation were written into `icon.md` and `fidelity.md` rather than left here.
+None open right now. The last was `windows.md`, written for the Windows machine and retired in September 2026 once it had been answered — everything in it that outlived the conversation went into `icon.md`, `fidelity.md`, `performance.md` and `CLAUDE.md`, which is what a letter is supposed to leave behind.
 
 ## What is not here
 

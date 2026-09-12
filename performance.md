@@ -18,6 +18,8 @@ Turn it on with `log.record` in `fuji.toml`; it is off at the factory. Files lan
 
 **The sheet's thumbnails are in the same list, as `thumb` and `card` rows.** A `thumb` row is one thumbnail: `hit` says which path made it — `native` through the operating system, `page` through the engine, `img` for a GIF or SVG the engine shows itself — or `refused`, with the reason in the note; `render` is the milliseconds it took, `bytes` what its canvas costs, `natural` its pixels. A `card` row closes each card, with how many images it held in `index`, the milliseconds to fill it in `render`, its canvases' bytes, and the count by path in the note. So a folder opened on the sheet reads as its thumb rows, one card row, and whatever the table loaded beside them.
 
+**Getting a log out on Windows takes one trick, and it is not obvious.** The file is written from `RunEvent::Exit`, so fuji has to be *closed* rather than killed. Launch `target/release/fuji.exe`, wait past the page's 1500 ms quiet timer so its lines have gone down to Rust, then `taskkill /IM fuji.exe` **without** `/F`: a plain close reaches the exit event and writes both the log and the settings, where `/F` terminates the process and neither is written. Use the built exe rather than `pnpm local` for anything that needs a log. Found on the Windows 10 box, 2026-09-11.
+
 ## The subject
 
 One folder, six images, 15.1 MB on disk and about 316 MB decoded:

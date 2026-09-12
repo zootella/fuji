@@ -53,6 +53,7 @@ pnpm release      # That, then stage the installer under its publishing name and
 pnpm app          # Launch the built mac app
 pnpm win          # Launch the built windows exe
 ```
+Roughly what a release build costs, so a long one does not read as a hang: on the Mac mini about 20 seconds when only the frontend changed and a minute or so when Rust has to compile again; on the Windows 10 box 2m52s cold and about 45 seconds warm. The release profile shares nothing with the debug profile `pnpm local` uses, so the first release build after a stretch of dev work compiles everything over again.
 
 ### Frontend Only (for rapid UI iteration)
 ```bash
