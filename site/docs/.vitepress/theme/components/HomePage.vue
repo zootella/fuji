@@ -1,5 +1,5 @@
 <script setup>//./.vitepress/theme/components/HomePage.vue
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 /*
 The apex page. index.md carries layout: false, so VitePress renders no navbar, sidebar, or footer, and this component is the whole document.
@@ -17,23 +17,32 @@ let installers = [
 ]
 
 let showing = ref(false)//is the hash list open
-let rows = ref([])//one row per installer, hash filled in where a sidecar answered
+let rows = ref(installers.map(installer => ({file: installer.file, sha256: ''})))//one row per installer, named from the start so opening the list never changes its height; a hash arrives when its sidecar does
 let release = ref(false)//the version and date above the rows, or false before anything is published
-let asked = ref(false)//we only go to the network once, on the first open
+let loaded = ref(false)//the three fetches have all settled, so a blank hash now means unpublished rather than unread
 let status = ref('')//the line beneath Close: the hover hint, then the copy confirmation
 
-//open and close the list, fetching the sidecars the first time in
-async function toggleHashes() {
-	showing.value = !showing.value
-	if (!showing.value) { status.value = ''; return }//collapsing clears the status
-	if (asked.value) return
-	asked.value = true
+/*
+The sidecars are fetched when this component mounts rather than when the reader opens the list, so the hashes are already in hand the moment Hashes is clicked. That costs every visitor three requests they may never look at, which was weighed rather than measured and accepted: the files are a couple of hundred bytes each, they go in parallel, and they are the only thing on this page that is not already in the bundle.
+
+onMounted rather than top-level, because VitePress prerenders this component in Node at build time. Node has fetch, so the call would run rather than fail loudly — but a relative url has no origin to resolve against there, and nothing is serving these files during a build anyway, so every row would bake in as unpublished. Mount is also the only honest moment for it: the whole reason these are separate files is that publishing an installer must change what this page shows without the site being rebuilt.
+
+One consequence of mount rather than load: VitePress navigates between pages on the client, so leaving this page and coming back mounts the component again and fetches again. That is three small requests for a fresher answer, and it is the behaviour we want.
+*/
+onMounted(async () => {
 	let sidecars = await Promise.all(installers.map(installer => _fetchSidecar(installer.url)))
 	rows.value = installers.map((installer, index) => {
 		let sidecar = sidecars[index]
 		return {file: installer.file, sha256: sidecar ? sidecar.sha256 : ''}
 	})
 	release.value = earliestBuild(sidecars)
+	loaded.value = true
+})
+
+//open and close the list; the hashes are already in hand by the time anyone can click this
+function toggleHashes() {
+	showing.value = !showing.value
+	if (!showing.value) status.value = ''//collapsing clears the status
 }
 
 let monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -109,7 +118,7 @@ async function copyHash(row) {
 				GitHub points at the application's own repository, not this one.
 				-->
 				<p class="links">
-					<a href="/fuji.dmg">Mac</a> <a href="/fuji.exe">Win</a> <a href="/fuji.deb">Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/markdown-examples">Docs</a>
+					<a href="/fuji.dmg" download>Mac</a> <a href="/fuji.exe" download>Win</a> <a href="/fuji.deb" download>Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/markdown-examples.html">Docs</a>
 				</p>
 
 				<div v-if="showing" class="hashes">
@@ -118,7 +127,7 @@ async function copyHash(row) {
 						v-if="row.sha256" class="hash" tabindex="0"
 						@click="copyHash(row)" @keyup.enter="copyHash(row)"
 						@mouseenter="hintCopy" @mouseleave="unhintCopy"
-						>{{ row.sha256 }}</a><span v-else>not yet published</span><span class="gap">{{ '  ' }}</span>{{ row.file }}</p>
+						>{{ row.sha256 }}</a><span v-else-if="loaded">not yet published</span><span class="gap">{{ '  ' }}</span>{{ row.file }}</p>
 					<!--
 					The status shares Close's line, and its span is always rendered rather than v-if'd in. Both are deliberate. On its own line it changed the block's height as it appeared, which moved the hash out from under the pointer, which fired mouseleave, which cleared the status and gave the height back — a flicker loop you could hold the mouse still inside. Nothing here may change layout on hover.
 					-->

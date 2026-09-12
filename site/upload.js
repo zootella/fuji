@@ -99,7 +99,7 @@ function send(name) {//copy one file into the downloads directory as the restric
 	//colon scp uses to split host from path, and a bare filename makes that question stop existing
 	execFileSync('scp', [
 		'-P', server.port,//scp spells the port capital -P, unlike ssh and rsync
-		'-i', server.fujiKey,//name the key rather than letting ssh offer whatever it has, which would be the admin one
+		'-i', server.fujiKey,//this account's own key; an explicit -i is offered before any default, so the admin key is never tried
 		name,
 		`${server.fujiUser}@${server.host}:${server.fujiPath}`,
 	], {stdio: 'inherit', cwd: staging})

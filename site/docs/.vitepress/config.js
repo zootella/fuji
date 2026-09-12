@@ -1,12 +1,24 @@
 import { defineConfig } from 'vitepress'
 
+// Every extension tauri can bundle, so the client router treats these as files to fetch rather than
+// pages to route to. Its own list happens to know exe and zip but not dmg, deb or appimage, and without
+// this it resolves /fuji.dmg as a route and asks the server for fuji.dmg.html. Naming all of them,
+// including the two it already knows, means this does not depend on what is on somebody else's list.
+// Extensions we do not ship are here on purpose: nothing will ever be a page named .rpm, and listing
+// one before the link exists is the only way a future download cannot arrive broken.
+//
+// Two things to know. Lowercase only — the lookup lowercases the extension it finds, but matches the
+// list as written, so .AppImage is caught by appimage and never by AppImage. And this is set here
+// rather than in an env file so that the site workspace keeps no .env of its own for vite to read.
+process.env.VITE_EXTRA_EXTENSIONS = 'dmg,exe,msi,deb,rpm,appimage,sig,zip'
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
 	title: 'Fuji',
 	description: 'A multimedia file manager designed with privacy and precision in mind',
 
-	// Trailing-slash-free URLs; the server resolves /page to page.html
-	cleanUrls: true,
+	// cleanUrls stays off, which is vitepress's default: every link carries its .html, so every link
+	// points at a file that exists and the site needs no rule on the server to resolve a bare path
 
 	head: [
 		// the mint disc, the same mark as the application icon
