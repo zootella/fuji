@@ -7,9 +7,12 @@
 	"type": "module",
 	"scripts": {
 		"local": "vitepress dev docs",
-		"fixtures": "cp ../desktop/release/*.json docs/public/",
+		"fixtures": "node fixtures.js copy",
 		"build": "vitepress build docs",
-		"upload": "rm -f docs/public/fuji.*.json && vitepress build docs && ./upload.hide.sh",
+		"upload": "node fixtures.js clear && vitepress build docs && node --env-file-if-exists=../.env upload.js site",
+		"upload-dmg": "node --env-file-if-exists=../.env upload.js dmg",
+		"upload-exe": "node --env-file-if-exists=../.env upload.js exe",
+		"upload-deb": "node --env-file-if-exists=../.env upload.js deb",
 		"preview": "vitepress preview docs"
 	},
 	"devDependencies": {

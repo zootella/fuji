@@ -22,38 +22,41 @@ const bundles = {
 	linux:  {folder: 'deb',  suffix: '.deb',       publishedName: 'fuji.deb'},
 }
 
-let bundle = bundles[process.platform]
-if (!bundle) throw new Error('no bundle shape for this platform: ' + process.platform)
+async function main() {//stage this platform's installer under its publishing name and write the sidecar beside it
+	let bundle = bundles[process.platform]
+	if (!bundle) throw new Error('no bundle shape for this platform: ' + process.platform)
 
-let configuration = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'))
-let version = configuration.version//the file that named the bundle, so the two cannot disagree
-if (!version) throw new Error('tauri.conf.json has no version')
+	let configuration = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'))
+	let version = configuration.version//the file that named the bundle, so the two cannot disagree
+	if (!version) throw new Error('tauri.conf.json has no version')
 
-//find this version's bundle, and only this version's; an old one left beside it would otherwise be a coin flip
-let folder = `src-tauri/target/release/bundle/${bundle.folder}`
-let prefix = `Fuji_${version}_`
-let names = readdirSync(folder).filter(name => name.startsWith(prefix) && name.endsWith(bundle.suffix))
-if (names.length != 1) throw new Error(`expected one ${prefix}*${bundle.suffix} in ${folder}, found ${names.length} of them: ${readdirSync(folder).join(', ')}`)
+	//find this version's bundle, and only this version's; an old one left beside it would otherwise be a coin flip
+	let folder = `src-tauri/target/release/bundle/${bundle.folder}`
+	let prefix = `Fuji_${version}_`
+	let names = readdirSync(folder).filter(name => name.startsWith(prefix) && name.endsWith(bundle.suffix))
+	if (names.length != 1) throw new Error(`expected one ${prefix}*${bundle.suffix} in ${folder}, found ${names.length} of them: ${readdirSync(folder).join(', ')}`)
 
-let name = names[0]
-let architecture = name.slice(prefix.length, name.length - bundle.suffix.length)//what tauri called it, between the version and the extension
+	let name = names[0]
+	let architecture = name.slice(prefix.length, name.length - bundle.suffix.length)//what tauri called it, between the version and the extension
 
-//copy first, then hash and measure what landed, so every number describes the file the site will actually ship
-mkdirSync('release', {recursive: true})
-let destination = `release/${bundle.publishedName}`
-copyFileSync(`${folder}/${name}`, destination)
-let bytes = readFileSync(destination)//whole file into memory; an installer is a few megabytes, and streaming would buy nothing here
+	//copy first, then hash and measure what landed, so every number describes the file the site will actually ship
+	mkdirSync('release', {recursive: true})
+	let destination = `release/${bundle.publishedName}`
+	copyFileSync(`${folder}/${name}`, destination)
+	let bytes = readFileSync(destination)//whole file into memory; an installer is a few megabytes, and streaming would buy nothing here
 
-let sidecar = {
-	file: bundle.publishedName,
-	version,
-	arch: architecture,
-	bytes: bytes.length,
-	sha256: createHash('sha256').update(bytes).digest('hex'),
-	date: new Date().toISOString().slice(0, 10),//iso, because the page sorts three of these as text to find the earliest build
+	let sidecar = {
+		file: bundle.publishedName,
+		version,
+		arch: architecture,
+		bytes: bytes.length,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+		date: new Date().toISOString().slice(0, 10),//iso, because the page sorts three of these as text to find the earliest build
+	}
+	writeFileSync(`${destination}.json`, JSON.stringify(sidecar, null, '\t') + '\n')
+
+	console.log(`staged  ${name}`)
+	console.log(`     ->  ${destination}  ${sidecar.bytes} bytes`)
+	console.log(`        ${destination}.json  ${sidecar.sha256}`)
 }
-writeFileSync(`${destination}.json`, JSON.stringify(sidecar, null, '\t') + '\n')
-
-console.log(`staged  ${name}`)
-console.log(`     ->  ${destination}  ${sidecar.bytes} bytes`)
-console.log(`        ${destination}.json  ${sidecar.sha256}`)
+main().catch(e => { console.error('🚧 Error:', e); process.exitCode = 1 })
