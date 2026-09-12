@@ -238,7 +238,7 @@ The one change to how the documentation shows code brings the editor fuji is wri
 
 Fuji indents with tabs, and .editorconfig at the repository root says indent_size = 2, so every editor on every machine here shows a tab two columns wide. VitePress sets tab-size: 4 on every code block, which rendered every excerpt on this site at exactly twice the depth its file reads at — most of a screenful of extra left margin on anything three levels in.
 
-Soft wrapping the blocks was tried alongside this and taken back out, so the fences keep the horizontal scrollbar VitePress gives them. Two things learned in the attempt, for whoever tries it again. A block carrying line numbers cannot wrap: VitePress draws the numbers as one absolutely positioned column at a fixed line height, one number per logical line, so a line taking two rows puts every number below it one row out of true. And white-space: pre-wrap alone does not finish the job, because VitePress gives the code element width: fit-content — its width is the longest thing inside it, and overflow-wrap: break-word does not lower that figure, so a block holding one token longer than a line grows wider than the block, the token then has room, nothing breaks, and the scrollbar returns for that block alone. Measured on the Mac mini at a 609px block, the json sidecar on the code examples page overflowed by exactly 4px that way; overflow-wrap: anywhere does feed the intrinsic width and fixes it.
+Soft wrapping the blocks was tried alongside this and taken back out, so the fences keep the horizontal scrollbar VitePress gives them. Two things learned in the attempt, for whoever tries it again. A block carrying line numbers cannot wrap: VitePress draws the numbers as one absolutely positioned column at a fixed line height, one number per logical line, so a line taking two rows puts every number below it one row out of true. And white-space: pre-wrap alone does not finish the job, because VitePress gives the code element width: fit-content — its width is the longest thing inside it, and overflow-wrap: break-word does not lower that figure, so a block holding one token longer than a line grows wider than the block, the token then has room, nothing breaks, and the scrollbar returns for that block alone. Measured on the Mac mini at a 609px block, a json block holding a sha256 overflowed by exactly 4px that way; overflow-wrap: anywhere does feed the intrinsic width and fixes it.
 */
 
 /* a tab is two columns, as .editorconfig asks of every editor here */
@@ -259,7 +259,7 @@ The first selector is VitePress's own for inline code, borrowed exactly because 
 /*
 Italic comments, in whatever face the syntax theme asked for them in.
 
-This is the other half of something VitePress leaves unfinished rather than a new idea of ours. A VS Code theme can set fontStyle on a scope as well as a color, and Shiki carries both onto the page: a comment token under a theme that italicizes comments comes out holding --shiki-light-font-style and --shiki-dark-font-style beside its two colors. VitePress consumes the colors and not the styles, so the instruction sat on hundreds of tokens per page doing nothing — 610 of them on the code examples page under the theme in use. These two rules mirror its own pair exactly — same .vp-code span selector, same html:not(.dark) and .dark split — and read the variable it skipped.
+This is the other half of something VitePress leaves unfinished rather than a new idea of ours. A VS Code theme can set fontStyle on a scope as well as a color, and Shiki carries both onto the page: a comment token under a theme that italicizes comments comes out holding --shiki-light-font-style and --shiki-dark-font-style beside its two colors. VitePress consumes the colors and not the styles, so the instruction sat on hundreds of tokens per page doing nothing — 610 on one page of fuji's own source under the theme in use. These two rules mirror its own pair exactly — same .vp-code span selector, same html:not(.dark) and .dark split — and read the variable it skipped.
 
 So what is italic is the theme's decision, not ours, and it is worth knowing that a theme swap can take the italics away without touching a line of this. Catppuccin italicizes comments in both its flavors, which is why they are there; of the fifteen light themes Shiki bundles only seven do, and no github-* variant is among them, so returning to VitePress's default would silently lose them. These rules would stay correct and simply have nothing to apply.
 
@@ -314,4 +314,63 @@ A grid item establishes an independent formatting context, so the first paragrap
 	.meet-aki .profile {
 		grid-template-columns: 1fr 416px;
 	}
+}
+
+/*
+The navigation, marked rather than coloured.
+
+A saturated cyan cannot be type on a white page. #9FFFE0 measures 1.18:1 against white, so as a line or a word it is invisible, and darkening it until it is legible is what turns it into a middle teal — readable, correct, and with none of the smell. The value has no acid in it as ink; it has acid as a field, which is why the code pills and the link marks work and why the cover page works. Area is the thing, not hue.
+
+So the two pieces of navigation that can carry a field get one, and they get exactly the field a code word gets: full-strength mint behind #154739, 4px corners, 6px of horizontal padding with a negative margin cancelling it so nothing shifts sideways.
+
+The vertical padding is 4px in the sidebar where the prose pill uses 3px, and the difference is not a taste: VitePress already gives .text a padding of 4px 0, so writing 3px there overrode it and made the marked row two pixels shorter than its neighbours. Every item below it moved a pixel as you clicked around. Matching the figure it replaces means the chip changes the row's colour and nothing else about it. The current page in the sidebar is marked the way a term in the prose is marked, and a prev/next box floods on hover the way a link does. The same pen, used on the furniture.
+
+The outline marker is the third, and it is the case that proves the rule. VitePress draws it 2px wide and 18px tall, straddling the hairline the outline hangs from. A bar that thin cannot be mint, but neither can a bar four times as wide: mint on white is 1.18:1 no matter how much of it there is, and a field only reads as acid when something dark is sitting on it. So the marker is given area — 8px rather than 2, straddling the hairline it hangs on — and the mint, and what it becomes is a soft tab rather than a bright one. The alternative is to mark the active heading itself the way the sidebar's current page is marked, which would be genuinely bright; it is not done here because an outline link is a block element with an ellipsis on it, and a field behind it would fill the column rather than the words. The pager titles go back to the prose's own colour, since the box behind them now does the work.
+
+On specificity: VitePress's own sidebar rule carries six classes and a scoped attribute, so .VPSidebar is prefixed here to match it and let source order decide. The footer's title rule is weaker and needs no such help.
+*/
+
+.VPSidebar .VPSidebarItem.level-1.is-active > .item .link > .text {
+	border-radius: 4px;
+	padding: 4px 6px;               /* 4 vertical, not the pill's 3: see the note above */
+	margin: 0 -6px;
+	background-color: var(--fuji-mint);
+	color: var(--fuji-mint-ink);
+}
+
+.VPDocFooter .pager-link .title {
+	color: var(--vp-c-text-1);
+}
+
+.VPDocFooter .pager-link:hover {
+	border-color: var(--fuji-mint);
+	background-color: var(--fuji-mint);
+}
+
+.VPDocFooter .pager-link:hover .title,
+.VPDocFooter .pager-link:hover .desc {
+	color: var(--fuji-mint-ink);
+}
+
+.VPDocAsideOutline .outline-marker {
+	left: -4px;
+	width: 8px;
+	background-color: var(--fuji-mint);
+}
+
+/*
+The sidebar does not answer the pointer. VitePress fades a sidebar item to brand-1 over 0.25s when the mouse crosses it, which made sense when brand-1 was the link colour and makes none now: the mark says which page you are on, and a second signal that follows the cursor competes with it for the same meaning. So the hover colour is pinned back to each level's resting value and the transition is removed — the marked page changes appearance only by being the page you are on.
+
+The two hover rules mirror VitePress's own selector exactly, because it carries seven classes and a scoped attribute and a shorter one would lose. The second adds .is-active so the marked page keeps its ink rather than taking the resting grey.
+*/
+.VPSidebar .VPSidebarItem .text {
+	transition: none;
+}
+
+.VPSidebar .VPSidebarItem.level-1.is-link > .item > .link:hover .text {
+	color: var(--vp-c-text-2);
+}
+
+.VPSidebar .VPSidebarItem.level-1.is-active.is-link > .item > .link:hover .text {
+	color: var(--fuji-mint-ink);
 }

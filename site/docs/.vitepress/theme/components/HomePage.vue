@@ -118,7 +118,7 @@ async function copyHash(row) {
 				GitHub points at the application's own repository, not this one.
 				-->
 				<p class="links">
-					<a href="/fuji.dmg" download>Mac</a> <a href="/fuji.exe" download>Win</a> <a href="/fuji.deb" download>Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/markdown-examples.html">Docs</a>
+					<a href="/fuji.dmg" download>Mac</a> <a href="/fuji.exe" download>Win</a> <a href="/fuji.deb" download>Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/getting-started.html">Docs</a>
 				</p>
 
 				<div v-if="showing" class="hashes">

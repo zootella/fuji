@@ -84,11 +84,11 @@ export default defineConfig({
 
 		// Three sections. User Guide is how to use fuji, Craftsmanship is how one part of it is built
 		// and why, with what was measured to decide it, and About is everything else. Two of the
-		// pages below are stubs carrying only their titles.
+		// pages are stubs carrying only their titles.
 		//
-		// Examples is scaffolding rather than a fourth section: VitePress's own two starter pages,
-		// and the Code Examples page of real fuji source that the site's type is being judged
-		// against. All three go when they have served their turn.
+		// A fourth section, Examples, held VitePress's two starter pages and a Code Examples page of
+		// real fuji source that the site's type and colors were judged against. All three are deleted
+		// now that they have served their turn.
 		//
 		// Links are written without .html and VitePress appends it, because cleanUrls is off above.
 		sidebar: [
@@ -108,14 +108,6 @@ export default defineConfig({
 				text: 'About',
 				items: [
 					{ text: 'Meet Aki', link: '/meet-aki' },
-				],
-			},
-			{
-				text: 'Examples',
-				items: [
-					{ text: 'Code Examples', link: '/code-examples' },
-					{ text: 'Markdown Examples', link: '/markdown-examples' },
-					{ text: 'Runtime API Examples', link: '/api-examples' },
 				],
 			},
 		],
