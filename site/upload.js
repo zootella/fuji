@@ -16,17 +16,21 @@ The server serves two directories at one hostname: a request that misses the sit
 
 ## Running this against your own server
 
-The destination lives in .env at the monorepo root, which is gitignored, so a fresh clone will not have one and this script will say which values are missing and stop. Write it yourself — six values and no logic:
+The destination lives in .env at the monorepo root, which is gitignored, so a fresh clone will not have one and this script will say which values are missing and stop. Write it yourself — seven values and no logic:
 
 	DEPLOY_HOST=files.example.com
 	DEPLOY_PORT=22
 	DEPLOY_SITE_USER=deploy
 	DEPLOY_SITE_PATH=/var/www/example.com/site/
-	DEPLOY_FILES_USER=deploy
-	DEPLOY_FILES_PATH=/var/www/example.com/downloads/
-	DEPLOY_FILES_KEY=/home/you/.ssh/deploy_ed25519
+	DEPLOY_FILES_USER=upload
+	DEPLOY_FILES_PATH=/downloads/
+	DEPLOY_FILES_KEY=/home/you/.ssh/upload_ed25519
 
-On an EC2 instance or a DigitalOcean droplet the ordinary account is something like ubuntu or deploy, the host can be an IP like 203.0.113.10, the port is 22, and both paths are wherever your web server has its roots. Keep the trailing slashes: rsync ignores one on a destination, but scp given a path that does not exist yet will write a file by that name, and the slash turns that into an error instead. DEPLOY_FILES_KEY names the private key for the installer account specifically, rather than letting ssh offer whatever it finds — with two accounts that matters, since the default identity is the administrative one. Using one account for both user fields works and is the simplest thing that runs; splitting them, so the machine that builds an installer holds credentials that cannot administer anything, is the arrangement described above and is worth the extra setup once a release is public.
+On an EC2 instance or a DigitalOcean droplet the ordinary account is something like ubuntu or deploy, the host can be an IP like 203.0.113.10, and the port is 22.
+
+The two paths look nothing alike, and that is the one thing here that surprises people, so it is worth saying rather than leaving to be discovered. DEPLOY_SITE_PATH is absolute because that account sees the whole filesystem. DEPLOY_FILES_PATH is short because the account that uses it is chrooted by sshd, which means its own directory is its filesystem root: the path has to be written as that account sees it, not as it looks to anyone else on the box. Give it the full path that `ls` would show you elsewhere and scp fails with no such file or directory — correctly, since inside the chroot there is no such path, and it costs a confusing half hour to work out why. If you skip the two-account arrangement and use one ordinary unchrooted account for both, then both paths are absolute and this paragraph does not apply to you.
+
+Keep the trailing slashes: rsync ignores one on a destination, but scp given a path that does not exist yet will write a file by that name, and the slash turns that into an error instead. DEPLOY_FILES_KEY names the private key for the installer account specifically, rather than letting ssh offer whatever it finds — with two accounts that matters, since the default identity is the administrative one. Using one account for both user fields works and is the simplest thing that runs; splitting them, so the machine that builds an installer holds credentials that cannot administer anything, is the arrangement described above and is worth the extra setup once a release is public.
 
 It sits at the monorepo root rather than in this workspace on purpose. Vite reads a .env inside the workspace it builds and copies any VITE_-prefixed value into the client bundle, which would publish these values on the website itself. At the root the file is outside what Vite looks at, so that hazard stops existing rather than becoming something to remember — which is also the reason not to move it back down here.
 
