@@ -4,7 +4,7 @@ import {ref, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {listen} from '@tauri-apps/api/event'
 import {raf, forwardize, revealWindow} from './library.js'
-import {settings, settingsLoad, settingsChanged, settingsWindowRect} from '../settings.js'
+import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {modelStart, modelShowing} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
@@ -18,7 +18,7 @@ import MyList from './MyList.vue'
 import MySpace from './MySpace.vue'
 
 /*
-The shell owns the window and none of the pixels. It reads the settings file, sizes and reveals the window, records where the user puts it, holds the one listener for each window event, and remembers which view was showing. It has no background, no chrome, and no HUD, so a view never has to negotiate with a parent about how it looks.
+The shell owns the window and none of the pixels. It reads the settings file, reveals the window rust built, records the size the user gives it, holds the one listener for each window event, and remembers which view was showing. It has no background, no chrome, and no HUD, so a view never has to negotiate with a parent about how it looks.
 
 It exists because window events are global and everything else is not. A view's wheel, pointer, and double-click handlers live on its own element, so a hidden view is handed none of them and two views cannot collide. But window.addEventListener fires no matter what is visible, and so does a tauri window event, so keydown, resize, and drag-drop are the entire interference surface between views. One listener each lives here and gives the event to the view that is showing. A hidden view cannot react to a key because it is never given one, rather than because it remembered to check.
 
@@ -53,7 +53,7 @@ onMounted(async () => {
 	let w = getCurrentWindow()
 	let notices = []//everything worth saying from before the log existed, which is the settings read and the table name it may have repaired
 	try {
-		notices = await settingsLoad()//before the reveal, because the window's size and position come out of the file
+		notices = await settingsLoad()//before the reveal, because the window's size comes out of the file
 	} catch (error) {
 		notices.push(sayTrouble('shell: reading settings', error))//carry on to the reveal on factory settings rather than leave the window hidden
 	}
@@ -75,8 +75,8 @@ onMounted(async () => {
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
 
-	await revealWindow(settingsWindowRect())
-	await raf()//the window is up and resized; let the viewport report its new dimensions before the view measures them
+	await revealWindow()//rust built the window at the right size already; this only reveals it
+	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
 	if (opened.length) reportTrouble(() => activeView()?.onDrop?.(opened[0]))//a launch with a file is a drop that fuji was not running for, so it takes the path a drop already takes: the model lists the folder, applies the sort, and stands on the image. Only the first of them, because fuji has one window and instances.md owns what more than one would mean
 	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a build with nothing to do, and only windows has anything to say
@@ -92,19 +92,16 @@ onMounted(async () => {
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView()?.onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
 	})
-	if (settings.window.remember) {//record where the user puts the window, so it comes back there next launch; both events report physical pixels, as the file holds them
-		await recordWindow(w)//the events below report only changes, so without this a session where the user never touches the window records nothing
-		unlistenMoved   = await w.onMoved(  ({payload}) => { if (isFullscreen()) return; settings.window.x     = payload.x;     settings.window.y      = payload.y;      settingsChanged() })
-		unlistenResized = await w.onResized(({payload}) => { if (isFullscreen()) return; settings.window.width = payload.width; settings.window.height = payload.height; settingsChanged() })
-	}
+	//record the size the user gives the window, so the next launch opens at it. Where the window sits is deliberately not recorded — library.js says why, and the short of it is that fuji can be running several times over
+	await recordWindow(w)//onResized reports only changes, so without this a session where the user never touches the window records nothing
+	unlistenResized = await w.onResized(() => { if (isFullscreen()) return; recordWindow(w) })//the payload is in tauri's physical pixels, so ask again in css ones rather than convert it here
 })
-let unlistenFileDrop, unlistenMoved, unlistenResized, unlistenOpen//will hold the unsubscribe functions set above and called below
+let unlistenFileDrop, unlistenResized, unlistenOpen//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
 	if (unlistenFileDrop) unlistenFileDrop()
 	if (unlistenOpen) unlistenOpen()
-	if (unlistenMoved) unlistenMoved()
 	if (unlistenResized) unlistenResized()
 })
 
@@ -128,14 +125,12 @@ async function showView(name, remember = true) {//show the sheet or the current 
 	activeView()?.start?.()
 }
 
-async function recordWindow(w) {//write down the window fuji has right now, for the settings file to carry to the next launch
-	let position = await w.outerPosition()//outer, matching setPosition and the onMoved payload
-	let size = await w.innerSize()//inner, matching setSize and the onResized payload; mixing the two would grow the window by a titlebar every launch
-	settings.window.x     = position.x; settings.window.y      = position.y
-	settings.window.width = size.width; settings.window.height = size.height
+async function recordWindow(w) {//write down the size the window has right now, for the settings file to carry to the next launch
+	let size = (await w.innerSize()).toLogical(await w.scaleFactor())//css pixels: the one unit that means the same thing on a retina panel and beside it, and what rust hands the window builder next launch. Inner, because mixing inner and outer would grow the window by a titlebar every time
+	settings.window.width = Math.round(size.width); settings.window.height = Math.round(size.height)
 	settingsChanged()
 }
-function isFullscreen() {//a window the size of the screen is not one the user placed, so it must not become the one fuji remembers
+function isFullscreen() {//a window the size of the screen is not one the user sized, so it must not become the size fuji remembers
 	return tableRef.value?.isFullscreen?.()//the table is asked whichever view is showing, because only a table enters fullscreen and it keeps the flag; the operating system will not report simple fullscreen, so there is nobody else to ask. Optional like every other handoff, so a table that does not do fullscreen is simply never in it
 }
 

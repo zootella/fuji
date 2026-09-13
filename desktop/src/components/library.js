@@ -9,11 +9,11 @@
 //keep, this is the new unifed library to keep components short and tell what's a pure function in here
 
 import {invoke} from '@tauri-apps/api/core';
-import {getCurrentWindow, currentMonitor, availableMonitors, LogicalSize, PhysicalSize, PhysicalPosition} from '@tauri-apps/api/window'
+import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
-import {log, logTrouble} from '../log.js'//log.js imports forwardize from here in return, which is fine: neither file calls the other while the modules are loading, only later from inside a function
+import {log} from '../log.js'//log.js imports forwardize from here in return, which is fine: neither file calls the other while the modules are loading, only later from inside a function
 
 //promises
 
@@ -135,50 +135,8 @@ export async function renderImage(img, details) {//render the data url string de
 
 //resolution
 
-const startingWindowSize = {widthFraction: 0.6, heightFraction: 0.8}//how much of the usable desktop the window takes when it first opens
-
-/*
-The window is created hidden — tauri.conf.json sets visible false — and this function sizes it to fit the desktop before revealing it, so it appears once already correct instead of flashing at one size and jumping to another.
-
-Two things it deliberately does not do. It never chooses a position: where a window opens is the operating system's job, and leaving it there is what makes a second copy land beside the first rather than exactly on top of it, where the user could never find it — the one exception being a window the user has asked fuji to remember, handed in as a rect, which it puts back where they left it. And it never lets a sizing failure stop the reveal, which is what the finally is for — the window starts hidden, so an error on the way to show() would leave a process running with nothing on screen at all.
-
-That difference is also why there is one try here rather than two. Failing to measure the desktop has a fallback: the window keeps the size tauri.conf.json gave it when it was created, 800 by 600, which is also Tauri's own default. Failing to show has no fallback, so show() sits outside the catch — if it rejects, the app is broken in a way no handling here improves.
-
-The caller measures the viewport after this resolves, and must, because a hidden window is given no animation frames: nothing can await one until show() has happened.
-*/
-
-export async function revealWindow(rect) {//size the hidden window and show it; pass the window fuji recorded to return to it, or false to size to the desktop; call once, after the app has mounted and there's something to see
-	let w = getCurrentWindow()
-	try {
-		if (await w.isVisible()) return//size once at startup only; a hot reload in development mounts the app again against a window that is already up
-		if (rect && await onSomeMonitor(rect)) {//fuji is remembering the window, has one recorded, and it still lands somewhere the user can reach
-			await w.setSize(new PhysicalSize(rect.width, rect.height))
-			await w.setPosition(new PhysicalPosition(rect.x, rect.y))//physical at both ends, exactly as the window reported it, so nothing rounds on the way back
-			return
-		}
-		let m = await currentMonitor()
-		if (!m) return//tauri couldn't say which monitor we're on, so there's nothing to measure and the fallback size stands
-		let area = xy(m.workArea.size.width, m.workArea.size.height)//the monitor minus the chrome the os keeps for itself: menu bars, docks, the windows taskbar; in backing pixels, like everything tauri measures
-		let logical = xy(area, '/', m.scaleFactor)//the resize api speaks logical pixels
-		await w.setSize(new LogicalSize(
-			Math.round(logical.x * startingWindowSize.widthFraction),
-			Math.round(logical.y * startingWindowSize.heightFraction)))
-	} catch (e) {
-		logTrouble('library: sizing the window', e)//whatever went wrong measuring or resizing, the fallback size stands
-	} finally {
-		await w.show()//reveal whatever happened above, including the early returns
-	}
-}
-
-async function onSomeMonitor(rect) {//is the titlebar of this remembered window on a screen that still exists; a monitor unplugged since last launch would otherwise put fuji somewhere the user cannot drag it back from
-	let monitors = await availableMonitors()
-	if (!monitors.length) return true//nothing to check against, so trust what was recorded rather than throwing the window away
-	return monitors.some(m => {
-		let a = m.workArea
-		let grabbable = 80//enough of the top edge inside the work area to get hold of, in physical pixels
-		return rect.x + rect.width > a.position.x + grabbable && rect.x < a.position.x + a.size.width - grabbable
-			&& rect.y >= a.position.y && rect.y < a.position.y + a.size.height - grabbable//the top edge specifically, because that is the part you drag
-	})
+export async function revealWindow() {//show the window, which rust built at the size it read out of the settings file before the page existed; settings.rs has why
+	await getCurrentWindow().show()
 }
 
 export async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar

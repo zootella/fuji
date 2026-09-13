@@ -70,7 +70,11 @@ The keys that matter:
 
 **Which means the modern way is fewer registry writes, not more, and fuji does not need the Windows App SDK to do it.** The API is a wrapper over about half a dozen values and one shell notification, all of which the `windows` crate fuji already depends on can do directly. Taking the SDK itself would mean its runtime deployed alongside a Tauri application, which is a large dependency for a thin wrapper.
 
-**Windows does the asking, which is the part that makes this work without fuji nagging.** Microsoft's guidance says plainly: "Windows will automatically prompt the user when they open a file or link type when a new app is installed that registered for that file or link type." So an application registers, and the next time the user opens one of those files Windows itself offers the new choice. The application never has to ask for anything. The same page's best practices are: use the `ms-settings:defaultapps` deep link, prompt contextually rather than at startup, respect the user's choice, avoid repeated notifications, and only register for a type the application really will handle every launch of.
+**Windows does some of the asking, and it is worth less than it sounds.** Microsoft's guidance says plainly: "Windows will automatically prompt the user when they open a file or link type when a new app is installed that registered for that file or link type." That much is true even of a runtime registration on Windows 10, which this document had doubted — observed on the Windows 10 box 2026-09-13, the first double-click of a `.webp` after fuji registered raised a chooser with fuji in it.
+
+**But it is one shot, and the incumbent is pre-selected.** The chooser arrives while the user is trying to open a picture, with the application they already use highlighted and the obvious click being the one that changes nothing. Take that click and Windows never offers fuji for that type again. So the prompt is a bonus rather than a mechanism: it reaches the user exactly once, at a moment chosen by the operating system rather than by them, and a person who was busy has spent it without knowing.
+
+The same page's best practices are: use the `ms-settings:defaultapps` deep link, prompt contextually rather than at startup, respect the user's choice, avoid repeated notifications, and only register for a type the application really will handle every launch of.
 
 **And it states the rule that closes the subject:** "Windows does not allow programmatic changes to default apps without user interaction in system UI… Registry-based changes are not supported for apps." That is about the *default*, not about registration — registering is supported and is what the API above does.
 
@@ -221,7 +225,17 @@ A listener for the macOS event does 1 and 3 again while fuji is running.
 
 **macOS.** Drag `Fuji.app` to Applications; nothing appears, because macOS never announces a new handler. From that moment fuji is in Finder's Open With for those ten types, before it has ever been run. Double-click still opens Preview. A user who wants fuji selects a file, ⌘I, *Open with* → Fuji, *Change All…*, and confirms the sheet macOS puts up. After that, a double-click launches fuji onto that picture with its folder behind it. A second double-click while fuji is running turns the same window to the new picture, which is the first pass's behaviour and is now the thing to change: `instances.md` decides that it should start a second fuji instead, as Windows already does.
 
-**Windows.** Run the installer, which writes nothing about file types. Launch fuji once; it registers. From that moment fuji is in Explorer's Open with, and listed as *Fuji* in Settings under Default apps with all ten of its types. Double-click still opens whatever it opened before. A user who wants fuji has three routes: Windows' own prompt the next time they open one of those types, or Open with → Choose another app → Fuji with *Always use this app*, or Settings → Set defaults by app → Fuji → Manage, which is the whole list with a picker each. A second double-click while fuji is running starts a second fuji, which is the decided behaviour rather than an accident of the platform — `instances.md` owns it, and verified two live processes here on 2026-09-13.
+**Windows, walked through on the Windows 10 box 2026-09-13 rather than predicted.** Run the installer, which writes nothing about file types — verified by the absence of any extension default value and of the `<ProgID>_backup` values Tauri's NSIS macro leaves when it takes one. Launch fuji once; it registers, and because the command paths come from `current_exe()` a registration written by a different copy of fuji repoints itself rather than needing cleanup. From that moment fuji is in Explorer's Open with.
+
+Then, in the order a user actually meets them:
+
+- **Double-click.** Windows raises its chooser with fuji listed and the incumbent pre-selected. One shot, as above. Not taking it costs nothing visible and cannot be recovered.
+- **Right-click → Open with → Fuji.** Fuji is in the submenu and opens the picture. This does *not* change the default: the next double-click goes back to the old application, which is exactly right and exactly what a user will find confusing.
+- **Right-click → Open with → Choose another app.** This is the route that works, and it raises a Windows 7-era dialog that matches nothing else in the operating system — a list with a checkbox. Choosing fuji and ticking *Always use this app* writes `UserChoice` and the type is fuji's from then on.
+
+**What changes in Explorer afterwards is immediate and more visible than expected.** The Type column shows fuji's own name for the type — *WebP Image*, the string from `imageTypes` — and the file icon becomes fuji's application icon, because `DefaultIcon` has nowhere else to point. The icon question below stops being theoretical at this moment.
+
+A second double-click while fuji is running starts a second fuji, which is the decided behaviour rather than an accident of the platform — `instances.md` owns it, and verified two live processes here on 2026-09-13.
 
 ### Uninstalling
 
@@ -253,12 +267,17 @@ Not built here, and recorded now so the first pass can be checked against it. Ag
 
 ## Open
 
-**What the Windows 10 box has to answer, and the first work for the session over there.**
+**What the Windows 10 box answered on 2026-09-13.** Three of the four are closed; what they found is written into the sections above rather than only here.
 
-- Does Windows prompt the user the next time they open a registered type, after a *runtime* registration rather than an install-time one? Microsoft's guidance promises the prompt but is written around Windows 11 and around installation. If it does not fire, the help HUD carries all of the discovery and that is worth knowing before shipping.
-- Does `ms-settings:defaultapps?registeredAppUser=Fuji` work on Windows 10, or only on 11? The parameter is documented for 11 with the April 2023 update. Plain `ms-settings:defaultapps` is the fallback.
-- Does Explorer still draw thumbnails for a type fuji has been chosen for? A thumbnail handler hangs off a `ShellEx` key that can sit on the extension or on the ProgID. If it sits on the ProgID, a folder of pictures becomes a folder of identical fuji icons, which would change the plan rather than merely disappoint.
-- What `Software\Classes\.webp` and the `FileExts` key hold before and after, which is the check that the registration did what this document says it does.
+- **Does Windows prompt after a *runtime* registration?** Yes, on Windows 10, which this document had doubted. And it is one shot with the incumbent pre-selected, which is why the section above now calls it a bonus rather than a mechanism.
+- **Does the registration take anything it should not?** No. Before and after on the same machine: all ten ProgIDs appeared, the `Capabilities` block and `RegisteredApplications` entry appeared, fuji was appended to each extension's `OpenWithProgids` beside the entries already there — and no extension's default value was written, and no `UserChoice` moved. Chrome still owned `.webp`, ACDSee `.jpg` and `.png`, Photos `.jfif`, until a person chose otherwise in Windows' own dialog.
+- **Does Explorer still draw thumbnails for a type fuji has been chosen for?** Yes, and it cannot be otherwise, which is a better answer than watching a folder would have given. Two facts settle it. **Fuji writes no `ShellEx` key anywhere** — not one of the ten ProgIDs has one — so fuji never registers as a thumbnail provider and has nothing to displace. And **the lookup does not follow `UserChoice`**: on the test machine `.jpg` and `.png` are answered by `Applications\ACDSee32.exe`, which carries no thumbnail handler in either hive, and JPEG thumbnails are unaffected there and everywhere else that application is chosen. The chain runs through the extension's own `ShellEx` — where `.webp` and `.avif` keep theirs — or through `SystemFileAssociations\image` by `PerceivedType`, which is how `.png`, `.gif`, `.bmp`, `.svg` and `.jfif` reach one. Fuji touches none of those, nor `PerceivedType`, nor `ContentType`.
+
+  The concern that raised this was that `.jpg` and `.jpeg` register their handler on the `jpegfile` ProgID, so a new ProgID looked as though it could shadow it. It cannot, because the ProgID the lookup consults is the one on the extension rather than the one the user chose.
+
+**Still open, and it belongs to the second pass rather than to this one.**
+
+- Does `ms-settings:defaultapps?registeredAppUser=Fuji` work on Windows 10, or only on 11? The parameter is documented for 11 with the April 2023 update, and plain `ms-settings:defaultapps` is the fallback. Nothing in the first pass uses it: it is the link behind the *Choose in Settings…* button the File Extensions page will need, since Windows permits no other way for an application to help. Whoever builds that page should answer it first, because it decides whether the button lands on fuji's own entry or drops the user on a page to hunt through.
 
 **What the Mac mini answered, 2026-09-12.** All of it works. Tauri merged the hand-written plist without disturbing its own keys, LaunchServices recorded every type, and a double-click after *Change All* reaches fuji with its folder behind it. Read out of `lsregister -dump`:
 

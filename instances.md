@@ -52,6 +52,20 @@ Stated plainly, because each one is real and none of them changed the decision.
 
 **It is not a crash-isolation argument, or not mostly.** The page already runs out of process on both platforms — WebView2 spawns a renderer, WKWebView spawns a WebContent process — so the risky work, decoding a stranger's file into hundreds of megabytes of canvas, is already isolated from the host today. What separate instances add is isolation from a panic in fuji's own Rust, and that is five small modules that each answer one question. The isolation that matters here is from *ourselves* — from a future feature reaching across windows — rather than from crashes.
 
+## Where a window opens, and how big
+
+**This decision broke window placement, and fixing it is done.** Observed on Windows on 2026-09-13: two instances opened exactly on top of each other, pixel for pixel, because fuji remembered the rectangle it last had — position as well as size — and every instance returned to it. One window coming back to where the user left it is right. Every window coming back there hides the fact that a second one opened.
+
+So fuji now remembers a size and never a position. The `window.remember` setting is gone, along with `window.x` and `window.y`; there is no way to turn either half on or off, because neither half is a preference. Placing a window is the window manager's job, it knows where the other windows are, and fuji does not — and cannot, since the instances share nothing and one of them could only learn it was the second by interrogating the operating system about its siblings, which is exactly the awareness this design exists to avoid.
+
+**The size is read before the window is built, which is why `settings.rs` exists.** Fuji used to build a placeholder window and have the page resize it once the settings file had been read, so the window manager placed a window fuji did not want. Rust now reads the two numbers out of `fuji.toml` first and builds the window at the size it will keep. The size is recorded in css pixels rather than in Tauri's physical ones, because Tauri's word covers the backing bitmap on macOS and the panel's own pixels on Windows, and only css pixels mean the same thing on every screen.
+
+**Windows places a window that does not fit, and fuji moves it.** The cascade walks a fixed staircase and never checks the window against the work area, so a tall window a few steps down hangs under the taskbar — measured 2026-09-13, three instances 1062 pixels tall on a work area 1160 deep, cascaded to 52, 104 and 138, the last two overhanging by 6 and 40. Building the window at its true size does not help; that was tried first and Windows does not care.
+
+So window.rs looks at where the window actually landed and, if any edge is outside the work area, rolls a new position uniformly inside it — both axes, even the one that was fine, because the cascade moves in both directions at once and keeping a good axis would leave every corrected window in the same column. A window too big to fit is pinned to the work area's near corner and allowed to overhang the far one, never resized: a window that could have fitted and did not is fuji's fault, and one larger than the screen has to hang off something. The window is created hidden, so all of it happens before anyone is looking.
+
+Verified on Windows 2026-09-13. Five instances, all inside the work area; two were placed by Windows where they happened to fit and left alone, three were rolled — distinguishable because the cascade puts x equal to y and a roll does not. An oversized window landed on the work area's top left corner and overhung, as intended. Whether macOS has the same fault, around the Dock and the menu bar, is unmeasured, and the same code will correct it if it does.
+
 ## Prior art, and where fuji sits in it
 
 **Notepad** is the model: one process per document, nothing shared, and a second file never disturbs the first. Simple applications on Windows have worked this way for thirty years.
@@ -69,3 +83,4 @@ Stated plainly, because each one is real and none of them changed the decision.
 **What the Dock does with several instances of one macOS application** — one tile or several — is unobserved and will be apparent the first time it runs.
 
 **Whether a settings guard is ever worth building**, and what it would be: a lock, a last-writer-wins that merges rather than replaces, or writing only the keys a window actually changed.
+

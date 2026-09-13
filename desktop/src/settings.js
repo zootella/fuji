@@ -76,22 +76,9 @@ const settingsSchema = [
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'window',
-		key: 'remember',
-		factory: true,
-		comment: 'remember the size and position of the window from launch to launch; when false, fuji sizes its window to a fraction of the desktop and lets the operating system place it. Read once at startup, so changing it takes effect on the next launch',
-	}, {
-		section: 'window',
-		key: 'x',
-		factory: 0,
-		comment: 'the window fuji last recorded, in physical pixels, and read only when remember is true; a width or height that is not positive means fuji has not recorded a window yet, and it sizes itself to the desktop instead',
-	}, {
-		section: 'window',
-		key: 'y',
-		factory: 0,
-	}, {
-		section: 'window',
 		key: 'width',
 		factory: 0,
+		comment: 'the size of the window fuji last recorded, in css pixels, and the only thing it remembers about it; fuji never records or restores a position, because it can be running several times over and every instance would return to the same rectangle and land on top of the last. Placing a new window is the window manager\'s job and it is better at it. A width or height that is not positive means fuji has not recorded a window yet, and it opens at a fraction of the desktop instead. Rust reads these two numbers before the window is built, which is the one part of this file the page does not read first',
 	}, {
 		section: 'window',
 		key: 'height',
@@ -189,12 +176,6 @@ function sayValue(value) {//a value as the toml text that means it
 
 export function settingsThumbnailBox() {//the side of the square a thumbnail fits inside, for the size the user chose; the one place the name becomes a number, so a flow asks rather than looks up
 	return settings.thumbnail[settings.thumbnail.size.toLowerCase()]
-}
-
-export function settingsWindowRect() {//the window fuji recorded and should return to, or false to size itself to the desktop the way it always has
-	let w = settings.window
-	if (!w.remember || !(w.width > 0 && w.height > 0)) return false//not remembering, or nothing recorded yet, or something in the file that can't describe a window
-	return {x: w.x, y: w.y, width: w.width, height: w.height}
 }
 
 export async function settingsLoad() {//read the settings file and leave it exactly as fuji would write it, which is what creates a missing one, repairs a bad value, and adds a setting fuji has gained since the last launch; call once, before anything reads a setting. Answers with the lines this load wants remembered, for the shell to log the moment it has started one

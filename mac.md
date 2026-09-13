@@ -47,7 +47,28 @@ open -n -a <path to Fuji.app> <the file>
 
 **Quit semantics differ from a normal Mac application.** ⌘Q will quit the instance that is frontmost, not every fuji. That follows from the decision rather than being a defect, but it is unusual on macOS and worth seeing before judging.
 
-**Settings will be clobbered**, last writer wins, and that is accepted. Every instance reads `fuji.toml` at startup and writes it at exit, so window position is the obvious casualty. `instances.md` records this as a known cost, and explicitly as something that must not be allowed to steer the design. Do not build a guard as part of this work.
+**Settings will be clobbered**, last writer wins, and that is accepted. Every instance reads `fuji.toml` at startup and writes it at exit, so the remembered size is the casualty — whichever window was resized last, or not at all, wins. `instances.md` records this as a known cost, and explicitly as something that must not be allowed to steer the design. Do not build a guard as part of this work.
+
+## The window change, already made, which you should check on a Mac
+
+Two instances opened in exactly the same place on Windows, pixel for pixel, because fuji restored the rectangle it had recorded — position as well as size. That is right for one window and wrong for several, so it was fixed here on 2026-09-13 and the fix is in the code you will pull:
+
+- `window.remember`, `window.x` and `window.y` are **gone from the settings schema**. There is no way to turn either half on or off. A size is always remembered, a position never is.
+- **Rust builds the window now**, in `setup()`, at the size it reads out of `fuji.toml`. `tauri.conf.json` declares no window at all. A new module, `settings.rs`, does that one read and nothing else — it never writes, and the page still owns the schema, the repair and the write-at-exit exactly as before.
+- **The recorded size is in css pixels**, where it used to be Tauri's physical ones. Tauri has only two words, logical and physical, and its physical covers the backing bitmap on macOS and the panel's own pixels on Windows — so the number used to mean different things on different machines. `settings.rs` carries the reasoning.
+- `revealWindow` no longer sizes anything; it shows the window and that is all. `onSomeMonitor`, the `onMoved` listener, `settingsWindowRect` and the desktop-fraction fallback are all deleted from the page. The fallback moved into Rust as `starting_size`.
+
+**This matters to you beyond instances**, because the css-pixel change fixes a hazard that was mostly a Mac one: a window recorded on a Retina panel used to carry a number twice the size it looked, and restoring it on an attached 1× display gave a window twice as wide as intended. That cannot happen now.
+
+**Two things could behave differently on a Mac, and neither is checked.**
+
+**Does macOS cascade, or centre?** This is the one that matters. No window config names an `x` or `y`, so placement is the platform's. Windows cascades. If macOS instead centres every new window — and two separate processes each creating their first window is exactly the case where it might — then two fujis will stack again and none of this will have helped there. Watch it first, and if they stack, the answer is on the macOS side rather than in the shared code.
+
+**Does macOS place a window that does not fit?** On Windows it does, which was an unwelcome surprise: the cascade walks a fixed staircase and never checks the window fits the work area, so a tall window two or three steps down sits with its bottom under the taskbar. Building at the true size does not help — that was tried on exactly this theory and Windows ignored it.
+
+**That is fixed, in `window.rs`, and the fix is cross-platform already.** After the window is built, fuji asks which monitor it landed on, compares all four edges against that monitor's work area, and if any is outside, rolls a new position uniformly inside it — both axes, because the cascade moves in both at once and keeping a good axis would leave every corrected window in the same column. A window too big to fit is pinned to the work area's near corner and allowed to overhang the far one, never resized. All of it happens while the window is still hidden, so nothing flashes.
+
+Nothing in that is Windows-specific: `work_area` resolves through `SPI_GETWORKAREA` on Windows and the frame that already excludes the menu bar and the Dock on macOS. So if macOS has the same fault it should already be corrected, and if it does not, the check finds the window inside and leaves it alone. Worth watching once to confirm which of those is happening, since neither leaves a visible trace.
 
 ## What was conceded to get here
 

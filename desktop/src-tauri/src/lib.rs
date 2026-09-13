@@ -5,7 +5,7 @@ The other half of that surface is the plugins. A plugin brings a family of comma
 
 Neither plugin has a caller in the page yet, and both are here on purpose: reveal and the file dialogs are the next features, the grants beside them are already narrowed to what those features need, and taking them out to put them back is churn rather than safety.
 
-Three registrations, one piece of setup, and a launch is all this does. Plugins, then the shared state that outlives any one command, then the commands themselves, then the one thing that has to happen before the page exists, then start.
+Three registrations, one piece of setup, and a launch is all this does. Plugins, then the shared state that outlives any one command, then the commands themselves, then the two things that have to happen before the page exists, then start.
 
 The launch is split on purpose. Tauri's builder offers .run(), which starts the application and never returns; this file calls .build() and then .run(closure) instead, because the closure is handed every event the application loop produces, and one of them — Exit — is fuji's last chance to write anything to disk. desktop.rs carries the long version of why that event and no other.
 
@@ -18,7 +18,9 @@ mod disk;
 mod log;
 mod open;
 mod panel;
+mod settings;
 mod thumbnail;
+mod window;
 
 pub fn run() {
 	tauri::Builder::default()//start building the Tauri application
@@ -43,7 +45,12 @@ pub fn run() {
 				associate::associate_register,//and in associate.rs
 			]
 		)
-		.setup(|app| { open::open_argv(app.handle()); Ok(()) })//before the window is built, because on windows and linux a double-clicked file arrives as an argument to this process and there is no later event to catch it
+		.setup(|app| {//before the window exists, which is the whole reason both of these are here rather than in the page
+			open::open_argv(app.handle());//on windows and linux a double-clicked file arrives as an argument to this process, and there is no later event to catch it
+
+			window::window_build(app)?;//the size out of the settings file, the placing left to the window manager, and a correction if that puts it off the edge of the screen; window.rs has all three
+			Ok(())
+		})
 		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
 		.expect("error while building tauri application")//panic if startup fails (e.g. bad config)
 		.run(|app, event| {//this closure sees every event the application loop produces, for the life of the process

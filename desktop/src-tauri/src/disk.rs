@@ -77,7 +77,11 @@ fn millis(time: std::io::Result<std::time::SystemTime>) -> u128 {//milliseconds 
 /// POSIX-like `open` + `read` + `close`
 #[command]
 pub fn disk_read(path: String) -> Result<tauri::ipc::Response, String> {
-	std::fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())//Response carries the bytes raw; the essay below has the cost
+	read_bytes(&path).map(tauri::ipc::Response::new)//Response carries the bytes raw; the essay below has the cost
+}
+/// The same read, for rust that wants the bytes rather than something shaped to cross to the page; settings.rs is the caller
+pub fn read_bytes(path: &str) -> Result<Vec<u8>, String> {
+	std::fs::read(path).map_err(|e| e.to_string())
 }
 /*
 Returning Response rather than Vec<u8> is the difference between a copy and a translation. A Vec<u8> is serialized as a JSON array — one decimal number per byte, written on the Rust side and parsed on the JS side — so a 2.5 MB photograph crosses as roughly two and a half million numbers. Fuji measured that at about 150ms per megabyte on an M2, linear in file size, and it was landing on the main thread in the middle of flips. Response hands the same bytes over as an ArrayBuffer instead. The JS side already wrapped the result in `new Uint8Array(...)`, which accepts either, so nothing above had to change.

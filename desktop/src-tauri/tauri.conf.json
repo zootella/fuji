@@ -10,16 +10,7 @@
 		"frontendDist": "../dist"
 	},
 	"app": {
-		"windows": [
-			{
-				"title": "Fuji",
-				"width": 800,
-				"height": 600,
-				"visible": false,
-				"dragDropEnabled": true,
-				"fullscreen": false
-			}
-		],
+		"windows": [],
 		"security": {
 			"csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob:"
 		}
