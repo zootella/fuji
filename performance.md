@@ -122,7 +122,7 @@ Finding three is that paragraph, measured. The store's `pixelBytes` is an estima
 - **Whether Windows behaves the same.** WebView2 is Chromium and this was all WKWebView. Finding three especially is the sort of thing two engines could differ on.
 - **What a folder of hundreds does.** Everything here is six images. Retention under real pressure is untested.
 - **Whether the first decode can be made honest.** `img.decode()` resolves on a detached element that has never been in a render tree, so the store's `rendered` timestamp records something weaker than "ready to show."
-- **What the sheet costs, from inside the app.** Its thumbnail paths were measured outside it, in `canvas.md`, from a scratch binary and a headless webview. Rows from the running app, one per thumbnail and one per card, are written now and have not been read, which `thumbnail-open.md` keeps as its first test; until somebody does, nothing here says what a card costs to fill.
+- **What the sheet costs, from inside the app.** Its thumbnail paths were measured outside it, in `canvas.md`, from a scratch binary and a headless webview. The `thumb` rows have now been read once, on Windows, to answer one question — whether *WIC*'s scaled decode engages, which it does; that measurement is on the site, on the thumbnail pipeline page. What is still unread is everything else those rows hold: what a card costs to fill, how the cost is spread across a real folder, and whether several thumbnails in flight is helping or crowding. A reading taken while a folder fills carries the other thumbnails' contention in it, which is the one trap in using them.
 
 ## Reproducing any of this
 
