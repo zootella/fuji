@@ -35,6 +35,34 @@ $ pnpm release      # that, then stage and hash the installer for publishing
 
 The root has no scripts of its own, on purpose — a command belongs to the workspace it acts on. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to run the exact version this project pins. CLAUDE.md lists the rest of the build trail.
 
+### Publishing
+
+The website and the installers are published separately, and by different machines.
+
+The site ships from macOS only, because it goes over rsync:
+
+```
+$ cd site
+$ pnpm upload       # build the site and mirror it to the server
+```
+
+An installer ships from whichever machine can build it — Windows publishes the exe, macOS the dmg, Linux the deb. Windows as the example:
+
+```
+$ cd desktop
+$ pnpm release      # build, then stage and hash the installer
+$ cd ../site
+$ pnpm upload-exe   # ship the installer and its sidecar
+```
+
+Use `release` rather than `build`. Both produce an installer, but only `release` copies it to `desktop/release/` under its publishing name and writes the sidecar of bytes and hash beside it — so after a plain `build`, an upload would find the *previous* release still staged, agreeing with its own sidecar, and ship that without complaining.
+
+The other two are `pnpm upload-dmg` and `pnpm upload-deb`, each run on its own platform after `pnpm release` there.
+
+Publishing an installer does not require deploying the site. The download page fetches each sidecar at runtime rather than baking hashes in at build time, so a new installer, its size and its hash go live as soon as they land.
+
+All four upload commands read a `.env` at the repository root for the server and account details, and an SSH key for the account that may write installers. Neither is in git — `.gitignore` covers `.env`, and the key lives outside the repository. Each machine is set up once from notes kept offline.
+
 ### Scaffolded on macOS
 
 The commands below are the original scaffolding from July 2025, kept as a record. Fuji moved from yarn to pnpm in August 2026.
