@@ -14,6 +14,8 @@ What fuji's application icon is, what each desktop platform expects one to be, a
 
 This matters below because it separates two things that are easy to confuse. The disc is a design decision and it is settled. Its *size on the canvas* is a platform requirement, and that is where the problem is.
 
+**The rule, stated once so the platform sections can stop restating it: the circle touches the bounds.** Full bleed, `r="512"` on a 1024 canvas, everywhere fuji ships an icon — Windows, Linux, the Start menu tile's own inset aside. macOS is the single exception, and it is an exception because macOS applies a safe area to every icon on the grid rather than because fuji wanted a margin there. A session that finds itself asking whether some platform's icon should be inset has the answer already: no, unless that platform enforces a grid the way macOS does, and only macOS does.
+
 ## The instrument
 
 **Alpha bounding box, at two thresholds.** An icon's real size is not its canvas — it is the box around the pixels that are actually opaque. Measuring any pixel above alpha 8 finds the artwork including its drop shadow; measuring above alpha 200 finds the solid body alone. The difference between those two numbers is the shadow, and the second is the one to compare against a specification.
@@ -134,15 +136,15 @@ added to `package.json` for that, taking `app-icon.svg` directly — the CLI acc
 
 Run it from `desktop/`, the workspace that owns the script; every path in this document is written from there, the way the code refers to itself.
 
-**The `.ico` carries the fringe today and one run clears it**, verified layer by layer:
+**The `.ico` carried the fringe and one run cleared it.** Verified layer by layer before, and again on the Windows 10 box on 2026-09-13 by decoding the committed file — every partial-alpha pixel in all six layers is the mint, and the dominant value is the predicted clean one:
 
-    layer   committed, old cli        after pnpm icons, 2.11.4
-    16      37, 59, 52   fringe       159,255,223   clean
-    24      21, 34, 30   fringe       159,255,223   clean
-    32      17, 27, 23   fringe       159,255,223   clean
-    48      18, 29, 26   fringe       159,255,223   clean
-    64      15, 24, 21   fringe       159,255,223   clean
-    256     13, 22, 19   fringe       159,255,223   clean
+    layer   committed, old cli        after pnpm icons, 2.11.4     committed today
+    16      37, 59, 52   fringe       159,255,223   clean          159,255,223
+    24      21, 34, 30   fringe       159,255,223   clean          159,255,223
+    32      17, 27, 23   fringe       159,255,223   clean          159,255,223
+    48      18, 29, 26   fringe       159,255,223   clean          159,255,223
+    64      15, 24, 21   fringe       159,255,223   clean          159,255,223
+    256     13, 22, 19   fringe       159,255,223   clean          159,255,223
 
 **Run it after a CLI upgrade, not only after an artwork change.** That is the whole lesson of the section above: the generator improves, and the committed output does not follow until somebody re-runs it. Nothing reports that the files are stale.
 
@@ -283,17 +285,23 @@ runs `tauri icon` twice and copies the second run's `icon.icns` into `mac/`. The
 
 **`tauri icon` does not write `.icns` entries in a stable order.** Regenerating from an unchanged source produces a file of the same length, holding the same twelve entries, with every image byte-identical — shuffled. So `git status` reports `icon.icns` and `mac/icon.icns` as modified after every `pnpm icons` run whether or not the artwork changed, and a clean status there proves nothing either way. The `.ico` and the PNGs do not have this property, and did come back byte-identical.
 
-## Windows — researched only as far as the current files
+## Windows — settled, and nothing to change
 
 **Both `.ico` files carry the same six layers**, so this is `tauri icon`'s shape rather than anything fuji chose:
 
     16x16  24x24  32x32  48x48  64x64  256x256      all PNG, 32bpp
 
-Fuji's are full bleed at every size, for the same reason as the `.icns`, and all six carry the grey fringe. The scaffold's are the bare logo at 73% of the canvas — but that is the logo's own shape, not evidence of a Windows grid.
+Fuji's are full bleed at every size, for the same reason as the `.icns`. The scaffold's are the bare logo at 73% of the canvas — but that is the logo's own shape, not evidence of a Windows grid.
 
-**Windows wants the opposite of macOS, which is the one finding so far.** Microsoft's guidance puts app icon artwork at roughly 90% or more of its canvas, and an application whose artwork filled 78.9% has been reported as a bug for appearing smaller than its neighbours in the taskbar. So the macOS number is close to the Windows defect threshold, and the two files must not share a margin. Tauri's own template agrees by example: its `.ico` is a different composition from its `.icns`, not a copy.
+**Windows wants the opposite of macOS.** Microsoft's guidance puts app icon artwork at roughly 90% or more of its canvas, and an application whose artwork filled 78.9% has been reported as a bug for appearing smaller than its neighbours in the taskbar. So the macOS number is close to the Windows defect threshold, and the two files must not share a margin. Tauri's own template agrees by example: its `.ico` is a different composition from its `.icns`, not a copy.
 
-**What has not been researched** is whether fuji's full-bleed disc is already right for Windows or merely close, how Windows 11's rounded taskbar treatment interacts with a circle, and whether the 16 and 24 layers need their own artwork rather than a downscale. Nothing should change here until it has been looked at on a real Windows machine.
+**Full bleed is right rather than merely close, measured on the Windows 10 box 2026-09-13** by decoding every layer of the committed `icon.ico`. Each one's non-transparent bounding box is the whole canvas — `0,0` to the last pixel, 100.0% of the width at 16, 24, 32, 48, 64 and 256. Microsoft's threshold is about 90%, so fuji is above it by the largest margin available and there is no adjustment to make. The macOS safe area is the exception in this document and stays the only one: everywhere else the disc touches the bounds.
+
+**The 16 and 24 layers do not need artwork of their own.** The reason a small layer is usually hand-drawn is that fine detail collapses under a downscale, and there is no fine detail here — one filled shape in one colour, with no shadow, no outline and no inset. The 16-pixel layer's alpha map is a clean disc with a one-pixel antialiased edge, which is what the artwork is. Hand-drawing it could only reproduce the downscale.
+
+**The same decode confirms nothing else is in these files.** Across all six layers there is not one fully-opaque pixel that is not `#9FFFE0`, and every partial-alpha pixel is the mint as well. Whatever a future session suspects it is seeing at the edge, it is the antialiasing.
+
+**Windows 11's rounded taskbar treatment is the one question this box cannot answer,** and it is parked rather than open: fuji develops on Windows 10, and no Windows 11 machine is among the computers listed in `CLAUDE.md`. It costs a look on borrowed hardware and it changes nothing until then, because a fuller disc is the right answer under any masking a platform might apply.
 
 `fuji.exe` is the binary both installers wrap; the `.ico` reaches the taskbar, explorer, and the two installers.
 
@@ -336,7 +344,7 @@ It was looked at **without installing**, which is worth recording because it mak
 
 ## Linux — researched only as far as the current files
 
-Fuji ships `32x32.png`, `128x128.png`, and `128x128@2x.png`, listed in `bundle.icon`. All three are full bleed, 100% of the canvas, and all three carry the grey fringe.
+Fuji ships `32x32.png`, `128x128.png`, and `128x128@2x.png`, listed in `bundle.icon`. All three are full bleed, 100% of the canvas, which is correct here for the same reason as on Windows. They were regenerated with the rest and are clean — decoded on the Windows 10 box 2026-09-13, no fringe, and no opaque pixel that is not the mint.
 
 **Which desktops fuji targets, and what each expects, is undecided and unresearched.** The freedesktop icon theme specification is the likely authority, and whether GNOME's and KDE's differing conventions matter to a single-window application is the first question to answer.
 
