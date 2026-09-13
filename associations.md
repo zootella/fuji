@@ -111,7 +111,11 @@ The first line is mechanism 1 above: it claims the extension. Tauri writes no `O
 
 **One shape covers both platforms: hold a list in Rust and let the page drain it.** Something filled from `argv` at startup on Windows and from `RunEvent::Opened` on the Mac, handed over and emptied when the page first asks. The page then has one path through this rather than two, and the launch-time and while-running cases differ only in when the list gets filled. Unwritten.
 
-**A second double-click while fuji is running starts a second fuji on Windows, and that is the first pass's behaviour on purpose.** The alternative, `tauri-plugin-single-instance`, hands the new process's arguments to the running one and exits — which on today's fuji would mean the running window turning to the new picture and losing what it was showing. Two windows is closer to what the user wanted than one window that forgets. `instances.md` owns the real answer; this pass takes each platform's default behaviour and adds nothing.
+**A second double-click while fuji is running starts a second fuji on Windows, and that is now the decided behaviour on both platforms.** `instances.md` settles it, on 2026-09-13: one process per window everywhere, because the isolation is then the operating system's guarantee rather than a discipline fuji has to keep in every feature it ever writes.
+
+That makes Windows correct by doing nothing, and it is worth saying what "nothing" means so it is not undone later. `tauri-plugin-single-instance` hands a new process's arguments to the running one and exits, which would give exactly the behaviour the decision rejects — the running window turning to the new picture and losing what it was showing. It is not a dependency and must not become one.
+
+macOS is the side that needs code, because it will not launch a second copy for a double-click; it sends the running instance an Apple event instead. So the running instance is the only thing that learns, and starting the second instance is its job. `instances.md` carries the reasoning and the conceded costs.
 
 ## The plan
 
@@ -215,9 +219,9 @@ A listener for the macOS event does 1 and 3 again while fuji is running.
 
 ### What the user experiences
 
-**macOS.** Drag `Fuji.app` to Applications; nothing appears, because macOS never announces a new handler. From that moment fuji is in Finder's Open With for those ten types, before it has ever been run. Double-click still opens Preview. A user who wants fuji selects a file, ⌘I, *Open with* → Fuji, *Change All…*, and confirms the sheet macOS puts up. After that, a double-click launches fuji onto that picture with its folder behind it, and a second double-click while fuji is running turns the same window to the new picture.
+**macOS.** Drag `Fuji.app` to Applications; nothing appears, because macOS never announces a new handler. From that moment fuji is in Finder's Open With for those ten types, before it has ever been run. Double-click still opens Preview. A user who wants fuji selects a file, ⌘I, *Open with* → Fuji, *Change All…*, and confirms the sheet macOS puts up. After that, a double-click launches fuji onto that picture with its folder behind it. A second double-click while fuji is running turns the same window to the new picture, which is the first pass's behaviour and is now the thing to change: `instances.md` decides that it should start a second fuji instead, as Windows already does.
 
-**Windows.** Run the installer, which writes nothing about file types. Launch fuji once; it registers. From that moment fuji is in Explorer's Open with, and listed as *Fuji* in Settings under Default apps with all ten of its types. Double-click still opens whatever it opened before. A user who wants fuji has three routes: Windows' own prompt the next time they open one of those types, or Open with → Choose another app → Fuji with *Always use this app*, or Settings → Set defaults by app → Fuji → Manage, which is the whole list with a picker each. A second double-click while fuji is running starts a second fuji, which `instances.md` owns.
+**Windows.** Run the installer, which writes nothing about file types. Launch fuji once; it registers. From that moment fuji is in Explorer's Open with, and listed as *Fuji* in Settings under Default apps with all ten of its types. Double-click still opens whatever it opened before. A user who wants fuji has three routes: Windows' own prompt the next time they open one of those types, or Open with → Choose another app → Fuji with *Always use this app*, or Settings → Set defaults by app → Fuji → Manage, which is the whole list with a picker each. A second double-click while fuji is running starts a second fuji, which is the decided behaviour rather than an accident of the platform — `instances.md` owns it, and verified two live processes here on 2026-09-13.
 
 ### Uninstalling
 

@@ -20,7 +20,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 - **`fidelity.md`** — whether a picture arrives with its pixels and its colors intact. The three pixel units a Retina Mac works in and the two a Windows box works in, the Display P3 path measured end to end, and the one-device-pixel defect that was making half of all thumbnails resample. Measured on hardware rather than reasoned, on two machines that say which numbers are whose, and the record of the audit that found and fixed that defect.
 - **`security.md`** — where untrusted bytes are parsed, why the web engine's sandbox is not protecting fuji as things stand, and the walls to build, in order.
 - **`associations.md`** — becoming an application the operating system will hand a picture to. What macOS and Windows each offer, what Tauri writes on fuji's behalf, why being available and being the default are different questions, and the plan for the first pass: declare every type fuji can show, take none of them, and leave the choosing to the operating system's own interface.
-- **`instances.md`** — one window or several, and what happens when the user opens a second picture while the first is still on screen. A whiteboard: the goal is a document-centric feel over a single process, and the hard part is that two webview windows share no JavaScript.
+- **`instances.md`** — one process or several, and what happens when the user opens a second picture while the first is still on screen. Decided on 2026-09-13: one process per window on both platforms, which Windows already does and macOS has to be talked into. Carries the three reasons, the costs conceded to get there, and why the shared cache and the settings clobber were accepted rather than solved.
 - **`sort.md`** — the orders fuji will show a folder in. Half prior art, researched rather than remembered — how Windows and macOS actually sort names and date files — and half plan. Nothing in the plan is written yet.
 
 ## The project
@@ -32,7 +32,9 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 A letter is written to a specific reader — usually a Claude Code session on the other machine, or on the other side of a long gap — and it starts a conversation rather than settling a subject. Read a letter, then talk; do not treat one as a document of record the way the files above are.
 
-**`windows.md`** is open, written 2026-09-12 for the Windows machine. File associations: the macOS half is built and verified, the Windows half is built and has never run, and the letter says where to start and what only that box can answer. `associations.md` is the record behind it.
+**`mac.md`** is open, written 2026-09-13 from the Windows box. Instances: the decision that fuji runs one process per window on both platforms, and what macOS has to change to match what Windows already does — a second double-click must start a second fuji rather than turning the first one's window. `instances.md` is the record behind it.
+
+**`windows.md`** is open, written 2026-09-12 for the Windows machine. File associations: the macOS half is built and verified, the Windows half is built and has never run, and the letter says where to start and what only that box can answer. `associations.md` is the record behind it. Its premise has partly expired — the Windows half ran on 2026-09-13, registering 10 types and writing 65 values — so read it knowing the first launch has happened.
 
 An earlier letter also called `windows.md` was retired in September 2026 once it had been answered — everything in it that outlived the conversation went into `icon.md`, `fidelity.md`, `performance.md` and `CLAUDE.md`, which is what a letter is supposed to leave behind.
 
