@@ -180,6 +180,8 @@ On macOS the body is short, because ImageIO does the whole job in one call given
 
 On Windows the body is long, because WIC is a pipeline of separate objects, each initialised over the last: a decoder over the file path, its first frame, a scaled decode through the codec's own [source transform](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/nn-wincodec-iwicbitmapsourcetransform) where it offers one, the [Fant scaler](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/ne-wincodec-wicbitmapinterpolationmode) for the rest of the way, a flip-rotator for the EXIF orientation that *WIC* leaves to the caller, a color transform from the file's profile to sRGB, and a format converter to straight-alpha RGBA. Nothing runs until the final `CopyPixels`, which pulls the whole pipeline.
 
+That flip-rotator takes one set of flags for both operations, so which it applies first decides the answer, and it applies the flip. Six of EXIF's eight cases carry a rotation or a flip but not both and read the same either way; only 5 and 7, the mirrored diagonals, carry both, and a flip then a quarter turn differs from a quarter turn then that flip by a half turn. Verified on Windows 10, 2026-09-13, with eight JPEGs authored one per case, each storing the raster its own orientation turns upright — so a correct thumbnailer shows all eight the same way up, and nobody has to judge what upright looks like. It found 5 and 7 inverted, which is now fixed and re-run.
+
 Either way one buffer comes back. Its bytes, by offset:
 
 ```
@@ -304,7 +306,25 @@ That tolerance, `have + ratio`, separates two cases. A thumbnail shrunk to fit m
 
 Three things follow. There is **no reflow**, because the box Fuji reserves from the header size and the box it computes from the thumbnail land on the same whole CSS pixel. The rule is a **no-op at ratio 1**, so an ordinary monitor behaves exactly as before. And it is a **no-op on the page route**, where the canvas is derived from the CSS size and the two cannot disagree — the native route is the only place where a bitmap arrives from outside and the CSS size has to be recovered from it by division.
 
-One platform difference is not settled. macOS scale factors are only ever 1 or 2, so a whole-CSS box times the ratio is always a whole number of device pixels and Fuji can always size a canvas to it exactly. Windows offers 125%, 150% and 175%, so the ratio is fractional and a whole-CSS box lands on a fraction of a device pixel: at 1.5, a 135-pixel box is 202.5 device pixels, and a canvas can be 202 or 203 but not 202.5. Windows has one pixel unit fewer than macOS, and pays for the simpler model with worse arithmetic. Nobody has yet measured whether Chromium snaps such a box to a whole device pixel, or which way it goes.
+One platform difference works out differently. macOS scale factors are only ever 1 or 2, so a whole-CSS box times the ratio is always a whole number of device pixels and Fuji can always size a canvas to it exactly. Windows offers 125%, 150% and 175%, so the ratio is fractional and a whole-CSS box lands on a fraction of a device pixel: at 1.5, a 135-pixel box is 202.5 device pixels, and a canvas can be 202 or 203 but not 202.5. Windows has one pixel unit fewer than macOS, and pays for the simpler model with worse arithmetic.
+
+Measured on a Windows 10 box at 1920 × 1200, 2026-09-13, at 125% and again at 150%, by the method above: PNGs authored at exactly the size the thumbnailer returns, carrying one-pixel black and white rows, read back off the screen rather than out of the canvas. Twenty tiles across the two runs.
+
+`flowSnap`'s arithmetic is correct at both ratios — every canvas came back the size the rule predicts, confirmed from the log's own `bytes` column. The tiles that resample do so for a reason `flowSnap` does not control, and one rule covers all twenty with no exceptions:
+
+> A tile is resampled when its canvas is **larger** than its CSS box in device pixels **and** its row sits at a fractional device offset. Either condition alone is harmless.
+
+| canvas against its CSS box | whole-offset row | fractional-offset row |
+| --- | :-: | :-: |
+| equal | clean, 3 of 3 | clean, 2 of 2 |
+| smaller | clean, 1 of 1 | clean, 1 of 1 |
+| larger | clean, 4 of 4 | **resampled, 6 of 6** |
+
+The second condition is the one that matters, because **it is about position rather than size, and nothing Fuji sizes can reach it.** At a fractional ratio a layout on whole CSS pixels cannot keep landing on the device grid: row heights accumulate in halves and quarters, so successive rows drift off the grid and back onto it. At 150% the rows began at 45, 310.5 and 579 device pixels, and every failure was in the middle one. At 125% they began at 38, 315.5, 595.5 and 878, and every failure was in the two fractional ones. A row that starts on a whole device pixel is clean throughout whatever its tiles are sized to.
+
+The failure is the same one the Retina measurement found, and it looks identical: down a resampled tile the luma walks from a clean 248/8 at the top toward a flat 128/128 at the midpoint, the phase drifting a full pixel across the picture.
+
+**What follows for the rule, and what does not.** `flowSnap` rounds up, and in every clean case where a canvas differed from its box the canvas was *smaller*. Flooring rather than rounding would move every tile into the category never observed to fail. That is the indicated direction and it is not yet a change: it rests on two data points, both at a quarter-pixel fraction, and a canvas smaller than its box leaves a sliver of the box unfilled, which this run did not measure. What can be claimed for Windows now is no longer "no worse than before" — it is that the rule is correct where it can reach, that about a third of tiles at fractional scaling are resampled anyway, and that the remedy is a layout question rather than a canvas-sizing one.
 
 ### Color
 
@@ -332,12 +352,23 @@ The control runs the other way, and it matters as much: Fuji must *convert* an s
 
 Captured from the screen rather than read back from the canvas, the contact sheet shows two distinct clusters per hue in equal counts, and the sRGB control lands on the same value as the P3 file's in-gamut half — two different encodings of one physical color arriving at the same value. If anything in the chain reinterpreted where it should convert, or converted where it should reinterpret, that is the pair that would come apart. Running the same three images through the page route instead produced values identical to the native route, to the last unit, which means WebKit's `<img>` decode preserves the wide gamut and `drawImage` into a P3 canvas preserves it too.
 
+**On Windows the equivalent question is narrower, and it is answered.** *WIC* has no Display P3 context to draw into without a profile file, so it converts to sRGB and says so in the header whatever the page asked for — which means the only thing to check there is whether a file carrying a profile arrives converted at all, or whether its profile is quietly ignored. It arrives converted. Measured on Windows 10 on 2026-09-13 by a differential, which is the shape this test wants on any machine with a monitor profile installed, because a screen capture will not return the values the page painted and no single reading can be trusted against a number.
+
+Windows ships `sRGB Color Space Profile.icm`. Swapping the offsets its tag table gives `rXYZ` and `gXYZ` produces a valid profile that says the red channel sits at green's chromaticity. Two PNGs were written with byte-identical pixels — thirds of `(200,0,0)`, `(0,200,0)`, `(0,0,200)` — one carrying that profile in an `iCCP` chunk and one carrying nothing:
+
+| | left third | middle | right third |
+| --- | --- | --- | --- |
+| no profile | `191,0,0` | `62,200,0` | `20,9,204` |
+| swapped profile | `62,200,0` | `191,0,0` | `20,9,204` |
+
+Red and green trade places exactly as the profile says they should, and blue is the control that did not move because `bXYZ` was never touched. Neither row holds the authored numbers, because the capture passes through the machine's own monitor profile — which is why the evidence is the two rows against each other rather than either row against `(200,0,0)`.
+
 ## What is still open
 
 We left every one of these alone on purpose.
 
 - **Animated WebP** is a still on the native route. Sending it to an `<img>` the way Fuji sends a GIF means reading the animation flag out of its header in the probe.
 - **Linux's size gate** covers PNG, GIF and BMP, which our own Rust can size. WebP and AVIF are unsized there, and they are two of the formats that decode whole — a JPEG never needs the gate, because both operating systems decode one scaled and the full raster never exists.
-- **`flowSnap` at a fractional device pixel ratio**, per the Windows note above. Until somebody measures it, the most we claim for Windows is "no worse than before".
-- We read **WIC's color behaviour** out of its documentation and have never run it against a file with a profile in it.
+- **Tile position at a fractional device pixel ratio**, which is what the Windows measurement above turned the old `flowSnap` question into. Sizing a canvas is solved; placing a row on the device grid is not, and it is a layout problem rather than a canvas one. Whether flooring `flowSnap` closes the rest of it is the next measurement, not yet a decision.
+- **A Display P3 file on a wide-gamut Windows panel.** The profile path works, per the measurement above, but *WIC* converts everything to sRGB because it has no wide-gamut context to draw into without a profile file. So a Display P3 photograph loses its out-of-gamut colors before the page ever sees the pixels, and the header honestly reports sRGB. On an ordinary Windows screen nothing is lost; on a wide-gamut one this is the gap, and closing it means giving *WIC* a profile file to make that context from.
 - **A change of monitor.** Fuji never remakes a canvas when a window moves to a different screen, so the device pixel ratio and the gamut both go stale until the contact sheet rebuilds.

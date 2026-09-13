@@ -379,14 +379,19 @@ mod platform {
 		if (1..=8).contains(&orientation) { orientation } else { 1 }
 	}
 
-	fn transform_for(orientation: u16) -> WICBitmapTransformOptions {//exif's eight cases as wic's flags, which wic applies as the rotation and then the flip; 5 and 7 are the mirrored diagonals no camera writes, expressed on that order and untested
+	fn transform_for(orientation: u16) -> WICBitmapTransformOptions {//exif's eight cases as wic's flags, which wic applies as the flip and then the rotation
+		/*
+		The order matters for exactly two of the eight, and it is the opposite of what this function first assumed. Five of the cases carry a rotation or a flip but not both, and one is the identity, so six of them read the same whichever way round wic composes them. Only 5 and 7, exif's two mirrored diagonals, carry a rotation and a flip together, and only they can tell the orders apart — a flip then a quarter turn and a quarter turn then that same flip differ by a half turn, which is the whole of the bug this once had.
+
+		Measured on the windows 10 box, 2026-09-13, with eight jpegs authored one per case, each storing the raster that its own orientation turns upright, so a correct thumbnailer shows all eight the same way up. Six were right and 5 and 7 came back rotated 180 degrees, which says wic flips first. Rotating the other way round the circle for those two is the correction, and the eight were re-run against it.
+		*/
 		let (rotate, flip) = match orientation {
 			2 => (WICBitmapTransformRotate0,   WICBitmapTransformFlipHorizontal),
 			3 => (WICBitmapTransformRotate180, WICBitmapTransformRotate0),
 			4 => (WICBitmapTransformRotate0,   WICBitmapTransformFlipVertical),
-			5 => (WICBitmapTransformRotate90,  WICBitmapTransformFlipHorizontal),
+			5 => (WICBitmapTransformRotate270, WICBitmapTransformFlipHorizontal),//flipped first, so the quarter turn goes the other way round than a rotation-first reading would put it
 			6 => (WICBitmapTransformRotate90,  WICBitmapTransformRotate0),
-			7 => (WICBitmapTransformRotate90,  WICBitmapTransformFlipVertical),
+			7 => (WICBitmapTransformRotate270, WICBitmapTransformFlipVertical),//and the same for this one
 			8 => (WICBitmapTransformRotate270, WICBitmapTransformRotate0),
 			_ => (WICBitmapTransformRotate0,   WICBitmapTransformRotate0),
 		};
