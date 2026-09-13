@@ -12,9 +12,9 @@ The research came first and is kept below, because every decision in the plan is
 
 Built and verified on the Mac mini: the ten types declared in a hand-written `Info.plist` that Tauri merges into the bundle; LaunchServices recording every one of them at rank Alternate; a double-click after *Change All* launching fuji onto that picture with its folder behind it and flipping and the `c` key working from the first frame; and a second double-click while fuji runs turning the same window to the new picture.
 
-Built and not run anywhere: the whole Windows half — the runtime registration in `associate.rs`, the command-line path in `open.rs`. It compiles against the Windows target and that is all that can be said for it from here.
+Built and run on the Windows 10 box, 2026-09-13: the runtime registration in `associate.rs` wrote its ten types and 65 values on a first launch and none on the second, `open.rs` carried a double-clicked picture in on every launch, and a `.webp` chosen through Explorer's own dialog opened fuji onto that picture with its folder behind it. The before-and-after registry comparison is in the answered section at the end, and it confirms the thing this document most wanted confirmed: fuji appended itself to every offer list and took no type from anyone.
 
-Not built: the uninstall hook, document icons, single instance, and any way for a user to discover or use any of this from inside fuji.
+Not built: the uninstall hook, document icons, and any way for a user to discover or use any of this from inside fuji. Single instance is no longer on that list and never will be — `instances.md` decided on 2026-09-13 that fuji runs one process per window on both platforms, which Windows already does and macOS is being changed to match.
 
 **The concession, stated plainly, because a later reader will otherwise assume this shipped in a usable state.** Fuji registers correctly and a person cannot reasonably be expected to find how to use it. Making fuji the default on macOS means Get Info, then expanding a collapsed *Open with:* section, then a small button reading *Change All…* — while the Open With submenu, which is the obvious place and the one a user will actually open, offers no way to set a default at all. The route took the person who had just written this document several tries to find. Nothing fuji does from outside Finder improves it. So the honest description of the first pass is that it works and that nobody will find it, which is tolerable only while the only user is the one who built it. The settings panel in the second pass is what fixes this, and that is now its reason rather than the milder one recorded below.
 
@@ -121,9 +121,9 @@ That makes Windows correct by doing nothing, and it is worth saying what "nothin
 
 macOS is the side that needs code, because it will not launch a second copy for a double-click; it sends the running instance an Apple event instead. So the running instance is the only thing that learns, and starting the second instance is its job. `instances.md` carries the reasoning and the conceded costs.
 
-## The plan
+## The plan, and what it became
 
-The first pass, planned on the Mac mini and not yet built. Every decision here traces to a finding above.
+The first pass, planned on the Mac mini and since built on both platforms — macOS on 2026-09-12, Windows on 2026-09-13. Every decision here traces to a finding above, and the section at the end says what running it found. Left as a plan rather than rewritten in the past tense, because the reasoning is what a later reader needs and it did not change.
 
 ### What fuji declares
 

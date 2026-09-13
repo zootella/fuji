@@ -1,8 +1,10 @@
 # To the macOS session
 
-A decision was taken on the Windows box on 2026-09-13 that changes what fuji does when a second picture is opened, and macOS is the side that has to change. Windows was already right by doing nothing.
+Written from the Windows box on 2026-09-13, at the end of a long day there. Most of what that day produced is already in the documents that own each subject, and this letter exists for the one thing that needs building on your side and the handful of small things waiting for a Mac.
 
-**Read `instances.md` first.** It was a whiteboard and is now a decision, with the reasoning and the conceded costs. This letter says only what that document cannot: what to build, and the one piece of it that is easy to get wrong.
+**The one thing to build** is below, and it comes from a decision: fuji runs one process per window, on both platforms. Windows already did; macOS has to be talked into it. **Read `instances.md` first** — it was a whiteboard and now carries that decision, with the reasoning and the costs conceded to reach it. This letter says only what that document cannot: what to build, and the pieces that are easy to get wrong.
+
+**What else that day did**, so you know what has moved under you: the Windows half of file associations ran for the first time and mostly works, which `associations.md` records; three thumbnail questions were measured and one was a real bug, which the thumbnail pipeline page on the site records; the first Windows installer was published; the window is now built by Rust before the page exists, which the last two sections here cover; the title bar now follows the picture or the folder; and `pnpm reveal` opens the file manager on whichever installer this platform builds, so an installer can be run the way a visitor would rather than launched in place. None of that needs anything from you except the short list at the end.
 
 ## The decision, in one line
 
@@ -56,7 +58,8 @@ Two instances opened in exactly the same place on Windows, pixel for pixel, beca
 - `window.remember`, `window.x` and `window.y` are **gone from the settings schema**. There is no way to turn either half on or off. A size is always remembered, a position never is.
 - **Rust builds the window now**, in `setup()`, at the size it reads out of `fuji.toml`. `tauri.conf.json` declares no window at all. A new module, `settings.rs`, does that one read and nothing else — it never writes, and the page still owns the schema, the repair and the write-at-exit exactly as before.
 - **The recorded size is in css pixels**, where it used to be Tauri's physical ones. Tauri has only two words, logical and physical, and its physical covers the backing bitmap on macOS and the panel's own pixels on Windows — so the number used to mean different things on different machines. `settings.rs` carries the reasoning.
-- `revealWindow` no longer sizes anything; it shows the window and that is all. `onSomeMonitor`, the `onMoved` listener, `settingsWindowRect` and the desktop-fraction fallback are all deleted from the page. The fallback moved into Rust as `starting_size`.
+- **A second new module, `window.rs`, makes the window** — it asks `settings.rs` for a size, falls back to a fraction of the desktop when the file has nothing to say, builds the window, and then checks where the window manager put it. `lib.rs` calls it once and stays the table of contents it describes itself as.
+- `revealWindow` no longer sizes anything; it is one line that shows the window. `onSomeMonitor`, the `onMoved` listener, `settingsWindowRect` and the desktop-fraction fallback are all gone from the page, the fallback having moved into `window.rs`.
 
 **This matters to you beyond instances**, because the css-pixel change fixes a hazard that was mostly a Mac one: a window recorded on a Retina panel used to carry a number twice the size it looked, and restoring it on an attached 1× display gave a window twice as wide as intended. That cannot happen now.
 
@@ -73,3 +76,17 @@ Nothing in that is Windows-specific: `work_area` resolves through `SPI_GETWORKAR
 ## What was conceded to get here
 
 All of it is in `instances.md` and none of it changed the decision: more memory than one process with many windows, no shared decode cache, and the settings clobber above. What is bought is one architecture instead of two, and isolation the kernel enforces rather than a discipline every future feature has to keep.
+
+## The short list, and why each one wants a Mac
+
+**Publish the site.** This is the one with a visible consequence: fujidesktop.app is serving the build from the morning of 2026-09-13, and everything written that day is missing from it — the Windows measurements on the thumbnail pipeline page, the picture of two tiles with one resampled, the flooring experiment, the WIC colour table, the flip-before-rotate finding. The installers are current, because those publish from the machines that build them and the download page reads each sidecar at runtime; it is only the prose that is behind. `pnpm upload` in the `site` workspace. It cannot run from the Windows box — `upload.js` refuses there outright, for want of rsync — which is why it waits for you rather than because a Mac is required. The README's Publishing section has the shape of it.
+
+**Settle the document icon question, which is ten minutes.** `associations.md` says a macOS document type with no `CFBundleTypeIconFile` gets a generic document icon, and *expects* Finder's Quick Look previews to hide that — expects, untested. Windows answered the same question badly: the moment a type is fuji's, every file of it wears fuji's application icon, which is a flat mint disc carrying no information at all. Whether macOS spares you that is unknown and worth knowing before anyone designs a document icon.
+
+**Re-run the odd-and-even measurement when macOS or Safari updates.** Not now — it is a trigger rather than a task. `thumbnail-open.md` has it: the `flowSnap` rule rests on observed WKWebView behaviour rather than on anything specified, it needs a Retina Mac, it takes ten minutes, and the answer is one percentage. Worth knowing that the same rule was measured at all three of Windows' fractional scales that day and survived, including an attempt to improve it that made things worse.
+
+**Look at the window title, which is built and only tested on Windows.** A table showing a picture puts that picture's filename in the title bar, the sheet puts the folder's name, and neither ever shows a path. `windowTitle` in `library.js` composes the string and `Shell.vue` watches the view, the path and the folder to set it.
+
+This is one of the very few places fuji deliberately does something different per platform, so it wants a Mac's eyes. **Windows appends `- Fuji` and macOS does not** — Notepad and Paint still spell a document window that way and a taskbar button carries the string, while on macOS the application's name is already in the menu bar an inch away and repeating it reads as a mistake, which is why Preview and TextEdit show the bare filename. Linux is grouped with macOS, because GNOME's file manager shows a bare folder name too. KDE would rather have `name — App` with an em dash; that is a third form and is not followed.
+
+Verified on Windows only: a table showed `2eab3b2e-….webp - Fuji` and pressing `c` changed it to `Desktop - Fuji`. On a Mac the same two states should read `2eab3b2e-….webp` and `Desktop`, with the menu bar still saying `Fuji` — that part comes from `CFBundleName` in the bundle and nothing the page does can touch it. `core:window:allow-set-title` was added to `capabilities/default.json` to make any of this possible, which is the one place the day widened what the page may ask Rust to do.

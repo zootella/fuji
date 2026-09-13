@@ -135,6 +135,24 @@ export async function renderImage(img, details) {//render the data url string de
 
 //resolution
 
+export function platform() {//mac, windows or linux
+	let p = navigator.platform//MacIntel on every mac, apple silicon included; Win32 on every windows
+	if (p.startsWith('Mac')) return 'mac'
+	if (p.startsWith('Win')) return 'windows'
+	return 'linux'
+}
+
+export function windowTitle(showing, path, folder) {//what the title bar says: the picture a table is showing, the folder the sheet is showing, and fuji's own name when there is neither
+	/*
+	The name alone, never a path: a title bar is narrow and a taskbar button narrower, and the leading half of a path is the half nobody needs.
+
+	The suffix is where the platforms genuinely differ, so this is one of the few places fuji does something different on each. Windows spells a document window 'name - App', which Notepad and Paint still do, and a taskbar button carries that string. macOS spells it just the name, because the application's own name is already in the menu bar an inch away and repeating it there reads as a mistake — Preview and TextEdit both show the bare filename. GNOME agrees with macOS and its file manager shows a bare folder name. KDE would rather have 'name — App' with an em dash, which is a third form and is not followed here.
+	*/
+	let name = showing == 'Sheet' ? folder && parse.basename(folder) : path && parse.basename(path)
+	if (!name) return 'Fuji'//nothing open yet, or a path with no last segment like a bare root; either way the application's own name and nothing else
+	return platform() == 'windows' ? name + ' - Fuji' : name
+}
+
 export async function revealWindow() {//show the window, which rust built at the size it read out of the settings file before the page existed; settings.rs has why
 	await getCurrentWindow().show()
 }

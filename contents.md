@@ -34,9 +34,9 @@ A letter is written to a specific reader — usually a Claude Code session on th
 
 **`mac.md`** is open, written 2026-09-13 from the Windows box. Instances: the decision that fuji runs one process per window on both platforms, and what macOS has to change to match what Windows already does — a second double-click must start a second fuji rather than turning the first one's window. `instances.md` is the record behind it.
 
-**`windows.md`** is open, written 2026-09-12 for the Windows machine. File associations: the macOS half is built and verified, the Windows half is built and has never run, and the letter says where to start and what only that box can answer. `associations.md` is the record behind it. Its premise has partly expired — the Windows half ran on 2026-09-13, registering 10 types and writing 65 values — so read it knowing the first launch has happened.
+**`windows.md`** was retired on 2026-09-13, answered by the session it was written for. It asked four things and the Windows box settled three: Windows 10 does prompt after a runtime registration, though only once and with the incumbent pre-selected; Explorer keeps drawing thumbnails, because fuji registers no thumbnail handler and the lookup never consults the chosen one; and the before-and-after registry comparison confirmed fuji takes no type from anyone. All three are in `associations.md`. What it asked and nobody answered — the `ms-settings` deep link on Windows 10 — is in that document's open list, along with the uninstall hook it named as the work to follow.
 
-An earlier letter also called `windows.md` was retired in September 2026 once it had been answered — everything in it that outlived the conversation went into `icon.md`, `fidelity.md`, `performance.md` and `CLAUDE.md`, which is what a letter is supposed to leave behind.
+An earlier letter also called `windows.md` was retired in September 2026 the same way — everything in it that outlived the conversation went into `icon.md`, `fidelity.md`, `performance.md` and `CLAUDE.md`, which is what a letter is supposed to leave behind. Two letters have now had that name and both are gone; a third would be a new letter rather than a continuation.
 
 ## What has moved to the site
 

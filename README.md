@@ -29,17 +29,32 @@ Install from the root, which installs every workspace, then work from inside the
 $ pnpm install
 $ cd desktop
 $ pnpm local        # run in dev mode with hot reload
-$ pnpm build        # release build, all the way to the dmg
+$ pnpm build        # release build, all the way to the installer
 $ pnpm release      # that, then stage and hash the installer for publishing
+$ pnpm reveal       # open the file manager on the installer, to run it as a person would
 ```
 
 The root has no scripts of its own, on purpose — a command belongs to the workspace it acts on. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to run the exact version this project pins. CLAUDE.md lists the rest of the build trail.
+
+### Installing it yourself
+
+Running the built binary in place and running the installer are different tests, and only the second one is what a visitor gets:
+
+```
+$ cd desktop
+$ pnpm build        # or pnpm release, if you are about to publish it too
+$ pnpm reveal       # opens bundle/nsis, bundle/dmg or bundle/deb, whichever this platform makes
+```
+
+Then double-click the installer from there. `pnpm win` and `pnpm app` launch the built binary directly instead, which is quicker for trying a change and skips everything an installer does — the publisher warning, the wizard, and where the application ends up.
+
+Downloading the installer from fujidesktop.app is a third thing again, and the only way to see what an unsigned download looks like: a browser attaches a mark-of-the-web to the file, which is what raises SmartScreen. A copy built or reached locally carries no such mark and goes straight through.
 
 ### Publishing
 
 The website and the installers are published separately, and by different machines.
 
-The site ships from macOS only, because it goes over rsync:
+The site goes over rsync, so it ships from any machine that has it — in practice the Mac. Windows is the one that cannot, and says so rather than failing obscurely:
 
 ```
 $ cd site
@@ -61,7 +76,7 @@ The other two are `pnpm upload-dmg` and `pnpm upload-deb`, each run on its own p
 
 Publishing an installer does not require deploying the site. The download page fetches each sidecar at runtime rather than baking hashes in at build time, so a new installer, its size and its hash go live as soon as they land.
 
-All four upload commands read a `.env` at the repository root for the server and account details, and an SSH key for the account that may write installers. Neither is in git — `.gitignore` covers `.env`, and the key lives outside the repository. Each machine is set up once from notes kept offline.
+All four upload commands read a `.env` at the repository root for the server and account details. The three that ship an installer also need an SSH key, belonging to a restricted account that can write the downloads directory and nothing else; the site upload goes as an administrative account instead. Neither the file nor the key is in git — `.gitignore` covers `.env`, and the key lives outside the repository. Each machine is set up once from notes kept offline.
 
 ### Scaffolded on macOS
 
@@ -103,6 +118,8 @@ Staged for publishing by `pnpm release`, on whichever machine built it
 ```
 
 Fuji ships those four packages and no more, so `bundle.targets` names them instead of Tauri's default `"all"`, which would also build an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package. The installers themselves stay out of git; their sidecars are committed, so the repository keeps a dated record of what hash each release had.
+
+`pnpm reveal` opens whichever of those bundle folders this platform builds into, so there is no need to walk the path by hand.
 
 ## Setup macOS
 

@@ -10,6 +10,7 @@
 		"core:window:allow-set-fullscreen",
 		"core:window:allow-set-simple-fullscreen",
 		"core:window:allow-set-size",
+		"core:window:allow-set-title",
 		"core:window:allow-set-position",
 		"core:window:allow-show",
 		"core:webview:allow-set-webview-focus",

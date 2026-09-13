@@ -1,11 +1,11 @@
 <script setup>//owns the window; draws nothing
 
-import {ref, nextTick, onMounted, onBeforeUnmount} from 'vue'
+import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {listen} from '@tauri-apps/api/event'
-import {raf, forwardize, revealWindow} from './library.js'
+import {raf, forwardize, revealWindow, windowTitle} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
-import {modelStart, modelShowing} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it
+import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it; the path and the folder are here for the title bar, which is the shell's because the window is
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateRegister} from '../associate.js'//and what fuji tells the operating system it can open in return
@@ -18,7 +18,7 @@ import MyList from './MyList.vue'
 import MySpace from './MySpace.vue'
 
 /*
-The shell owns the window and none of the pixels. It reads the settings file, reveals the window rust built, records the size the user gives it, holds the one listener for each window event, and remembers which view was showing. It has no background, no chrome, and no HUD, so a view never has to negotiate with a parent about how it looks.
+The shell owns the window and none of the pixels. It reads the settings file, reveals the window rust built, records the size the user gives it, keeps the title bar saying what the user is looking at, holds the one listener for each window event, and remembers which view was showing. It has no background, no chrome, and no HUD, so a view never has to negotiate with a parent about how it looks.
 
 It exists because window events are global and everything else is not. A view's wheel, pointer, and double-click handlers live on its own element, so a hidden view is handed none of them and two views cannot collide. But window.addEventListener fires no matter what is visible, and so does a tauri window event, so keydown, resize, and drag-drop are the entire interference surface between views. One listener each lives here and gives the event to the view that is showing. A hidden view cannot react to a key because it is never given one, rather than because it remembered to check.
 
@@ -104,6 +104,12 @@ onBeforeUnmount(() => {
 	if (unlistenOpen) unlistenOpen()
 	if (unlistenResized) unlistenResized()
 })
+
+//the title bar follows what the user is looking at: the picture on a table, the folder on the sheet. library.js composes the string, including the one place fuji differs by platform
+watch([showing, modelPath, modelFolder], () => {
+	getCurrentWindow().setTitle(windowTitle(showing.value, modelPath.value, modelFolder.value))
+		.catch(error => logTrouble('shell: setting the window title', error))
+}, {immediate: true})
 
 function activeView() { return showing.value == 'Sheet' ? sheetRef.value : tableRef.value }
 

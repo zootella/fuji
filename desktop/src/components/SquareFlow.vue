@@ -7,7 +7,7 @@ import {modelShowing} from '../model.js'
 import {settingsThumbnailBox} from '../settings.js'
 import {thumbnailProbe, thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logCard} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every card is a row in it
-import {xy, imageTypes, errorImageData} from './library.js'
+import {xy, imageTypes, errorImageData, platform} from './library.js'
 
 /*
 The one flow, and the whole of how a path becomes a tile. A card hands this its paths. The extension says what kind of tile each gets: a GIF or an SVG is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count. A canvas gets its pixels one of two ways. A format on this platform's native list goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
@@ -52,12 +52,6 @@ function formatOf(path) {//jpeg from image/jpeg, svg from image/svg+xml: the nam
 	let type = imageTypes[parse.extname(path).toLowerCase()]
 	if (!type) return ''
 	return type.mime.split('/')[1].replace('+xml', '')
-}
-function platform() {
-	let p = navigator.platform//MacIntel on every mac, apple silicon included; Win32 on every windows
-	if (p.startsWith('Mac')) return 'mac'
-	if (p.startsWith('Win')) return 'windows'
-	return 'linux'
 }
 
 onMounted(() => { flowFill().catch(error => logTrouble('SquareFlow: filling a card', error)) })//the top gate for this card: anything that escapes the loops lands here, loudly
