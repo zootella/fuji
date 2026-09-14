@@ -20,7 +20,7 @@ defineExpose({start, onKey, onResize, isFullscreen})
 </script>
 <template>
 
-<div class="myComic w-screen h-screen flex items-center justify-center select-none">comic table stub</div>
+<div class="myComic w-full h-full flex items-center justify-center select-none">comic table stub</div>
 
 </template>
 <style scoped>

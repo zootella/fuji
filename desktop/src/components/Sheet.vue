@@ -27,8 +27,8 @@ defineExpose({start, onKey, onResize})//the same calls every view answers; onDro
 <template>
 
 <!-- display none destroys the layout box and the scroll position with it, so leaving and returning starts at the top; that is the behaviour wanted for now -->
-<div class="mySheet w-screen h-screen overflow-y-auto select-none">
-	<div v-if="!sheetCards.length" class="myEmpty w-screen h-screen flex items-center justify-center">contact sheet - drop an image on the table to open a folder</div>
+<div class="mySheet w-full h-full overflow-y-auto select-none">
+	<div v-if="!sheetCards.length" class="myEmpty w-full h-full flex items-center justify-center">contact sheet - drop an image on the table to open a folder</div>
 	<!-- keyed on contents, so a card whose images changed is rebuilt rather than reused: a reused card keeps canvases painted from images it no longer holds and never paints the new ones -->
 	<Card v-for="card in sheetCards" :key="card.join()" :paths="card" />
 </div>

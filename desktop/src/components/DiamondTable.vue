@@ -181,11 +181,15 @@ function onUp(e) {
 let screenToViewport1//arrow from screen corner to viewport corner before a change in to our out of full screen
 //ttd-probe temporary: why the frame sometimes stays at its old height after a macos fullscreen transition
 const probeBegan = Date.now()
+const vhRef = ref(null)//ttd-probe: an invisible strip exactly 100vh tall, kept only so the log can catch vh lying
 async function probeSize(when) {
 	let frame = frameRef.value
 	let computed = frame ? getComputedStyle(frame).height : '?'//what 100vh actually resolved to, which is the number that decides whether vh is stale or something else is constraining the element
 	let system = await getCurrentWindow().isFullscreen().catch(() => '?')//does macos think this window is in a space
-	log(`⭕ probe ${String(Date.now() - probeBegan).padStart(6)}ms ${when.padEnd(14)} frame ${frame?.clientWidth}x${frame?.clientHeight} css-height ${computed}, window ${window.innerWidth}x${window.innerHeight}, document ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}, ourFullscreen ${fullscreenNow}, systemFullscreen ${system}, space ${Math.round(quiverA.space?.x)}x${Math.round(quiverA.space?.y)}, zoom ${quiverA.zoom?.toFixed(3)}`)
+	let vh = vhRef.value?.clientHeight//what 100vh says right now, which is the measurement under suspicion
+	let html = document.documentElement.clientHeight, body = document.body.clientHeight, app = document.getElementById('app')?.clientHeight
+	let agree = (vh == window.innerHeight && html == window.innerHeight && body == window.innerHeight && app == window.innerHeight && frame?.clientHeight == window.innerHeight)
+	log(`⭕ probe ${String(Date.now() - probeBegan).padStart(6)}ms ${when.padEnd(14)} ${agree ? 'agree ' : 'DIFFER'} heights: window ${window.innerHeight}, vh ${vh}, html ${html}, body ${body}, app ${app}, frame ${frame?.clientHeight} (css ${computed}); width window ${window.innerWidth} frame ${frame?.clientWidth}; ourFullscreen ${fullscreenNow}, systemFullscreen ${system}, space ${Math.round(quiverA.space?.x)}x${Math.round(quiverA.space?.y)}, zoom ${quiverA.zoom?.toFixed(3)}`)
 }
 setInterval(() => probeSize('heartbeat'), 2000)//slower than log.js's 1500ms quiet timer, or the batch would never go down to rust and the file would come out empty
 
@@ -428,13 +432,16 @@ let here = null//the store's entry for the image on the card, which is where the
 <!-- Frame: single outer div sized to component; handles clicks and has repeating background we'll translate along with the card below -->
 <div
 	ref="frameRef"
-	class="myFrame myDots myWillChangeBackgroundPosition relative w-screen h-screen overflow-hidden select-none touch-none"
+	class="myFrame myDots myWillChangeBackgroundPosition relative w-full h-full overflow-hidden select-none touch-none"
 	@contextmenu.prevent
 	@dblclick.prevent="onDoubleClick"
 	@pointerdown="onPointerDown"
 	@pointermove="onPointerMove"
 	@pointerup="onUp" @pointercancel="onUp" @lostpointercapture="onUp"
 >
+
+	<!--ttd-probe: an invisible strip exactly 100vh tall, so the log can catch vh lying-->
+	<div ref="vhRef" class="myDry absolute top-0 left-0 w-0 invisible" style="height: 100vh"></div>
 
 	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div
