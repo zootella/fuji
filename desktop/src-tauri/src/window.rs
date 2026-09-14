@@ -64,6 +64,12 @@ pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
 	Ok(())
 }
 
+/// Make fuji's first window, unless something has already made one, which is how a launch produces exactly one window however it was started
+pub fn window_first(app: &AppHandle, paths: Vec<String>) {
+	if !app.webview_windows().is_empty() { return }//a picture opened by double-click has already been given a window: measured on the Mac mini 2026-09-14, macOS delivers that event 52 milliseconds before the one that calls this, so by now it is done. Making a window in setup instead of here is what used to open two, one of them blank
+	window_open(app, paths)//nothing has, so this is an ordinary launch: empty from the dock, or on the pictures the command line carried, which is how windows and linux hand over a double-click
+}
+
 /// Make a window and report trouble to the log rather than to a caller who has nowhere to put it; the run event closure is that caller
 pub fn window_open(app: &AppHandle, paths: Vec<String>) {
 	if let Err(e) = window_build(app, paths) { crate::log::log(&format!("window: could not make a window, {e}")) }//a window that never appears is worth a line, and there is nobody above to tell

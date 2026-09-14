@@ -2,6 +2,7 @@
 
 import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
+import {open as openDialog} from '@tauri-apps/plugin-dialog'//the picker behind File, Open; the plugin is registered in lib.rs and granted in capabilities/default.json
 import {raf, forwardize, revealWindow, windowTitle} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it; the path and the folder are here for the title bar, which is the shell's because the window is
@@ -82,6 +83,7 @@ onMounted(async () => {
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
+	unlistenMenu = await w.listen('menu', event => reportTrouble(() => menuChose(event.payload)))//this window's own listener rather than the global one, and that is load-bearing: listen() from the api registers for any target at all, so every window would answer a menu item meant for the one in front — which it did, opening a file picker per window. w.listen registers this window's label, which is what rust aims the event at. menu.rs sends only the items the page owns, and only to the window in front
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView()?.onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
 	})
@@ -89,12 +91,13 @@ onMounted(async () => {
 	await recordWindow(w)//onResized reports only changes, so without this a session where the user never touches the window records nothing
 	unlistenResized = await w.onResized(() => { if (isFullscreen()) return; recordWindow(w) })//the payload is in tauri's physical pixels, so ask again in css ones rather than convert it here
 })
-let unlistenFileDrop, unlistenResized//will hold the unsubscribe functions set above and called below
+let unlistenFileDrop, unlistenResized, unlistenMenu//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
 	if (unlistenFileDrop) unlistenFileDrop()
 	if (unlistenResized) unlistenResized()
+	if (unlistenMenu) unlistenMenu()
 })
 
 //the title bar follows what the user is looking at: the picture on a table, the folder on the sheet. library.js composes the string, including the one place fuji differs by platform
@@ -102,6 +105,14 @@ watch([showing, modelPath, modelFolder], () => {
 	getCurrentWindow().setTitle(windowTitle(showing.value, modelPath.value, modelFolder.value))
 		.catch(error => logTrouble('shell: setting the window title', error))
 }, {immediate: true})
+
+async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these two down, because the page already knows how to do both
+	if (id == 'menu-open') {
+		let chosen = await openDialog({multiple: false, directory: false})//every file, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter. Choosing something fuji cannot show is harmless — the model lists the folder and stands on the first picture in it
+		if (chosen) await activeView()?.onDrop?.(forwardize(chosen))//the same call a dropped file takes and a double-clicked one takes, which is the point: three ways in, one road after that
+	}
+	else if (id == 'menu-fullscreen') { log('⭕ probe menu: Toggle Full Screen chosen'); await activeView()?.toggleFullscreen?.() }//ttd-probe//fuji's own fullscreen rather than macOS's, which is a subject of its own: the essay above toggleFullscreen in DiamondTable.vue says why there are two and how they keep out of each other's way. Optional because only a table has one; on the sheet the item does nothing rather than breaking
+}
 
 function activeView() { return showing.value == 'Sheet' ? sheetRef.value : tableRef.value }
 

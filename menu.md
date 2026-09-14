@@ -25,7 +25,9 @@ All of it is Tauri's default. Fuji has never written a menu.
 
 Worth stating plainly, because they look like one feature.
 
-The Dock menu is not built from the menu bar and neither knows about the other. macOS fills the Dock menu by itself with the open windows, Options, Show All Windows, Hide and Quit. An application may add its own items to the top of it, through `applicationDockMenu:` on its application delegate, and that is a wholly separate piece of code from the menu bar. Finder's *New Finder Window* and Zed's *New Window* are apps doing exactly that. Applications usually put the same few commands in both places, which is why the two feel like one thing.
+The Dock menu is not built from the menu bar and neither knows about the other. macOS fills the Dock menu by itself with the open windows, Options, Show All Windows, Hide and Quit.
+
+**That window list works today, confirmed on the Mac mini 2026-09-14** with two windows open — both named in the Dock menu, with no code of fuji's involved. Worth weighing before building anything here, because the list is the main reason a person opens that menu and it already does the job. It also stands in contrast to the menu bar's own Window submenu, which needed fuji to register it with AppKit before macOS would fill it in the same way. An application may add its own items to the top of it, through `applicationDockMenu:` on its application delegate, and that is a wholly separate piece of code from the menu bar. Finder's *New Finder Window* and Zed's *New Window* are apps doing exactly that. Applications usually put the same few commands in both places, which is why the two feel like one thing.
 
 ## Decided
 
@@ -43,23 +45,39 @@ A file picker, and then the picture it chose arrives exactly as a dragged-in fil
 
 The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already granted in `capabilities/default.json`, so the plumbing exists and has simply never had a caller. The page opens the picker, because the page owns orchestration; Rust only says that the user chose the menu item.
 
-### View → Toggle Full Screen must become fuji's own fullscreen
+**The picker shows every file rather than only the ten fuji knows, decided 2026-09-14.** A folder is easier to recognise by everything in it than by a filtered subset, and a filtered list is harder to read at a glance. Choosing something fuji cannot show costs nothing: the model lists the folder and stands on the first picture in it, which is the same thing a dropped non-image already does.
 
-**Fuji has two unrelated fullscreen modes today and they can both be on at once.** The menu item is `PredefinedMenuItem::fullscreen`, which is macOS's real fullscreen — the window moves to a Space of its own, with the system animation. Fuji's own is simple fullscreen, in `DiamondTable.vue`: `setSimpleFullscreen`, instant, no Space, with a black curtain over the transition and a repair that hands the keyboard back to the web view afterwards. The table keeps its own `fullscreenNow` flag because Tauri cannot report the simple mode.
+**One reason for this does not survive contact with the rest of fuji, and is worth knowing rather than rediscovering.** A picture saved without an extension is now visible in the picker, but fuji still cannot open it: `listFolder` keeps only the extensions in `imageTypes`, so such a file is not in the folder listing and choosing it stands the user on some other picture instead. Fuji identifies files by extension everywhere except `thumbnail_probe`, which reads the first bytes. Closing that gap is a real subject — it would mean the folder listing asking Rust what each unknown file actually is — and it belongs to whoever takes on the model rather than to the menu.
 
-The two states know nothing about each other. Entering both leaves the user peeling out of each in turn, which is what happened when this was found. **Decided: there is one fullscreen in fuji, and it is fuji's own.** The predefined item is replaced with an item of fuji's that does exactly what a double-click on the table does.
+### Two fullscreens, side by side, decided 2026-09-14
 
-**Rust does not toggle anything.** The menu event tells the page that the user chose the item, and the page calls the same `toggleFullscreen` a double-click calls. That keeps one implementation rather than two, and it is the rule in `CLAUDE.md` about the two layers: the page decides, Rust carries the news.
+**Fuji keeps both kinds and offers both to the user.** They are genuinely different things and each is right for a different moment.
 
-One detail to get right: a menu applies to the frontmost window, so the event has to reach *that* window rather than all of them. Now that fuji can have several windows on macOS, sending it to the wrong one would toggle a window the user is not looking at.
+*Fuji's own* is simple fullscreen, in `DiamondTable.vue`: `setSimpleFullscreen`, instant, in place, no Space and no animation, with a black curtain over the transition and a repair that hands the keyboard back to the web view afterwards. It is for checking a detail of a picture and coming straight back, which is most of what a viewer is for. The table keeps its own `fullscreenNow` flag because Tauri cannot report the simple mode.
 
-**Changing the menu item does not by itself leave fuji with one fullscreen, and this is unresolved.** The green button in the title bar also enters macOS fullscreen, so a user can still reach it and still end up in two unrelated states at once. Two ways out, and neither is chosen yet.
+*macOS's own* moves the window to a Space of its own with the system animation, and is what Split View is built on. It is for settling in. Taking it away would cost an advanced Mac user something real, so fuji does not.
 
-*One fullscreen:* change the menu item and also turn off the window's native fullscreen, so the green button merely zooms. Whether Tauri exposes that switch — it is `NSWindowCollectionBehaviorFullScreenNone` underneath — is unchecked and has to be settled before committing to this. **The price is Split View**, macOS's arrangement of two fullscreen applications sharing one Space side by side, which simple fullscreen cannot do at all and which is the one real thing an advanced Mac user would lose. The animation nobody would miss; Split View they might.
+**The words keep them apart in the View menu.** Fuji's item says **Toggle** Full Screen; the system's says **Enter**, and becomes Exit once you are in it. The second item is not fuji's — macOS inserts it automatically into any menu titled "View", which came as a surprise and is worth knowing before anyone goes looking for it in `menu.rs`.
 
-*Both, not fighting:* the green button and ⌃⌘F stay macOS fullscreen for whoever wants Split View, while the double-click and the menu item are fuji's own. The work is making each refuse to engage while the other is on, so nobody has to peel out of two states in turn. More code, more native, and it keeps the advanced user.
+**The shortcuts each tell the truth about themselves.** ⌃⌘F is the legacy spelling of the system's fullscreen and macOS no longer advertises it, so fuji takes it for its own item; the system's item keeps Globe+F, which is what macOS shows today. Each label's shortcut does what that label says.
 
-The user's stated preference is one fullscreen, and fuji's own is the right default either way, because fuji's fullscreen is for checking a detail and coming straight back rather than for settling in.
+**An earlier decision, on the same day, went the other way and was reversed.** Fuji briefly set `NSWindowCollectionBehaviorFullScreenNone`, which shut every door into the system fullscreen — the green button, the keystroke and the menu item together. It worked, and it cost Split View and any use of a fuji window as a Space of its own, for a confusion that turned out to be fixable instead. Recorded because the flag is the obvious answer to "two fullscreens at once" and someone will reach for it again.
+
+**What makes them coexist is one rule and one repair,** since the whole objection to having both was a user stuck peeling out of two states in turn.
+
+*Toggle means leave, whichever kind you are in.* When fuji's toggle finds the window already in a macOS Space, it leaves the Space rather than laying its own fullscreen on top. Tauri's `isFullscreen()` reports the system fullscreen and deliberately does not report the simple mode, so fuji can always tell the two apart.
+
+*And the other direction is repaired rather than refused,* because fuji cannot intercept the system's own menu item. If macOS takes the window into a Space while fuji's fullscreen is on, the resize handler notices and lets fuji's state go. Whether macOS will even do that to a window whose title bar style mask is cleared is unknown, so this may prove to be a guard against something impossible.
+
+**Rust toggles nothing.** The menu event tells the page which item was chosen and the page calls the same `toggleFullscreen` a double-click calls — one implementation rather than two, and the rule in `CLAUDE.md` about the two layers seen from the menu's side. A menu applies to the frontmost window, so the event goes to that window alone; with several windows on macOS, sending it to all of them made every window answer at once, which is exactly what happened the first time.
+
+## Where the work stands
+
+**Written on 2026-09-14 and awaiting a smoke test:** the two-fullscreen arrangement above.
+
+**Tested and working on the Mac mini, 2026-09-14:** a double-click opens one window; the File menu holds New Window and Open…; ⌘N makes a window; the Window submenu lists the open windows and switches between them; ⌘O raises one picker in the focused window only, listing every file rather than only pictures.
+
+**Gained along the way, unplanned:** the Window submenu is now registered with AppKit, so macOS keeps it filled with the open windows. Tauri's default menu never did this, so that list had always been empty rather than working as this document first assumed.
 
 ## Left alone for now
 

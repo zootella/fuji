@@ -74,11 +74,23 @@ One sharp edge here is worth remembering rather than rediscovering: the page mus
 
 **Windows places a window that does not fit, and fuji moves it.** The cascade walks a fixed staircase and never checks the window against the work area — measured 2026-09-13, three instances 1062 pixels tall on a work area 1160 deep, cascaded to 52, 104 and 138, the last two overhanging by 6 and 40. Building the window at its true size does not help; that was tried first and Windows does not care. So `window.rs` looks at where the window actually landed and, if any edge is outside the work area, rolls a new position uniformly inside it — both axes, because the cascade moves in both at once and keeping a good axis would leave every corrected window in the same column. A window too big to fit is pinned to the work area's near corner and allowed to overhang the far one, never resized. The window is created hidden, so all of it happens before anyone is looking. Verified on Windows 2026-09-13 with five instances.
 
+## How many windows a launch makes
+
+**No window is built during setup. Every window comes from the event loop, under one rule: if fuji has no window when it becomes ready, make one.** `window_first` in `window.rs` is that rule, and `Ready` in `lib.rs` is where it is asked.
+
+Walk the three cases and none of them needs a second rule. A double-click on macOS delivers the picture as an Apple event, which builds a window for it; `Ready` then finds a window and does nothing. A launch with nothing to show reaches `Ready` with no window and gets one there. On Windows and Linux the Apple event does not exist, so `Ready` is always the one that makes the window, out of whatever the command line carried.
+
+**Building the window during setup instead is what made a double-click open two,** one holding the picture and one blank. Recorded because it is the reason the rule is shaped this way, and because it hid for a day: the two windows were built at the same size and centred to the same rectangle, so the blank one sat exactly behind the picture and looked like a single correct window. The cascade pulled them apart and made it visible.
+
+**The event order this rests on, measured on the Mac mini 2026-09-14** with a cold launch through LaunchServices: `Opened` arrives 39 milliseconds before `setup()` runs and 52 before `Ready`. Only the second of those matters — `Ready` must come last — but the first is worth knowing, because it means a double-click builds fuji's window before fuji has finished setting itself up.
+
+`Ready` reaches every platform: it is tao's `StartCause::Init`, emitted in `app_state.rs` at `applicationDidFinishLaunching` on macOS, at `linux/event_loop.rs:236`, and at `windows/event_loop/runner.rs:377` when the runner leaves its uninitialised state.
+
 ## Where the work stands
 
-**Built and verified on the Mac mini, 2026-09-14:** two pictures opened while fuji runs give two windows in one process under one Dock tile; the command-line route Explorer uses still lands; residency, `Reopen` and Quit all behave; and the two windows are genuinely independent.
+**Built and verified on the Mac mini, 2026-09-14:** two pictures opened while fuji runs give two windows in one process under one Dock tile; the command-line route Explorer uses still lands; residency, `Reopen` and Quit all behave; the two windows are genuinely independent; and a cold double-click now creates one webview where it created two, counted rather than looked at.
 
-**Built and not yet verified:** the double-click itself, on either platform, which needs the build installed where LaunchServices can reach it. And everything on Windows, including that it compiles for the MSVC target — nothing there changes in kind, since that platform runs the one-entry case of the same code, but nothing there is proven either.
+**Not yet verified:** that the single window a double-click now makes is the one with the picture in it, which wants a person's eyes. And everything on Windows, including that it compiles for the MSVC target — nothing there changes in kind, since that platform runs the one-entry case of the same code, but nothing there is proven either.
 
 ## Still open
 

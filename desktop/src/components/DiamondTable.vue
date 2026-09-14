@@ -5,7 +5,7 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 
 import {ref, onBeforeUnmount} from 'vue'
 import {
-xy, raf, errorImageData,
+xy, raf, errorImageData, platform,
 screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 import {modelList, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
@@ -41,7 +41,7 @@ function start() {//the shell calls this when this view first comes on screen; m
 }
 function isFullscreen() { return fullscreenNow }//the shell asks before recording a window, because a fullscreen one is not one the user placed
 
-defineExpose({start, onKey, onResize, onDrop, isFullscreen})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing
+defineExpose({start, onKey, onResize, onDrop, isFullscreen, toggleFullscreen})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing. toggleFullscreen is here for the View menu, so the menu and a double-click reach the same code rather than two
 
 async function onKey(e) {
 	let Ctrl = e.ctrlKey || e.metaKey
@@ -68,11 +68,39 @@ async function onKey(e) {
 	else if (key == '-')                                    { zoom(false) }
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
-async function onDoubleClick(e) { await toggleFullscreen() }
+/*
+Fuji has two fullscreens, and that is on purpose.
+
+Anyone reading one of the places this touches will meet half of it and conclude something is wrong. Here is the whole of it.
+
+**The two are different things and each is right for a different moment.** macOS's own moves the window onto a Space of its own, with a second of animation, and is what Split View is built on; it suits settling in. Fuji's is *simple fullscreen* — `setSimpleFullscreen` below — which fills the screen where the window already is, instantly, with no Space and no animation. That is the one a picture viewer wants: check a detail, come straight back. The system's alone would be wrong for fuji, and fuji's alone would take Split View and a Space of one's own away from a Mac user who wants them. So fuji offers both.
+
+**The user meets both without having to learn a distinction.** In the View menu, fuji's item says *Toggle* Full Screen and the system's says *Enter*, becoming Exit once you are in it. Fuji's carries ⌃⌘F, the legacy spelling of the system shortcut that macOS no longer advertises; the system's carries Globe+F, which is what macOS shows today — so each label's shortcut does what that label says. A double-click on the table is fuji's, and the green traffic light is the system's.
+
+**Only one of those two menu items is fuji's.** macOS inserts *Enter Full Screen* by itself into any menu titled "View", so `menu.rs` writes one item and two appear. Nothing in fuji's code creates the second, and going looking for it is a wasted hour.
+
+**Telling the two states apart is possible because Tauri only knows about one of them.** `isFullscreen()` reports the system fullscreen and does not report the simple mode, which is why `fullscreenNow` below exists at all — fuji has to remember its own. Those two together answer, at any moment, which kind of fullscreen the window is in.
+
+**The one rule that stops them stacking: toggle means leave, whichever kind you are in.** Fuji's toggle asks first whether the window is already in a Space, and if it is, it leaves the Space rather than laying simple fullscreen on top. Without that a user ends up in both at once and has to peel out of each in turn, which is the defect this arrangement exists to prevent.
+
+**The other direction cannot be refused, only repaired.** The system's own menu item is macOS's, and fuji gets no say when it fires. So if the window is taken into a Space while simple fullscreen is on, `onResize` notices and lets fuji's state go, leaving the user cleanly in the Space they asked for. Whether macOS will even do that to a window whose Titled style mask has been cleared is unknown, so this may be a guard against something impossible.
+
+**Windows and Linux have one fullscreen, and that is why the two checks above are asked only on the mac.** Neither desktop has Spaces, so there is nothing for fuji's to collide with. It matters more than it sounds, because Tauri's `setSimpleFullscreen` falls back to the ordinary `setFullscreen` off macOS — so on those platforms fuji's own fullscreen *is* the system one, and `isFullscreen()` answers true for it. Asked there, the rule would read fuji's own fullscreen as a Space somebody else put the window in: the toggle would exit without the pan correction, and the repair would throw away `fullscreenNow` while the window was still fullscreen, leaving the next toggle trying to enter a fullscreen it was already in.
+
+**The obvious shortcut here is a trap, and it was taken once.** `NSWindowCollectionBehaviorFullScreenNone` shuts every door into the system fullscreen at once — the green button, the keystroke and the menu item together — and it works. It also costs Split View and any use of a fuji window as its own Space, to solve a confusion that the rule above solves for nothing. It was built, measured against the green button, and removed the same day. menu.md records the reversal.
+*/
+
+async function onDoubleClick(e) { await toggleFullscreen() }//fuji's own, and the shortest way to it
 let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and tauri's isFullscreen() doesn't report the simple mode
-async function toggleFullscreen() { await changeFullscreen(!fullscreenNow) }
+const twoFullscreens = platform() == 'mac'//is there a second, system fullscreen for ours to collide with. Only on the mac: setSimpleFullscreen falls back to the ordinary setFullscreen on windows and linux, so there isFullscreen() reports fuji's own fullscreen as true, and both checks below would read it as macOS having taken the window and act on a collision that cannot happen
+async function toggleFullscreen() {//fuji's own fullscreen, and the one place the two kinds meet
+	probeSize('toggle-called')//ttd-probe
+	if (twoFullscreens && await getCurrentWindow().isFullscreen()) { await getCurrentWindow().setFullscreen(false); return }//already in a macos space, put there by the system's own Enter Full Screen: toggle then means leave fullscreen, whichever kind it is, rather than laying ours on top of theirs
+	await changeFullscreen(!fullscreenNow)
+}
 async function changeFullscreen(destination) {
 	if (fullscreenNow == destination) return
+	probeSize(`ours-${destination ? 'enter' : 'leave'}`)//ttd-probe
 	fullscreenNow = destination//record where we're headed before awaiting frames, so a request arriving mid-transition sees the destination and not the state we're leaving
 	if (settings.fullscreen.curtain) {
 		curtainUp()//black out the frame so the transition's in-between frames can't show the image out of place
@@ -151,7 +179,18 @@ function onUp(e) {
 //                
 
 let screenToViewport1//arrow from screen corner to viewport corner before a change in to our out of full screen
+//ttd-probe temporary: why the frame sometimes stays at its old height after a macos fullscreen transition
+const probeBegan = Date.now()
+async function probeSize(when) {
+	let frame = frameRef.value
+	let computed = frame ? getComputedStyle(frame).height : '?'//what 100vh actually resolved to, which is the number that decides whether vh is stale or something else is constraining the element
+	let system = await getCurrentWindow().isFullscreen().catch(() => '?')//does macos think this window is in a space
+	log(`⭕ probe ${String(Date.now() - probeBegan).padStart(6)}ms ${when.padEnd(14)} frame ${frame?.clientWidth}x${frame?.clientHeight} css-height ${computed}, window ${window.innerWidth}x${window.innerHeight}, document ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}, ourFullscreen ${fullscreenNow}, systemFullscreen ${system}, space ${Math.round(quiverA.space?.x)}x${Math.round(quiverA.space?.y)}, zoom ${quiverA.zoom?.toFixed(3)}`)
+}
+setInterval(() => probeSize('heartbeat'), 2000)//slower than log.js's 1500ms quiet timer, or the batch would never go down to rust and the file would come out empty
+
 async function onResize() {//called whenever the viewport size changes
+	probeSize('resize')//ttd-probe
 	if (screenToViewport1) {//we've been waiting for this resize event to see where the viewport moved on the screen
 		let stv2 = await screenToViewport()//where it is now, after the full screen change
 		if (screenToViewport1 && stv2) dragSegment(xy(screenToViewport1, '-', stv2))
@@ -161,6 +200,8 @@ async function onResize() {//called whenever the viewport size changes
 			curtainDown()
 		}
 	}
+	//the other direction, which fuji cannot refuse: the system's own Enter Full Screen can take the window into a space while ours is on, and it never asks. So notice it here and let ours go, rather than keeping a record of a state the window no longer has. Only asked while ours is on, which is rare, and last so the transition above keeps its frame timing
+	if (twoFullscreens && fullscreenNow && await getCurrentWindow().isFullscreen()) fullscreenNow = false
 }
 
 function zoom(direction) {

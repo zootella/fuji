@@ -5,7 +5,9 @@ The other half of that surface is the plugins. A plugin brings a family of comma
 
 Neither plugin has a caller in the page yet, and both are here on purpose: reveal and the file dialogs are the next features, the grants beside them are already narrowed to what those features need, and taking them out to put them back is churn rather than safety.
 
-Three registrations, one piece of setup, and a launch is all this does. Plugins, then the shared state that outlives any one command, then the commands themselves, then the one thing that has to happen before any page exists, then start.
+Three registrations, one piece of setup, and a launch is all this does. Plugins, then the shared state that outlives any one command, then the commands themselves, then the menu, then start.
+
+**No window is made here.** Every window fuji has comes from the event closure below, under one rule rather than a launch case and a running case: Ready makes a window if fuji has none. A double-click on the mac delivers Opened before Ready, so the picture already has its window and Ready finds one and does nothing; a launch with nothing to show reaches Ready empty-handed and gets its window there; on windows and linux Opened never fires at all, so Ready is always the one. Making the window in setup instead is what made a double-click open two, one of them blank.
 
 The launch is split on purpose. Tauri's builder offers .run(), which starts the application and never returns; this file calls .build() and then .run(closure) instead, because the closure is handed every event the application loop produces, and one of them — Exit — is fuji's last chance to write anything to disk. desktop.rs carries the long version of why that event and no other.
 
@@ -16,6 +18,7 @@ mod associate;//each of these compiles the sibling .rs file of the same name
 mod desktop;
 mod disk;
 mod log;
+mod menu;
 mod open;
 mod panel;
 mod settings;
@@ -46,22 +49,25 @@ pub fn run() {
 			]
 		)
 		.setup(|app| {//before any page exists, which is the whole reason this is here rather than in the page
-			window::window_build(app.handle(), open::open_argv())?;//fuji's first window, made for whatever the command line handed over — which on windows and linux is how a double-clicked file arrives, with no later event to catch it. window.rs has the size, the placing, and the correction when the manager puts it off the screen
+			#[cfg(target_os = "macos")]
+			menu::menu_set(app.handle())?;//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
 			Ok(())
 		})
 		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
 		.expect("error while building tauri application")//panic if startup fails (e.g. bad config)
 		.run(|app, event| {//this closure sees every event the application loop produces, for the life of the process
 			match event {
+				tauri::RunEvent::Ready => window::window_first(app, open::open_argv()),//fuji's first window, unless a picture has already been given one; window.rs has why that is a whole rule rather than a launch case
 				tauri::RunEvent::Exit => { desktop::desktop_exit_write(app); log::log_write() }//the one event every quit path reaches; desktop.rs says why
 				tauri::RunEvent::ExitRequested { code, api, .. } => {//raised only when the last window is destroyed, and never by the mac quit menu or a logout, which reach Exit above instead
 					desktop::desktop_exit_write(app); log::log_write();//write now, rather than at a quit that on the mac may be hours away or may never come before the machine is turned off
 					if code.is_none() && window::window_stays_resident() { api.prevent_exit() }//a code means somebody asked to exit on purpose; without one this is the last window closing, and the mac alone keeps the process and its dock icon after that
 				}
 				#[cfg(target_os = "macos")]//the variant is gated to macos, ios and android in tauri itself, so an arm without this would not compile on windows
-				tauri::RunEvent::Opened { urls } => window::window_open(app, open::open_urls(urls)),//the user opened pictures with fuji, at launch or while it was already up; either way they get a window of their own
+				tauri::RunEvent::Opened { urls } => window::window_open(app, open::open_urls(urls)),//the user opened pictures with fuji; at launch this is what fuji started for and arrives before the arm above, and afterwards it is a request for another window. Either way the pictures get a window of their own
 				#[cfg(target_os = "macos")]
 				tauri::RunEvent::Reopen { has_visible_windows, .. } => { if !has_visible_windows { window::window_open(app, vec![]) } }//the dock icon clicked with nothing behind it, which is how a mac user asks a resident application for a window back
+				tauri::RunEvent::MenuEvent(event) => menu::menu_chosen(app, event),//fuji makes a window itself and hands the other two items to the page, which already knows how to do them
 				_ => {}//RunEvent is non-exhaustive, and everything else is somebody else's business
 			}
 		});
