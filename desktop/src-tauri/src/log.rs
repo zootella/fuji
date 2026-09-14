@@ -2,7 +2,7 @@ use std::sync::Mutex;
 use tauri::command;
 
 /*
-Fuji's log: one text file per run, written when the application exits, holding every line the page or Rust chose to keep. log.js is the page's half and carries the essay on why a file beats a console. This is the half that holds the text and writes it, because only Rust sees a quit coming — desktop.rs has why RunEvent::Exit is the one place a file can still be written.
+Fuji's log: one text file per run, holding every line the page or Rust chose to keep. A run is a stretch with windows open rather than the life of the process — the file is written when the last one closes, and on macOS, where fuji stays in the dock after that, a window opened later starts a new file. log.js is the page's half and carries the essay on why a file beats a console. This is the half that holds the text and writes it, because only Rust sees a quit coming — desktop.rs has why RunEvent::Exit is the one place a file can still be written.
 
 Two callers add lines. The page hands its lines down through log_append, a batch at a time. Rust code calls log(text), from anywhere, and it lands in the same text. Neither side promises an exact order against the other, and console.log never did either.
 
@@ -35,7 +35,6 @@ pub fn log_append(text: String) {
 }
 
 /// One line from rust; callable from anywhere, and a no-op when the page has not started a log
-#[allow(dead_code)]//no caller yet; it is here so the next one is a call rather than a design
 pub fn log(text: &str) {
 	let mut log = LOG.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 	if log.path.is_empty() { return }
@@ -43,7 +42,7 @@ pub fn log(text: &str) {
 	log.text.push('\n');
 }
 
-/// Write the file; called from RunEvent::Exit, after which nothing above can be told how it went
+/// Write the file; called when the last window closes and again from RunEvent::Exit, after which nothing above can be told how it went
 pub fn log_write() {
 	let mut log = LOG.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 	if log.path.is_empty() || log.text.is_empty() { return }
@@ -52,4 +51,5 @@ pub fn log_write() {
 		eprintln!("fuji could not write its log on the way out: {e}");//stderr, the only place left, and one nobody is likely watching
 	}
 	log.text.clear();//so nothing is written twice if this is somehow reached again
+	log.path.clear();//and the run is over: a later window names a new file rather than appending here, which matters because this write truncates and a second one would keep only the lines that came after the first
 }

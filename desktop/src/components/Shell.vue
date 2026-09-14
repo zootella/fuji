@@ -2,7 +2,6 @@
 
 import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
-import {listen} from '@tauri-apps/api/event'
 import {raf, forwardize, revealWindow, windowTitle} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it; the path and the folder are here for the title bar, which is the shell's because the window is
@@ -78,17 +77,11 @@ onMounted(async () => {
 	await revealWindow()//rust built the window at the right size already; this only reveals it
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
-	if (opened.length) reportTrouble(() => activeView()?.onDrop?.(opened[0]))//a launch with a file is a drop that fuji was not running for, so it takes the path a drop already takes: the model lists the folder, applies the sort, and stands on the image. Only the first of them, because fuji has one window and instances.md owns what more than one would mean
+	if (opened.length) reportTrouble(() => activeView()?.onDrop?.(opened[0]))//a launch with a file is a drop that fuji was not running for, so it takes the path a drop already takes: the model lists the folder, applies the sort, and stands on the image. Only the first of them, because one window shows one picture; instances.md decided that a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
 	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a build with nothing to do, and only windows has anything to say
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
-	unlistenOpen = await listen('open', () => reportTrouble(async () => {//macos hands a running fuji another picture this way; on windows it never fires, because explorer starts a second fuji instead
-		let more = (await openFiles()).map(forwardize)
-		if (!more.length) return
-		await showView('Table', false)//a picture the user just asked for belongs on a table, and without remembering it, for the same reason as at startup
-		await activeView()?.onDrop?.(more[0])
-	}))
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView()?.onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
 	})
@@ -96,12 +89,11 @@ onMounted(async () => {
 	await recordWindow(w)//onResized reports only changes, so without this a session where the user never touches the window records nothing
 	unlistenResized = await w.onResized(() => { if (isFullscreen()) return; recordWindow(w) })//the payload is in tauri's physical pixels, so ask again in css ones rather than convert it here
 })
-let unlistenFileDrop, unlistenResized, unlistenOpen//will hold the unsubscribe functions set above and called below
+let unlistenFileDrop, unlistenResized//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
 	if (unlistenFileDrop) unlistenFileDrop()
-	if (unlistenOpen) unlistenOpen()
 	if (unlistenResized) unlistenResized()
 })
 

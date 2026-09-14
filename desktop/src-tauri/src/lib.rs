@@ -5,7 +5,7 @@ The other half of that surface is the plugins. A plugin brings a family of comma
 
 Neither plugin has a caller in the page yet, and both are here on purpose: reveal and the file dialogs are the next features, the grants beside them are already narrowed to what those features need, and taking them out to put them back is churn rather than safety.
 
-Three registrations, one piece of setup, and a launch is all this does. Plugins, then the shared state that outlives any one command, then the commands themselves, then the two things that have to happen before the page exists, then start.
+Three registrations, one piece of setup, and a launch is all this does. Plugins, then the shared state that outlives any one command, then the commands themselves, then the one thing that has to happen before any page exists, then start.
 
 The launch is split on purpose. Tauri's builder offers .run(), which starts the application and never returns; this file calls .build() and then .run(closure) instead, because the closure is handed every event the application loop produces, and one of them — Exit — is fuji's last chance to write anything to disk. desktop.rs carries the long version of why that event and no other.
 
@@ -45,10 +45,8 @@ pub fn run() {
 				associate::associate_register,//and in associate.rs
 			]
 		)
-		.setup(|app| {//before the window exists, which is the whole reason both of these are here rather than in the page
-			open::open_argv(app.handle());//on windows and linux a double-clicked file arrives as an argument to this process, and there is no later event to catch it
-
-			window::window_build(app)?;//the size out of the settings file, the placing left to the window manager, and a correction if that puts it off the edge of the screen; window.rs has all three
+		.setup(|app| {//before any page exists, which is the whole reason this is here rather than in the page
+			window::window_build(app.handle(), open::open_argv())?;//fuji's first window, made for whatever the command line handed over — which on windows and linux is how a double-clicked file arrives, with no later event to catch it. window.rs has the size, the placing, and the correction when the manager puts it off the screen
 			Ok(())
 		})
 		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
@@ -56,8 +54,14 @@ pub fn run() {
 		.run(|app, event| {//this closure sees every event the application loop produces, for the life of the process
 			match event {
 				tauri::RunEvent::Exit => { desktop::desktop_exit_write(app); log::log_write() }//the one event every quit path reaches; desktop.rs says why
+				tauri::RunEvent::ExitRequested { code, api, .. } => {//raised only when the last window is destroyed, and never by the mac quit menu or a logout, which reach Exit above instead
+					desktop::desktop_exit_write(app); log::log_write();//write now, rather than at a quit that on the mac may be hours away or may never come before the machine is turned off
+					if code.is_none() && window::window_stays_resident() { api.prevent_exit() }//a code means somebody asked to exit on purpose; without one this is the last window closing, and the mac alone keeps the process and its dock icon after that
+				}
 				#[cfg(target_os = "macos")]//the variant is gated to macos, ios and android in tauri itself, so an arm without this would not compile on windows
-				tauri::RunEvent::Opened { urls } => open::open_urls(app, urls),//the user double-clicked a picture, at launch or while fuji was already running; open.rs says why it is held rather than delivered
+				tauri::RunEvent::Opened { urls } => window::window_open(app, open::open_urls(urls)),//the user opened pictures with fuji, at launch or while it was already up; either way they get a window of their own
+				#[cfg(target_os = "macos")]
+				tauri::RunEvent::Reopen { has_visible_windows, .. } => { if !has_visible_windows { window::window_open(app, vec![]) } }//the dock icon clicked with nothing behind it, which is how a mac user asks a resident application for a window back
 				_ => {}//RunEvent is non-exhaustive, and everything else is somebody else's business
 			}
 		});

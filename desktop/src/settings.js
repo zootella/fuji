@@ -216,6 +216,6 @@ export function settingsChanged() {//call after changing a value in settings, th
 	let text = settingsRender(settings)
 	if (text == settingsHeldText) return//rust's view already matches, which is what a move event reporting the same position produces
 	settingsHeldText = text
-	desktopExitHold(settingsFilePath, text == settingsFileText ? '' : text)//blank when the settings are back to what is on the disk, so an undone change writes nothing at all
+	desktopExitHold(settingsFilePath, text)//never blank, even when this matches what is on the disk: rust holds one text per path for the whole process, so on the mac a blank from one window would erase the change another window is waiting to write. A window only reaches this line when something in it actually moved, so what it hands down is always its own true view
 		.catch(error => logTrouble('settings: handing the file down to rust', error))
 }

@@ -14,7 +14,7 @@ Built and verified on the Mac mini: the ten types declared in a hand-written `In
 
 Built and run on the Windows 10 box, 2026-09-13: the runtime registration in `associate.rs` wrote its ten types and 65 values on a first launch and none on the second, `open.rs` carried a double-clicked picture in on every launch, and a `.webp` chosen through Explorer's own dialog opened fuji onto that picture with its folder behind it. The before-and-after registry comparison is in the answered section at the end, and it confirms the thing this document most wanted confirmed: fuji appended itself to every offer list and took no type from anyone.
 
-Not built: the uninstall hook, document icons, and any way for a user to discover or use any of this from inside fuji. Single instance is no longer on that list and never will be — `instances.md` decided on 2026-09-13 that fuji runs one process per window on both platforms, which Windows already does and macOS is being changed to match.
+Not built: the uninstall hook, document icons, and any way for a user to discover or use any of this from inside fuji. Single instance is no longer on that list and never will be — `instances.md` decided on 2026-09-14 that Windows and Linux get a process per double-click, which their shells already do, and that macOS holds many windows in one process.
 
 **The concession, stated plainly, because a later reader will otherwise assume this shipped in a usable state.** Fuji registers correctly and a person cannot reasonably be expected to find how to use it. Making fuji the default on macOS means Get Info, then expanding a collapsed *Open with:* section, then a small button reading *Change All…* — while the Open With submenu, which is the obvious place and the one a user will actually open, offers no way to set a default at all. The route took the person who had just written this document several tries to find. Nothing fuji does from outside Finder improves it. So the honest description of the first pass is that it works and that nobody will find it, which is tolerable only while the only user is the one who built it. The settings panel in the second pass is what fixes this, and that is now its reason rather than the milder one recorded below.
 
@@ -115,11 +115,11 @@ The first line is mechanism 1 above: it claims the extension. Tauri writes no `O
 
 **One shape covers both platforms: hold a list in Rust and let the page drain it.** Something filled from `argv` at startup on Windows and from `RunEvent::Opened` on the Mac, handed over and emptied when the page first asks. The page then has one path through this rather than two, and the launch-time and while-running cases differ only in when the list gets filled. Unwritten.
 
-**A second double-click while fuji is running starts a second fuji on Windows, and that is now the decided behaviour on both platforms.** `instances.md` settles it, on 2026-09-13: one process per window everywhere, because the isolation is then the operating system's guarantee rather than a discipline fuji has to keep in every feature it ever writes.
+**A second double-click while fuji is running starts a second fuji on Windows, and that is the decided behaviour there.** `instances.md` settles it, on 2026-09-14, and settles macOS the other way: one process holding a window per picture, because the Dock draws a tile per process and several would read as a mistake.
 
 That makes Windows correct by doing nothing, and it is worth saying what "nothing" means so it is not undone later. `tauri-plugin-single-instance` hands a new process's arguments to the running one and exits, which would give exactly the behaviour the decision rejects — the running window turning to the new picture and losing what it was showing. It is not a dependency and must not become one.
 
-macOS is the side that needs code, because it will not launch a second copy for a double-click; it sends the running instance an Apple event instead. So the running instance is the only thing that learns, and starting the second instance is its job. `instances.md` carries the reasoning and the conceded costs.
+macOS is the side that needs code, because it will not launch a second copy for a double-click; it sends the running instance an Apple event instead. So the running process is the only thing that learns, and making another window is its job. `instances.md` carries the reasoning and the conceded costs.
 
 ## The plan, and what it became
 
@@ -223,7 +223,7 @@ A listener for the macOS event does 1 and 3 again while fuji is running.
 
 ### What the user experiences
 
-**macOS.** Drag `Fuji.app` to Applications; nothing appears, because macOS never announces a new handler. From that moment fuji is in Finder's Open With for those ten types, before it has ever been run. Double-click still opens Preview. A user who wants fuji selects a file, ⌘I, *Open with* → Fuji, *Change All…*, and confirms the sheet macOS puts up. After that, a double-click launches fuji onto that picture with its folder behind it. A second double-click while fuji is running turns the same window to the new picture, which is the first pass's behaviour and is now the thing to change: `instances.md` decides that it should start a second fuji instead, as Windows already does.
+**macOS.** Drag `Fuji.app` to Applications; nothing appears, because macOS never announces a new handler. From that moment fuji is in Finder's Open With for those ten types, before it has ever been run. Double-click still opens Preview. A user who wants fuji selects a file, ⌘I, *Open with* → Fuji, *Change All…*, and confirms the sheet macOS puts up. After that, a double-click launches fuji onto that picture with its folder behind it, and a second double-click while fuji is running opens a second window on the new picture, leaving the first exactly as it was. Closing every window leaves fuji in the Dock with its dot, and clicking that tile brings a window back; `instances.md` owns all of it.
 
 **Windows, walked through on the Windows 10 box 2026-09-13 rather than predicted.** Run the installer, which writes nothing about file types — verified by the absence of any extension default value and of the `<ProgID>_backup` values Tauri's NSIS macro leaves when it takes one. Launch fuji once; it registers, and because the command paths come from `current_exe()` a registration written by a different copy of fuji repoints itself rather than needing cleanup. From that moment fuji is in Explorer's Open with.
 
@@ -235,7 +235,7 @@ Then, in the order a user actually meets them:
 
 **What changes in Explorer afterwards is immediate and more visible than expected.** The Type column shows fuji's own name for the type — *WebP Image*, the string from `imageTypes` — and the file icon becomes fuji's application icon, because `DefaultIcon` has nowhere else to point. The icon question below stops being theoretical at this moment.
 
-A second double-click while fuji is running starts a second fuji, which is the decided behaviour rather than an accident of the platform — `instances.md` owns it, and verified two live processes here on 2026-09-13.
+A second double-click while fuji is running starts a second fuji, which is the decided behaviour on this platform rather than an accident of it — `instances.md` owns it, and verified two live processes here on 2026-09-13.
 
 ### Uninstalling
 
@@ -263,7 +263,9 @@ Not built here, and recorded now so the first pass can be checked against it. Ag
 
 **A document icon is a new artifact and belongs to `icon.md`,** which already owns how fuji's icons are made and what each platform expects: an `.icns` in the bundle's Resources named by `CFBundleTypeIconFile` on macOS, and something for `DefaultIcon` to point at on Windows. Per-extension ProgIDs mean a different icon per format is possible later without a migration.
 
-**On macOS a document type with no `CFBundleTypeIconFile` gets a generic document icon.** But Finder draws pictures as Quick Look previews rather than as the handler's document icon, so the expectation — untested — is that these files keep looking like themselves on the Mac. Ten minutes on the Mac mini settles it.
+**On macOS this costs nothing, which is measured rather than hoped.** Checked on the Mac mini, macOS 15.7.4, 2026-09-14, with `.jpg` and `.webp` both set to open with fuji: Finder in icon view still draws every file as a picture of itself, and double-clicking still opens fuji. Quick Look previews win over the handler's document icon, so fuji writing no `CFBundleTypeIconFile` costs a Mac user nothing at all.
+
+**On Windows it costs a great deal, and that is where a document icon is needed.** The moment a type is fuji's, Explorer draws every file of it as fuji's application icon — a flat mint disc carrying no information — because `DefaultIcon` has nowhere else to point. So a folder of pictures becomes a folder of identical discs. The two platforms disagree completely here: this work is for Windows, and a Mac user would never notice it was done.
 
 ## Open
 
