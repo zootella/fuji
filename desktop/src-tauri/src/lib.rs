@@ -18,6 +18,7 @@ mod associate;//each of these compiles the sibling .rs file of the same name
 mod desktop;
 mod disk;
 mod log;
+#[cfg(target_os = "macos")]//the whole module is macos-only: it calls tauri menu methods that do not exist on other targets, and a menu belongs along the top of the screen only here
 mod menu;
 mod open;
 mod panel;
@@ -67,6 +68,7 @@ pub fn run() {
 				tauri::RunEvent::Opened { urls } => window::window_open(app, open::open_urls(urls)),//the user opened pictures with fuji; at launch this is what fuji started for and arrives before the arm above, and afterwards it is a request for another window. Either way the pictures get a window of their own
 				#[cfg(target_os = "macos")]
 				tauri::RunEvent::Reopen { has_visible_windows, .. } => { if !has_visible_windows { window::window_open(app, vec![]) } }//the dock icon clicked with nothing behind it, which is how a mac user asks a resident application for a window back
+				#[cfg(target_os = "macos")]//this variant exists on every desktop, unlike the two above; what is mac-only is fuji's menu module, which nothing off the mac compiles
 				tauri::RunEvent::MenuEvent(event) => menu::menu_chosen(app, event),//fuji makes a window itself and hands the other two items to the page, which already knows how to do them
 				_ => {}//RunEvent is non-exhaustive, and everything else is somebody else's business
 			}

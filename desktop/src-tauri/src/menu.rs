@@ -20,6 +20,8 @@ pub const MENU_NEW_WINDOW: &str = "menu-new-window";
 pub const MENU_OPEN: &str = "menu-open";
 pub const MENU_FULLSCREEN: &str = "menu-fullscreen";
 
+const MENU_VIEW: &str = "View";//the submenu's title, named once because two things below have to agree on it: the menu fuji builds, and the lookup that finds it again afterwards
+
 /// Build the menu bar and make it the application's; lib.rs calls this during setup, on macOS only
 pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 	let windows = Submenu::with_items(app, "Window", true, &[
@@ -55,7 +57,7 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 			&PredefinedMenuItem::paste(app, None)?,
 			&PredefinedMenuItem::select_all(app, None)?,
 		])?,
-		&Submenu::with_items(app, "View", true, &[
+		&Submenu::with_items(app, MENU_VIEW, true, &[
 			&MenuItem::with_id(app, MENU_FULLSCREEN, "Toggle Full Screen", true, Some("CmdOrCtrl+Ctrl+F"))?,//fuji's own fullscreen, not the system's, and macOS adds a second item of its own to any menu called View — the essay above toggleFullscreen in DiamondTable.vue is the whole subject and worth reading before touching either. ⌃⌘F is the keystroke a mac user already knows, reaching the code a double-click reaches. Spelled this way because muda parses "Cmd" to Modifiers::META and its macos layer only turns Modifiers::SUPER into the command key — so "Ctrl+Cmd+F" silently loses the command and becomes ⌃F. The CmdOrCtrl family is the only spelling that produces command here, which is why the two items above use it
 		])?,
 		&windows,
@@ -65,8 +67,30 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 	])?;
 
 	app.set_menu(menu)?;
+	menu_validate_view();//after the menu is the application's, because it asks AppKit for the menu bar and would otherwise find nothing; the essay below is the subject
 	windows.set_as_windows_menu_for_nsapp()?;//after the menu is the application's, and only there: muda finds this submenu by walking NSApp's own main menu, so called any earlier it resolves nothing and returns quietly, which is exactly how the window list came out empty the first time. macOS then keeps it filled with every open window, named by its title bar — the picture on a table, the folder on the sheet
 	Ok(())
+}
+
+/*
+Let AppKit keep its own menu item's label honest, which muda otherwise prevents.
+
+macOS puts a second item into the View menu by itself — *Enter Full Screen*, on the Globe+F shortcut — so fuji writes one item there and two appear. That one is meant to retitle itself to *Exit Full Screen* while the window is in a Space, and in fuji it never did.
+
+The retitling is not a mechanism of its own: it is part of menu validation. Before a menu opens, AppKit walks its items and asks the responder chain to validate each, and `NSWindow`'s answer for `toggleFullScreen:` both enables that item and rewrites its title. The walk only happens while the menu's `autoenablesItems` is on, and **muda turns it off on every menu and submenu it builds** — reasonably, since muda tracks each item's enabled state itself and automatic enabling would fight it. The collision exists only because macOS adds an item muda knows nothing about, and that is the one item needing validation. So this turns the flag back on, for the View submenu alone, by setting a property on an AppKit object muda handed over — which keeps it in the same safe category as `ns_window()` rather than the category a custom dock menu would need.
+
+**Fuji's own item is not put at risk**, which was worth checking before writing this. AppKit leaves an item enabled when it has an explicit target that responds to its action and that target does not implement `validateMenuItem:`; muda sets each item's target to the item itself with an action it implements, and implements `validateMenuItem:` nowhere. So fuji's Toggle Full Screen stays enabled, and only the system's item — which has no target and so reaches `NSWindow` — is validated and retitled.
+
+Every way this can fail leaves the label as wrong as it already was and nothing worse: a muda that stops disabling validation makes this a no-op, one that disables it after us puts the stale label back, and a View submenu that cannot be found means doing nothing.
+*/
+fn menu_validate_view() {
+	let Some(marker) = objc2::MainThreadMarker::new() else { return };//setup runs on the main thread, so this is a formality the type system asks for rather than a real question
+	let application = objc2_app_kit::NSApplication::sharedApplication(marker);
+	let Some(bar) = application.mainMenu() else { return };//no menu bar yet, which means this ran too early
+	let title = objc2_foundation::NSString::from_str(MENU_VIEW);
+	let Some(view) = bar.itemWithTitle(&title) else { return };
+	let Some(submenu) = view.submenu() else { return };
+	submenu.setAutoenablesItems(true);
 }
 
 /// Act on a chosen menu item: make a window here, or tell the frontmost window's page about the ones it owns

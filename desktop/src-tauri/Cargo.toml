@@ -34,3 +34,6 @@ windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging", "Win
 core-graphics = "0.25.0"
 core-foundation = "0.10" # already beneath core-graphics; named so thumbnail.rs can build ImageIO's option dictionary
 foreign-types-shared = "0.3"
+objc2 = "0.6" # menu.rs turns AppKit's menu validation back on for the View submenu; all three are already in the tree beneath tao
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"

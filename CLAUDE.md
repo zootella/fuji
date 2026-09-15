@@ -73,6 +73,12 @@ pnpm win          # Launch the built windows exe
 ```
 Roughly what a release build costs, so a long one does not read as a hang: on the Mac mini about 20 seconds when only the frontend changed and a minute or so when Rust has to compile again; on the Windows 10 box 2m52s cold and about 45 seconds warm. The release profile shares nothing with the debug profile `pnpm local` uses, so the first release build after a stretch of dev work compiles everything over again.
 
+**A session builds when there is a reason to, and picks the smallest build that gives it.** Not every turn, and not by habit at the end of a change.
+
+**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. **To prove the release profile compiles and links**, `pnpm build-binary` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm build` for the dmg; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
+
+Building the dmg every turn is the habit to avoid: it is the slowest thing here, it produces a file nobody asked for, and it says nothing that `cargo check` did not already say.
+
 ### Frontend Only (for rapid UI iteration)
 ```bash
 pnpm dev          # Run Vite dev server without Tauri
