@@ -111,7 +111,7 @@ async function menuChose(id) {//the page's half of the menu bar: rust makes a wi
 		let chosen = await openDialog({multiple: false, directory: false})//every file, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter. Choosing something fuji cannot show is harmless — the model lists the folder and stands on the first picture in it
 		if (chosen) await activeView()?.onDrop?.(forwardize(chosen))//the same call a dropped file takes and a double-clicked one takes, which is the point: three ways in, one road after that
 	}
-	else if (id == 'menu-fullscreen') { log('⭕ probe menu: Toggle Full Screen chosen'); await activeView()?.toggleFullscreen?.() }//ttd-probe//fuji's own fullscreen rather than macOS's, which is a subject of its own: the essay above toggleFullscreen in DiamondTable.vue says why there are two and how they keep out of each other's way. Optional because only a table has one; on the sheet the item does nothing rather than breaking
+	else if (id == 'menu-fullscreen') await activeView()?.toggleFullscreen?.()//fuji's own fullscreen rather than macOS's, which is a subject of its own: the essay above toggleFullscreen in DiamondTable.vue says why there are two and how they keep out of each other's way. Optional because only a table has one; on the sheet the item does nothing rather than breaking
 }
 
 function activeView() { return showing.value == 'Sheet' ? sheetRef.value : tableRef.value }

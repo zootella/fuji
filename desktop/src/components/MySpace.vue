@@ -184,7 +184,7 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 <!-- Frame: single outer div sized to component; handles clicks and has repeating background we'll translate along with the card below -->
 <div
 	ref="frameRef"
-	class="myFrame myDots myWillChangeBackgroundPosition relative w-screen h-screen overflow-hidden select-none touch-none"
+	class="myFrame myDots myWillChangeBackgroundPosition relative w-full h-full overflow-hidden select-none touch-none"
 	@contextmenu.prevent
 	@dblclick.prevent="onDoubleClick"
 	@pointerdown="onPointerDown"

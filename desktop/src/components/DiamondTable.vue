@@ -94,13 +94,11 @@ async function onDoubleClick(e) { await toggleFullscreen() }//fuji's own, and th
 let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and tauri's isFullscreen() doesn't report the simple mode
 const twoFullscreens = platform() == 'mac'//is there a second, system fullscreen for ours to collide with. Only on the mac: setSimpleFullscreen falls back to the ordinary setFullscreen on windows and linux, so there isFullscreen() reports fuji's own fullscreen as true, and both checks below would read it as macOS having taken the window and act on a collision that cannot happen
 async function toggleFullscreen() {//fuji's own fullscreen, and the one place the two kinds meet
-	probeSize('toggle-called')//ttd-probe
 	if (twoFullscreens && await getCurrentWindow().isFullscreen()) { await getCurrentWindow().setFullscreen(false); return }//already in a macos space, put there by the system's own Enter Full Screen: toggle then means leave fullscreen, whichever kind it is, rather than laying ours on top of theirs
 	await changeFullscreen(!fullscreenNow)
 }
 async function changeFullscreen(destination) {
 	if (fullscreenNow == destination) return
-	probeSize(`ours-${destination ? 'enter' : 'leave'}`)//ttd-probe
 	fullscreenNow = destination//record where we're headed before awaiting frames, so a request arriving mid-transition sees the destination and not the state we're leaving
 	if (settings.fullscreen.curtain) {
 		curtainUp()//black out the frame so the transition's in-between frames can't show the image out of place
@@ -179,22 +177,7 @@ function onUp(e) {
 //                
 
 let screenToViewport1//arrow from screen corner to viewport corner before a change in to our out of full screen
-//ttd-probe temporary: why the frame sometimes stays at its old height after a macos fullscreen transition
-const probeBegan = Date.now()
-const vhRef = ref(null)//ttd-probe: an invisible strip exactly 100vh tall, kept only so the log can catch vh lying
-async function probeSize(when) {
-	let frame = frameRef.value
-	let computed = frame ? getComputedStyle(frame).height : '?'//what 100vh actually resolved to, which is the number that decides whether vh is stale or something else is constraining the element
-	let system = await getCurrentWindow().isFullscreen().catch(() => '?')//does macos think this window is in a space
-	let vh = vhRef.value?.clientHeight//what 100vh says right now, which is the measurement under suspicion
-	let html = document.documentElement.clientHeight, body = document.body.clientHeight, app = document.getElementById('app')?.clientHeight
-	let agree = (vh == window.innerHeight && html == window.innerHeight && body == window.innerHeight && app == window.innerHeight && frame?.clientHeight == window.innerHeight)
-	log(`⭕ probe ${String(Date.now() - probeBegan).padStart(6)}ms ${when.padEnd(14)} ${agree ? 'agree ' : 'DIFFER'} heights: window ${window.innerHeight}, vh ${vh}, html ${html}, body ${body}, app ${app}, frame ${frame?.clientHeight} (css ${computed}); width window ${window.innerWidth} frame ${frame?.clientWidth}; ourFullscreen ${fullscreenNow}, systemFullscreen ${system}, space ${Math.round(quiverA.space?.x)}x${Math.round(quiverA.space?.y)}, zoom ${quiverA.zoom?.toFixed(3)}`)
-}
-setInterval(() => probeSize('heartbeat'), 2000)//slower than log.js's 1500ms quiet timer, or the batch would never go down to rust and the file would come out empty
-
 async function onResize() {//called whenever the viewport size changes
-	probeSize('resize')//ttd-probe
 	if (screenToViewport1) {//we've been waiting for this resize event to see where the viewport moved on the screen
 		let stv2 = await screenToViewport()//where it is now, after the full screen change
 		if (screenToViewport1 && stv2) dragSegment(xy(screenToViewport1, '-', stv2))
@@ -439,9 +422,6 @@ let here = null//the store's entry for the image on the card, which is where the
 	@pointermove="onPointerMove"
 	@pointerup="onUp" @pointercancel="onUp" @lostpointercapture="onUp"
 >
-
-	<!--ttd-probe: an invisible strip exactly 100vh tall, so the log can catch vh lying-->
-	<div ref="vhRef" class="myDry absolute top-0 left-0 w-0 invisible" style="height: 100vh"></div>
 
 	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div

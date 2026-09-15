@@ -73,9 +73,9 @@ The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already g
 
 ## Where the work stands
 
-**Written on 2026-09-14 and awaiting a smoke test:** the two-fullscreen arrangement above.
+**Tested and working on the Mac mini, 2026-09-14.** A double-click opens one window. The File menu holds New Window and Open…; ⌘N makes a window; ⌘O raises one picker in the focused window alone, listing every file rather than only pictures. The Window submenu lists the open windows and switches between them. Both fullscreens are reachable and neither lands on top of the other: the green traffic light offers the system's, View offers both, ⌃⌘F runs fuji's, and fuji's toggle leaves a Space when it finds itself in one.
 
-**Tested and working on the Mac mini, 2026-09-14:** a double-click opens one window; the File menu holds New Window and Open…; ⌘N makes a window; the Window submenu lists the open windows and switches between them; ⌘O raises one picker in the focused window only, listing every file rather than only pictures.
+**One bug came out of this work and is fixed.** Entering a Space could leave a view stopping partway down the screen with bare page below it. It was never a menu problem: WebKit keeps a cached viewport for `vh` units and that cache lags, so `h-screen` — which every view used — could be built on a stale number. `index.css` now chains a percentage from the document element instead and forbids the page to scroll, and its essay carries the measurements. Logged 28 disagreements in one session, `vh` wrong every time and alone every time, worst error 156 pixels.
 
 **Gained along the way, unplanned:** the Window submenu is now registered with AppKit, so macOS keeps it filled with the open windows. Tauri's default menu never did this, so that list had always been empty rather than working as this document first assumed.
 

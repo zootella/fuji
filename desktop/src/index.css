@@ -1,12 +1,16 @@
 @import "tailwindcss";
 
 /*
-The one place fuji says how tall its page is, and it is deliberately not `100vh`.
+The one place fuji says how big its page is, and it is deliberately not `100vh`.
 
-Every view — the sheet and each table — fills the window exactly. The obvious spelling is `h-screen`, which is `height: 100vh`, and it is wrong here: WebKit leaves `vh` stale after a macOS fullscreen transition, so entering a Space can leave a view stopping partway down the screen with bare page below it, until something forces a fresh layout. Measured on the Mac mini 2026-09-14, `100vh` resolved to 889px while the window was genuinely 1200 and stayed that way for eleven seconds.
+Every view — the sheet and each table — fills the window exactly, and the obvious spelling for that is `h-screen`, which is `height: 100vh`. It is the wrong one here. **WebKit keeps a cached viewport for viewport units, and that cache lags reality.** A percentage does not use it: it resolves against the real box of its parent. So the views chain `h-full` down from the document element, and this rule is that chain.
 
-So the views chain a percentage down from the document element instead, and this rule is that chain. A percentage resolves against the real box of its parent rather than against whatever viewport `vh` has cached.
+Measured on the Mac mini, macOS 15.7.4, on 2026-09-14, by logging every candidate measurement side by side through a session of ordinary use. `vh` disagreed with the window 28 times. **In all 28 it was the only measurement that was wrong** — `window.innerHeight`, the document element, the body, `#app` and the view's own box agreed with each other every time. The worst error was 156 pixels.
 
-`overflow: hidden` is the other half and matters as much. Fuji's page never scrolls — the contact sheet scrolls inside itself, on its own element — so a scrollbar on the page can only ever be a symptom of something being the wrong size. Turning it off removes a whole class of bug rather than one instance: without it, a view briefly too large makes a scrollbar appear, which shrinks the space available, which changes what "full height" means, which is a loop that shows up as flickering scrollbars and stuttering window resizes.
+It is worth knowing this is not only a fullscreen problem, because that is where it was found and the narrow reading would be easy to write down. `vh` was 28 pixels short during plain window dragging with no fullscreen anywhere near it. Entering a macOS Space is simply where it goes badly wrong and then sticks: the window animates to full screen, `vh` stops at a height from the middle of that animation, and nothing ever revisits it. The symptom is a view that stops partway down a full screen with bare page below it, and it stays until something forces a fresh layout — a pan would do it, which is why it looked intermittent and mysterious for so long.
+
+**`overflow: hidden` is the other half and earns its place separately.** Fuji's page never scrolls; the contact sheet scrolls inside itself, on its own element. So a scrollbar on the page can only ever be the symptom of something being the wrong size, and turning it off removes a class of bug rather than an instance of one. Without it, a view briefly too large raises a scrollbar, the scrollbar takes 15 pixels from the space available, the smaller space changes what full height means, and the answer feeds back into the question. That loop is not hypothetical — an earlier attempt at this fix sized the views from `document.documentElement.clientHeight`, which excludes the scrollbar, and it showed up as scrollbars flickering in and out and window dragging gone stuttery.
+
+So: do not put `h-screen` back, and do not let the page scroll. Both are the tidier-looking spelling of a bug.
 */
 html, body, #app { height: 100%; overflow: hidden }

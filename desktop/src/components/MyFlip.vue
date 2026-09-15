@@ -139,7 +139,7 @@ const triad = {
 <template>
 <div>
 
-<div class="relative w-screen h-screen bg-black overflow-hidden">
+<div class="relative w-full h-full bg-black overflow-hidden">
 	<img ref="img7Ref" style="display: none;" />
 	<img ref="img8Ref" style="display: none;" /><!-- three img tags for current (shown), previous (cached), and next (preloaded) -->
 	<img ref="img9Ref" style="display: none;" />
