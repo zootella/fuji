@@ -94,6 +94,6 @@ Walk the three cases and none of them needs a second rule. A double-click on mac
 
 ## Still open
 
-**A window menu, and ⌘N.** Out of scope deliberately: the goal was that a shell double-click produces the window the user expects. But a Mac user looking at a resident fuji with no windows has only the Dock tile to click, and ⌘N is the gesture they will try first. The obvious next thing.
+**A window menu and ⌘N were open here and are now built** — the Window submenu lists the open windows and switches between them, and ⌘N makes a new one. `menu.md` owns the menu and this document no longer has anything to say about it.
 
 **Whether a settings guard is ever worth building**, and what it would be: a lock, a merge rather than a replace, or writing only the keys a window actually changed. Now a Windows and Linux question rather than a general one.

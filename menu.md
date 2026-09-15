@@ -29,7 +29,10 @@ The Dock menu is not built from the menu bar and neither knows about the other. 
 
 **That window list works today, confirmed on the Mac mini 2026-09-14** with two windows open — both named in the Dock menu, with no code of fuji's involved. Worth weighing before building anything here, because the list is the main reason a person opens that menu and it already does the job. It also stands in contrast to the menu bar's own Window submenu, which needed fuji to register it with AppKit before macOS would fill it in the same way. An application may add its own items to the top of it, through `applicationDockMenu:` on its application delegate, and that is a wholly separate piece of code from the menu bar. Finder's *New Finder Window* and Zed's *New Window* are apps doing exactly that. Applications usually put the same few commands in both places, which is why the two feel like one thing.
 
-## Decided
+## What the menu does, and why
+
+**All of this is built and working**, checked on the Mac mini on 2026-09-14 and 2026-09-15. It is written here rather than only in the code because each item carries a reason that the code cannot show on its own.
+
 
 ### File → New Window, ⌘N
 
@@ -57,7 +60,7 @@ The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already g
 
 *macOS's own* moves the window to a Space of its own with the system animation, and is what Split View is built on. It is for settling in. Taking it away would cost an advanced Mac user something real, so fuji does not.
 
-**The words keep them apart in the View menu.** Fuji's item says **Toggle** Full Screen; the system's says **Enter**, and becomes Exit once you are in it. The second item is not fuji's — macOS inserts it automatically into any menu titled "View", which came as a surprise and is worth knowing before anyone goes looking for it in `menu.rs`.
+**The words keep them apart in the View menu.** Fuji's item says **Toggle** Full Screen; the system's says **Enter**, and becomes Exit once you are in it. The second item is not fuji's — macOS puts it into the View menu by itself, which came as a surprise and is worth knowing before anyone goes looking for it in `menu.rs`.
 
 **The shortcuts each tell the truth about themselves.** ⌃⌘F is the legacy spelling of the system's fullscreen and macOS no longer advertises it, so fuji takes it for its own item; the system's item keeps Globe+F, which is what macOS shows today. Each label's shortcut does what that label says.
 
@@ -73,7 +76,7 @@ The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already g
 
 ## Where the work stands
 
-**Tested and working on the Mac mini, 2026-09-14.** A double-click opens one window. The File menu holds New Window and Open…; ⌘N makes a window; ⌘O raises one picker in the focused window alone, listing every file rather than only pictures. The Window submenu lists the open windows and switches between them. Both fullscreens are reachable and neither lands on top of the other: the green traffic light offers the system's, View offers both, ⌃⌘F runs fuji's, and fuji's toggle leaves a Space when it finds itself in one.
+**Tested and working on the Mac mini, 2026-09-14.** A double-click opens one window. The File menu holds New Window and Open…; ⌘N makes a window; ⌘O raises one picker in the focused window alone, listing every file rather than only pictures. The Window submenu lists the open windows and switches between them. ⌘N and ⌘W make and close windows one at a time, leaving the others untouched, and closing the last leaves fuji in the Dock — checked 2026-09-15. Both fullscreens are reachable and neither lands on top of the other: the green traffic light offers the system's, View offers both, ⌃⌘F runs fuji's, and fuji's toggle leaves a Space when it finds itself in one.
 
 **One bug came out of this work and is fixed.** Entering a Space could leave a view stopping partway down the screen with bare page below it. It was never a menu problem: WebKit keeps a cached viewport for `vh` units and that cache lags, so `h-screen` — which every view used — could be built on a stale number. `index.css` now chains a percentage from the document element instead and forbids the page to scroll, and its essay carries the measurements. Logged 28 disagreements in one session, `vh` wrong every time and alone every time, worst error 156 pixels.
 
@@ -98,10 +101,6 @@ Adding *New Window* to the Dock icon's right-click menu, the way Finder and Zed 
 **Estimate, honestly rough:** the AppKit side is small, perhaps forty to sixty lines in a module shaped like `panel.rs`. The risk is not the size. It is that fuji would own a piece of tao's delegate, with no compiler error to warn it when tao changes.
 
 **Not started, and not obviously worth it yet.** The Dock menu already lists the open windows, which is most of what a user goes there for. This would add one item.
-
-### ⌘W after the window lifecycle changed
-
-Close Window is already in two menus and has never been tried since `instances.md`'s decision landed on 2026-09-14. On macOS, closing the last window now leaves fuji resident; on Windows it ends the process. Both should be what ⌘W does, and neither has been checked by hand.
 
 ## Not now
 
