@@ -48,7 +48,7 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 			&PredefinedMenuItem::separator(app)?,
 			&PredefinedMenuItem::close_window(app, None)?,
 		])?,
-		&Submenu::with_items(app, "Edit", true, &[//tauri's default, copied unchanged; menu.md says why it is left alone for now
+		&Submenu::with_items(app, "Edit", true, &[//tauri's default, kept on purpose. These are the standard macOS commands and they reach the web view, which implements all of them — the page just gives them nothing to do, since every view is select-none and nothing is editable. They wait here for a file manager's Copy and Paste, which will mean files
 			&PredefinedMenuItem::undo(app, None)?,
 			&PredefinedMenuItem::redo(app, None)?,
 			&PredefinedMenuItem::separator(app)?,

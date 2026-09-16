@@ -15,6 +15,8 @@ The menu that appears when the user right-clicks or holds fuji's icon in the doc
 
 **Tauri does not expose it** — an open feature request since 2022, tauri#4520 — so fuji makes the call itself, which is what this module is.
 
+**One item, and one is the right number.** This menu is reached when the application is not in front of the user, so the only commands that belong are ways to *start* something — which is why Finder offers New Finder Window and little else. New Window is the only command of that kind fuji has. Everything else it can do acts on the window in front, and there is no window in front.
+
 **Installing the method without disturbing anyone.** tao owns the application delegate and installs it before fuji's code runs, and that delegate does not implement `applicationDockMenu:`. So fuji asks AppKit for whatever delegate is there, builds a *subclass* of its class with the method added, and re-classes the live object into it. Nothing tao wrote is modified or replaced; the subclass inherits every one of its methods and adds one it did not have. Re-classing a live object is the documented technique that key-value observing itself uses, and it is safe here for the reason it is safe there: the subclass adds no instance variables, so the object's memory layout is unchanged.
 
 Asking AppKit for the delegate rather than naming tao's class is what keeps this from depending on tao's internals. If a later tao implements `applicationDockMenu:` of its own, fuji's override wins for the same reason any subclass does, which is worth knowing but not worth guarding: the item would be fuji's rather than tao's, and tao has no reason to add one.

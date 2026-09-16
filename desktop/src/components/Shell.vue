@@ -78,7 +78,7 @@ onMounted(async () => {
 	await revealWindow()//rust built the window at the right size already; this only reveals it
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
-	if (opened.length) reportTrouble(() => activeView()?.onDrop?.(opened[0]))//a launch with a file is a drop that fuji was not running for, so it takes the path a drop already takes: the model lists the folder, applies the sort, and stands on the image. Only the first of them, because one window shows one picture; instances.md decided that a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
+	if (opened.length) reportTrouble(() => activeView()?.onDrop?.(opened[0]))//a launch with a file is a drop that fuji was not running for, so it takes the path a drop already takes: the model lists the folder, applies the sort, and stands on the image. Only the first of them, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
 	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a build with nothing to do, and only windows has anything to say
 
 	window.addEventListener('keydown', onKey)

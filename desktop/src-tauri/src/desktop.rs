@@ -24,7 +24,7 @@ pub struct ExitFiles(pub Mutex<HashMap<String, String>>);//the text to write whe
 #[command]
 pub fn desktop_exit_hold(files: State<'_, ExitFiles>, path: String, text: String) {//State borrows what lib.rs manages
 	let mut files = files.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());//take the map even if a previous holder panicked
-	if text.is_empty() { files.remove(&path); } else { files.insert(path, text); }//blank text is how a caller says this path needs no write, and nothing sends it today: one text is held per path for the whole process, so on macOS a blank from one window would drop what another window is waiting to write. instances.md records that as a sharp edge rather than a feature
+	if text.is_empty() { files.remove(&path); } else { files.insert(path, text); }//blank text is how a caller says this path needs no write, and nothing sends it today: one text is held per path for the whole process, so on macOS a blank from one window would drop what another window is waiting to write
 }
 
 /// Write everything held; called when the last window closes and again from RunEvent::Exit, and it drains as it writes so the second call has nothing left to do

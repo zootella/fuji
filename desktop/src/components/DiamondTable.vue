@@ -77,7 +77,7 @@ Anyone reading one of the places this touches will meet half of it and conclude 
 
 **The user meets both without having to learn a distinction.** In the View menu, fuji's item says *Toggle* Full Screen and the system's says *Enter*, becoming Exit once you are in it. Fuji's carries ⌃⌘F, the legacy spelling of the system shortcut that macOS no longer advertises; the system's carries Globe+F, which is what macOS shows today — so each label's shortcut does what that label says. A double-click on the table is fuji's, and the green traffic light is the system's.
 
-**Only one of those two menu items is fuji's.** macOS inserts *Enter Full Screen* by itself into any menu titled "View", so `menu.rs` writes one item and two appear. Nothing in fuji's code creates the second, and going looking for it is a wasted hour.
+**Only one of those two menu items is fuji's.** macOS puts *Enter Full Screen* into the View menu by itself, so `menu.rs` writes one item and two appear. Nothing in fuji's code creates the second, and going looking for it is a wasted hour.
 
 **Telling the two states apart is possible because Tauri only knows about one of them.** `isFullscreen()` reports the system fullscreen and does not report the simple mode, which is why `fullscreenNow` below exists at all — fuji has to remember its own. Those two together answer, at any moment, which kind of fullscreen the window is in.
 
@@ -87,7 +87,7 @@ Anyone reading one of the places this touches will meet half of it and conclude 
 
 **Windows and Linux have one fullscreen, and that is why the two checks above are asked only on the mac.** Neither desktop has Spaces, so there is nothing for fuji's to collide with. It matters more than it sounds, because Tauri's `setSimpleFullscreen` falls back to the ordinary `setFullscreen` off macOS — so on those platforms fuji's own fullscreen *is* the system one, and `isFullscreen()` answers true for it. Asked there, the rule would read fuji's own fullscreen as a Space somebody else put the window in: the toggle would exit without the pan correction, and the repair would throw away `fullscreenNow` while the window was still fullscreen, leaving the next toggle trying to enter a fullscreen it was already in.
 
-**The obvious shortcut here is a trap, and it was taken once.** `NSWindowCollectionBehaviorFullScreenNone` shuts every door into the system fullscreen at once — the green button, the keystroke and the menu item together — and it works. It also costs Split View and any use of a fuji window as its own Space, to solve a confusion that the rule above solves for nothing. It was built, measured against the green button, and removed the same day. menu.md records the reversal.
+**And the obvious shortcut is a trap.** `NSWindowCollectionBehaviorFullScreenNone` shuts every door into the system fullscreen at once, and it works — at the cost of Split View and of ever using a fuji window as a Space of its own, to solve a confusion the rule above solves for nothing. It was tried and taken back out.
 */
 
 async function onDoubleClick(e) { await toggleFullscreen() }//fuji's own, and the shortest way to it
