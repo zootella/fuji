@@ -5,7 +5,7 @@
 
 	LSHandlerRank is Alternate on every one of these, and that is the whole design: Alternate says fuji can open this kind of file and is not claiming it. Fuji appears in Finder's Open With menu the moment the app is dragged into Applications, and every file on the machine still opens with whatever opened it before. A user who wants fuji uses Get Info and Change All, which macOS confirms with a sheet of its own. Nothing fuji does takes a file type.
 
-	The list is the same one as imageTypes in src/components/library.js, and these are the two places it exists — this file cannot read that one, because the bundle is built before any of fuji's code runs. Keep them in step by hand; associations.md carries the plan for generating this file from that list instead.
+	The list is the same one as imageTypes in src/components/library.js, and these are the two places it exists — this file cannot read that one, because the bundle is built before any of fuji's code runs. Keep them in step by hand, in the same commit: it changes about once a year and that is cheaper than a build step. Generating this file from that list was considered and declined on 2026-09-15, and associations.md records why.
 
 	One dict per extension rather than one per format, even though a dict can carry several extensions and the four JPEG spellings really are one format. CFBundleTypeName is per dict, and the name is per extension so that sorting by type in Windows Explorer groups a folder's .jpe files together. Keeping both platforms reading from one shape is worth three extra dictionaries.
 -->

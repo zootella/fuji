@@ -52,7 +52,8 @@ export function backize(path) {
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
 }
 
-//every kind of picture fuji can show, and the only list of them anywhere: the folder listing filters by it, the flow routes by it, the store types its blobs from it, and associate.js hands it to the operating system as what fuji is offering to open
+//every kind of picture fuji can show: the folder listing filters by it, the flow routes by it, the store types its blobs from it, and associate.js hands it to the operating system on windows as what fuji is offering to open
+//**this list exists twice, and the other copy is CFBundleDocumentTypes in src-tauri/Info.plist.** Add or remove an extension here and change that file to match, in the same commit. macOS reads the plist out of the bundle before any of fuji's code has run, so nothing here can reach it; generating one from the other was considered and declined, because the cost lands on the build and this list changes about never
 //the name is what windows prints in explorer's type column, and it carries the extension rather than the format on purpose. All four jpeg spellings are honestly one format, and Finder's kind column calls them all JPEG image, but that column is also the only way to sort a folder by extension, and a shared name scatters the three .jpe files through the sort instead of grouping them. WebP keeps its own capitalization, being the one extension whose real name is not simply its letters in capitals
 export const imageTypes = {
 	'.bmp':  {mime: 'image/bmp',     name: 'BMP Image'},//1986, Microsoft: Simple uncompressed raster format for Windows graphics, easy to decode

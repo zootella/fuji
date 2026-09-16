@@ -8,18 +8,16 @@ What fuji offers in the macOS menu bar and in the Dock icon's right-click menu: 
 
 ## What fuji has today
 
-Read out of `tauri-2.11.5/src/menu/menu.rs` on 2026-09-14 rather than observed, so the order on screen may differ slightly:
+Fuji writes its whole menu, in `menu.rs`. As of 2026-09-15:
 
 - **Fuji** — About Fuji, Services, Hide, Hide Others, Quit
-- **File** — Close Window
-- **Edit** — Undo, Redo, Cut, Copy, Paste, Select All
-- **View** — Toggle Full Screen
-- **Window** — Minimize, Zoom, Close Window
+- **File** — New Window ⌘N, Open… ⌘O, Close Window ⌘W
+- **Edit** — Undo, Redo, Cut, Copy, Paste, Select All, all of them stubs
+- **View** — Toggle Full Screen ⌃⌘F, and macOS's own Enter Full Screen beside it
+- **Window** — Minimize, Zoom, Close Window, and every open window listed by name
 - **Help** — About Fuji
 
-All of it is Tauri's default. Fuji has never written a menu.
-
-**Two things already work and were never built.** The Window menu lists every open window by name, because muda registers that submenu with AppKit as the application's windows menu and macOS fills the list itself. The Dock icon's right-click menu lists the open windows the same way. Both read well only because the window title is the picture's filename, so the title work pays off twice in places nobody aimed at.
+**The Dock icon's right-click menu lists the open windows and fuji built none of it** — macOS fills that list itself. The menu bar's Window submenu looks the same but is not free: Tauri's default menu never registers that submenu with AppKit, so the list was empty until `menu.rs` registered it. Both read well only because the window title is the picture's filename, so the title work pays off twice in places nobody aimed at.
 
 ## The Dock menu and the menu bar are two different things
 
@@ -50,7 +48,7 @@ The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already g
 
 **The picker shows every file rather than only the ten fuji knows, decided 2026-09-14.** A folder is easier to recognise by everything in it than by a filtered subset, and a filtered list is harder to read at a glance. Choosing something fuji cannot show costs nothing: the model lists the folder and stands on the first picture in it, which is the same thing a dropped non-image already does.
 
-**One reason for this does not survive contact with the rest of fuji, and is worth knowing rather than rediscovering.** A picture saved without an extension is now visible in the picker, but fuji still cannot open it: `listFolder` keeps only the extensions in `imageTypes`, so such a file is not in the folder listing and choosing it stands the user on some other picture instead. Fuji identifies files by extension everywhere except `thumbnail_probe`, which reads the first bytes. Closing that gap is a real subject — it would mean the folder listing asking Rust what each unknown file actually is — and it belongs to whoever takes on the model rather than to the menu.
+**One reason for this does not survive contact with the rest of fuji.** A picture saved without an extension is now visible in the picker, but fuji still cannot open it — `listFolder` keeps only the extensions in `imageTypes`, so choosing one stands the user on some other picture instead. That is a real subject and `security.md` owns it, under what fuji thinks a file is; it is not the menu's to solve.
 
 ### Two fullscreens, side by side, decided 2026-09-14
 
@@ -84,7 +82,13 @@ The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already g
 
 ## Left alone for now
 
-**The Edit menu.** It offers Undo, Redo, Cut, Copy, Paste and Select All, and none of them do anything in fuji. Dead items read as a promise, so trimming the menu was proposed and the user declined for now. It stays exactly as Tauri built it until there is a reason to touch it — most likely a Copy that copies the picture.
+**The Edit menu, reviewed on 2026-09-15 and deliberately kept.** Undo, Redo, Cut, Copy, Paste and Select All are all there and none of them does anything.
+
+**They are not disconnected, though — they have nothing to act on.** These are the standard macOS commands, which travel the responder chain to the WKWebView, and a web view implements every one of them. Fuji's pages simply give them no work: every view carries `select-none` and there is no text field or editable region anywhere, so nothing is selectable to copy and nothing is editable to cut into.
+
+**Kept because a file manager will want them meaning files.** Copy and Paste over *files* is a real destination for fuji, and these are the right names already sitting in the right menu. Removing them now to add them back later is churn.
+
+**And when the dead look bothers somebody, it is a one-line fix rather than a decision.** They appear enabled only because muda turns AppKit's menu validation off. With it on, AppKit asks the responder whether each command applies and greys out the ones that do not, so Copy would dim itself whenever nothing is selected, with no code and no view about what Copy should eventually do. `menu_validate_view` in `menu.rs` already does exactly this for the View submenu and is the worked example.
 
 ## Open
 
@@ -102,6 +106,18 @@ Adding *New Window* to the Dock icon's right-click menu, the way Finder and Zed 
 
 **Not started, and not obviously worth it yet.** The Dock menu already lists the open windows, which is most of what a user goes there for. This would add one item.
 
-## Not now
+## Decided against
 
-**Open Recent.** A File menu staple on the Mac, and it needs fuji to remember a list of folders across launches. That is a settings change and a schema addition before it is a menu, so it is a feature rather than a tidy-up. Named here so it is not mistaken for an oversight.
+**Open Recent, decided against on 2026-09-15.** It is a File menu staple on the Mac and fuji is not going to have one. This is a decision rather than a deferral, so nobody needs to cost it again.
+
+**The metaphor is borrowed from documents and does not survive the move.** Recent works because a person has a handful of documents in play over a few days, so the last ten are genuinely the ones they want. Pictures arrive in thousands. The last ten are an arbitrary slice of a folder the user can already open, so the menu is not a shortcut to anything.
+
+**And it would leak.** Picture files are frequently private in a way a spreadsheet is not, and an Open Recent menu does not merely reopen them — it *names* them, on screen, to anyone who glances over, in a screen share, or in a photograph of a desk. A feature that offers nothing and discloses something is an easy decision.
+
+**Nothing is populating such a list today, which is measured rather than assumed.** An application contributes to its own recent documents by calling `noteNewRecentDocumentURL:`, and `tao`, `tauri` and `muda` contain no mention of it, of `NSRecentDocuments`, or of `LSSharedFileList` anywhere. So there is no menu to remove and no list to clear.
+
+**The declarative opt-out is one line and worth taking anyway.** `NSRecentDocumentsLimit` set to `0` in `Info.plist` tells macOS this application keeps no recent documents. It changes no behaviour now; it is insurance against a future code path, or a Tauri change, quietly starting to populate a list fuji has decided not to have.
+
+**One trace does exist, and File → Open… introduced it on 2026-09-15.** Fuji's preferences file, `~/Library/Preferences/com.zootella.fuji.plist`, now holds three keys written by AppKit's open panel: its size, its position, and `NSOSPLastRootDirectory` — 684 bytes of bookmark data recording the last folder browsed. Not a list of files, but the same class of thing: a quiet note of where someone's pictures are. Two ways to answer it, neither taken yet — give the picker an explicit starting folder every time so the remembered one is never consulted, which leaves the key written but inert; or clear those keys on the way out, which `desktop.rs` is already shaped for and which means fighting AppKit over its own preferences on every launch.
+
+**What fuji cannot reach.** Whether double-clicking a picture lands it in the system's own Apple menu → Recent Items list. That list belongs to Finder and LaunchServices, is populated when *they* open a document, and fuji has no say in it. Worth confirming by looking once, and then documenting as a limit rather than trying to code around.

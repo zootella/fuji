@@ -297,7 +297,7 @@ Not built here, and recorded now so the first pass can be checked against it. Ag
 
 **Two bundles claim these types on a development machine, and they share a bundle identifier.** The copy in `/Applications` and the copy under `target/release/bundle/macos/` are both registered, and LaunchServices stores the user's choice by identifier rather than by path, so it may launch either. Usually the installed one wins. If it ever picks the build directory, the next build replaces the binary underneath it.
 
-**Generating `Info.plist` from `imageTypes`** with a small Node script, the way `release.js` set the precedent, so the list exists once. It needs `imageTypes` moved out of `library.js` into a module with no imports, since `library.js` pulls in Tauri APIs that Node cannot load.
+**Generating `Info.plist` from `imageTypes` was considered and declined on 2026-09-15.** The ten types genuinely do exist twice — in `library.js`, which Windows reads at runtime, and hand-written in `Info.plist`, which macOS reads out of the bundle before any of fuji's code runs. A small Node script would remove the duplication, but it would also need `imageTypes` moved out of `library.js` into a module with no imports, because `library.js` pulls in Tauri APIs Node cannot load — so the change lands on the build and on a file everything imports, to maintain a list that gains an extension about once a year. Both copies now name the other and say to change them together. Revisit only if that list starts moving.
 
 **The macOS read wrinkle**, above, before the second pass depends on it.
 
