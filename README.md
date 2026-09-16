@@ -44,10 +44,9 @@ $ pnpm upload       build it and send it to the production server
 
 Common flows through the desktop commands include:
 
-- **local** — work on a feature that doesn't involve desktop integration.
-- **compile** — prove the release build still compiles. `local` runs the debug profile and won't tell you.
+- **local / compile** — work on a feature that doesn't involve desktop integration, and check the release build.
 - **installer / reveal** — install Fuji the way a user does, and test file associations, the installed icon, and anything else that needs a real install.
-- **installer / hash / upload** — publish a release, then commit. Git tracks the sidecars.
+- **installer / hash / upload / commit & push** — publish a release, then commit. Git tracks the sidecars.
 
 And through the site commands, there is really only one:
 
