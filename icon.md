@@ -120,7 +120,7 @@ The modernization brought the CLI from `^2` to 2.11.4, which contains the fix. T
     2025-11-04   fixed in PR #14353, shipped in @tauri-apps/cli 2.9.3
     2026-09      fuji's CLI is 2.11.4, and its icons are still the files from July 2025
 
-**`tauri icon` is a one-shot generator, not a build step.** Nothing in `package.json` calls it, and `pnpm build` never does. It was run by hand once, fourteen months ago, and its output was committed.
+**`tauri icon` is a one-shot generator, not a build step.** No build calls it — `pnpm installer` never does, and only `pnpm icons` ever runs it. It was run by hand once, fourteen months ago, and its output was committed.
 
 **So the upgrade upgraded the tool and could not touch the files.** A dependency bump reaches code that runs at build time. It cannot reach an artifact that was generated once and checked in — that artifact is frozen at the version that made it, and it stays frozen until somebody re-runs the generator on purpose.
 
@@ -227,7 +227,7 @@ Against which every application Apple *did* redraw measures 206 × 206 on 256, t
     50         924        halfway to the canvas
     100        1024       the full canvas, the blimp
 
-**Built and looked at, rather than calculated.** Each candidate went through `pnpm icons` and `pnpm build` whole, and was judged in the dmg window, in /Applications at several icon sizes, and in the dock beside real neighbours:
+**Built and looked at, rather than calculated.** Each candidate went through `pnpm icons` and `pnpm installer` whole, and was judged in the dmg window, in /Applications at several icon sizes, and in the dock beside real neighbours:
 
     50   owns its space, but blimpy — reads as never having understood the safe area
     42   still reads as a mistake, as though the safe area had been aimed at and missed
@@ -265,7 +265,7 @@ Each extra run generates a whole tree and only one or two files are wanted out o
 
     pnpm icons
 
-runs `tauri icon` twice and copies the second run's `icon.icns` into `mac/`. The copy is `node -e` rather than `cp` because this repository is built on Windows too. Run it after changing artwork, and after a Tauri CLI upgrade — the section above says why the second case is the one that gets forgotten.
+runs `tauri icon` over each of the three sources, then calls `scripts.js icons-collect` to copy the files that have to come out from under a generated name — `mac/icon.icns` among them. The copying is JavaScript rather than `cp` because this repository is built on Windows too. Run it after changing artwork, and after a Tauri CLI upgrade — the section above says why the second case is the one that gets forgotten.
 
 **Why the macOS icon is generated rather than hand-drawn.** Every other application solves this with a hand-made `.icns`, and fuji does not have to, because its artwork is arithmetic: the macOS disc is a radius of 446 instead of 512 and nothing else changes. Feeding a correctly padded source to `tauri icon` gets a correctly padded icon out — the tool was never wrong about resizing, only about padding, and this hands it a source that needs none. Fuji's simplicity, which made both defects visible, is also what makes this fix a one-line file rather than a binary asset to maintain by hand.
 
@@ -325,7 +325,7 @@ Researched and built on the Windows 10 box, 2026-09-11. A pinned Start menu entr
     src-tauri/icons/app-icon-mac.svg    r="446"   the same disc drawn for the dock
     src-tauri/icons/app-icon-tile.svg   r="338"   and drawn for the Start menu tile
 
-`pnpm icons` runs `tauri icon` over that third source into the gitignored `icons/.tile`, then copies two of the Store logos out under names that do not claim a size, since the manifest attribute names the tile and the file is just an asset:
+`pnpm icons` runs `tauri icon` over that third source into the gitignored `icons/.tile`, then has `scripts.js icons-collect` copy two of the Store logos out under names that do not claim a size, since the manifest attribute names the tile and the file is just an asset:
 
     icons/.tile/Square284x284Logo.png  →  icons/tile/tile-medium.png    Square150x150Logo
     icons/.tile/Square142x142Logo.png  →  icons/tile/tile-small.png     Square70x70Logo
@@ -336,7 +336,7 @@ The larger sources are taken deliberately: Windows scales whatever it is given, 
 
 **Seen, and it works.** The user looked at the medium tile on this machine the same day and judged it right at the first radius — a cyan disc at two-thirds of a black square, the name beneath it. No adjustment was called for, so 338 stands where the macOS disc needed two attempts to reach 446.
 
-It was looked at **without installing**, which is worth recording because it makes this cheap to re-check. Windows reads the manifest from whatever directory holds the executable, so a Start menu shortcut pointed at `target/release/fuji.exe` — where `pnpm build` has already placed the manifest and both logos — produces the real tile. Make the shortcut in `%APPDATA%\Microsoft\Windows\Start Menu\Programs`, touch its `lastwritetime`, pin it, and look.
+It was looked at **without installing**, which is worth recording because it makes this cheap to re-check. Windows reads the manifest from whatever directory holds the executable, so a Start menu shortcut pointed at `target/release/fuji.exe` — where `pnpm installer` has already placed the manifest and both logos — produces the real tile. Make the shortcut in `%APPDATA%\Microsoft\Windows\Start Menu\Programs`, touch its `lastwritetime`, pin it, and look.
 
 **That the installed layout matches was checked too**, by listing the NSIS payload rather than by installing: `fuji.exe`, `fuji.VisualElementsManifest.xml`, `tile-medium.png` and `tile-small.png` all sit at the archive root together, so the installer puts them in one directory exactly as the build does.
 

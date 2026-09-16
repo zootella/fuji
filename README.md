@@ -14,7 +14,7 @@ Made with
 
 ### Workspaces
 
-This repository is a pnpm monorepo. The application is one workspace; the planning documents stay at the root.
+This repository is a pnpm monorepo. The application is one workspace and the website is the other. The planning documents stay at the root.
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri
@@ -23,60 +23,53 @@ This repository is a pnpm monorepo. The application is one workspace; the planni
 
 ### Scripts
 
-Install from the root, which installs every workspace, then work from inside the one you mean.
+Run `pnpm install` once at the root and it installs both workspaces. Every other command runs from inside the workspace it belongs to, so start with `cd`. The root has no scripts of its own. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to get the version this project pins.
 
 ```
 $ pnpm install
+
 $ cd desktop
-$ pnpm local        # run in dev mode with hot reload
-$ pnpm build        # release build, all the way to the installer
-$ pnpm release      # that, then stage and hash the installer for publishing
-$ pnpm reveal       # open the file manager on the installer, to run it as a person would
+$ pnpm local        run Fuji here, in development mode with hot reload
+$ pnpm compile      build the binary in release mode, and stop there
+$ pnpm installer    build the installer, all the way through the app to the dmg
+$ pnpm reveal       open the file manager on that installer, to run it as a user would
+$ pnpm hash         stage and hash what is already built, building nothing
+$ pnpm upload       send what is already staged to the production server
+
+$ cd site
+$ pnpm local        run the site here, in development mode with hot reload
+$ pnpm build        build it to dist, to sanity check that works
+$ pnpm upload       build it and send it to the production server
 ```
 
-The root has no scripts of its own, on purpose — a command belongs to the workspace it acts on. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to run the exact version this project pins. CLAUDE.md lists the rest of the build trail.
+Common flows through the desktop commands include:
 
-### Installing it yourself
+- **local** — work on a feature that doesn't involve desktop integration.
+- **compile** — prove the release build still compiles. `local` runs the debug profile and won't tell you.
+- **installer / reveal** — install Fuji the way a user does, and test file associations, the installed icon, and anything else that needs a real install.
+- **installer / hash / upload** — publish a release, then commit. Git tracks the sidecars.
 
-Running the built binary in place and running the installer are different tests, and only the second one is what a visitor gets:
+And through the site commands, there is really only one:
 
-```
-$ cd desktop
-$ pnpm build        # or pnpm release, if you are about to publish it too
-$ pnpm reveal       # opens bundle/nsis, bundle/dmg or bundle/deb, whichever this platform makes
-```
+- **local / upload** — write or restyle a page with hot reload, then put it live. `upload` builds on its way out, so `build` is not a step in between.
 
-Then double-click the installer from there. `pnpm win` and `pnpm app` launch the built binary directly instead, which is quicker for trying a change and skips everything an installer does — the publisher warning, the wizard, and where the application ends up.
+We've picked unconventional script names to be clear about the smaller steps these commands perform. `compile` never makes an installer, `installer` never hashes, `hash` never builds, and `upload` never builds. The site's `upload` is the one exception, and builds before it sends.
 
-Downloading the installer from fujidesktop.app is a third thing again, and the only way to see what an unsigned download looks like: a browser attaches a mark-of-the-web to the file, which is what raises SmartScreen. A copy built or reached locally carries no such mark and goes straight through.
+A name does the same job on every machine. `installer` makes a `.dmg` on macOS, a `.exe` on Windows, and a `.deb` on Linux, and `upload` sends whichever one the machine you're on can build. You don't have to remember a different command per platform.
+
+`pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI. `icon.md` explains why that second case is easy to forget.
+
+The JavaScript behind these commands is in one file, `scripts.js`, at the root, and each command passes it a verb. Both workspaces call it because they share facts: the stable publishing name, the bundle folder, and the file manager command for each platform. Those live in one table there.
 
 ### Publishing
 
-The website and the installers are published separately, and by different machines.
+An installer ships from the machine that can build it: Windows publishes the exe, macOS the dmg, Linux the deb. The site ships over rsync from any machine that has rsync, which in practice is the Mac. Windows can't, and says so clearly instead of failing somewhere deeper.
 
-The site goes over rsync, so it ships from any machine that has it — in practice the Mac. Windows is the one that cannot, and says so rather than failing obscurely:
+`hash` writes a small JSON sidecar next to each installer holding its size, hash, version and date. Installers are gitignored and sidecars are committed. The download page fetches those sidecars when a visitor opens it, so a new installer shows up on the site as soon as you upload it, with no site deploy. If you skip `hash`, the upload compares the sidecar against the file next to it, sees they disagree, and stops.
 
-```
-$ cd site
-$ pnpm upload       # build the site and mirror it to the server
-```
+Both `upload` commands read `.env` at the root for the server address and account details. The installer upload also needs an SSH key, belonging to a restricted account which can write the downloads directory and nothing else, while the site upload uses an administrative account. Neither the file nor the key is in git: `.gitignore` covers `.env`, and the key lives outside the repository. Set each machine up once from notes kept offline.
 
-An installer ships from whichever machine can build it — Windows publishes the exe, macOS the dmg, Linux the deb. Windows as the example:
-
-```
-$ cd desktop
-$ pnpm release      # build, then stage and hash the installer
-$ cd ../site
-$ pnpm upload-exe   # ship the installer and its sidecar
-```
-
-Use `release` rather than `build`. Both produce an installer, but only `release` copies it to `desktop/release/` under its publishing name and writes the sidecar of bytes and hash beside it — so after a plain `build`, an upload would find the *previous* release still staged, agreeing with its own sidecar, and ship that without complaining.
-
-The other two are `pnpm upload-dmg` and `pnpm upload-deb`, each run on its own platform after `pnpm release` there.
-
-Publishing an installer does not require deploying the site. The download page fetches each sidecar at runtime rather than baking hashes in at build time, so a new installer, its size and its hash go live as soon as they land.
-
-All four upload commands read a `.env` at the repository root for the server and account details. The three that ship an installer also need an SSH key, belonging to a restricted account that can write the downloads directory and nothing else; the site upload goes as an administrative account instead. Neither the file nor the key is in git — `.gitignore` covers `.env`, and the key lives outside the repository. Each machine is set up once from notes kept offline.
+Downloading the installer from fujidesktop.app is different again. A browser marks a file it downloaded with the mark of the web, and that mark is what triggers SmartScreen on Windows. A copy you built locally carries no mark and runs without the warning.
 
 ### Scaffolded on macOS
 
@@ -110,7 +103,7 @@ Installer on linux
 ./desktop/src-tauri/target/release/bundle/deb/Fuji_0.1.0_amd64.deb
 ```
 
-Staged for publishing by `pnpm release`, on whichever machine built it
+Staged for publishing by `pnpm hash`, on whichever machine built it
 ```
 ./desktop/release/fuji.dmg      ./desktop/release/fuji.dmg.json
 ./desktop/release/fuji.exe      ./desktop/release/fuji.exe.json
@@ -210,12 +203,12 @@ $ git clone https://github.com/zootella/fuji
 $ cd fuji
 $ pnpm install --frozen-lockfile
 $ cd desktop
-$ pnpm build
+$ pnpm installer
 $ pnpm local
 ```
 `pnpm` isn't installed globally — it comes from corepack, which ships with Node. Run `corepack enable` once from an elevated *PowerShell*; after that `pnpm` reads the `packageManager` field in the root package.json and runs the exact version this project pins, downloading it on first use. Use `--frozen-lockfile` when you're installing what's committed rather than changing dependencies; it refuses to quietly rewrite pnpm-lock.yaml, which is what keeps one lockfile serving both mac and windows.
 
-No global `tauri-cli` either — the `@tauri-apps/cli` in devDependencies is what `pnpm local` and `pnpm build` run, and keeping it there means the CLI can't drift out of step with the Rust crates.
+No global `tauri-cli` either — the `@tauri-apps/cli` in devDependencies is what `pnpm local` and `pnpm installer` run, and keeping it there means the CLI can't drift out of step with the Rust crates.
 
 ## README from scaffolding
 

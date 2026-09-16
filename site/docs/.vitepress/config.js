@@ -56,6 +56,14 @@ const markdown = {
 	theme: {light: 'catppuccin-latte', dark: 'catppuccin-mocha'},
 }
 
+// Where the site actually lives. Said once here because three things need it and none of them should
+// carry its own copy: the dev proxy below forwards to it, the download page prints it so a reader can
+// copy or retype a full url, and that page's links point at it so they behave the same in development
+// as in production. A relative link would work in production and 404 in development, and a link that
+// read the browser's own origin would show localhost on a page whose job is to tell you where to get
+// the file. This is the one value that moves if the site ever moves.
+const origin = 'https://fujidesktop.app'
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
 	markdown,
@@ -76,7 +84,24 @@ export default defineConfig({
 		// are local now, which is what let all three lines go.
 	],
 
+	// The download page fetches /fuji.dmg.json and its two siblings at runtime, out of the downloads
+	// directory this hostname falls through to, so nothing here knows a hash and publishing an installer
+	// changes the page without a rebuild. Development has no such directory, so these three forward to
+	// production and the dev server shows the hashes that are actually live. This is dev only — vitepress
+	// build never sees it, which is the whole advantage over the copies of the sidecars that used to be
+	// dropped into docs/public: one of those left behind gets baked into a build and served from the
+	// site's own directory, shadowing the real file and pinning the page to a stale hash.
+	vite: {
+		server: {
+			proxy: {
+				'^/fuji\\.(dmg|exe|deb)\\.json$': { target: origin, changeOrigin: true },
+			},
+		},
+	},
+
 	themeConfig: {
+		origin,// not a theme setting; themeConfig is just how VitePress hands a value of our own to the app, where useData().theme reads it
+
 		// https://vitepress.dev/reference/default-theme-config
 		nav: [
 			{ text: 'Home', link: '/' },
@@ -95,6 +120,7 @@ export default defineConfig({
 			{
 				text: 'User Guide',
 				items: [
+					{ text: 'Download Fuji', link: '/download-fuji' },
 					{ text: 'Getting Started', link: '/getting-started' },
 				],
 			},

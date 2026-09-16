@@ -1,40 +1,29 @@
 <script setup>//./.vitepress/theme/components/HomePage.vue
 import { ref, onMounted } from 'vue'
+import { installerFiles, fetchSidecars, earliestBuild, readableDate, copyText } from '../downloads.js'
 
 /*
 The apex page. index.md carries layout: false, so VitePress renders no navbar, sidebar, or footer, and this component is the whole document.
 
 It is a port of the Nuxt page it replaces, class for class, now that Tailwind is gone. It names its own fonts rather than reading the theme's variables, so that the documentation pages can stay stock VitePress and the two never pull on each other. The Tailwind values it was written in are noted beside the CSS below so the two can be compared.
 
-The Hashes reveal is the one moving part. Each installer is published with a small JSON sidecar beside it, written by the same command that built it, and the three live in the downloads directory on the server rather than anywhere in this build — so nothing here knows a hash at build time, and publishing a new installer changes what this page shows without the site being rebuilt. It has to be three files and not one: the dmg is built on a Mac, the exe on Windows, the deb on Linux, on three different days, so no single machine ever holds all three hashes to write them into a combined file.
+The Hashes reveal is the one moving part, and downloads.js holds its mechanism — what a sidecar is, why there are three of them rather than one, and why the fetch has to happen on mount. The download page reads that same module and shows the rest of what a sidecar carries; this page shows only the hashes, because that is all its box has room for.
 */
 
-//the three installers, in the order the page lists them, each beside its sidecar. all three rows always show; a hash appears on the ones that have been published
-let installers = [
-	{file: 'fuji.dmg', url: '/fuji.dmg.json'},
-	{file: 'fuji.exe', url: '/fuji.exe.json'},
-	{file: 'fuji.deb', url: '/fuji.deb.json'},
-]
-
 let showing = ref(false)//is the hash list open
-let rows = ref(installers.map(installer => ({file: installer.file, sha256: ''})))//one row per installer, named from the start so opening the list never changes its height; a hash arrives when its sidecar does
+let rows = ref(installerFiles.map(file => ({file, sha256: ''})))//one row per installer, named from the start so opening the list never changes its height; a hash arrives when its sidecar does
 let release = ref(false)//the version and date above the rows, or false before anything is published
 let loaded = ref(false)//the three fetches have all settled, so a blank hash now means unpublished rather than unread
 let status = ref('')//the line beneath Close: the hover hint, then the copy confirmation
 
 /*
-The sidecars are fetched when this component mounts rather than when the reader opens the list, so the hashes are already in hand the moment Hashes is clicked. That costs every visitor three requests they may never look at, which was weighed rather than measured and accepted: the files are a couple of hundred bytes each, they go in parallel, and they are the only thing on this page that is not already in the bundle.
-
-onMounted rather than top-level, because VitePress prerenders this component in Node at build time. Node has fetch, so the call would run rather than fail loudly — but a relative url has no origin to resolve against there, and nothing is serving these files during a build anyway, so every row would bake in as unpublished. Mount is also the only honest moment for it: the whole reason these are separate files is that publishing an installer must change what this page shows without the site being rebuilt.
+The sidecars are fetched when this component mounts rather than when the reader opens the list, so the hashes are already in hand the moment Hashes is clicked. That costs every visitor three requests they may never look at, which was weighed rather than measured and accepted: the files are a couple of hundred bytes each, they go in parallel, and they are the only thing on this page that is not already in the bundle. Mount rather than module scope is required rather than preferred, for the reason downloads.js gives.
 
 One consequence of mount rather than load: VitePress navigates between pages on the client, so leaving this page and coming back mounts the component again and fetches again. That is three small requests for a fresher answer, and it is the behaviour we want.
 */
 onMounted(async () => {
-	let sidecars = await Promise.all(installers.map(installer => _fetchSidecar(installer.url)))
-	rows.value = installers.map((installer, index) => {
-		let sidecar = sidecars[index]
-		return {file: installer.file, sha256: sidecar ? sidecar.sha256 : ''}
-	})
+	let sidecars = await fetchSidecars()
+	rows.value = installerFiles.map((file, index) => ({file, sha256: sidecars[index] ? sidecars[index].sha256 : ''}))
 	release.value = earliestBuild(sidecars)
 	loaded.value = true
 })
@@ -45,50 +34,13 @@ function toggleHashes() {
 	if (!showing.value) status.value = ''//collapsing clears the status
 }
 
-let monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-
-//turn the sidecar's "2026-09-09" into "2026 September 9". the sidecar itself stays ISO 8601 for two reasons: earliestBuild below compares dates as text, which only sorts correctly when they are big-endian and zero-padded, and a spelled month is unambiguous where 09-09 would leave a reader guessing whether the day or the month comes first. the parts are split by hand rather than passed to Date, which would read a bare date as UTC midnight and render it as the day before for anyone west of Greenwich
-function readableDate(iso) {
-	let parts = iso.split('-')
-	if (parts.length != 3) return iso//anything shaped unexpectedly shows exactly as it arrived
-	let month = monthNames[Number(parts[1]) - 1]
-	if (!month) return iso
-	return parts[0] + ' ' + month + ' ' + Number(parts[2])//Number drops the day's leading zero
-}
-
-//the version and date to show above the rows. the three installers are built on three machines, so there are three dates; take the earliest, which understates how fresh the release is rather than overstating it, and read the version off that same build so the two always describe one real artifact. iso dates compare correctly as text
-function earliestBuild(sidecars) {
-	let earliest = false
-	for (let sidecar of sidecars) {
-		if (!sidecar) continue
-		if (!earliest || sidecar.date < earliest.date) earliest = sidecar
-	}
-	return earliest
-}
-
-//one sidecar, or false. a missing one is an ordinary answer rather than an error: it means that installer has not been released yet, which is true of all three today
-async function _fetchSidecar(url) {
-	try {
-		let response = await fetch(url)
-		if (!response.ok) return false
-		let sidecar = await response.json()
-		if (!sidecar || !sidecar.sha256 || !sidecar.file) return false//malformed reads the same as missing
-		return sidecar
-	} catch (error) { return false }//the network refused, or the body was not json
-}
-
 //the hash is clickable but not underlined, so the status line carries the affordance
 function hintCopy() { status.value = 'Click to Copy' }
 function unhintCopy() { if (status.value == 'Click to Copy') status.value = '' }//a Copied confirmation stays standing
 
 //copy one hash to the clipboard, and say so beneath
 async function copyHash(row) {
-	try {
-		await navigator.clipboard.writeText(row.sha256)
-		status.value = 'Copied'
-	} catch (error) {
-		status.value = 'Could not copy'//the clipboard needs a secure context; https and localhost both qualify
-	}
+	status.value = await copyText(row.sha256) ? 'Copied' : 'Could not copy'
 }
 
 </script>

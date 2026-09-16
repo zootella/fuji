@@ -88,45 +88,50 @@ pnpm install      # at the repository root; installs every workspace
 cd desktop        # every command below runs from the workspace, not the root
 ```
 
-### Run Development Mode
+### The Desktop Workspace
 ```bash
-pnpm local        # Run Tauri in dev mode with hot reload
+pnpm local        # run Fuji here, in development mode with hot reload
+pnpm compile      # build the binary in release mode, and stop there
+pnpm installer    # build the installer, all the way through the app to the dmg
+pnpm reveal       # open the file manager on that installer, to run it as a person would
+pnpm hash         # stage and hash what is already built, building nothing
+pnpm upload       # send what is already staged to the production server
 ```
+**Each command stops where its name says**, which is the whole point of naming them this way: `compile` never makes an installer, `installer` never hashes, `hash` never builds, `upload` never builds. Publishing is `installer`, `hash`, `upload`, then a commit, since the sidecars are tracked. A name means the same thing on every machine while doing different work underneath, so nothing has to be remembered per platform.
 
-### Build
-```bash
-pnpm build-binary # Quickest proof the release build compiles and links; no bundles
-pnpm build-app    # Also bundle the runnable app; skips the dmg and its finder theatrics
-pnpm build-dmg    # Everything in the targets list, including the dmg installer
-pnpm build        # Same as build-dmg
-pnpm release      # That, then stage the installer under its publishing name and hash it
-pnpm app          # Launch the built mac app
-pnpm win          # Launch the built windows exe
-```
 Roughly what a release build costs, so a long one does not read as a hang: on the Mac mini about 20 seconds when only the frontend changed and a minute or so when Rust has to compile again; on the Windows 10 box 2m52s cold and about 45 seconds warm. The release profile shares nothing with the debug profile `pnpm local` uses, so the first release build after a stretch of dev work compiles everything over again.
 
 **A session builds when there is a reason to, and picks the smallest build that gives it.** Not every turn, and not by habit at the end of a change.
 
-**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. **To prove the release profile compiles and links**, `pnpm build-binary` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm build` for the dmg; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
+**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. **To prove the release profile compiles and links**, `pnpm compile` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm installer`; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
 
-Building the dmg every turn is the habit to avoid: it is the slowest thing here, it produces a file nobody asked for, and it says nothing that `cargo check` did not already say.
+Building the installer every turn is the habit to avoid: it is the slowest thing here, it produces a file nobody asked for, and it says nothing that `cargo check` did not already say.
 
 ### Frontend Only (for rapid UI iteration)
 ```bash
 pnpm dev          # Run Vite dev server without Tauri
 pnpm vite-build   # Build frontend only
 ```
+These two are also Tauri's own before-commands, named in `tauri.conf.json`, which is why they keep those names instead of joining the list above.
 
 ### The Site Workspace
 ```bash
 cd site
 pnpm local        # VitePress dev server
 pnpm build        # Static files into docs/.vitepress/dist/
-pnpm preview      # Serve the built output
 pnpm upload       # Build, then ship dist/ to the server
-pnpm fixtures     # Copy the desktop workspace's sidecars in for local development
 ```
-The desktop workspace **produces** a release — the installer and the sidecar describing it, made together on the machine that can build them. The site workspace **publishes**, copying finished files to the server without thinking about them. That split is why the site build never learns a hash: the page fetches each sidecar at runtime.
+`upload` means the installer in `desktop` and the site in `site`, deliberately — one word, and each workspace ships what it made. The site build never learns a hash, because the download page fetches each sidecar at runtime.
+
+**The dev server proxies the three sidecar paths to production**, which is a few lines of `vite.server.proxy` in `docs/.vitepress/config.js`, so `pnpm local` shows the hashes that are actually live. It replaced a `pnpm fixtures` script that copied this machine's sidecars into `docs/public/` — which worked, but one left behind is baked into a build and served from the site's own directory, shadowing the real file and pinning the page to a stale hash. A proxy cannot do that, because `vitepress build` never sees it. Those copies are gitignored, so a machine that ran `fixtures` before it was retired may still hold some and no other machine can tell — `upload-site` refuses to ship a `fuji.*.json` it finds in the build and names what to delete, which is the guard the retired script's `clear` mode used to be.
+
+### The Root Script
+
+**One file at the monorepo root, `scripts.js`, holds the whole build pipeline**, reached by a verb: `reveal`, `hash`, `upload-installer`, `upload-site`, `icons-collect`. Nothing runs it directly — the package.json scripts above are the names a person types.
+
+It was four scripts across both workspaces until September 2026; the essay at the top of `scripts.js` says why they became one. The `platforms` table there now holds the bundle folder, the filename suffix, the published name and the file-manager command together, and is the only place any of them is said.
+
+Two rules keep it workable. **It imports node builtins and nothing else**, because the root `package.json` has no dependencies and `node_modules` belongs to the workspaces below it. And **every path is built from the file's own location**, never from the working directory, because both workspaces call it and each calls it from its own folder — which is a thing the old scripts each answered differently and only got away with because pnpm happened to run them from the right place.
 
 ### Regenerate the Icons
 ```bash
@@ -292,18 +297,18 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 ./desktop/src-tauri/target/release/bundle/deb/Fuji_0.1.0_amd64.deb
 ```
 
-**The staged release**, written by `pnpm release` on whichever machine built it:
+**The staged release**, written by `pnpm hash` on whichever machine built it:
 ```
 ./desktop/release/fuji.dmg      ./desktop/release/fuji.dmg.json
 ./desktop/release/fuji.exe      ./desktop/release/fuji.exe.json
 ./desktop/release/fuji.deb      ./desktop/release/fuji.deb.json
 ```
 
-**Two different files are named `fuji.exe`, and their sizes tell them apart at a glance.** `src-tauri/target/release/fuji.exe` is the application itself — the binary the NSIS installer wraps, and the one `pnpm win` launches in place without installing. `release/fuji.exe` is the staged **installer**, a copy of `Fuji_0.1.0_x64-setup.exe` under its publishing name, and it is what the website offers for download. Measured on the Windows box 2026-09-11: the binary is 9,512,448 bytes and the installer 2,042,921, because NSIS compresses what it wraps.
+**Two different files are named `fuji.exe`, and their sizes tell them apart at a glance.** `src-tauri/target/release/fuji.exe` is the application itself — the binary the NSIS installer wraps, and the one that runs in place without installing. `release/fuji.exe` is the staged **installer**, a copy of `Fuji_0.1.0_x64-setup.exe` under its publishing name, and it is what the website offers for download. Measured on the Windows box 2026-09-11: the binary is 9,512,448 bytes and the installer 2,042,921, because NSIS compresses what it wraps.
 
 `bundle.targets` names the four packages fuji ships, rather than Tauri's default `"all"` — which also builds an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package, neither of which anything links to. One list serves all three platforms: a target that does not apply to the machine doing the build is skipped, and **the skipping is silent**, so a build producing one file is not evidence that anything went wrong.
 
-`pnpm release` copies the bundle out from under its versioned, architecture-specific name into `release/` under a stable publishing name, and writes the sidecar beside it from the bytes that landed. The rename happens here rather than at upload time, which is what lets the site side copy known filenames from a known path with no rules about versions or architectures. The installers stay out of git; the sidecars are committed, so history keeps a dated record of what hash each release had.
+`pnpm hash` copies the bundle out from under its versioned, architecture-specific name into `release/` under a stable publishing name, and writes the sidecar beside it from the bytes that landed. The rename happens here rather than at upload time, which is what lets the site side copy known filenames from a known path with no rules about versions or architectures. The installers stay out of git; the sidecars are committed, so history keeps a dated record of what hash each release had.
 
 ## Path Handling
 
