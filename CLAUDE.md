@@ -18,17 +18,49 @@ The bar is a **specific reason to believe something is likely to be wrong there*
 
 Two habits lower the bar rather than clear it, and both come before writing anything down. **Exercise the other platform's path here wherever it is not gated** — `open_argv` runs on every platform, so launching the binary with a file as an argument on a Mac tests exactly what Explorer does on Windows. And **write for the general case so the other platform runs the same code in a degenerate form** rather than a branch of its own: per-window state with one window in the map needs no Windows testing that one-window-per-process state would have needed.
 
+## Where the work ends up
+
+**Everything this project learns has a permanent home, and a planning document is not one of them.** There are four. `style.md` governs the first three and is the authority on how to write them.
+
+**The code, and the names in it.** The best home for a fact is a name that makes the fact obvious, and a shape that makes the wrong thing hard to write. Reach for that before reaching for prose.
+
+**Comments.** At the end of a line, above a group of lines, above a function — the *why* that the *how* cannot show. They are dense here by design and `style.md` argues for that at length.
+
+**Essays.** A `/* */` block in ordinary prose, for a mechanism that runs through several files where any one site reads as a contradiction on its own. The essay above `toggleFullscreen` in `DiamondTable.vue` is the worked example: fuji has two fullscreens on purpose, and every place that touches them looks like a mistake until you have read it.
+
+**The site.** `site/docs/` is the fourth destination and the only one that is not code. It takes long-form writing where a subject carries real research or engineering — measurements, the alternatives weighed and why, pictures of the defect. `site/docs/thumbnail-pipeline.md` is the worked example: all of it is implemented in the code, but no comment could hold it in one place or with that depth. Use it rarely. Most work does not earn a page, and a page nobody needed is worse than none.
+
+**These four must be short, correct, and well placed.** Everything below is scaffolding for getting there.
+
 ## Planning documents
 
-**They live at the repository root, in markdown, and `contents.md` says what each one owns.** They are where a subject gets decided, and they are written for a reader on another machine who cannot ask the session that wrote them.
+**They live at the repository root, in markdown, and `contents.md` says what each one owns.** They are where a subject gets decided, and they are written for a reader on another machine who cannot ask the session that wrote them. They are scaffolding, not fixtures: their acreage is meant to be spent.
 
-**A document has three lives, and which one it is in says how to edit it.** At the start it is a whiteboard — goals, requirements, scope, and the questions worth researching, with far more asked than settled. In the middle it is a plan about how to code, replete with design and decisions. At the end, once the work has landed, it is boiled down to nothing: what is worth keeping moves into comments and short essays in the code, following `style.md`, and what remains is only the part still open. `thumbnail-open.md` is what that boiling leaves behind, and `contents.md` records which documents became pages on the site instead.
+**A document has three acts, and which one it is in says how to edit it.**
 
-**Keep them current as the work goes, and replace questions with answers.** A document that has learned something says the answer where it used to ask; it does not keep both.
+**First act: a whiteboard.** Scraps, notes, half-formed requirements, design ideas, and questions — seeded as they arise, with far more asked than settled. This is where "we should look at the dock menu, is any of it free, and what would a Mac user expect?" goes the moment somebody says it. The document exists so that concern survives the conversation.
 
-**They are scaffolding and they are not precious the way code is.** A stray passive voice in a comment earns a correction, a review, and a push — the same sentence in a planning document is fine, and loose prose here costs nothing. What they do have to be is complete, correct, and verbose, because they are what a reader has instead of the session.
+**Second act: research, results, and then a plan.** Work the questions and write the answers where the questions were. That usually rewrites the document completely, which is right — and nothing is lost, because the document is the record of what was asked. Then some code: a spike, an experiment in the field, enough to learn whether the ground is firm or the woods are dense. Somewhere in the middle of that, rewrite again, from exploration into a crisp plan of attack, and follow it incrementally. **That second rewrite usually makes the document shorter.** It grew while it was holding questions, possibilities and detailed measurements; those have now been spent on decisions, and all it has to carry is the plan.
 
-**Do not write a trail of what happened.** Not "first we thought this, so we tried that, but it did not work, and we were wrong about the other thing, which is how we got here." Just: what was decided and briefly why, where the work stands and briefly why, and what is next. A failed attempt earns its place only when the failure is the reason the design is what it is — `cache.md` keeps three of them because each names a constraint the store still has to meet.
+**Third act: cleanup, canonization, minimization.** The work has landed. What is left is the loose ends — something else to test, something to decide, something to table, something to forward as a note to the machine that can answer it — and that usually means a little more code and another smoke test. Then the document is minimized. **Most of its acreage is simply deleted**, and what is worth keeping moves to one of the four destinations above. What remains in the file is only the part still open. `thumbnail-open.md` is what that boiling leaves behind, and `contents.md` records which documents became pages on the site instead.
+
+**Roughly nineteen words in twenty go, and that is the expected shape rather than a failure.** The bulk is not being relocated — it is being spent. Almost none of it belongs in the code, because code has to stay tight and fast to read, and a comment earns its place only by making a reader faster. A planning document that has been "moved into comments" wholesale has ruined two things at once.
+
+**But deleting is done with a check, thoroughly and every time, even though it usually finds nothing.** The test is never "this section is about menus, menus are done, delete it" — subject and staleness are different questions, and a finished subject can still be the only place some small thing is written down. Before a section goes, ask three questions of it.
+
+*Is there a detail here that the code does not say and a comment should?* This is the common one, and it is small. Write the comment first, confirm it reads well where it sits, then delete the section.
+
+*Is there a realistic corner case, an untested condition, or a concern nobody has met yet?* Move a note into a document that will survive, or up into a higher-level one that owns the subject, or out to the machine that can answer it. Then delete.
+
+*Is there a path of research and exploration behind a decision, with enough substance that a reader would want the account?* That is the site's case. Propose a page, and delete only once it exists. The thumbnail work is the worked example: pages of measurements, alternatives and dead ends were removed from the planning documents, but only after `site/docs/thumbnail-pipeline.md` had a good account of them — informative and interesting to somebody arriving later, which is a different job from the notes that produced it.
+
+**Delete the trail.** Not "first we thought this, so we tried that, but it did not work, and we were wrong about the other thing, which is how we got here." Only the working, finished implementation matters, nearly all of the time, and that lives in the code. Write what was decided and briefly why, where the work stands and briefly why, and what is next. A failed attempt earns its place only when the failure is the reason the design is what it is — `cache.md` keeps three of them because each names a constraint the store still has to meet.
+
+**When there is genuinely too much to say, that is the site's job, not the planning document's.** A subject with real innovation behind it — where how we got here is worth an account with measurements and pictures — becomes a page in `site/docs/`. That is the one case where the long version survives, and it survives somewhere a reader would actually look for it.
+
+**Keep them current as the work goes, and replace questions with answers.** A document that has learned something says the answer where it used to ask; it does not keep both. A finished item left sounding open costs a future session real time, because it reads as work to pick up.
+
+**They are not precious the way code is.** A stray passive voice in a comment earns a correction, a review, and a push — the same sentence in a planning document is fine, and loose prose here costs nothing. What they do have to be is complete, correct, and verbose, because they are what a reader has instead of the session.
 
 ## Project Overview
 
