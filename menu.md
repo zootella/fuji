@@ -17,6 +17,8 @@ Fuji writes its whole menu, in `menu.rs`. As of 2026-09-15:
 - **Window** — Minimize, Zoom, Close Window, and every open window listed by name
 - **Help** — About Fuji
 
+And on the Dock icon's own right-click menu, **New Window**, above everything macOS puts there by itself.
+
 **The Dock icon's right-click menu lists the open windows and fuji built none of it** — macOS fills that list itself. The menu bar's Window submenu looks the same but is not free: Tauri's default menu never registers that submenu with AppKit, so the list was empty until `menu.rs` registered it. Both read well only because the window title is the picture's filename, so the title work pays off twice in places nobody aimed at.
 
 ## The Dock menu and the menu bar are two different things
@@ -25,7 +27,9 @@ Worth stating plainly, because they look like one feature.
 
 The Dock menu is not built from the menu bar and neither knows about the other. macOS fills the Dock menu by itself with the open windows, Options, Show All Windows, Hide and Quit.
 
-**That window list works today, confirmed on the Mac mini 2026-09-14** with two windows open — both named in the Dock menu, with no code of fuji's involved. Worth weighing before building anything here, because the list is the main reason a person opens that menu and it already does the job. It also stands in contrast to the menu bar's own Window submenu, which needed fuji to register it with AppKit before macOS would fill it in the same way. An application may add its own items to the top of it, through `applicationDockMenu:` on its application delegate, and that is a wholly separate piece of code from the menu bar. Finder's *New Finder Window* and Zed's *New Window* are apps doing exactly that. Applications usually put the same few commands in both places, which is why the two feel like one thing.
+**That window list is free, confirmed on the Mac mini 2026-09-14** with two windows open — both named in the Dock menu, with no code of fuji's involved. It stands in contrast to the menu bar's own Window submenu, which needed fuji to register it with AppKit before macOS would fill it the same way.
+
+An application may add items above all that, through `applicationDockMenu:` on its application delegate, which is a wholly separate piece of code from the menu bar. Finder's *New Finder Window* and Zed's *New Window* are apps doing exactly that, and so is fuji's New Window now. Applications usually put the same few commands in both places, which is why the two feel like one thing.
 
 ## What the menu does, and why
 
@@ -72,9 +76,23 @@ The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already g
 
 **Rust toggles nothing.** The menu event tells the page which item was chosen and the page calls the same `toggleFullscreen` a double-click calls — one implementation rather than two, and the rule in `CLAUDE.md` about the two layers seen from the menu's side. A menu applies to the frontmost window, so the event goes to that window alone; with several windows on macOS, sending it to all of them made every window answer at once, which is exactly what happened the first time.
 
+### The Dock icon's own menu, built 2026-09-16
+
+**One item: New Window.** `dock.rs` is the record of how — the delegate method AppKit requires, why Tauri cannot do it, and why fuji subclasses the delegate rather than modifying it. What belongs here is the *what*.
+
+**A Dock menu is for starting something when the application does not have your attention** — when it is not frontmost, or not running at all. That is why the convention is so narrow. Finder offers New Finder Window, Safari offers New Window and New Private Window, Terminal offers New Window and New Command. All of them are ways to begin, and nothing else.
+
+**New Window is the only command fuji has of that kind**, so it is the only one here.
+
+**Open… was the near miss and is deliberately left off.** It is also a way to begin, but choosing it from the Dock raises a file picker over whatever the user was doing, with no fuji window on screen to give it any context. New Window and then ⌘O is one more gesture and never surprises.
+
+**Everything else fuji can do acts on the window in front**, and the Dock menu is used precisely when there is no window in front. Toggle Full Screen, switching view, anything about the current picture — none of them have a subject at that moment.
+
+**And the item people actually go there for is one fuji did not build.** macOS lists every open window by name, from the window titles, for nothing.
+
 ## Where the work stands
 
-**Tested and working on the Mac mini, 2026-09-14.** A double-click opens one window. The File menu holds New Window and Open…; ⌘N makes a window; ⌘O raises one picker in the focused window alone, listing every file rather than only pictures. The Window submenu lists the open windows and switches between them. ⌘N and ⌘W make and close windows one at a time, leaving the others untouched, and closing the last leaves fuji in the Dock — checked 2026-09-15. Both fullscreens are reachable and neither lands on top of the other: the green traffic light offers the system's, View offers both, ⌃⌘F runs fuji's, and fuji's toggle leaves a Space when it finds itself in one.
+**Tested and working on the Mac mini, 2026-09-14.** A double-click opens one window. The File menu holds New Window and Open…; ⌘N makes a window; ⌘O raises one picker in the focused window alone, listing every file rather than only pictures. The Window submenu lists the open windows and switches between them. ⌘N and ⌘W make and close windows one at a time, leaving the others untouched, and closing the last leaves fuji in the Dock — checked 2026-09-15. Both fullscreens are reachable and neither lands on top of the other: the green traffic light offers the system's, View offers both, ⌃⌘F runs fuji's, and fuji's toggle leaves a Space when it finds itself in one. The Dock icon's own menu offers New Window and it opens one — checked 2026-09-16.
 
 **One bug came out of this work and is fixed.** Entering a Space could leave a view stopping partway down the screen with bare page below it. It was never a menu problem: WebKit keeps a cached viewport for `vh` units and that cache lags, so `h-screen` — which every view used — could be built on a stale number. `index.css` now chains a percentage from the document element instead and forbids the page to scroll, and its essay carries the measurements. Logged 28 disagreements in one session, `vh` wrong every time and alone every time, worst error 156 pixels.
 
@@ -90,22 +108,6 @@ The dialog plugin is registered in `lib.rs` and `dialog:allow-open` is already g
 
 **And when the dead look bothers somebody, it is a one-line fix rather than a decision.** They appear enabled only because muda turns AppKit's menu validation off. With it on, AppKit asks the responder whether each command applies and greys out the ones that do not, so Copy would dim itself whenever nothing is selected, with no code and no view about what Copy should eventually do. `menu_validate_view` in `menu.rs` already does exactly this for the View submenu and is the worked example.
 
-## Open
-
-### The Dock menu's own items
-
-Adding *New Window* to the Dock icon's right-click menu, the way Finder and Zed do.
-
-**Tauri cannot do this.** There is no Dock menu API anywhere in the stack: `tauri` 2.11.5, `muda` and `tao` 0.35.3 contain no mention of `applicationDockMenu`, `dock_menu` or `setDockMenu` at all. So this is fuji writing AppKit calls itself.
-
-**It would be Rust, not Objective-C or Swift.** No `.m` or `.swift` file, and no new toolchain: the `objc2` crates are the Rust bindings to the Objective-C runtime, and fuji already has them beneath it — `objc2` 0.6.4 and `objc2-app-kit` 0.3.2 are in `Cargo.lock`, pulled in by tao. The Xcode command line tools are installed on the Mac mini (clang 17), which any Rust build on macOS needs anyway. So the tools are all present and no dependency has to be added.
-
-**What makes it hairy is the delegate, not the language.** `applicationDockMenu:` is a method on the application's delegate object, and tao owns that delegate and installs it before fuji's code runs. Fuji would have to reach into a class tao defines and add a method to it at runtime, then return an `NSMenu` fuji builds. That is a documented Objective-C runtime technique and it is also exactly the kind of code that breaks quietly on a tao upgrade, because it depends on tao's internals rather than on tao's API.
-
-**Estimate, honestly rough:** the AppKit side is small, perhaps forty to sixty lines in a module shaped like `panel.rs`. The risk is not the size. It is that fuji would own a piece of tao's delegate, with no compiler error to warn it when tao changes.
-
-**Not started, and not obviously worth it yet.** The Dock menu already lists the open windows, which is most of what a user goes there for. This would add one item.
-
 ## Decided against
 
 **Open Recent, decided against on 2026-09-15.** It is a File menu staple on the Mac and fuji is not going to have one. This is a decision rather than a deferral, so nobody needs to cost it again.
@@ -119,5 +121,7 @@ Adding *New Window* to the Dock icon's right-click menu, the way Finder and Zed 
 **The declarative opt-out is one line and worth taking anyway.** `NSRecentDocumentsLimit` set to `0` in `Info.plist` tells macOS this application keeps no recent documents. It changes no behaviour now; it is insurance against a future code path, or a Tauri change, quietly starting to populate a list fuji has decided not to have.
 
 **One trace does exist, and File → Open… introduced it on 2026-09-15.** Fuji's preferences file, `~/Library/Preferences/com.zootella.fuji.plist`, now holds three keys written by AppKit's open panel: its size, its position, and `NSOSPLastRootDirectory` — 684 bytes of bookmark data recording the last folder browsed. Not a list of files, but the same class of thing: a quiet note of where someone's pictures are. Two ways to answer it, neither taken yet — give the picker an explicit starting folder every time so the remembered one is never consulted, which leaves the key written but inert; or clear those keys on the way out, which `desktop.rs` is already shaped for and which means fighting AppKit over its own preferences on every launch.
+
+**One cost worth naming.** A Dock menu is exactly where Open Recent would have shone — it is the item a person reaches for when the application is not in front of them, and it is why other apps put recent documents there. Deciding against Open Recent is therefore also deciding that fuji's Dock menu stays a single item. That is the right trade for the reasons above, and it is the only place the decision costs anything.
 
 **What fuji cannot reach.** Whether double-clicking a picture lands it in the system's own Apple menu → Recent Items list. That list belongs to Finder and LaunchServices, is populated when *they* open a document, and fuji has no say in it. Worth confirming by looking once, and then documenting as a limit rather than trying to code around.

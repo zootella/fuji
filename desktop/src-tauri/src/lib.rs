@@ -17,6 +17,8 @@ For a reader new to Rust: `mod desktop;` compiles the sibling file desktop.rs as
 mod associate;//each of these compiles the sibling .rs file of the same name
 mod desktop;
 mod disk;
+#[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit; dock.rs says what it does
+mod dock;
 mod log;
 #[cfg(target_os = "macos")]//the whole module is macos-only: it calls tauri menu methods that do not exist on other targets, and a menu belongs along the top of the screen only here
 mod menu;
@@ -51,7 +53,9 @@ pub fn run() {
 		)
 		.setup(|app| {//before any page exists, which is the whole reason this is here rather than in the page
 			#[cfg(target_os = "macos")]
-			menu::menu_set(app.handle())?;//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
+			menu::menu_set(app.handle())?;
+			#[cfg(target_os = "macos")]
+			dock::dock_install(app.handle());//and the other menu, the one on the dock icon//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
 			Ok(())
 		})
 		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
