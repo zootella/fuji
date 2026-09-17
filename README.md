@@ -118,6 +118,8 @@ $ yarn create tauri-app fuji
 ✔ Choose your UI flavor · JavaScript
 ```
 
+The identifier in that transcript is what scaffolding proposed. Fuji's is now `app.fujidesktop.Fuji`, so the name it carries on every platform is the domain it publishes from rather than its author's.
+
 ### Output
 
 Executable and installer on mac

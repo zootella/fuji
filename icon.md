@@ -305,6 +305,8 @@ Fuji's are full bleed at every size, for the same reason as the `.icns`. The sca
 
 `fuji.exe` is the binary both installers wrap; the `.ico` reaches the taskbar, explorer, and the two installers.
 
+**The setup exe and the uninstaller wear it too**, through `bundle.windows.nsis.installerIcon` and `uninstallerIcon`, both pointed at `icons/icon.ico`. Left unset, MUI falls back to NSIS's own stock `modern-install.ico`, and the first piece of fuji anyone meets — the file sitting in their downloads folder — is a grey box in somebody else's house style. NSIS takes the PNG-compressed layers without complaint, and the change makes the installer *smaller* rather than larger: an icon sits uncompressed in the executable's resource directory, and fuji's 6,928-byte `icon.ico` displaces two NSIS defaults of 13,902 each, for about 21 KB off the setup exe.
+
 ## The Windows Start menu tile
 
 Researched and built on the Windows 10 box, 2026-09-11. A pinned Start menu entry can be small or medium, and by default a medium tile is the app's icon sitting small in the middle of a larger square, on a background colour Windows picks out of that icon. An application can replace both.
@@ -344,9 +346,9 @@ It was looked at **without installing**, which is worth recording because it mak
 
 ## The Windows document icons
 
-Added 2026-09-17, and the first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are three drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
+The first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are three drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
 
-**Why there are any.** `associate.rs` writes a `DefaultIcon` per ProgID, and until now it could only name fuji's own executable. So every `.png` a user let fuji open wore the application icon — a full-bleed mint disc, drawn identically on every file — which is most visible in Details view and with Explorer's thumbnails turned off. The application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document. `associations.md` had this listed as the icon gap and it stopped being theoretical the moment the first association was made.
+**Why there are any.** `associate.rs` writes a `DefaultIcon` per ProgID. With nothing else to name it named fuji's own executable, and every picture a user let fuji open wore the application icon — a full-bleed mint disc, identical on every file, most visible in Details view and with Explorer's thumbnails turned off. An application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document.
 
 **Three, and only one is used.**
 

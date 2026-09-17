@@ -13,7 +13,8 @@
 set -eu
 
 deb="${1:?say which deb to wrap}"
-id=com.zootella.fuji
+# fuji's application identifier, and the second place it is written: tauri.conf.json holds the first and this container never sees that file. Nothing checks that the two agree, so change them together — a flatpak built under one id and a desktop entry naming another is a bundle that installs and does not appear. The form is what flathub wants: three components, a domain we control reversed, and the application's own name last
+id=app.fujidesktop.Fuji
 
 # Ask the image which runtime it has rather than naming one here. Both numbers have to agree — the image installs a runtime and build-init builds against one — and two places holding the same version is a drift waiting to happen: bump the Dockerfile alone and this fails at build-init with a runtime that is not installed. So the Dockerfile's ARG is the single say, and this reads what it did.
 runtime_version=$(flatpak list --columns=application,branch | awk '$1 == "org.gnome.Platform" {print $2; exit}')
