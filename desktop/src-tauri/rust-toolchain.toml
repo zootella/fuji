@@ -1,0 +1,9 @@
+# The rust every machine that builds fuji uses, named once so the three cannot drift apart.
+#
+# Until this file existed, each machine compiled with whatever rustup had last installed there, and nothing said they agreed — they happened to, at 1.98.0, which is the version written below. The mac and the windows box pick this up with no action; a container gets the same toolchain for the same reason, rather than the Dockerfile naming a version the other two never hear about.
+#
+# Cargo reads this by searching upward from wherever it runs, and tauri runs it here in src-tauri. Raising the version is a deliberate edit, which is the point: a rust upgrade becomes something that lands in a diff and a commit rather than something that arrives on one machine and not the others.
+
+[toolchain]
+channel = "1.98.0"
+profile = "minimal"

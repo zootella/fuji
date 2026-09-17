@@ -10,8 +10,8 @@
 		"compile": "tauri build --no-bundle",
 		"installer": "tauri build",
 		"reveal": "node ../scripts.js reveal",
-		"hash": "node ../scripts.js hash",
-		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer",
+		"hash": "node ../scripts.js hash --source=bundle",
+		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=bundle",
 
 		"icons": "tauri icon src-tauri/icons/app-icon.svg && tauri icon src-tauri/icons/app-icon-mac.svg -o src-tauri/icons/.mac && tauri icon src-tauri/icons/app-icon-tile.svg -o src-tauri/icons/.tile && node ../scripts.js icons-collect",
 

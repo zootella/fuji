@@ -18,6 +18,13 @@
 	"bundle": {
 		"active": true,
 		"targets": ["app", "dmg", "nsis", "deb"],
+		"publisher": "Fuji",
+		"homepage": "https://fujidesktop.app/",
+		"copyright": "Copyright © 2026 Fuji",
+		"license": "GPL-3.0-only",
+		"licenseFile": "../../LICENSE",
+		"shortDescription": "A multimedia file manager designed with privacy and precision in mind",
+		"longDescription": "A multimedia file manager designed with privacy and precision in mind",
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",
@@ -25,6 +32,10 @@
 			"icons/mac/icon.icns",
 			"icons/icon.ico"
 		],
+		"linux": {
+			"deb": {"desktopTemplate": "fuji.desktop.hbs"},
+			"rpm": {"desktopTemplate": "fuji.desktop.hbs"}
+		},
 		"resources": {
 			"icons/tile/fuji.VisualElementsManifest.xml": "fuji.VisualElementsManifest.xml",
 			"icons/tile/tile-medium.png": "tile-medium.png",

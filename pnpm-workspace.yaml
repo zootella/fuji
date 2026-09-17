@@ -12,3 +12,8 @@ packages:
   # fujidesktop.app — the website and its documentation, built by VitePress to static
   # files that our own reverse proxy serves
   - site
+
+  # Fuji's linux packages — the deb, the rpm, the flatpak and the AUR recipe — built on a mac
+  # through docker rather than on a linux box. It has no dependencies of its own, because
+  # everything it does is orchestrate containers and the toolchains live inside those
+  - linux

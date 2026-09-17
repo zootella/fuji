@@ -1,0 +1,8 @@
+# What the containers make, and the whitelist copy that goes into them.
+#
+# The packages themselves stay out — they are large, and git never forgets a blob — but their sidecars are tracked, so the repository keeps a dated record of what hash each release had. Excluding the contents rather than the directory is what makes the negation work: git does not descend into an excluded directory, so !release/*.json under a plain release/ would silently match nothing. This mirrors the rule the root .gitignore states at length for desktop/release.
+release/*
+!release/*.json
+
+# The whitelist copy handed to a container. Rebuilt by every run, and a copy of source that already lives one directory up.
+.stage/

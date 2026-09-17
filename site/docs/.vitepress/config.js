@@ -1,4 +1,39 @@
 import { defineConfig } from 'vitepress'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/*
+A sidecar comes from this machine if it is staged here, and from production if it is not.
+
+The production server answers one hostname out of two directories, falling through to downloads on a miss, which is how fuji.dmg and fuji.dmg.json sit at the apex beside the pages. Development has no second directory, and this plugin plus the proxy below are what stand in for that fallthrough — with a step in front that production does not need.
+
+That first step is the point. `pnpm hash` stages packages and writes their sidecars into desktop/release and linux/release, and until they are uploaded the site has no way to show them: the page would say "not yet published" about a file sitting finished on your own disk. So this reads those two directories at request time and answers from them, and only calls through to the proxy for what this machine has not staged — the exe, say, which is built on the Windows box. Local work wins, production fills the gaps.
+
+Read at request time and never copied. That matters, because copying is what the retired `pnpm fixtures` script did: it put this machine's sidecars in docs/public, where one left behind is baked into a build and shadows the real file on the server, pinning the download page to a stale hash that no other machine can see. A dev-only middleware cannot do that, because `vitepress build` never runs it.
+*/
+function stagedSidecars() {
+	// from this file's own location rather than the working directory, the same rule scripts.js follows, because vitepress can be started from either the workspace or the root
+	let staged = ['../../../desktop/release/', '../../../linux/release/'].map(where => fileURLToPath(new URL(where, import.meta.url)))
+	return {
+		name: 'fuji-staged-sidecars',
+		configureServer(server) {
+			// added here rather than in a returned function, so it runs before vite's own middlewares and gets first refusal ahead of the proxy
+			server.middlewares.use((request, response, next) => {
+				let asked = /^\/(fuji\.[a-z0-9_.]+\.json)(?:[?#]|$)/.exec(request.url || '')
+				if (!asked) return next()
+				for (let folder of staged) {
+					let file = join(folder, asked[1])
+					if (!existsSync(file)) continue
+					response.setHeader('content-type', 'application/json')
+					response.setHeader('x-fuji-sidecar', 'staged on this machine')// so a fetch can be told apart from the proxied one without guessing
+					return response.end(readFileSync(file))
+				}
+				next()// nothing staged under that name, so the proxy asks production
+			})
+		},
+	}
+}
 
 // Every extension tauri can bundle, so the client router treats these as files to fetch rather than
 // pages to route to. Its own list happens to know exe and zip but not dmg, deb or appimage, and without
@@ -84,17 +119,17 @@ export default defineConfig({
 		// are local now, which is what let all three lines go.
 	],
 
-	// The download page fetches /fuji.dmg.json and its two siblings at runtime, out of the downloads
-	// directory this hostname falls through to, so nothing here knows a hash and publishing an installer
-	// changes the page without a rebuild. Development has no such directory, so these three forward to
-	// production and the dev server shows the hashes that are actually live. This is dev only — vitepress
-	// build never sees it, which is the whole advantage over the copies of the sidecars that used to be
-	// dropped into docs/public: one of those left behind gets baked into a build and served from the
-	// site's own directory, shadowing the real file and pinning the page to a stale hash.
+	/*
+	The download page fetches every sidecar at runtime, out of the downloads directory this hostname falls through to, so nothing here knows a hash and publishing a package changes the page without a rebuild.
+
+	Development has no such directory. stagedSidecars above answers first from what is staged on this machine, and whatever it does not find reaches this proxy and comes from production. Both are dev only — vitepress build never runs configureServer or a dev proxy — which is the whole advantage over the copies that used to be dropped into docs/public: one of those left behind gets baked into a build and served from the site's own directory, shadowing the real file and pinning the page to a stale hash.
+	*/
 	vite: {
+		plugins: [stagedSidecars()],
 		server: {
 			proxy: {
-				'^/fuji\\.(dmg|exe|deb)\\.json$': { target: origin, changeOrigin: true },
+				// Every sidecar, matched by shape rather than by a list that would need editing here and in downloads.js both. Reached only for what stagedSidecars above did not find on this machine.
+				'^/fuji\\.[a-z0-9_.]+\\.json$': { target: origin, changeOrigin: true },
 			},
 		},
 	},

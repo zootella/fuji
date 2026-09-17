@@ -28,6 +28,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 - **`scaffold.md`** — how a project like this one is set up, start to finish, in the form used to stand up a sister client.
 - **`icon.md`** — the application icon: fuji's design, and what each platform expects an icon to be.
+- **`linux-builds.md`** — what fuji should build and publish for Linux. Research only so far: two rooms of a hundred Linux users, one modelled on the Stack Overflow survey and one on the Steam survey, sized by the package format each person can actually install. No decision made yet.
 
 ## Letters
 

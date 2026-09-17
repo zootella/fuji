@@ -1,0 +1,20 @@
+# The toolchain that wraps fuji's .deb into a .flatpak.
+#
+# A flatpak is not another package format so much as a different bargain: the application ships with its libraries and runs in a sandbox, so it does not care what the host has installed. That is why it is the only artifact here that reaches SteamOS and Bazzite, whose roots are read only or atomic and where a .deb or .rpm cannot be installed at all.
+#
+# This image is the odd one out. It needs no rust and no node, because it consumes the .deb the tauri image already made rather than compiling anything, and no flatpak-builder either, for the reason inside-flatpak.sh sets out at length. What it does need is the GNOME runtime and SDK to build against, and those are some five gigabytes — which is exactly why they are installed here, in the durable layer, rather than fetched again by every ephemeral build. It is by a wide margin the largest of the four images.
+FROM debian:12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      flatpak ca-certificates binutils xz-utils \
+ && rm -rf /var/lib/apt/lists/*
+
+# Flathub is contacted here for one thing only: the runtime to build against. That is fetching a dependency, the way cargo fetches from crates.io, and not an account, a submission or a listing — publishing to flathub is a separate decision this pipeline does not make.
+#
+# **This version needs watching, in a way the other pins here do not.** The runtime supplies WebKitGTK, which is the engine fuji renders in, so an end-of-life runtime means shipping an unpatched browser inside a sandbox whose whole purpose is containment. Tauri's own documentation still says GNOME 46; flathub marks 46 end-of-life as of April 2025 and last built it in October 2025, while supporting 49, 50 and 51. 49 was checked to still carry libwebkit2gtk-4.1, which tauri 2 links and which newer runtimes will eventually drop for webkitgtk-6.0 — that drop is the thing that will force a change here, and it is a tauri migration rather than a number to bump.
+ARG GNOME_VERSION=49
+RUN flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
+ && flatpak install -y --noninteractive flathub \
+      "org.gnome.Platform//${GNOME_VERSION}" "org.gnome.Sdk//${GNOME_VERSION}"
+
+# No script is baked in. What a container does is mounted at run time by build.js, because an image here is the toolchain and nothing else — editing a build step should not mean rebuilding one.

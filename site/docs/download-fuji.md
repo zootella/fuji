@@ -1,10 +1,15 @@
 # Download Fuji
 
-One installer per system, and the architecture matters as much as the name: a build for ARM will not run on an x86 machine. Take the one that matches your computer, and if you are not sure which that is, the notes under the list say who each file is for.
+One package per system, and the architecture matters as much as the name: a build for ARM will not run on an x86 machine, and the reverse. Take the one that matches your computer, and if you are not sure which that is, the notes under the list say who each file is for.
 
-<Download file="fuji.dmg" platform="macOS"   system="Apple silicon" />
-<Download file="fuji.exe" platform="Windows" system="64-bit Intel and AMD" />
-<Download file="fuji.deb" platform="Linux"   system="Debian and Ubuntu on ARM" />
+<Download file="fuji.dmg"            platform="macOS"   system="Apple silicon" />
+<Download file="fuji.exe"            platform="Windows" system="64-bit Intel and AMD" />
+<Download file="fuji.arm64.deb"      platform="Linux"   system="Raspberry Pi, and other ARM machines running Debian or Ubuntu" />
+<Download file="fuji.amd64.deb"      platform="Linux"   system="Debian and Ubuntu on 64-bit Intel and AMD" />
+<Download file="fuji.x86_64.rpm"     platform="Linux"   system="Fedora and RHEL on 64-bit Intel and AMD" />
+<Download file="fuji.x86_64.flatpak" platform="Linux"   system="any distribution, sandboxed, 64-bit Intel and AMD" />
+
+Arch Linux has no file here — Fuji will be in the AUR instead, and is not published there yet. See below.
 
 ## Which file, and for what
 
@@ -12,7 +17,15 @@ One installer per system, and the architecture matters as much as the name: a bu
 
 **Windows.** `fuji.exe` is the *installer*, for 64-bit Intel and AMD processors, and running it walks through a short wizard. It is not the application itself, which the installer unpacks and puts where Windows expects it.
 
-**Linux.** `fuji.deb` is a Debian package — Debian, Ubuntu, and the distributions built on them — and it is not published yet. When it arrives it will be an ARM build rather than an x86 one, so it will suit a Raspberry Pi and machines like it, and it will not run on an ordinary x86 desktop.
+**Debian, Ubuntu and their relatives.** There are two, and the difference is the processor, which each filename states. `fuji.amd64.deb` is for a 64-bit Intel or AMD desktop, which is almost certainly what you have. `fuji.arm64.deb` is the **Raspberry Pi** one, and suits other ARM machines too; it will not run on an ordinary desktop. If you pick wrong, your package manager refuses the file rather than installing something that cannot run. Both install with your package manager or a double-click, and both work on Debian 12 and later, Ubuntu 24.04 LTS and later, and Linux Mint 22 and later.
+
+**Fedora, RHEL, Rocky, AlmaLinux.** `fuji.x86_64.rpm` is the package for those and their relatives, for 64-bit Intel and AMD.
+
+**Any distribution at all, on a 64-bit Intel or AMD machine.** `fuji.x86_64.flatpak` is a Flatpak bundle, which carries its own libraries and runs in a sandbox, so it does not care what your distribution ships — though it does still care what processor you have, and this one is not for a Raspberry Pi. Download it and install it with `flatpak install ./fuji.x86_64.flatpak`. It is the only one of these that works on an immutable system like SteamOS on the Steam Deck, or Bazzite, where the root filesystem is read-only and an ordinary package cannot be installed at all.
+
+Fuji reads the folders you point it at, so the Flatpak asks for access to your filesystem. Your software centre will say so when you install it, and it is the same access the other packages have without asking.
+
+**Arch, Manjaro, EndeavourOS, CachyOS.** Not published yet. When it arrives Fuji will be in the AUR as `fuji-bin`, so there will be nothing here to download — you will install it the way you install anything else from there, with `yay -S fuji-bin` or your own helper.
 
 ## The downloads are not code-signed
 
@@ -24,7 +37,7 @@ On macOS, an application downloaded from the web is quarantined, and the first a
 
 ## Checking the hash
 
-Every installer is published with its SHA-256 beside it, and comparing the two catches a download that was corrupted or truncated on the way to you, along with the ordinary mistake of having grabbed the wrong file.
+Every package is published with its SHA-256 beside it, and comparing the two catches a download that was corrupted or truncated on the way to you, along with the ordinary mistake of having grabbed the wrong file.
 
 ```bash
 shasum -a 256 fuji.dmg        # macOS and Linux

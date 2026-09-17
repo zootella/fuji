@@ -7,19 +7,19 @@ The apex page. index.md carries layout: false, so VitePress renders no navbar, s
 
 It is a port of the Nuxt page it replaces, class for class, now that Tailwind is gone. It names its own fonts rather than reading the theme's variables, so that the documentation pages can stay stock VitePress and the two never pull on each other. The Tailwind values it was written in are noted beside the CSS below so the two can be compared.
 
-The Hashes reveal is the one moving part, and downloads.js holds its mechanism — what a sidecar is, why there are three of them rather than one, and why the fetch has to happen on mount. The download page reads that same module and shows the rest of what a sidecar carries; this page shows only the hashes, because that is all its box has room for.
+The Hashes reveal is the one moving part, and downloads.js holds its mechanism — what a sidecar is, why there is one per package rather than one combined file, and why the fetch has to happen on mount. The download page reads that same module and shows the rest of what a sidecar carries; this page shows a hash and a filename per row, which is what its box has room for. The row count follows installerFiles rather than being written here, so adding a package to that list adds a row to this reveal and nothing else has to change.
 */
 
 let showing = ref(false)//is the hash list open
 let rows = ref(installerFiles.map(file => ({file, sha256: ''})))//one row per installer, named from the start so opening the list never changes its height; a hash arrives when its sidecar does
 let release = ref(false)//the version and date above the rows, or false before anything is published
-let loaded = ref(false)//the three fetches have all settled, so a blank hash now means unpublished rather than unread
+let loaded = ref(false)//every fetch has settled, so a blank hash now means unpublished rather than unread
 let status = ref('')//the line beneath Close: the hover hint, then the copy confirmation
 
 /*
-The sidecars are fetched when this component mounts rather than when the reader opens the list, so the hashes are already in hand the moment Hashes is clicked. That costs every visitor three requests they may never look at, which was weighed rather than measured and accepted: the files are a couple of hundred bytes each, they go in parallel, and they are the only thing on this page that is not already in the bundle. Mount rather than module scope is required rather than preferred, for the reason downloads.js gives.
+The sidecars are fetched when this component mounts rather than when the reader opens the list, so the hashes are already in hand the moment Hashes is clicked. That costs every visitor one request per package they may never look at — three when this was written, six now — which was weighed rather than measured and accepted: the files are a couple of hundred bytes each, they go in parallel, and they are the only thing on this page that is not already in the bundle. Mount rather than module scope is required rather than preferred, for the reason downloads.js gives.
 
-One consequence of mount rather than load: VitePress navigates between pages on the client, so leaving this page and coming back mounts the component again and fetches again. That is three small requests for a fresher answer, and it is the behaviour we want.
+One consequence of mount rather than load: VitePress navigates between pages on the client, so leaving this page and coming back mounts the component again and fetches again. That is a handful of small requests for a fresher answer, and it is the behaviour we want.
 */
 onMounted(async () => {
 	let sidecars = await fetchSidecars()
@@ -65,12 +65,14 @@ async function copyHash(row) {
 				<!--
 				Downloads on the left of the hyphen, everything else on the right.
 				
-				The three installer paths are the real ones and are deliberately stable: the build names its output Fuji_0.1.0_aarch64.dmg and the like, and the upload renames on the way out, so a link posted today keeps working across releases. They 404 until the first release is uploaded, which is expected — nothing about this markup changes when it stops being true.
+				The Mac and Windows paths are the real files and are deliberately stable: the build names its output Fuji_0.1.0_aarch64.dmg and the like, and the upload renames on the way out, so a link posted today keeps working across releases. They 404 until the first release is uploaded, which is expected — nothing about this markup changes when it stops being true.
+				
+				Linux is a link to the download page rather than to a file, and has to be. Fuji ships four linux packages — two debs, an rpm and a flatpak — and one Linux button could only pick one of them for everybody, handing most people something their machine cannot install. One word here cannot ask which distribution and which processor; that page can.
 				
 				GitHub points at the application's own repository, not this one.
 				-->
 				<p class="links">
-					<a href="/fuji.dmg" download>Mac</a> <a href="/fuji.exe" download>Win</a> <a href="/fuji.deb" download>Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/getting-started.html">Docs</a>
+					<a href="/fuji.dmg" download>Mac</a> <a href="/fuji.exe" download>Win</a> <a href="/download-fuji.html">Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/getting-started.html">Docs</a>
 				</p>
 
 				<div v-if="showing" class="hashes">
@@ -165,12 +167,16 @@ The old page did two jobs with two elements: body carried the mint over the whol
 	margin: 0;
 }
 
-.copy .links {                   /* was mt-8; qualified because .copy p above outranks a bare class */
-	margin-top: 2rem;
+/* The vertical rhythm of this column, said once rather than per element. Wherever a new thought starts it is one blank line away, and one blank line is 1.5rem because that is the line-height the mono is set in — so the gap is a real empty line rather than a number that merely looks about right. The Tailwind port had 2rem here, from mt-8, which is a line and a third and sat outside the rhythm.
+
+The tagline's two lines get none: they are one sentence broken to fit, not two paragraphs. That is why this is a list of the places a gap belongs rather than a blanket rule on adjacent paragraphs. */
+.copy {
+	--blank-line: 1.5rem;
 }
 
-.copy .hashes {                  /* the reveal, in the same rhythm as the links row above it */
-	margin-top: 2rem;
+.copy .links,                    /* qualified because .copy p above outranks a bare class */
+.copy .hashes {
+	margin-top: var(--blank-line);
 }
 
 .links a,
@@ -185,8 +191,13 @@ The old page did two jobs with two elements: body carried the mint over the whol
 	overflow-wrap: anywhere;       /* sixty-four hex characters offer the browser no break of their own */
 }
 
+/* The hashes sit between two blank lines, so the block reads as its own thing rather than as text crowding the heading and the Close. */
+.hashes .heading {
+	margin-bottom: var(--blank-line);
+}
+
 .hashes .close {
-	margin-top: 1.5rem;            /* one blank line, matching the 24px line-height, between the hashes and Close */
+	margin-top: var(--blank-line);
 }
 
 .hashes .status,

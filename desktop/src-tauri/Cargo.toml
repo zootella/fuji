@@ -1,16 +1,15 @@
 [package]
 name = "fuji"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A multimedia file manager designed with privacy and precision in mind"
+# becomes the deb's Maintainer and the rpm's packager, both of which are public in every installed copy — so a project address rather than a person's
+authors = ["Fuji <team@fujidesktop.app>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+# The `_lib` suffix may seem redundant but it is necessary to make the lib name unique and wouldn't conflict with the bin name. This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "fuji_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 

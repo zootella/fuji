@@ -34,7 +34,7 @@ So the honest description of the first pass is that it works and nobody will fin
 
 **Reading the current handler on macOS is the awkward direction.** `NSWorkspace.urlForApplication(toOpen:)` wants a file URL rather than a type, and the type-shaped call returns candidates rather than the winner. Either a throwaway file per type, or the deprecated `LSCopyDefaultApplicationURLForContentType`, which still works. An experiment for that pass.
 
-**Linux** gets `MimeType=` in its `.desktop` file already and nothing has been tested after that.
+**Linux** gets no `MimeType=` at all — checked in the generated package on 2026-09-17, where the `.desktop` file carries `Exec`, `Icon`, `Name` and an empty `Categories=` and nothing else. An earlier note here said otherwise and was wrong. Nothing in `tauri.conf.json` configures a desktop template, so fuji cannot be handed a picture on linux and a user drags files in instead. Deliberately left that way for now: linux desktop integration is its own sprint, and `bundle.linux.deb.desktopTemplate` is where it would start.
 
 ## Settled, and recorded so nobody researches it twice
 

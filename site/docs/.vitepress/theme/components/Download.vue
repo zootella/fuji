@@ -6,7 +6,7 @@ import { fetchSidecar, readableDate, saySize, copyText } from '../downloads.js'
 /*
 One download: the outlined box on the download page that offers a file and says what is known about it. downloads.js has the system it belongs to — where a sidecar comes from, what is in one, and why the fetch happens on mount.
 
-The page places three of these by hand rather than looping over a list, because fuji ships three installers and will for a long time:
+The page places six of these by hand rather than looping over a list, because fuji ships six packages and will for a long time:
 
 	<Download file="fuji.dmg" platform="macOS" system="Apple silicon" />
 
@@ -18,7 +18,7 @@ The copy message rides the end of the line below the hash rather than taking a l
 */
 
 let props = defineProps({
-	file: String,     //the published name, like fuji.dmg; its sidecar sits beside it under the same name
+	file: String,     //the published name, like fuji.dmg or fuji.amd64.deb; its sidecar sits beside it under the same name
 	platform: String, //macOS, Windows, Linux
 	system: String,   //what it runs on, in the words somebody choosing a download would use
 })

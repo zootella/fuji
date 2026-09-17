@@ -8,7 +8,9 @@ These are the rules a session works under here. They live in this file rather th
 
 **The user alone runs git commands that change anything.** A session uses git to look — `status`, `log`, `diff`, `show`, `blame` — and never to commit, add, push, checkout, restore, reset, merge, rebase, stash, or tag. Finish the work, leave it in the working tree, say plainly what changed and what a commit would cover, and hand over the command rather than running it. Every commit in this repository is the user's own, with a lowercase one-line subject and no body and no trailers, and it stays that way; a commit carrying a `Co-Authored-By` or a session link looks nothing like the rest of the history and has had to be rewritten once already. One consequence is worth stating on its own: **`git checkout <file>` is not an undo.** It discards every uncommitted change to that file, including work that has nothing to do with the mistake being fixed, and it has already cost a finished fix here once. Use the editing tools.
 
-**The work moves between machines, and this repository is the only thing they share.** Fuji is cross-platform, and it is developed on several computers that pull and push through git rather than on one. A Mac mini is home base and where most of the work happens, though its display is old and sRGB. A MacBook Air is the Retina and Display P3 machine, visited when something has to be checked against a modern Apple panel. A Windows 10 box, itself old, a Linux desktop and a Raspberry Pi carry the desktop integration each of those systems needs, and every release has its installers built and deployed from the machine that can make them.
+**The work moves between machines, and this repository is the only thing they share.** Fuji is cross-platform, and it is developed on several computers that pull and push through git rather than on one. A Mac mini is home base and where most of the work happens, though its display is old and sRGB. A MacBook Air is the Retina and Display P3 machine, visited when something has to be checked against a modern Apple panel. A Windows 10 box, itself old, a Linux desktop and a Raspberry Pi carry the desktop integration each of those systems needs.
+
+**Two machines publish fuji, and linux is not one of them.** Windows builds and sends the exe. The mac sends the dmg it built natively and the four linux packages it built in docker containers, so every linux package comes from one machine against one base image and one lockfile. A linux box can still clone this repository and run `pnpm installer` in `desktop` to build for the machine it is sitting at — that is development and it works — but `scripts.js` refuses to stage or upload from there, and says why.
 
 **So write for a reader who is somewhere else.** A Claude Code session keeps notes of its own, per project folder and per machine, and those do not travel: written on one computer they are invisible on the next, and the session that reads a file is almost never the session that wrote it. Weeks may have passed and many revisions may have landed in between. So anything worth knowing next time goes in a file here rather than in a note only one computer can see; a document says which machine a measurement came from, because the same code gives different numbers on different hardware; and it says what is settled against what is still assumed, since the reader cannot ask the session that found out. `contents.md` lists the design documents and says what each one owns, and separates them from letters, which are addressed to whoever comes next rather than settling a subject. `fidelity.md` is the worked example of all three habits.
 
@@ -74,7 +76,7 @@ The application displays images in an infinite pannable/zoomable space with keyb
 
 ### The repository is a pnpm monorepo
 
-The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. The second workspace is `site`, the VitePress website and documentation for fujidesktop.app, built to static files that our own reverse proxy serves.
+The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. The second workspace is `site`, the VitePress website and documentation for fujidesktop.app, built to static files that our own reverse proxy serves. The third is `linux`, which builds fuji's four linux packages in docker containers on the mac — it has no dependencies of its own, because everything it does is drive containers whose toolchains live inside them.
 
 The root has no scripts, deliberately. `pnpm install` runs there and installs every workspace; everything else runs from inside the workspace it belongs to, so `cd desktop` comes first. **Throughout this document a path written `src/` or `src-tauri/` is relative to `desktop/`**, which is how the code refers to itself; only paths written from the root, like the build outputs below, carry the `desktop/` prefix.
 
@@ -114,6 +116,20 @@ pnpm vite-build   # Build frontend only
 ```
 These two are also Tauri's own before-commands, named in `tauri.conf.json`, which is why they keep those names instead of joining the list above.
 
+### The Linux Workspace
+
+```bash
+cd linux
+pnpm build        the four linux packages, and a check of the AUR recipe
+pnpm hash         stage them and write the sidecars, building nothing
+pnpm upload       send what is staged to the production server
+```
+**Three commands and no setup step**, because `build` brings its own toolchain images up to date every time — three seconds once they exist, and the reason nobody has to notice when a version inside a `Dockerfile` moves. Docker Desktop has to be installed and running; the first build on a new machine is much longer, since it makes four images first. `build-distro`, `build-flatpak`, `build-aur`, `build-images` and `stage` sit underneath for factoring and are rarely typed.
+
+`linux/README.md` is the guide — the commands, and every filename on the way through. It makes four packages — a `.deb` for arm64, a `.deb` and an `.rpm` for x86_64, and a `.flatpak` for x86_64 — plus the AUR's PKGBUILD, which is a recipe rather than a package and so is validated here rather than published. An image is the toolchain and a container is one build: nothing survives between runs, so every build starts from the same known state, which is worth more than speed at a few releases a year.
+
+**The base image is `debian:12-slim` and that is load-bearing.** A binary is compatible with its build machine's glibc and every later one, never an earlier one, so the base sets a floor on who can run the result. Debian 12's 2.36 reaches Ubuntu 24.04 LTS, Mint 22.x, Fedora 40 and up, and both generations of Raspberry Pi OS — verified by installing the built packages on clean Debian, Ubuntu 24.04 and Fedora images. Debian 13 would have moved that floor to 2.41 and shut out the current Ubuntu LTS.
+
 ### The Site Workspace
 ```bash
 cd site
@@ -123,7 +139,9 @@ pnpm upload       # Build, then ship dist/ to the server
 ```
 `upload` means the installer in `desktop` and the site in `site`, deliberately — one word, and each workspace ships what it made. The site build never learns a hash, because the download page fetches each sidecar at runtime.
 
-**The dev server proxies the three sidecar paths to production**, which is a few lines of `vite.server.proxy` in `docs/.vitepress/config.js`, so `pnpm local` shows the hashes that are actually live. It replaced a `pnpm fixtures` script that copied this machine's sidecars into `docs/public/` — which worked, but one left behind is baked into a build and served from the site's own directory, shadowing the real file and pinning the page to a stale hash. A proxy cannot do that, because `vitepress build` never sees it. Those copies are gitignored, so a machine that ran `fixtures` before it was retired may still hold some and no other machine can tell — `upload-site` refuses to ship a `fuji.*.json` it finds in the build and names what to delete, which is the guard the retired script's `clear` mode used to be.
+**The dev server answers a sidecar from this machine first and from production second**, which is a small Vite plugin plus a proxy in `docs/.vitepress/config.js`. The plugin reads `desktop/release/` and `linux/release/` at request time and serves whatever is staged there; anything it does not find falls through to the proxy and comes from fujidesktop.app. So `pnpm local` shows the packages you are about to publish alongside the ones already live — the exe, say, which is built on the Windows box and arrives from the server. A response carries `x-fuji-sidecar` when it came from this machine, so the two can be told apart without guessing.
+
+That is the third arrangement, and the two it replaced are worth knowing. **Copying was first**, a `pnpm fixtures` script that put this machine's sidecars in `docs/public/` — which worked, but one left behind is baked into a build and served from the site's own directory, shadowing the real file and pinning the page to a stale hash. Those copies are gitignored, so a machine that ran it may still hold some and no other machine can tell; `upload-site` refuses to ship a `fuji.*.json` it finds in the build and names what to delete, which is the guard that script's `clear` mode used to be. **Proxying alone was second**, honest about what was live and unable to show you your own staged work at all. Neither the plugin nor the proxy can bake anything into a build, because `vitepress build` never runs `configureServer`.
 
 ### The Root Script
 
@@ -294,19 +312,28 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **Linux**:
 ```
-./desktop/src-tauri/target/release/bundle/deb/Fuji_0.1.0_amd64.deb
+./linux/release/Fuji_0.1.0_arm64.deb
+./linux/release/Fuji_0.1.0_amd64.deb
+./linux/release/Fuji-0.1.0-1.x86_64.rpm
+./linux/release/Fuji_0.1.0_x86_64.flatpak
 ```
 
-**The staged release**, written by `pnpm hash` on whichever machine built it:
+**The staged release**, written by `pnpm hash` on whichever machine built it. No published name carries a version, so a link anyone shares keeps pointing at the current build; every linux package names its architecture, because linux is where architectures multiply and a bare name would read as the default while being the rarer one:
 ```
-./desktop/release/fuji.dmg      ./desktop/release/fuji.dmg.json
-./desktop/release/fuji.exe      ./desktop/release/fuji.exe.json
-./desktop/release/fuji.deb      ./desktop/release/fuji.deb.json
+./desktop/release/fuji.dmg              ./desktop/release/fuji.dmg.json
+./desktop/release/fuji.exe              ./desktop/release/fuji.exe.json
+
+./linux/release/fuji.arm64.deb          ./linux/release/fuji.arm64.deb.json
+./linux/release/fuji.amd64.deb          ./linux/release/fuji.amd64.deb.json
+./linux/release/fuji.x86_64.rpm         ./linux/release/fuji.x86_64.rpm.json
+./linux/release/fuji.x86_64.flatpak     ./linux/release/fuji.x86_64.flatpak.json
 ```
 
 **Two different files are named `fuji.exe`, and their sizes tell them apart at a glance.** `src-tauri/target/release/fuji.exe` is the application itself — the binary the NSIS installer wraps, and the one that runs in place without installing. `release/fuji.exe` is the staged **installer**, a copy of `Fuji_0.1.0_x64-setup.exe` under its publishing name, and it is what the website offers for download. Measured on the Windows box 2026-09-11: the binary is 9,512,448 bytes and the installer 2,042,921, because NSIS compresses what it wraps.
 
-`bundle.targets` names the four packages fuji ships, rather than Tauri's default `"all"` — which also builds an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package, neither of which anything links to. One list serves all three platforms: a target that does not apply to the machine doing the build is skipped, and **the skipping is silent**, so a build producing one file is not evidence that anything went wrong.
+`bundle.targets` names what a `tauri build` makes, rather than Tauri's default `"all"` — which also builds an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package, neither of which anything links to. One list serves every platform: a target that does not apply to the machine doing the build is skipped, and **the skipping is silent**, so a build producing one file is not evidence that anything went wrong.
+
+The linux containers do not use that list. They pass `--bundles deb` or `--bundles deb,rpm` on the command line instead, which overrides it for that run only — so the linux specifics stay in the `linux` workspace and what the mac and windows builds are told to make never changed.
 
 `pnpm hash` copies the bundle out from under its versioned, architecture-specific name into `release/` under a stable publishing name, and writes the sidecar beside it from the bytes that landed. The rename happens here rather than at upload time, which is what lets the site side copy known filenames from a known path with no rules about versions or architectures. The installers stay out of git; the sidecars are committed, so history keeps a dated record of what hash each release had.
 

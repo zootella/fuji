@@ -7,98 +7,191 @@ import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 /*
-The build pipeline for both workspaces, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri or vitepress is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect.
+The publishing pipeline for all three workspaces, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri, vitepress or docker is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect.
 
-Fuji is developed on several computers, and each one builds, stages and publishes only the installer it can make. That is why a command means the same thing everywhere while doing different work underneath — `installer` produces a .dmg, a .exe or a .deb, and `upload` sends whichever of those this machine is the one that can build. Nobody has to remember which computer they are sitting at.
+**This file publishes; it does not build.** The desktop workspace builds with tauri, the linux workspace builds in containers, and both then call in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
 
-One file rather than one per workspace, because the facts worth keeping in one place cross the workspace boundary. The stable publishing name is the clearest case: tauri writes Fuji_0.1.0_aarch64.dmg, which is right for a build directory and wrong for a download link, so hash copies it to fuji.dmg and a link in a page survives the next version. That name is written by the desktop side and shipped by the site side, and when these were separate scripts each spelled it out for itself. The platforms table below is now the only place any of it is said.
+Two machines publish fuji. Windows sends the exe. The mac sends the dmg it built natively and the four linux packages it built in docker. So a command means the same thing everywhere while doing different work underneath: `pnpm hash` is one package in desktop on windows and four in linux on the mac, and nobody has to remember which computer they are sitting at. What differs is passed as --source by the workspace that asked.
+
+One file rather than one per workspace, because the facts worth keeping in one place cross the workspace boundary. The published name is the clearest case: tauri writes Fuji_0.1.0_aarch64.dmg, which is right for a build directory and wrong for a download link, so hash stages it as fuji.dmg and a link in a page survives the next version. That name is written by the build side and shipped by the site side, and when these were separate scripts each spelled it out for itself. The targets table below is now the only place any of it is said.
 
 Living at the root also settles the working-directory question by force rather than by discipline. Both workspaces call this file, each from its own folder, so nothing here can be relative to wherever node started; every path is built from this file's own location. The scripts this replaced each had their own answer to that, every one of them correct only because pnpm happened to run it from the right place.
 
 It imports node builtins and nothing else, and has to: the root package.json has no dependencies, and node_modules belongs to the workspaces below it.
 */
 
-//everything that differs between the three computers, in one table. folder and suffix are how tauri
-//names what it built, published is the stable name a download link can keep, and opener is the
-//command that shows a person a folder
-const platforms = {
-	darwin: {folder: 'dmg',  suffix: '.dmg',       published: 'fuji.dmg', opener: 'open'},
-	win32:  {folder: 'nsis', suffix: '-setup.exe', published: 'fuji.exe', opener: 'explorer'},
-	linux:  {folder: 'deb',  suffix: '.deb',       published: 'fuji.deb', opener: 'xdg-open'},
+/*
+Every artifact fuji publishes, and the one place any of it is said.
+
+This was a table of three platforms keyed by process.platform until the linux workspace arrived, and the change is worth understanding rather than skimming. A platform table quietly assumed that the machine running a command is the machine that made the file — true when each operating system built its own installer, and false the moment a mac started building linux packages in docker. So the key is now the artifact rather than the computer, and which machine can make a thing is a separate question asked by whatMachineMakes below.
+
+source says where the built file is found: 'bundle' is tauri's own output under the desktop workspace, 'linux' is what the containers left in linux/release.
+
+publish is the name the file takes on the server, and sidecar is the name of the json beside it. They are the same string throughout, deliberately.
+
+The rule for a published name: **every linux package states its architecture, and none carries a version.** macOS and Windows ship one architecture each by decision rather than by accident — there is no intel build and no ARM windows build — so fuji.dmg and fuji.exe need no token, and both names are already published and linked. Linux is where architectures multiply, so every name there says which machine it is for, including the formats that have only one build today. That costs a few characters and means no name ever has to change when an aarch64 flatpak or an ARM rpm turns up.
+
+That is a decision worth not relitigating. A versioned filename says what it is when it is sitting in somebody's downloads folder, and costs more than it is worth: a link anyone posts pins that version forever, so it either serves stale software or 404s on the next release, and neither failure announces itself. A stable name is overwritten in place, so every link ever shared keeps handing people the current build. What version a download is belongs on the page, which reads it from the sidecar.
+*/
+const targets = {
+	//the two an operating system builds for itself
+	'dmg':     {source: 'bundle', folder: 'dmg',  suffix: '.dmg',       publish: 'fuji.dmg', sidecar: 'fuji.dmg',     say: 'macOS disk image, Apple silicon'},
+	'exe':     {source: 'bundle', folder: 'nsis', suffix: '-setup.exe', publish: 'fuji.exe', sidecar: 'fuji.exe',     say: 'Windows installer, x86-64'},
+
+	//the four the linux workspace builds in containers, and every one names its architecture. giving the ARM deb the bare name fuji.deb is the tempting mistake here, since it is the raspberry pi link: beside fuji.amd64.deb an unadorned name reads like the ordinary choice while being the rarer one, which is a trap laid for the majority. no bare linux name also means none has to be renamed, and no link broken, when a second architecture of some format turns up
+	'deb-arm64':   {source: 'linux', match: /_(arm64)\.deb$/,      publish: 'fuji.arm64.deb',    sidecar: 'fuji.arm64.deb',    say: 'Debian package, ARM — Raspberry Pi and like machines'},
+	'deb-x64':     {source: 'linux', match: /_(amd64)\.deb$/,      publish: 'fuji.amd64.deb',    sidecar: 'fuji.amd64.deb',    say: 'Debian package, x86-64'},
+	'rpm-x64':     {source: 'linux', match: /\.(x86_64)\.rpm$/,    publish: 'fuji.x86_64.rpm',   sidecar: 'fuji.x86_64.rpm',   say: 'RPM package, x86-64'},
+	'flatpak-x64': {source: 'linux', match: /_(x86_64)\.flatpak$/, publish: 'fuji.x86_64.flatpak', sidecar: 'fuji.x86_64.flatpak', say: 'Flatpak bundle, x86-64'},
 }
 
-function thisMachine() {//the row for the computer we are running on, and the one place anything below asks
-	let found = platforms[process.platform]
-	if (!found) throw new Error('fuji has no build for this platform: ' + process.platform)
+/*
+Which targets this computer stages and sends. Two machines publish fuji and no others: the mac makes its own dmg and, through docker, every linux package; windows makes the exe.
+
+Linux is deliberately absent, and its absence is the simpler answer rather than an omission. Somebody can clone this repository on ubuntu or raspberry pi os and run pnpm installer in the desktop workspace, and they will get a package built for the machine they are sitting at — that is development, and it works. What they cannot do is stage and upload it, because a published package comes from the mac where all five are built together against one base image and one lockfile. Teaching this file a third place to look for a built file, so that a borrowed linux box could publish one package out of five, would buy a case nobody has and cost a branch in every function below.
+*/
+const machines = {
+	darwin: ['dmg', 'deb-arm64', 'deb-x64', 'rpm-x64', 'flatpak-x64'],
+	win32:  ['exe'],
+}
+
+function whatMachineMakes() {
+	let found = machines[process.platform]
+	if (!found) throw new Error(
+		`fuji does not publish from ${process.platform}. The dmg and every linux package are staged on the mac, ` +
+		`the exe on windows. Building here for your own use is a different thing and works: pnpm installer in desktop.`)
 	return found
 }
 
-//every path is built from this file's own location, never from the working directory, because both
-//workspaces call this file and each calls it from its own folder
+function readTarget(name) {
+	let found = targets[name]
+	if (!found) throw new Error(`no such target: ${name} — say one of ${Object.keys(targets).join(', ')}`)
+	return found
+}
+
+/*
+Which targets a command acts on, decided in one place because hash and upload must agree.
+
+Named targets win and are an instruction: asking for one that is not built is an error. With none named it is everything this machine makes, narrowed by --source to the workspace that asked — which is what lets `pnpm hash` mean "the dmg" in desktop and "the four packages" in linux while being the same word and the same code. Run from the root with neither, it means everything this computer makes.
+*/
+function chosenTargets() {
+	let args = process.argv.slice(3)
+	let named = args.filter(a => !a.startsWith('-'))
+	if (named.length) return {names: named, demanded: true}
+
+	let source = (args.find(a => a.startsWith('--source=')) || '').split('=')[1]
+	let names = whatMachineMakes()
+	if (source) names = names.filter(name => readTarget(name).source == source)
+	return {names, demanded: false}
+}
+
+//where a graphical file manager gets pointed, per platform rather than per target
+const openers = {darwin: 'open', win32: 'explorer', linux: 'xdg-open'}
+
+//every path is built from this file's own location, never from the working directory, because both workspaces call this file and each calls it from its own folder
 const root = fileURLToPath(new URL('.', import.meta.url))
 const configurationFile = join(root, 'desktop/src-tauri/tauri.conf.json')//the file that named the bundle
 const bundled = join(root, 'desktop/src-tauri/target/release/bundle')    //where tauri leaves what it built
-const staging = join(root, 'desktop/release')                            //where hash puts the installer and its sidecar, and where upload looks for them
+const staged = {                                                         //where hash puts a package and its sidecar, and where upload looks for them
+	bundle: join(root, 'desktop/release'),                                //the dmg and the exe, copied out from under tauri's versioned name
+	linux:  join(root, 'linux/release'),                                 //the four the containers made, already sitting where they were written
+}
 const icons   = join(root, 'desktop/src-tauri/icons')                    //committed artwork, generated rather than drawn
 const built   = join(root, 'site/docs/.vitepress/dist')                  //what vitepress builds
 
 let server//the destination, filled by readServer before either upload runs
 
-//open the graphical file manager on this platform's finished installer, so it can be double-clicked
-//the way a person who downloaded it would. that is a different and stronger test than starting a
-//built binary in place: an installer has a first-run experience — the publisher warning, the wizard,
-//where the application ends up — and none of that happens otherwise
+//open the graphical file manager on this platform's finished installer, so it can be double-clicked the way a person who downloaded it would. that is a different and stronger test than starting a built binary in place: an installer has a first-run experience — the publisher warning, the wizard, where the application ends up — and none of that happens otherwise
 function reveal() {
-	let machine = thisMachine()
-	let folder = join(bundled, machine.folder)//the folder, not the file: its name carries the version and would need editing every release, and the folder holds one file anyway
+	let name = process.argv[3] || whatMachineMakes()[0]
+	let target = readTarget(name)
+	//the folder, not the file: a filename carries the version and would need editing every release
+	let folder = target.source == 'bundle' ? join(bundled, target.folder) : staged.linux
 	if (!existsSync(folder)) throw new Error('nothing built yet at ' + folder + ', run pnpm installer first')
 
 	console.log('opening  ' + folder)
-	//an absolute path, because explorer resolves a relative one against its own working directory
-	//rather than ours. and explorer answers 1 even when it did open the window, so its exit means nothing
-	execFile(machine.opener, [folder], error => {
+	//an absolute path, because explorer resolves a relative one against its own working directory rather than ours. and explorer answers 1 even when it did open the window, so its exit means nothing
+	execFile(openers[process.platform], [folder], error => {
 		if (error && process.platform != 'win32') console.error('could not open the file manager: ' + error.message)
 	})
 }
 
-//stage this platform's installer under its publishing name and write the sidecar beside it, building
-//nothing. two things the sidecar must not lie about, and each is read rather than assumed: the version
-//comes from tauri.conf.json, the same file that named the bundle, so the two cannot disagree; the
-//architecture comes out of the bundle's own filename, so it describes the file that exists rather than
-//the machine that ran this
-function hash() {
-	let machine = thisMachine()
+function readVersion() {//the version comes from the same file that named the bundle, so the two cannot disagree
 	let version = JSON.parse(readFileSync(configurationFile, 'utf8')).version
 	if (!version) throw new Error('tauri.conf.json has no version')
+	return version
+}
 
-	//find this version's bundle and only this version's; an old one left beside it would be a coin flip
-	let folder = join(bundled, machine.folder)
-	let prefix = `Fuji_${version}_`
-	let names = readdirSync(folder).filter(name => name.startsWith(prefix) && name.endsWith(machine.suffix))
-	if (names.length != 1) throw new Error(`expected one ${prefix}*${machine.suffix} in ${folder}, found ${names.length} of them: ${readdirSync(folder).join(', ')}`)
+//find the one file a target describes, and say which architecture it turned out to be. read from the filename rather than from the machine running this, so every number describes the file that exists
+function findBuilt(target, version) {
+	if (target.source == 'bundle') {
+		let folder = join(bundled, target.folder)
+		if (!existsSync(folder)) return false
+		let prefix = `Fuji_${version}_`
+		let names = readdirSync(folder).filter(n => n.startsWith(prefix) && n.endsWith(target.suffix))
+		if (names.length > 1) throw new Error(`expected one ${prefix}*${target.suffix} in ${folder}, found ${names.length}: ${names.join(', ')}`)
+		if (!names.length) return false
+		return {folder, file: names[0], arch: names[0].slice(prefix.length, names[0].length - target.suffix.length)}
+	}
 
-	let name = names[0]
-	let architecture = name.slice(prefix.length, name.length - machine.suffix.length)//what tauri called it, between the version and the extension
+	//a container wrote this one, under whatever name tauri or flatpak chose. the regex does two jobs and the parentheses are not decoration: the group is where the architecture comes from, so a sidecar describes the file that exists rather than repeating something this table already believed
+	let folder = staged.linux
+	if (!existsSync(folder)) return false
+	//the containers write here and hash stages here too, so by the second run a published copy is sitting beside the build it came from — and fuji.x86_64.rpm matches the same pattern Fuji-0.1.0-1.x86_64.rpm does. Skipping every published name is what makes hash repeatable rather than a once-per-clean thing
+	let published = new Set(Object.values(targets).map(t => t.publish))
+	let names = readdirSync(folder).filter(n => target.match.test(n) && !published.has(n))
+	if (names.length > 1) throw new Error(`expected one ${target.match} in ${folder}, found ${names.length}: ${names.join(', ')}`)
+	if (!names.length) return false
+	return {folder, file: names[0], arch: names[0].match(target.match)[1]}
+}
 
-	//copy first, then measure what landed, so every number describes the file the site will actually ship
-	mkdirSync(staging, {recursive: true})
-	let destination = join(staging, machine.published)
-	copyFileSync(join(folder, name), destination)
-	let bytes = readFileSync(destination)//whole file into memory; an installer is a few megabytes, and streaming would buy nothing
+/*
+Stage what this machine built and write a sidecar beside each, building nothing.
+
+Two things a sidecar must not lie about, and each is read rather than assumed: the version comes from tauri.conf.json, the same file that named the bundle; the architecture comes out of the built file's own name, so it describes the file that exists rather than the computer that ran this.
+
+Named with no arguments this means "everything this machine makes", which is one thing on windows and five on the mac. A target that has not been built yet is reported and skipped rather than thrown on, because staging a dmg should not fail merely because nobody has run the linux containers today — but a target asked for by name is an instruction, so that one throws.
+*/
+function hash() {
+	let {names, demanded} = chosenTargets()
+	let version = readVersion()
+	for (let name of names) hashOne(name, version, demanded)
+}
+
+function hashOne(name, version, demanded) {
+	let target = readTarget(name)
+	let built = findBuilt(target, version)
+	if (!built) {
+		if (demanded) throw new Error(`${name}: nothing built to stage — run the build that makes it first`)
+		console.log(`skipped ${name} — nothing built yet`)
+		return false
+	}
+
+	let stage = staged[target.source]
+	mkdirSync(stage, {recursive: true})
+	let published = target.publish
+	let destination = join(stage, published)
+
+	//copy first, then measure what landed, so every number describes the file the site will ship. a container's output is already sitting in the staging folder under its published name, and copying a file onto itself is both pointless and an error
+	if (join(built.folder, built.file) != destination) copyFileSync(join(built.folder, built.file), destination)
+	let bytes = readFileSync(destination)//whole file into memory; a package is a few megabytes and streaming would buy nothing
 
 	let sidecar = {
-		file: machine.published,
+		file: published,
 		version,
-		arch: architecture,
+		arch: built.arch,
 		bytes: bytes.length,
 		sha256: createHash('sha256').update(bytes).digest('hex'),
-		date: new Date().toISOString().slice(0, 10),//iso, because the home page sorts three of these as text to find the earliest build
+		date: new Date().toISOString().slice(0, 10),//iso, because the home page sorts these as text to find the earliest build
 	}
-	writeFileSync(destination + '.json', JSON.stringify(sidecar, null, '\t') + '\n')
+	writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
 
-	console.log('staged   ' + name)
-	console.log('      -> ' + destination + '  ' + sidecar.bytes + ' bytes')
-	console.log('         ' + destination + '.json  ' + sidecar.sha256)
+	/*
+	hash, size, filename — and the hash whole, every time. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Sixty-four characters is nothing on Sixty-four characters is nothing on any monitor made this century, and a cropped hash is no longer a hash: you cannot check a download with it. The byte count is padded so the filenames line up and the eye can diff them
+	hash, size, filename — and the hash whole, because a cropped hash cannot check a download. Nothing is padded: every package fuji builds is a few megabytes, so the byte counts are the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
+	*/
+	console.log(`${sidecar.sha256}  ${sidecar.bytes} bytes  ${published}`)
+	return true
 }
 
 /*
@@ -155,18 +248,13 @@ function uploadSite() {//ship the built site, mirroring so a file dropped from t
 	if (process.platform == 'win32') throw new Error('the site ships from the Mac — windows has no rsync, and this would fail with a spawn error rather than a sentence')
 	if (!existsSync(built)) throw new Error('no build to upload, run pnpm build first: ' + built)
 
-	//refuse to ship a sidecar from inside the site. the server answers one hostname from two directories
-	//and checks the site's first, so a fuji.*.json in this build would shadow the real one in downloads
-	//and pin the download page to whatever hash it holds until the next deploy. one gets here by sitting
-	//in docs/public, which a retired fixtures script used to copy them into for local development — the
-	//files are gitignored, so a machine that ran it still has them and no other machine can tell
+	//refuse to ship a sidecar from inside the site. the server answers one hostname from two directories and checks the site's first, so a fuji.*.json in this build would shadow the real one in downloads and pin the download page to whatever hash it holds until the next deploy. one gets here by sitting in docs/public, which a retired fixtures script used to copy them into for local development — the files are gitignored, so a machine that ran it still has them and no other machine can tell
 	let shadowing = readdirSync(built).filter(name => name.startsWith('fuji.') && name.endsWith('.json'))
 	if (shadowing.length > 0) throw new Error(`${shadowing.join(', ')} would ship inside the site and shadow the real sidecar on the server — delete site/docs/public/fuji.*.json on this machine, then build again`)
 
 	server = readServer()
 
-	//--delete is load-bearing: without it every previous deploy's hashed assets accumulate on the
-	//server forever. it is also the reason the installers live in a directory this cannot reach
+	//--delete is load-bearing: without it every previous deploy's hashed assets accumulate on the server forever. it is also the reason the installers live in a directory this cannot reach
 	execFileSync('rsync', [
 		'-avz', '--delete',
 		built + '/',//trailing slash: copy the contents, not the directory itself
@@ -175,48 +263,59 @@ function uploadSite() {//ship the built site, mirroring so a file dropped from t
 	], {stdio: 'inherit'})
 }
 
-function uploadInstaller() {//ship this machine's installer and its sidecar
-	let name = thisMachine().published
-	let sidecarName = name + '.json'
-	if (!existsSync(join(staging, name)))        throw new Error('no installer staged, run pnpm installer and then pnpm hash on this machine first: ' + name)
-	if (!existsSync(join(staging, sidecarName))) throw new Error('no sidecar staged beside the installer: ' + sidecarName)
-	checkSidecar(name, sidecarName)//check what is here before asking for credentials, so a missing .env is never what hides a stale sidecar
+//Ship what this machine staged: every package it makes, and the sidecar beside each. Named with no arguments this is one file on windows and five on the mac, and the same word means "this machine's work" in both places — which is the whole reason a command is not named per platform.
+function uploadInstaller() {
+	let {names, demanded} = chosenTargets()
+	let version = readVersion()
+
+	//gather and check everything before asking for credentials, so a missing .env is never what hides a stale sidecar, and a half-finished release is never half uploaded
+	let sending = []
+	for (let name of names) {
+		let target = readTarget(name)
+		let stage = staged[target.source]
+		let sidecarName = target.sidecar + '.json'
+		if (!existsSync(join(stage, sidecarName))) {
+			if (demanded) throw new Error(`${name}: no sidecar staged — run pnpm hash on this machine first`)
+			console.log(`skipped  ${name.padEnd(12)} not staged`)
+			continue
+		}
+		let sidecar = JSON.parse(readFileSync(join(stage, sidecarName), 'utf8'))
+		checkSidecar(name, stage, sidecar, sidecarName, version)
+		sending.push({name, stage, file: sidecar.file, sidecarName})
+	}
+	if (!sending.length) throw new Error('nothing staged to upload — run pnpm hash first')
+
 	server = readServer()
 	reportTransport()
-
-	send(name); send(sidecarName)//installer first, so the page never fetches a hash for a file still arriving
+	//the package before its sidecar, every time, so the page never fetches a hash for a file still arriving
+	for (let one of sending) { send(one.stage, one.file); send(one.stage, one.sidecarName) }
+	console.log(`sent     ${sending.length} package${sending.length == 1 ? '' : 's'} and ${sending.length} sidecar${sending.length == 1 ? '' : 's'}`)
 }
 
-function send(name) {//copy one file into the downloads directory as the restricted account
-	//run from the staging directory and name the file bare. a windows absolute path contains the colon
-	//scp uses to split host from path, and a bare filename makes that question stop existing
+function send(folder, name) {//copy one file into the downloads directory as the restricted account
+	//run from the staging directory and name the file bare. a windows absolute path contains the colon scp uses to split host from path, and a bare filename makes that question stop existing
 	execFileSync('scp', [
 		'-P', server.port,//scp spells the port capital -P, unlike ssh and rsync
 		'-i', server.fujiKey,//an explicit -i is offered before any default, so the admin key is never tried
 		name,
 		`${server.fujiUser}@${server.host}:${server.fujiPath}`,
-	], {stdio: 'inherit', cwd: staging})
+	], {stdio: 'inherit', cwd: folder})
 }
 
-//catch a sidecar left from the previous release, which would otherwise publish a hash describing a
-//file nobody can download. it cannot see a stale build — a sidecar that truthfully describes an
-//installer compiled before the last source change passes — and it defends against nobody who can write here
-function checkSidecar(name, sidecarName) {
-	let sidecar = JSON.parse(readFileSync(join(staging, sidecarName), 'utf8'))
-	let bytes = readFileSync(join(staging, name))
+//catch a sidecar left from a previous release, which would otherwise publish a hash describing a file nobody can download. it cannot see a stale build — a sidecar truthfully describing a package compiled before the last source change passes — and it defends against nobody who can write here
+function checkSidecar(name, stage, sidecar, sidecarName, version) {
+	if (!existsSync(join(stage, sidecar.file))) throw new Error(`${name}: ${sidecarName} names ${sidecar.file}, which is not beside it`)
+	let bytes = readFileSync(join(stage, sidecar.file))
 	let sha256 = createHash('sha256').update(bytes).digest('hex')
 
-	if (sidecar.file != name)          throw new Error(`sidecar names ${sidecar.file} rather than ${name}`)
-	if (sidecar.bytes != bytes.length) throw new Error(`sidecar says ${sidecar.bytes} bytes, the file is ${bytes.length}; re-run pnpm hash`)
-	if (sidecar.sha256 != sha256)      throw new Error('sidecar hash does not describe this file; re-run pnpm hash')
+	if (sidecar.version != version)    throw new Error(`${name}: sidecar says version ${sidecar.version}, tauri.conf.json says ${version}; re-run pnpm hash`)
+	if (sidecar.bytes != bytes.length) throw new Error(`${name}: sidecar says ${sidecar.bytes} bytes, the file is ${bytes.length}; re-run pnpm hash`)
+	if (sidecar.sha256 != sha256)      throw new Error(`${name}: sidecar hash does not describe this file; re-run pnpm hash`)
 
-	console.log(`checked  ${name}  ${sidecar.version}  ${sidecar.arch}  ${bytes.length} bytes`)
+	console.log(`checked  ${sidecar.sha256}  ${bytes.length} bytes  ${sidecar.file}  ${sidecar.version} ${sidecar.arch}`)
 }
 
-//say which scp is about to run. windows carries two openssh installs, and which one a script gets
-//depends on the shell it was launched from; they differ in how they judge a private key's permissions,
-//so this is the first thing anyone will want to know when authentication fails. diagnostic only, so it
-//never throws — a missing scp should be reported by the transfer, not by this
+//say which scp is about to run. windows carries two openssh installs, and which one a script gets depends on the shell it was launched from; they differ in how they judge a private key's permissions, so this is the first thing anyone will want to know when authentication fails. diagnostic only, so it never throws — a missing scp should be reported by the transfer, not by this
 function reportTransport() {
 	try {
 		let found = execFileSync(process.platform == 'win32' ? 'where.exe' : 'which', ['scp'], {encoding: 'utf8'}).trim().split('\n')[0]
@@ -226,10 +325,7 @@ function reportTransport() {
 	}
 }
 
-//the three tauri icon runs stay in package.json, where pnpm is what puts the tauri cli on the path;
-//this is the part after them. each run writes a folder of its own, and these are the files that have to
-//come out from under a generated name and sit where tauri.conf.json and the windows manifest expect
-//them. icon.md is the whole subject, including why these are committed artifacts
+//the three tauri icon runs stay in package.json, where pnpm is what puts the tauri cli on the path; this is the part after them. each run writes a folder of its own, and these are the files that have to come out from under a generated name and sit where tauri.conf.json and the windows manifest expect them. icon.md is the whole subject, including why these are committed artifacts
 function iconsCollect() {
 	let copies = [
 		['.mac/icon.icns',              'mac/icon.icns'],        //the dock icon, inset to apple's grid, kept where the shared run cannot overwrite it
@@ -243,9 +339,7 @@ function iconsCollect() {
 	}
 }
 
-//the verb package.json passes. these are spelled out rather than shared, because the script names a
-//person types differ between the two workspaces on purpose — pnpm upload means the installer in
-//desktop and the site in site — and this file should never have to guess which one called it
+//the verb package.json passes. these are spelled out rather than shared, because the script names a person types differ between the two workspaces on purpose — pnpm upload means the installer in desktop and the site in site — and this file should never have to guess which one called it
 const commands = {
 	'reveal':           reveal,
 	'hash':             hash,

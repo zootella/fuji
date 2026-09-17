@@ -1,0 +1,18 @@
+{
+	"name": "linux",
+	"description": "Fuji's linux packages, built on a mac through docker",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"build": "node build.js build",
+		"hash": "node ../scripts.js hash --source=linux",
+		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=linux",
+
+		"build-images": "node build.js build-images",
+		"build-distro": "node build.js build distro",
+		"build-flatpak": "node build.js build flatpak",
+		"build-aur": "node build.js build aur",
+		"stage": "node build.js stage"
+	}
+}

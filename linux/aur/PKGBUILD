@@ -1,0 +1,37 @@
+# Maintainer: Fuji <https://fujidesktop.app/>
+
+# Fuji for Arch, the binary way: this recipe unpacks the Debian package rather than compiling from source, which is what a -bin package in the AUR is for and what spares an Arch user a rust build.
+#
+# Two lines change when this is published. Today `source` reads a file the container copies in beside this recipe, because there is nothing to download yet; the published recipe points at the release and carries a real checksum instead of SKIP:
+#
+#     source=("fuji-${pkgver}.deb::https://fujidesktop.app/fuji.amd64.deb")
+#     sha256sums=('<the sha256 out of fuji.amd64.deb.json>')
+#
+# That URL never changes again, because no published name carries a version — so per release only pkgver and sha256sums move, and both are already sitting in the sidecar that `pnpm hash` writes. Everything else below is already what gets pushed to the AUR.
+
+pkgname=fuji-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A multimedia file manager designed with privacy and precision in mind"
+arch=('x86_64')
+url="https://fujidesktop.app/"
+license=('GPL-3.0-only')
+
+# The same two libraries the .deb declares, under the names Arch gives them. Getting these wrong is the most likely way for this recipe to be broken, and running makepkg --syncdeps is what catches it.
+depends=('webkit2gtk-4.1' 'gtk3')
+
+provides=('fuji')
+conflicts=('fuji')
+
+# A .deb is an ar archive, which makepkg does not unpack on its own, so it is unpacked in package() below. !strip because the binary arrives already built and patched by tauri's bundler, and there is nothing to gain from a second pass over it here.
+source=("fuji-${pkgver}.deb")
+noextract=("fuji-${pkgver}.deb")
+sha256sums=('SKIP')
+options=('!strip')
+
+package() {
+	cd "${srcdir}"
+	ar x "fuji-${pkgver}.deb"
+	# tauri writes a gzip data member; tar reads the compression itself rather than being told
+	tar -xf data.tar.gz -C "${pkgdir}"
+}

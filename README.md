@@ -14,16 +14,17 @@ Made with
 
 ### Workspaces
 
-This repository is a pnpm monorepo. The application is one workspace and the website is the other. The planning documents stay at the root.
+This repository is a pnpm monorepo: the application, the website, and the Linux packaging. The planning documents stay at the root.
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri
 ./site              the website and documentation, made with VitePress
+./linux             Fuji's Linux packages, built on a Mac through Docker
 ```
 
 ### Scripts
 
-Run `pnpm install` once at the root and it installs both workspaces. Every other command runs from inside the workspace it belongs to, so start with `cd`. The root has no scripts of its own. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to get the version this project pins.
+Run `pnpm install` once at the root and it installs every workspace. Every other command runs from inside the workspace it belongs to, so start with `cd`. The root has no scripts of its own. pnpm comes from corepack rather than a global install, and reads the `packageManager` field in the root package.json to get the version this project pins.
 
 ```
 $ pnpm install
@@ -40,6 +41,11 @@ $ cd site
 $ pnpm local        run the site here, in development mode with hot reload
 $ pnpm build        build it to dist, to sanity check that works
 $ pnpm upload       build it and send it to the production server
+
+$ cd linux
+$ pnpm build        build the Linux packages in Docker containers
+$ pnpm hash         stage them and write the sidecars, building nothing
+$ pnpm upload       send what is staged to the production server
 ```
 
 Common flows through the desktop commands include:
@@ -54,17 +60,46 @@ And through the site commands, there is really only one:
 
 We've picked unconventional script names to be clear about the smaller steps these commands perform. `compile` never makes an installer, `installer` never hashes, `hash` never builds, and `upload` never builds. The site's `upload` is the one exception, and builds before it sends.
 
-A name does the same job on every machine. `installer` makes a `.dmg` on macOS, a `.exe` on Windows, and a `.deb` on Linux, and `upload` sends whichever one the machine you're on can build. You don't have to remember a different command per platform.
+A name does the same job on every machine. In `desktop`, `installer` makes a `.dmg` on macOS and a `.exe` on Windows, and `upload` sends whichever one the machine you're on can build — so you don't have to remember a different command per platform. `linux` says `build` rather than `installer` because it makes four packages rather than an installer, but `hash` and `upload` mean exactly what they mean everywhere else.
+
+And through the Linux commands:
+
+- **build / hash / upload / commit & push** — the same shape as a desktop release, with the same three steps and the same reason for their being three.
 
 `pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI. `icon.md` explains why that second case is easy to forget.
 
-The JavaScript behind these commands is in one file, `scripts.js`, at the root, and each command passes it a verb. Both workspaces call it because they share facts: the stable publishing name, the bundle folder, and the file manager command for each platform. Those live in one table there.
+The JavaScript behind these commands is in one file, `scripts.js`, at the root, and each command passes it a verb. All three workspaces reach it because they share facts: the published name of every artifact, where each one is built, and the file manager command for each platform. Those live in one table there. The Linux workspace has a second file, `linux/build.js`, which drives the containers — `scripts.js` publishes and does not build, and that one builds and does not publish.
+
+### Linux packages
+
+Fuji's Linux packages are built **on the Mac, in Docker containers**, rather than on a Linux machine. `./linux/README.md` is the long version — the commands, and where every file lands on the way through. This is what an operator needs.
+
+**Docker Desktop has to be installed and running.** The `docker` command is only a client, so if Docker Desktop is quit everything there fails with "cannot connect to the Docker daemon". `docker desktop status` says whether it is up and `docker desktop start` starts it without opening the window. Turn on **Use Rosetta for x86/amd64 emulation** in its settings while you are there; the x86-64 packages build in an emulated container and Rosetta is several times faster than the alternative.
+
+After that it is three commands per release, and no setup step to remember:
+
+```
+$ cd linux
+$ pnpm build        four packages and a recipe check, about eight minutes on the Mac mini
+$ pnpm hash         stage them and write the sidecars, seconds
+$ pnpm upload       send them to the server, seconds
+```
+
+Three rather than one because each leaves behind a different kind of thing. `build` writes packages, which are gitignored and disposable. `hash` writes sidecars, which are committed. `upload` puts files on a server, which is the only one of the three you can't take back.
+
+**The first `build` on a new machine takes much longer**, because it builds four toolchain images before it builds anything else, which come to about 12 GB on disk. There is no separate setup command to forget: `build` brings its own images up to date every time, which costs three seconds once they exist. That also means you never have to notice when somebody bumps Rust or the Debian base in a `Dockerfile` and you pull it; the next build rebuilds that image and uses it.
+
+`build` makes five things: a `.deb` for ARM, a `.deb` and an `.rpm` for x86-64, a `.flatpak`, and the AUR's `PKGBUILD` — a recipe rather than a package, so it's checked here and published separately. Five more commands sit underneath for factoring — `build-images`, `build-distro`, `build-flatpak`, `build-aur` and `stage`. They're documented in the workspace and rarely typed.
 
 ### Publishing
 
-An installer ships from the machine that can build it: Windows publishes the exe, macOS the dmg, Linux the deb. The site ships over rsync from any machine that has rsync, which in practice is the Mac. Windows can't, and says so clearly instead of failing somewhere deeper.
+**Two machines publish Fuji.** Windows builds and sends the exe. The Mac sends the dmg it built natively, and the four Linux packages it built in Docker containers — the ARM `.deb`, the x86-64 `.deb`, the `.rpm` and the Flatpak — so every Linux package comes from one machine, one base image and one lockfile rather than from a shelf of borrowed computers.
 
-`hash` writes a small JSON sidecar next to each installer holding its size, hash, version and date. Installers are gitignored and sidecars are committed. The download page fetches those sidecars when a visitor opens it, so a new installer shows up on the site as soon as you upload it, with no site deploy. If you skip `hash`, the upload compares the sidecar against the file next to it, sees they disagree, and stops.
+Linux is not a publishing machine, deliberately. You can clone this repository on Ubuntu or Raspberry Pi OS and run `pnpm installer` in `desktop` to build Fuji for the machine you're sitting at, which is development and works. Staging and uploading from there is refused, with a sentence saying why.
+
+The site ships over rsync from any machine that has rsync, which in practice is the Mac. Windows can't, and says so clearly instead of failing somewhere deeper.
+
+`hash` writes a small JSON sidecar next to each package holding its size, hash, version and date. No published name carries a version, and every Linux package states its architecture — `fuji.arm64.deb`, `fuji.amd64.deb`, `fuji.x86_64.rpm`, `fuji.x86_64.flatpak`. `fuji.dmg` and `fuji.exe` need no token, shipping one architecture each. That keeps every link anyone shares pointing at the current build instead of pinning the version that was current the day they shared it. Packages are gitignored and sidecars are committed. The download page fetches those sidecars when a visitor opens it, so a new installer shows up on the site as soon as you upload it, with no site deploy. If you skip `hash`, the upload compares the sidecar against the file next to it, sees they disagree, and stops.
 
 Both `upload` commands read `.env` at the root for the server address and account details. The installer upload also needs an SSH key, belonging to a restricted account which can write the downloads directory and nothing else, while the site upload uses an administrative account. Neither the file nor the key is in git: `.gitignore` covers `.env`, and the key lives outside the repository. Set each machine up once from notes kept offline.
 
@@ -97,16 +132,25 @@ Executable and installer on windows
 ./desktop/src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
 ```
 
-Installer on linux
+Linux packages, built in containers from the `linux` workspace
 ```
-./desktop/src-tauri/target/release/bundle/deb/Fuji_0.1.0_amd64.deb
+./linux/release/Fuji_0.1.0_arm64.deb
+./linux/release/Fuji_0.1.0_amd64.deb
+./linux/release/Fuji-0.1.0-1.x86_64.rpm
+./linux/release/Fuji_0.1.0_x86_64.flatpak
+./linux/release/aur/PKGBUILD
 ```
 
-Staged for publishing by `pnpm hash`, on whichever machine built it
+Staged for publishing by `pnpm hash`, on whichever machine built it. No published name carries a
+version, and every Linux package states its architecture
 ```
-./desktop/release/fuji.dmg      ./desktop/release/fuji.dmg.json
-./desktop/release/fuji.exe      ./desktop/release/fuji.exe.json
-./desktop/release/fuji.deb      ./desktop/release/fuji.deb.json
+./desktop/release/fuji.dmg              ./desktop/release/fuji.dmg.json
+./desktop/release/fuji.exe              ./desktop/release/fuji.exe.json
+
+./linux/release/fuji.arm64.deb          ./linux/release/fuji.arm64.deb.json
+./linux/release/fuji.amd64.deb          ./linux/release/fuji.amd64.deb.json
+./linux/release/fuji.x86_64.rpm         ./linux/release/fuji.x86_64.rpm.json
+./linux/release/fuji.x86_64.flatpak     ./linux/release/fuji.x86_64.flatpak.json
 ```
 
 Fuji ships those four packages and no more, so `bundle.targets` names them instead of Tauri's default `"all"`, which would also build an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package. The installers themselves stay out of git; their sidecars are committed, so the repository keeps a dated record of what hash each release had.
