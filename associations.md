@@ -18,13 +18,11 @@ So the honest description of the first pass is that it works and nobody will fin
 
 **Windows, on the Windows 10 box 2026-09-13.** The installer writes nothing about file types. Launching fuji once registers it, and because the command paths come from `current_exe()` a registration written by a different copy repoints itself. Then, in the order a user meets them: a **double-click** raises Windows' chooser with fuji listed and the incumbent pre-selected — one shot, and not taking it cannot be recovered; **Open with → Fuji** opens the picture but does *not* change the default, which is right and which users find confusing; **Open with → Choose another app**, tick *Always use this app*, is the route that works.
 
-**What changes in Explorer afterwards is more visible than expected.** The Type column shows fuji's own name for the type, and every file of it wears fuji's application icon, because `DefaultIcon` has nowhere else to point. That is the icon gap below, and it stops being theoretical at this moment.
+**What changes in Explorer afterwards is more visible than expected.** The Type column shows fuji's own name for the type, and every file of it wears whatever `DefaultIcon` names. That was the application's own icon until 2026-09-17, which meant a folder of pictures drawn as a folder of identical mint discs, most visibly in Details view and with thumbnails turned off. It is now `document-image.ico`, shipped beside the executable; `icon.md` owns the artwork.
 
 ## Still to build
 
 **The uninstall hook, Windows only.** Fuji writes its keys at runtime and the uninstaller knows nothing about them, so uninstalling today leaves fuji in Open with lists pointing at an executable that is gone. `NSIS_HOOK_PREUNINSTALL` deletes the ProgIDs, the `Applications\fuji.exe` key, the `Capabilities` block and `RegisteredApplications` value, and the `OpenWithProgids` values fuji wrote — only keys fuji created. No install hook. macOS needs nothing, because trashing the `.app` takes its claims with it.
-
-**A document icon, Windows only, and measured on both.** On macOS it costs nothing: checked on the Mac mini 2026-09-14 with `.jpg` and `.webp` set to fuji, Finder still draws every file as a picture of itself, because Quick Look previews win over a handler's document icon. On Windows a folder of pictures becomes a folder of identical mint discs. `icon.md` owns how the artifact gets made; per-extension ProgIDs mean a different icon per format is possible later without a migration.
 
 **A File Extensions page in fuji's settings**, when fuji has settings, because a user who wants fuji to open JPEGs will reasonably start in fuji. One table, both platforms, a row per extension: the extension, what opens it now, and an action. The action is the only thing that differs and its label says which it is — *Use Fuji* on macOS calls `NSWorkspace.setDefaultApplication`, which is supported, silent and per type; *Choose in Settings…* on Windows opens `ms-settings:defaultapps?registeredAppUser=Fuji`, because Windows lets no application set a default at all. Reading the current handler is supported on both and is a few small commands on `associate.rs`.
 
@@ -37,6 +35,8 @@ So the honest description of the first pass is that it works and nobody will fin
 **Linux** gets no `MimeType=` at all — checked in the generated package on 2026-09-17, where the `.desktop` file carries `Exec`, `Icon`, `Name` and an empty `Categories=` and nothing else. An earlier note here said otherwise and was wrong. Nothing in `tauri.conf.json` configures a desktop template, so fuji cannot be handed a picture on linux and a user drags files in instead. Deliberately left that way for now: linux desktop integration is its own sprint, and `bundle.linux.deb.desktopTemplate` is where it would start.
 
 ## Settled, and recorded so nobody researches it twice
+
+**macOS needs no document icon, so the one fuji has is Windows only.** Checked on the Mac mini 2026-09-14 with `.jpg` and `.webp` set to fuji: Finder still draws every file as a picture of itself, because Quick Look previews win over a handler's document icon. Nothing was built for that platform and nothing should be.
 
 **Explorer keeps drawing thumbnails for a type fuji owns, and it cannot be otherwise.** Fuji writes no `ShellEx` key anywhere, so it never registers as a thumbnail provider and has nothing to displace; and the thumbnail lookup does not follow `UserChoice` — it runs through the extension's own `ShellEx` or through `SystemFileAssociations\image` by `PerceivedType`, and fuji touches none of those.
 

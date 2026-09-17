@@ -39,7 +39,10 @@
 		"resources": {
 			"icons/tile/fuji.VisualElementsManifest.xml": "fuji.VisualElementsManifest.xml",
 			"icons/tile/tile-medium.png": "tile-medium.png",
-			"icons/tile/tile-small.png": "tile-small.png"
+			"icons/tile/tile-small.png": "tile-small.png",
+			"icons/document/document-sheet.ico": "document-sheet.ico",
+			"icons/document/document-image.ico": "document-image.ico",
+			"icons/document/document-video.ico": "document-video.ico"
 		}
 	}
 }

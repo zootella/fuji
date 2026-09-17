@@ -342,6 +342,34 @@ It was looked at **without installing**, which is worth recording because it mak
 
 **What remains unestablished** is only ordering. Microsoft's instructions say the manifest must be in place *before* the shortcut is created, and that an existing shortcut must be nudged — touching its `lastwritetime` — for a changed manifest to be picked up. A first install should be fine, since installers write their files before creating shortcuts, but that was inferred rather than watched. **An upgrade over an existing install may keep a stale tile**, and fixing that would need an NSIS hook, which is the machinery this was meant to avoid. The symptom would be a default tile after an upgrade, and the workaround is one `lastwritetime` touch.
 
+## The Windows document icons
+
+Added 2026-09-17, and the first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are three drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
+
+**Why there are any.** `associate.rs` writes a `DefaultIcon` per ProgID, and until now it could only name fuji's own executable. So every `.png` a user let fuji open wore the application icon — a full-bleed mint disc, drawn identically on every file — which is most visible in Details view and with Explorer's thumbnails turned off. The application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document. `associations.md` had this listed as the icon gap and it stopped being theoretical the moment the first association was made.
+
+**Three, and only one is used.**
+
+    icons/document/document-image.ico    every one of fuji's ten types wears this one
+    icons/document/document-video.ico    for if or when fuji plays video as well as showing pictures
+    icons/document/document-sheet.ico    a blank sheet, along for the ride: a more minimal alternative, for fuji or for the user
+
+The two spares are inert — nothing names them, and they cost about 100 KB of artwork, less than that inside the compressed installer, which is the deliberate trade rather than an oversight. `sheet`, `image` and `video` are all five characters, which is what keeps the resources map and the registry writes reading straight down.
+
+**Measured, by reading the directory at the front of each file.** All three are the same shape:
+
+    layers   256  64  48  40  32  24  20  16
+    depth    32bpp throughout
+    storage  the 256 is a PNG, the other seven are BMP
+
+That is **a richer set than `tauri icon` produces** for the application icon: our own `icon.ico` has six layers at 16, 24, 32, 48, 64 and 256 and stores every one as PNG, with no 20 and no 40 — the sizes Windows wants at 125% scaling, where a 16-pixel slot asks for 20 and a 32-pixel slot for 40. Neither file carries 96, which is what Explorer's *Large icons* view uses; Windows scales it from the 256, which is a downscale from the biggest layer and the least costly size to be missing. Nothing to fix on the application icon, which is a different artifact with a different job, but worth knowing that the generator's output is the thinner of the two.
+
+**The safe-area rule above does not apply here, and nobody should apply it.** The one sentence the platform sections keep restating — the circle touches the bounds, macOS excepted — is about an *application* icon sitting on a grid of other application icons. A document icon sits among other documents, has a shape of its own, and gets whatever margin its artwork wants. A later session finding these files inset should leave them alone.
+
+**How one reaches Explorer.** Three hops, and no new machinery in any of them. `bundle.resources` in `tauri.conf.json` maps each file to a bare filename, which Tauri lands beside the executable — the same mechanism, proven by the Start menu tile, that needs no NSIS or WiX template. `associate.rs` builds the icon location from `current_exe()`'s own directory and falls back to the application icon if the file is not there. And `SHChangeNotify` already fires whenever a value moves, so Explorer catches up without a sign-out.
+
+**What is not in the repository yet** is the artwork these were made from. The `.ico` files are committed artifacts like everything else here, and the lesson two sections up is that a committed artifact is frozen at whatever made it with nothing to report that it is stale — so the designer's PNG set belongs beside them, as the source of record, whenever it arrives.
+
 ## Linux — researched only as far as the current files
 
 Fuji ships `32x32.png`, `128x128.png`, and `128x128@2x.png`, listed in `bundle.icon`. All three are full bleed, 100% of the canvas, which is correct here for the same reason as on Windows. They were regenerated with the rest and are clean — decoded on the Windows 10 box 2026-09-13, no fringe, and no opaque pixel that is not the mint.

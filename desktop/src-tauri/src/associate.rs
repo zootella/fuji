@@ -11,6 +11,8 @@ Windows has no such file, so an application registers itself. Two things have to
 
 So after this runs, fuji is in Explorer's Open with menu and listed in Settings under Default apps, and every file on the machine still opens with whatever opened it before. Windows offers the user the new choice the next time they open one of those types. associations.md carries the reasoning, the alternatives, and what each key is for.
 
+The icon those types wear is a file rather than the application. Until there was one, DefaultIcon could only point at fuji's own executable, and the result was a folder of pictures drawn as a folder of identical mint discs — the application icon is full bleed and unmistakable, which is exactly wrong on a document. So document-image.ico ships beside the executable through bundle.resources and DefaultIcon names it, with fuji's own icon as the fallback if it is not there. One icon for all ten types today; the ProgIDs are per extension, so a different icon per format costs nothing later. icon.md owns the artwork.
+
 Two practical notes. It runs on every launch, which is cheap because each value is read before it is written and an unchanged value is not touched; the shell is only notified if something actually moved. And it does nothing in a debug build, because the command paths come from current_exe() and a debug build's executable lives in target/debug, where it will be replaced and eventually deleted — registering it would leave the user's registry pointing at a moving target.
 */
 
@@ -42,7 +44,11 @@ fn windows_register(types: &[AssociateType]) -> Result<String, String> {
 	let file = executable.file_name().and_then(|n| n.to_str()).ok_or("associate: fuji's own file name is not utf-8")?.to_string();//"fuji.exe", which is the key windows expects under Applications
 	let path = executable.to_str().ok_or("associate: the path to fuji is not utf-8")?.to_string();
 	let command = format!("\"{path}\" \"%1\"");//quoted, because a picture's path will contain spaces
-	let icon = format!("{path},0");//the first icon in the executable, which is fuji's own; a document icon of fuji's own is not built yet, and associations.md says why that matters
+	let beside = executable.with_file_name("document-image.ico");//the document icon, which bundle.resources puts next to the executable the way it puts the start menu tile's manifest there
+	let icon = match beside.to_str() {
+		Some(found) if beside.exists() => format!("{found},0"),
+		_ => format!("{path},0"),//the application's own icon, which is what every type wore before there was a document icon and is still better than none
+	};//neither is quoted, which is safe because windows reads an icon location by splitting at the last comma rather than at a space
 
 	let application = format!("Software\\Classes\\Applications\\{file}");
 	let mut changed = 0;
