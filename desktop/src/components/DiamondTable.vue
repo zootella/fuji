@@ -64,8 +64,8 @@ async function onKey(e) {
 	else if (key == 'ArrowDown')  {  }
 	else if (key == 'PageDown')   { flip(1)  }
 	else if (key == 'PageUp')     { flip(-1) }
-	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoom(true)  }//control and the [=+] key in browsers zooms in
-	else if (key == '-')                                    { zoom(false) }
+	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoomStep(true)  }//control and the [=+] key in browsers zooms in
+	else if (key == '-')                                    { zoomStep(false) }
 	else if (key == ' ')                                    { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
@@ -137,7 +137,7 @@ function onWheel(e) {
 
 	let ctrl = e.ctrlKey || e.metaKey
 	let direction = e.deltaX > 0 || e.deltaY > 0
-	if (ctrl) zoom(!direction); else flip(direction ? 1 : -1)
+	if (ctrl) zoomStep(!direction); else flip(direction ? 1 : -1)
 }
 
 //                    
@@ -160,7 +160,9 @@ let drag//an object of positions and ids during a left or right click drag
 function dragStart(e) {
 	drag = {
 		button: e.button,//0 primary or 2 secondary mouse button
-		previous: xy(e.clientX, e.clientY),//viewport corner to where the pointer was last seen
+		anchor:   xy(e.clientX, e.clientY),//viewport corner to where the button went down, which a right drag zooms about; a pointer position used as a point in the frame, which the essay below says is fine
+		previous: xy(e.clientX, e.clientY),//viewport corner to where the pointer was last seen, for the segments a left drag pans by
+		zoom: quiverA.zoom, space: quiverA.space,//the diamond as the drag found it, which a right drag sets the zoom from
 		pointer: e.pointerId,
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
@@ -192,19 +194,25 @@ async function onResize() {//called whenever the viewport size changes
 	if (twoFullscreens && fullscreenNow && await getCurrentWindow().isFullscreen()) fullscreenNow = false
 }
 
-function zoom(direction) {//one step in or out about the frame's center: an image centered in the frame stays put, and one off center drifts further out on the way in and back toward the center on the way out, so zooming out always brings a lost image home
-	let k = direction ? settings.zoom.step : 1 / settings.zoom.step//the factor the diamond grows or shrinks by, from the settings file
-	let anchor = xy(frameSize(), '/', 2)//frame corner to the frame's center, the point that holds still
+function zoom(k, anchor) {//scale the diamond by k about an anchor, frame corner to the point in the plane that must not move: every arrow from the anchor scales by k, the card's size and the arrow from the anchor to the diamond's center alike
 	quiverA.zoom = quiverA.zoom * k
-	quiverA.space = xy(anchor, '+', xy(xy(quiverA.space, '-', anchor), '*', k))//anchor to diamond center scales by k, as every arrow from the anchor does, and goes back on the anchor
+	quiverA.space = xy(anchor, '+', xy(xy(quiverA.space, '-', anchor), '*', k))//anchor to diamond center, scaled, and put back on the anchor
 	quiver()
+}
+function zoomStep(direction) {//the keys and the wheel: one step in or out about the frame's center, so an image centered there stays put, and one off center drifts further out on the way in and back toward the center on the way out, which means zooming out always brings a lost image home
+	zoom(direction ? settings.zoom.step : 1 / settings.zoom.step, xy(frameSize(), '/', 2))
 }
 
 function onPointerMove(e) { if (!drag) return
 	let current = xy(e.clientX, e.clientY)//viewport corner to the pointer now
-	let segment = xy(current, '-', drag.previous)//from where the pointer was last seen to where it is now
-	drag.previous = current//the next segment starts here
-	dragSegment(segment)
+	if (drag.button == 2) {//the secondary button zooms about where it went down, and the height of the drag sets the zoom: up is in, down is out, sideways is nothing
+		let height = drag.anchor.y - current.y//how far above where the button went down the pointer is now, negative when below
+		quiverA.zoom = drag.zoom; quiverA.space = drag.space//put the diamond back as the drag found it, so the height sets the zoom rather than nudging it
+		zoom(2 ** (height / settings.zoom.drag), drag.anchor)//and scale from there by the whole height, zoom.drag pixels to a doubling
+	} else {//the primary button pans by the segment since the last move
+		dragSegment(xy(current, '-', drag.previous))//from where the pointer was last seen to where it is now
+		drag.previous = current//the next segment starts here
+	}
 }
 function dragSegment(segment) {
 	quiverA.space = xy(quiverA.space, '+', segment)//a segment is a difference and carries no origin, so it adds straight onto space
@@ -220,7 +228,7 @@ space is frame corner to the center of the infinite plane. The card is always ce
 
 Two things are numbers rather than arrows. diamond is the card's width plus height at zoom 1, which is the diagonal of the invisible diamond every card fits, vertex to vertex. It is the screen's width plus height, so an image shaped like the screen fills the screen at zoom 1. zoom multiplies it.
 
-A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. A position would care. Today the frame fills the window, so the frame corner and the viewport corner are one point, and the first feature to use a pointer position as a point in the frame will lean on that.
+A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the zoom the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
 
 The fullscreen transition measures one more arrow, screen corner to viewport corner, once before the window changes and once after, and pans by their difference so the picture holds still on the glass while the frame moves around it.
 */

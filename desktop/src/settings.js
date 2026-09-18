@@ -90,6 +90,12 @@ const settingsSchema = [
 		comment: 'how much one press of + or - grows or shrinks the image',
 		check: value => value > 1,
 	}, {
+		section: 'zoom',
+		key: 'drag',
+		factory: 200,
+		comment: 'how many pixels a right drag travels up to double the image, or down to halve it; it zooms about the point where the drag began, and dragging back there restores what you had',
+		check: value => value > 0,
+	}, {
 		section: 'fullscreen',
 		key: 'curtain',
 		factory: true,
