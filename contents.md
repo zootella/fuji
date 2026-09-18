@@ -28,7 +28,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 - **`scaffold.md`** — how a project like this one is set up, start to finish, in the form used to stand up a sister client.
 - **`icon.md`** — the icons: fuji's application icon and why it is a bare disc, what each platform expects an icon to be and where they disagree, the Windows Start menu tile, and the document icons Explorer draws on the file types fuji opens.
-- **`linux-builds.md`** — what fuji should build and publish for Linux. Research only so far: two rooms of a hundred Linux users, one modelled on the Stack Overflow survey and one on the Steam survey, sized by the package format each person can actually install. No decision made yet.
+- **`linux-builds.md`** — what fuji builds and publishes for Linux, and the research that decided it: two rooms of a hundred Linux users, one modelled on the Stack Overflow survey and one on the Steam survey, sized by the package format each person can actually install. The top five of that leaderboard are what the `linux` workspace now builds, and five of the document's questions were closed by building them. What is left open is the AUR and Flathub submissions, and what a Raspberry Pi would do with fuji. The research chapter is a candidate for the site.
 
 ## Letters
 

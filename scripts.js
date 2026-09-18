@@ -35,14 +35,14 @@ That is a decision worth not relitigating. A versioned filename says what it is 
 */
 const targets = {
 	//the two an operating system builds for itself
-	'dmg':     {source: 'bundle', folder: 'dmg',  suffix: '.dmg',       publish: 'fuji.dmg', sidecar: 'fuji.dmg',     say: 'macOS disk image, Apple silicon'},
-	'exe':     {source: 'bundle', folder: 'nsis', suffix: '-setup.exe', publish: 'fuji.exe', sidecar: 'fuji.exe',     say: 'Windows installer, x86-64'},
+	'dmg':     {source: 'bundle', folder: 'dmg',  suffix: '.dmg',       publish: 'fuji.dmg', sidecar: 'fuji.dmg'},
+	'exe':     {source: 'bundle', folder: 'nsis', suffix: '-setup.exe', publish: 'fuji.exe', sidecar: 'fuji.exe'},
 
 	//the four the linux workspace builds in containers, and every one names its architecture. giving the ARM deb the bare name fuji.deb is the tempting mistake here, since it is the raspberry pi link: beside fuji.amd64.deb an unadorned name reads like the ordinary choice while being the rarer one, which is a trap laid for the majority. no bare linux name also means none has to be renamed, and no link broken, when a second architecture of some format turns up
-	'deb-arm64':   {source: 'linux', match: /_(arm64)\.deb$/,      publish: 'fuji.arm64.deb',    sidecar: 'fuji.arm64.deb',    say: 'Debian package, ARM — Raspberry Pi and like machines'},
-	'deb-x64':     {source: 'linux', match: /_(amd64)\.deb$/,      publish: 'fuji.amd64.deb',    sidecar: 'fuji.amd64.deb',    say: 'Debian package, x86-64'},
-	'rpm-x64':     {source: 'linux', match: /\.(x86_64)\.rpm$/,    publish: 'fuji.x86_64.rpm',   sidecar: 'fuji.x86_64.rpm',   say: 'RPM package, x86-64'},
-	'flatpak-x64': {source: 'linux', match: /_(x86_64)\.flatpak$/, publish: 'fuji.x86_64.flatpak', sidecar: 'fuji.x86_64.flatpak', say: 'Flatpak bundle, x86-64'},
+	'deb-arm64':   {source: 'linux', match: /_(arm64)\.deb$/,      publish: 'fuji.arm64.deb',      sidecar: 'fuji.arm64.deb'},
+	'deb-x64':     {source: 'linux', match: /_(amd64)\.deb$/,      publish: 'fuji.amd64.deb',      sidecar: 'fuji.amd64.deb'},
+	'rpm-x64':     {source: 'linux', match: /\.(x86_64)\.rpm$/,    publish: 'fuji.x86_64.rpm',     sidecar: 'fuji.x86_64.rpm'},
+	'flatpak-x64': {source: 'linux', match: /_(x86_64)\.flatpak$/, publish: 'fuji.x86_64.flatpak', sidecar: 'fuji.x86_64.flatpak'},
 }
 
 /*
@@ -187,8 +187,7 @@ function hashOne(name, version, demanded) {
 	writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
 
 	/*
-	hash, size, filename — and the hash whole, every time. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Sixty-four characters is nothing on Sixty-four characters is nothing on any monitor made this century, and a cropped hash is no longer a hash: you cannot check a download with it. The byte count is padded so the filenames line up and the eye can diff them
-	hash, size, filename — and the hash whole, because a cropped hash cannot check a download. Nothing is padded: every package fuji builds is a few megabytes, so the byte counts are the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
+	hash, size, filename — and the hash whole, because a cropped hash cannot check a download. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Nothing is padded: every package fuji builds is a few megabytes, so the byte counts are the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
 	*/
 	console.log(`${sidecar.sha256}  ${sidecar.bytes} bytes  ${published}`)
 	return true

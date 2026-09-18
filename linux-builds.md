@@ -1,8 +1,10 @@
 # Linux builds
 
-What Fuji should build and publish for Linux. This document is in its first act and holds research only — two populations of Linux desktop users, sized and sorted by the package format each one would reach for. It runs from the two rooms through to a combined leaderboard of the builds those rooms vote for. **No decision is made here and none should be read into it.** The leaderboard is the foundation a later pass builds on.
+What Fuji builds and publishes for Linux, and the research that decided it — two populations of Linux desktop users, sized and sorted by the package format each one would reach for, running from the two rooms through to a combined leaderboard of the builds those rooms vote for.
 
-Everything below was read from the web on 2026-09-16. None of it is a measurement taken on hardware, so no machine is implicated and the usual rule about saying which computer a number came from does not bite; what matters instead is which survey a number came from, and every table says.
+**The decision has landed and the builds exist.** Fuji makes the top five of that leaderboard and nothing below them, the `linux` workspace makes them on the Mac in Docker containers, and `linux/README.md` is how you use it. This document is in its third act: what is still open is at the end, and the research in the middle is a candidate for a page on the site rather than for deletion. **That research chapter is left exactly as it was written**, so a caution or an open note inside it is dated rather than current — what became of each one is under "What the build answered" below.
+
+The research chapter — everything from here down to the leaderboards — was read from the web on 2026-09-16. None of it is a measurement taken on hardware, so no machine is implicated and the usual rule about saying which computer a number came from does not bite; what matters instead is which survey a number came from, and every table says. The sections after it describe what was then built, and those are read from the repository.
 
 ## Why there are two rooms and not one leaderboard
 
@@ -152,29 +154,43 @@ Two people in Room 1 appear on no row at all: their only Linux is a server reach
 
 **Across 200 people, ARM desktops are 3, all of them in Room 1's untabulated tail.** That number is the single largest correction this research makes to the assumption it started from.
 
-## Where Fuji stands today, as a matter of record
+## What Fuji builds today, as a matter of record
 
-Stated so the next reader does not have to go looking, and without any judgement attached.
+Against the combined leaderboard above, Fuji makes ranks 1 through 5 and nothing below them. Four are packages somebody downloads; rank 3 is a recipe an Arch user's own machine follows.
 
-`scripts.js` carries one Linux row, `{folder: 'deb', suffix: '.deb', published: 'fuji.deb', opener: 'xdg-open'}`, and `tauri.conf.json` lists `deb` among its four bundle targets. Nothing has been built or published yet: `desktop/release/` holds the dmg and the two committed sidecars, and there is no `fuji.deb.json`. The download page, `site/docs/download-fuji.md`, offers `fuji.deb` as "Debian and Ubuntu on ARM" and says it is not published yet.
+| Rank | Build | Made by | Published as |
+|---|---|---|---|
+| 1 | Flatpak x86_64 | `inside-flatpak.sh`, wrapping the amd64 `.deb` | `fuji.x86_64.flatpak` |
+| 2 | `.deb` x86_64 | the amd64 container, `--bundles deb,rpm` | `fuji.amd64.deb` |
+| 3 | AUR PKGBUILD | `linux/aur/PKGBUILD`, proved with `makepkg` | not published yet |
+| 4 | `.rpm` x86_64 | the same container and the same run as rank 2 | `fuji.x86_64.rpm` |
+| 5 | `.deb` arm64 | the arm64 container, `--bundles deb` | `fuji.arm64.deb` |
 
-`CLAUDE.md` names both a Linux desktop and a Raspberry Pi among the development machines, and nothing anywhere says which of the two is the Linux release machine.
+Snap and AppImage, ranks 6 and 7 at three people each, are not built and were not attempted.
+
+**The Linux release machine is the Mac, and no Linux box is one.** That was the open logistical question here and it has an answer that removes it: all five are built together in containers against one base image and one lockfile, and `scripts.js` refuses to stage or upload from Linux while saying why. A Linux machine can still clone this repository and build Fuji for itself, which is the `desktop` workspace rather than this subject.
+
+The engineering that came out of the build has homes of its own and is not repeated here. `linux/README.md` is the guide and carries the `debian:12-slim` floor; `linux/build.js` carries the whitelist and the two-layer image-and-container argument; `inside-flatpak.sh` carries why the Flatpak is assembled by hand; `scripts.js` owns the published names.
+
+## What the build answered
+
+Five of this document's open questions were closed by building the thing, and they are recorded closed rather than deleted, because each was a real doubt and a reader arriving at the research above will have the same one.
+
+**What Tauri's bundler makes natively.** `.deb` and `.rpm` are native and come out of one `tauri build --bundles deb,rpm`. The Flatpak is not: `flatpak-builder` cannot run here at all, because bubblewrap installs a seccomp filter that Rosetta rejects, so `inside-flatpak.sh` assembles the bundle with `flatpak build-init` and ordinary shell instead. The AUR is a recipe rather than a bundler output, and `makepkg` in a container proves it works.
+
+**The WebKitGTK and glibc floor, and which machine sets it.** The base image is `debian:12-slim`, so glibc 2.36 is the floor, and it reaches Ubuntu 24.04 LTS, Mint 22.x, Fedora 40 and up, and both generations of Raspberry Pi OS — verified by installing the built packages on clean Debian, Ubuntu 24.04 and Fedora images. Debian 13 as a base would have moved that floor to 2.41 and shut out the current Ubuntu LTS. The build host does set the floor, and choosing the image is how that is controlled rather than suffered.
+
+**A Flatpak needs `--filesystem=host`, and it is flagged.** Confirmed and acted on. Fuji is handed a folder and reads what is in it, so the portal model — one file at a time, through a dialog the application cannot see past — describes a different program. `inside-flatpak.sh` says so where the permission is granted, and the download page tells the reader before they install.
+
+**Two questions the decision outran.** Reading the Stack Overflow survey directly, and sizing Flatpak's reach rather than its exclusive reach, would both sharpen the leaderboard — and neither can now change what is built, because the top five are all built and ranks 6 and 7 are three people each. They are interesting rather than load-bearing, and the AppImage `.desktop` question went the same way when AppImage was not built.
 
 ## Open questions
 
-Seeded rather than answered, which is what this act is for.
+**Publish to the AUR.** `linux/aur/PKGBUILD` is validated on every `pnpm build` and has never been pushed. The download page already tells Arch users Fuji will be there as `fuji-bin`, so this is a promise outstanding rather than an idea. It also wants a decision about who owns the AUR account and what happens at the next version, since `pkgver` is bumped by hand.
 
-**Read the Stack Overflow 2025 survey directly.** Two summaries disagreed about Debian by 1.6 points, and neither gave a full Linux distribution list. The primary source would also settle Fedora, Mint and openSUSE, all of which were filled in by judgement above.
+**Submit to Flathub.** The bundle Fuji publishes installs from a file; Flathub wants a manifest its own build farm reads, and that manifest does not exist. `inside-flatpak.sh` was written to be the specification for one — its permissions are exactly what a manifest's `finish-args` would say — so the work is transcription plus submission rather than research.
 
-**Size Flatpak's actual reach rather than its exclusive reach.** The table counts 29 people who have no alternative. The interesting number is how many of the other 152 would take a Flatpak if offered one, and that depends on how many have Flathub enabled already — pre-installed on Fedora, Mint, Pop!\_OS, Zorin OS, elementary OS and SteamOS, a command away on Ubuntu, Debian and Arch. No public statistic breaks Flathub's traffic down by distribution; the project says it does not collect it. The only primary figure found was **over one million active users as of January 2024**, estimated by counting updates to a FreeDesktop SDK runtime and described by Flathub itself as conservative. That is two and a half years stale.
-
-**Believed but not verified this session, and each needs checking before it carries weight.** An AppImage installs no `.desktop` file, which would mean no MIME registration and no route for the operating system to hand Fuji a picture — directly relevant to `associations.md`, and the reason AppImage may be a worse fit for Fuji than for a typical application. A Flatpak sandbox grants no filesystem access by default, so a file manager needs `--filesystem=host`, which Flathub is understood to flag on the listing page as a permission that undermines the sandbox. Both claims were asserted from general knowledge rather than read from a source.
-
-**What Tauri's bundler makes natively versus what needs its own tooling.** Tauri 2's documentation lists Debian, RPM, AppImage, Flatpak, Snap and AUR as distribution routes, but the page read did not say which are produced by `tauri build` and which need a separate manifest and submission. Fuji's own `bundle.targets` proves `deb` is native. The rest is unconfirmed.
-
-**The WebKitGTK floor, which constrains any Linux artifact.** Tauri 2 links WebKitGTK 4.1, available from Ubuntu 22.04 and Debian 12 onward; Tauri 1 used 4.0, and its absence from Ubuntu 24 and Debian 13 is a well-travelled bug. Both a `.deb`'s declared dependency and an AppImage's glibc floor are inherited from whatever machine builds them, so the build host sets the compatibility floor. Which machine builds the Linux artifact is therefore a technical question and not only a logistical one.
-
-**What a Pi would actually do with Fuji.** `thumbnail.rs` rejects on Linux, so every raster file there takes the page route — the slower of the two by a wide margin according to `canvas.md`. The 3 ARM people in Room 1 are also the people on the weakest hardware taking the most expensive path. Nobody has run Fuji on a Pi.
+**What a Pi would actually do with Fuji.** `thumbnail.rs` rejects on Linux, so every raster file there takes the page route — the slower of the two by a wide margin according to `canvas.md`. The 3 ARM people in Room 1 are also the people on the weakest hardware taking the most expensive path. Nobody has run Fuji on a Pi, and the arm64 `.deb` is built and published for a machine nothing here has measured.
 
 ## Sources
 
