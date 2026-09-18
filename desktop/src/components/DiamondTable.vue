@@ -192,9 +192,11 @@ async function onResize() {//called whenever the viewport size changes
 	if (twoFullscreens && fullscreenNow && await getCurrentWindow().isFullscreen()) fullscreenNow = false
 }
 
-function zoom(direction) {
-	let step = settings.zoom.step//how far one press of + or - moves, from the settings file
-	quiverA.zoom = direction ? quiverA.zoom * step : quiverA.zoom / step
+function zoom(direction) {//one step in or out about the frame's center: an image centered in the frame stays put, and one off center drifts further out on the way in and back toward the center on the way out, so zooming out always brings a lost image home
+	let k = direction ? settings.zoom.step : 1 / settings.zoom.step//the factor the diamond grows or shrinks by, from the settings file
+	let anchor = xy(frameSize(), '/', 2)//frame corner to the frame's center, the point that holds still
+	quiverA.zoom = quiverA.zoom * k
+	quiverA.space = xy(anchor, '+', xy(xy(quiverA.space, '-', anchor), '*', k))//anchor to diamond center scales by k, as every arrow from the anchor does, and goes back on the anchor
 	quiver()
 }
 
@@ -214,7 +216,7 @@ The arrows on this table, each from a named point to a named point.
 
 Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right and y downward. Naming both ends is the whole discipline: a width and a height say where an arrow points, and it means nothing until you also know where it points from. The frame is the rectangle the user sees the table through, this component's outer div, and its top left corner is where most arrows start. frameSize() is frame corner to the frame's bottom right corner, measured when it is asked for because the window changes size.
 
-space is frame corner to the center of the infinite plane. The card is always centered on that point, so panning moves space and zooming leaves it alone. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
+space is frame corner to the center of the infinite plane. The card is always centered on that point. Panning moves space by the segment dragged, and zooming moves it too, scaling the arrow from the frame's center to it by the same factor as the diamond, so the frame's center is the point a zoom holds still. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
 
 Two things are numbers rather than arrows. diamond is the card's width plus height at zoom 1, which is the diagonal of the invisible diamond every card fits, vertex to vertex. It is the screen's width plus height, so an image shaped like the screen fills the screen at zoom 1. zoom multiplies it.
 
