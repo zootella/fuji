@@ -159,7 +159,7 @@ let drag//an object of positions and ids during a left or right click drag
 function dragStart(e) {
 	drag = {
 		button: e.button,//0 primary or 2 secondary mouse button
-		start: xy(e.clientX, e.clientY),//record where this drag started
+		previous: xy(e.clientX, e.clientY),//viewport corner to where the pointer was last seen
 		pointer: e.pointerId,
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
@@ -198,41 +198,53 @@ function zoom(direction) {
 }
 
 function onPointerMove(e) { if (!drag) return
-	let current = xy(e.clientX, e.clientY)//the new current location of the pointer
-	let segment = xy(current, '-', drag.start)//the segment it just moved to get to where it is now
-	drag.start = current//get ready for the next drag segment
+	let current = xy(e.clientX, e.clientY)//viewport corner to the pointer now
+	let segment = xy(current, '-', drag.previous)//from where the pointer was last seen to where it is now
+	drag.previous = current//the next segment starts here
 	dragSegment(segment)
 }
 function dragSegment(segment) {
-	quiverA.space = xy(quiverA.space, '+', segment)
+	quiverA.space = xy(quiverA.space, '+', segment)//a segment is a difference and carries no origin, so it adds straight onto space
 	quiver()
 }
 
+/*
+The arrows on this table, each from a named point to a named point.
+
+Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right and y downward. Naming both ends is the whole discipline: a width and a height say where an arrow points, and it means nothing until you also know where it points from. The frame is the rectangle the user sees the table through, this component's outer div, and its top left corner is where most arrows start.
+
+space is frame corner to the center of the infinite plane. The card is always centered on that point, so panning moves space and zooming leaves it alone. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
+
+Two things are numbers rather than arrows. diamond is the card's width plus height at zoom 1, which is the diagonal of the invisible diamond every card fits, vertex to vertex. It is the screen's width plus height, so an image shaped like the screen fills the screen at zoom 1. zoom multiplies it.
+
+A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. A position would care. Today the frame fills the window, so the frame corner and the viewport corner are one point, and the first feature to use a pointer position as a point in the frame will lean on that.
+
+The fullscreen transition measures one more arrow, screen corner to viewport corner, once before the window changes and once after, and pans by their difference so the picture holds still on the glass while the frame moves around it.
+*/
 //the way this works is, change arrows in quiver a, then call quiver(); keep everything in quiver a; don't touch quiver b or c
 const quiverA = {}//Quiver A: {x, y} arrows, dimensions, and zoom that completely describe where everything should appear
 function dimensionStart() {
 
-	quiverA.diamond = screen.width + screen.height//full size diamond half permineter
-	quiverA.zoom = 0.5//zoom factor for the diamond permimiter
+	quiverA.diamond = screen.width + screen.height//the card's width plus height at zoom 1, which is also the diamond's diagonal from vertex to vertex; the screen's own width plus height, so an image shaped like the screen fills it exactly at zoom 1
+	quiverA.zoom = 0.5//scales the diamond, so the card's width plus height is zoom times diamond
 	quiverA.space = xy(xy(frameRef.value.clientWidth, frameRef.value.clientHeight), '/', 2)//frame corner to space center
 	quiverA.natural = xy(64, 64)//natural image pixel width and height from its own file data
-	quiverA.tile = xy(60, 60)//tiled background
 	quiver()
 }
 function quiver() {
 
 	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
 	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a
-	quiverB.space = quiverA.space
-	quiverB.tile  = quiverA.tile//these arrows are the same, but copy them from a to b as b is our complete record of page styles
-	quiverB.card2 = xy(xy(quiverA.natural, '*', (quiverA.zoom * quiverA.diamond)), '/', (quiverA.natural.x + quiverA.natural.y))//diagonal across card top left to bottom right; math by Ramiel, No. 5
-	quiverB.card1 = xy(quiverA.space, '+', xy(quiverB.card2, '/', -2))//from that, frame corner to card corner
+	quiverB.space = quiverA.space//the same arrow, copied from a to b because b is our complete record of page styles
+	let scale = quiverA.zoom * quiverA.diamond / (quiverA.natural.x + quiverA.natural.y)//css pixels per natural pixel, chosen so the card's width plus height comes out at zoom times diamond
+	quiverB.card2 = xy(quiverA.natural, '*', scale)//card top left corner to card bottom right corner, which is its size; math by Ramiel, No. 5
+	quiverB.card1 = xy(quiverA.space, '-', xy(quiverB.card2, '/', 2))//frame corner to card top left corner: the center less half the size
 	//ttd august, here's where, if quiverA says pixels are real, you should Math.round quiverB
 
 	//only bother the page if necessary
 	function same(name) { return quiverC && xy(quiverB[name], '==', quiverC[name]) }
-	if (!(same('space') && same('tile'))) {
-		frameRef.value.style.backgroundPosition = `${quiverB.space.x % quiverB.tile.x}px ${quiverB.space.y % quiverB.tile.y}px`
+	if (!same('space')) {
+		frameRef.value.style.backgroundPosition = `${quiverB.space.x}px ${quiverB.space.y}px`//the dots ride along with the pan; the stylesheet repeats them every 60px, so the position needs no wrapping to that
 	}
 	if (!same('card1')) {
 		cardRef.value.style.transform = `translate(${quiverB.card1.x}px, ${quiverB.card1.y}px)`
