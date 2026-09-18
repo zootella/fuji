@@ -57,7 +57,7 @@ async function onKey(e) {
 	} else if (key == 'Escape') {
 		await changeFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
 	}
-	//the arrows, f, q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
+	//the arrows, f, q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour mostly is not, so the branches exist to be filled rather than rediscovered. The arrows are decided and not yet built: each pans that way, instantly, by a quarter of the frame's shorter side, the quarter being a setting, so the user can pan without the mouse
 	else if (key == 'ArrowLeft')  {  }
 	else if (key == 'ArrowRight') {  }
 	else if (key == 'ArrowUp')    {  }
@@ -67,6 +67,7 @@ async function onKey(e) {
 	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoomStep(true)  }//control and the [=+] key in browsers zooms in
 	else if (key == '-')                                    { zoomStep(false) }
 	else if (key == ' ')                                    { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
+	else if (/^[1-6]$/.test(key)) { zoomNatural(Number(key)) }//the number keys 1 to 6, main row or number pad, which arrive as the same key: exactly that many css pixels per natural pixel. 7, 8 and 9 are left unused, since past 6x the other zooms serve
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 /*
@@ -162,7 +163,7 @@ function dragStart(e) {
 		button: e.button,//0 primary or 2 secondary mouse button
 		anchor:   xy(e.clientX, e.clientY),//viewport corner to where the button went down, which a right drag zooms about; a pointer position used as a point in the frame, which the essay below says is fine
 		previous: xy(e.clientX, e.clientY),//viewport corner to where the pointer was last seen, for the segments a left drag pans by
-		zoom: quiverA.zoom, space: quiverA.space,//the diamond as the drag found it, which a right drag sets the zoom from
+		diamond: quiverA.diamond, space: quiverA.space,//the diamond as the drag found it, which a right drag sets the zoom from
 		pointer: e.pointerId,
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
@@ -194,21 +195,25 @@ async function onResize() {//called whenever the viewport size changes
 	if (twoFullscreens && fullscreenNow && await getCurrentWindow().isFullscreen()) fullscreenNow = false
 }
 
-function zoom(k, anchor) {//scale the diamond by k about an anchor, frame corner to the point in the plane that must not move: every arrow from the anchor scales by k, the card's size and the arrow from the anchor to the diamond's center alike
-	quiverA.zoom = quiverA.zoom * k
+function zoom(diamond, anchor) {//set the diamond's width plus height, holding the plane still at anchor, frame corner to the point that must not move: every arrow from the anchor scales by the same ratio, the card's size and the arrow from the anchor to the diamond's center alike
+	let k = diamond / quiverA.diamond//the ratio everything grows by
+	quiverA.diamond = diamond//set rather than multiplied, so a caller that computed an exact size gets exactly that size
 	quiverA.space = xy(anchor, '+', xy(xy(quiverA.space, '-', anchor), '*', k))//anchor to diamond center, scaled, and put back on the anchor
 	quiver()
 }
 function zoomStep(direction) {//the keys and the wheel: one step in or out about the frame's center, so an image centered there stays put, and one off center drifts further out on the way in and back toward the center on the way out, which means zooming out always brings a lost image home
-	zoom(direction ? settings.zoom.step : 1 / settings.zoom.step, xy(frameSize(), '/', 2))
+	zoom(quiverA.diamond * (direction ? settings.zoom.step : 1 / settings.zoom.step), xy(frameSize(), '/', 2))
+}
+function zoomNatural(n) {//the number keys: the card at exactly n css pixels per natural pixel, so the img stretches each source pixel across an n by n block, smoothed as ever. The math runs the other way here, the card first and the diamond around it: the card is natural times n, and the diamond is that card's width plus height, which quiver() divides back out exactly. About the frame's center, like the step keys
+	zoom(n * (quiverA.natural.x + quiverA.natural.y), xy(frameSize(), '/', 2))
 }
 
 function onPointerMove(e) { if (!drag) return
 	let current = xy(e.clientX, e.clientY)//viewport corner to the pointer now
 	if (drag.button == 2) {//the secondary button zooms about where it went down, and the height of the drag sets the zoom: up is in, down is out, sideways is nothing
 		let height = drag.anchor.y - current.y//how far above where the button went down the pointer is now, negative when below
-		quiverA.zoom = drag.zoom; quiverA.space = drag.space//put the diamond back as the drag found it, so the height sets the zoom rather than nudging it
-		zoom(2 ** (height / settings.zoom.drag), drag.anchor)//and scale from there by the whole height, zoom.drag pixels to a doubling
+		quiverA.diamond = drag.diamond; quiverA.space = drag.space//put the diamond back as the drag found it, so the height sets the zoom rather than nudging it
+		zoom(drag.diamond * 2 ** (height / settings.zoom.drag), drag.anchor)//and scale from there by the whole height, zoom.drag pixels to a doubling
 	} else {//the primary button pans by the segment since the last move
 		dragSegment(xy(current, '-', drag.previous))//from where the pointer was last seen to where it is now
 		drag.previous = current//the next segment starts here
@@ -226,18 +231,17 @@ Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right a
 
 space is frame corner to the center of the infinite plane. The card is always centered on that point. Panning moves space by the segment dragged, and zooming moves it too, scaling the arrow from the frame's center to it by the same factor as the diamond, so the frame's center is the point a zoom holds still. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
 
-Two things are numbers rather than arrows. diamond is the card's width plus height at zoom 1, which is the diagonal of the invisible diamond every card fits, vertex to vertex. It is the screen's width plus height, so an image shaped like the screen fills the screen at zoom 1. zoom multiplies it.
+One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key runs that the other way, computing the card at a whole number of CSS pixels per natural pixel and setting diamond to its width plus height, which the division in quiver() returns exactly.
 
-A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the zoom the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
+A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the diamond the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
 
 The fullscreen transition measures one more arrow, screen corner to viewport corner, once before the window changes and once after, and pans by their difference so the picture holds still on the glass while the frame moves around it.
 */
 //the way this works is, change arrows in quiver a, then call quiver(); keep everything in quiver a; don't touch quiver b or c
-const quiverA = {}//Quiver A: {x, y} arrows, dimensions, and zoom that completely describe where everything should appear
+const quiverA = {}//Quiver A: {x, y} arrows and the diamond's size that completely describe where everything should appear
 function dimensionStart() {
 
-	quiverA.diamond = screen.width + screen.height//the card's width plus height at zoom 1, which is also the diamond's diagonal from vertex to vertex; the screen's own width plus height, so an image shaped like the screen fills it exactly at zoom 1
-	quiverA.zoom = 0.5//scales the diamond, so the card's width plus height is zoom times diamond
+	quiverA.diamond = (screen.width + screen.height) / 2//the card's width plus height, in css pixels, which is also the diamond's diagonal from vertex to vertex; half the screen's own sum to start, so fuji opens with an image shaped like the screen at half its size
 	quiverA.space = xy(frameSize(), '/', 2)//frame corner to space center
 	quiverA.natural = xy(64, 64)//natural image pixel width and height from its own file data
 	quiver()
@@ -246,7 +250,7 @@ function frameSize() { return xy(frameRef.value.clientWidth, frameRef.value.clie
 function dimensionFrame() {//spacebar: the diamond's width plus height becomes the frame's, and the card sits centered in the frame. An image shaped like the frame fills it exactly; any other overflows at the two ends of one axis by exactly the margin it leaves at the two ends of the other. Meant for fullscreen, where the frame is the screen
 	let frame = frameSize()
 	quiverA.space = xy(frame, '/', 2)//frame corner to the frame's center
-	quiverA.zoom = (frame.x + frame.y) / quiverA.diamond//the card's width plus height becomes the frame's; 1 in fullscreen, since the diamond is the screen's, and less in a window
+	quiverA.diamond = frame.x + frame.y//the card's width plus height becomes the frame's
 	quiver()
 }
 function quiver() {
@@ -254,7 +258,7 @@ function quiver() {
 	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
 	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a
 	quiverB.space = quiverA.space//the same arrow, copied from a to b because b is our complete record of page styles
-	let scale = quiverA.zoom * quiverA.diamond / (quiverA.natural.x + quiverA.natural.y)//css pixels per natural pixel, chosen so the card's width plus height comes out at zoom times diamond
+	let scale = quiverA.diamond / (quiverA.natural.x + quiverA.natural.y)//css pixels per natural pixel, so the card's width plus height comes out at the diamond; a whole number when a number key set the diamond, since n times the sum over the sum divides exactly
 	quiverB.card2 = xy(quiverA.natural, '*', scale)//card top left corner to card bottom right corner, which is its size; math by Ramiel, No. 5
 	quiverB.card1 = xy(quiverA.space, '-', xy(quiverB.card2, '/', 2))//frame corner to card top left corner: the center less half the size
 	//ttd august, here's where, if quiverA says pixels are real, you should Math.round quiverB
@@ -456,7 +460,7 @@ let here = null//the store's entry for the image on the card, which is where the
 	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div
 		ref="cardRef"
-		class="myCard myShadow myDry myWillChangeTransform bg-neutral-950 border border-black"
+		class="myCard myShadow myDry myWillChangeTransform bg-neutral-950"
 	>
 
 		<!-- the images the card shows are the store's own elements, put here by cardShow; this one is only for a file fuji could not read -->
@@ -488,8 +492,8 @@ let here = null//the store's entry for the image on the card, which is where the
 	font-size: 0.875rem;
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
-.myFrame {}
-.myCard {} /* not using these yet, but they're here */
+.myFrame {} /* not using this yet, but it's here */
+.myCard { outline: 1px solid black } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n */
 
 /*
 The image on the card is the store's own element: cache.js makes it with new Image() and cardShow adopts it into the card. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
