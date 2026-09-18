@@ -187,7 +187,7 @@ On the light page, a link is the prose it sits in with a mint bar behind the bas
 
 The bar is a background layer rather than a text decoration, and the reason is the only reason: an underline cannot be wider than the text it underlines, and this one runs 2px past the word at each end, because a felt tip is wider than what it marks and a stroke cut to the exact edge of a word reads as a rule. Everything else about text-decoration was better — the browser positions it from the font's own metrics, and it is four declarations instead of six — so if that overshoot ever stops mattering, the simpler tool is the one to go back to.
 
-Three custom properties hold the geometry. --stroke is the bar's height in em, so it scales with the type and a link in a heading gets a proportionally heavier mark. --lift is in px rather than em on purpose, because its whole job is to cancel the pill's 3px bottom padding, and a value that scaled would stop cancelling.
+Four custom properties hold the geometry. --pad is the box's padding, named rather than written out because three other declarations exist only to cancel it: --lift below, the negative side margin on a link in prose, and the negative top margin on a heading's permalink. Writing 3px in all four places worked and was one edit away from drifting apart at any time. --stroke is the bar's height in em, so it scales with the type and a link in a heading gets a proportionally heavier mark. --lift is in px rather than em on purpose, because its whole job is to cancel the pill's bottom padding, and a value that scaled would stop cancelling.
 
 --inset is the dial, and it runs backwards, which is worth stating because the number that matters is not written anywhere: it says how far short of the box's edge the bar stops, and the box is 3px wider than the word at each end, so the overshoot is 3px minus this. 1px therefore means 2px past the word, which is where it is; 3px would be flush with the word, which was tried and reads as mechanically perfect in the wrong way.
 
@@ -209,16 +209,16 @@ What was tried and taken back out, so none of it gets tried twice: a text decora
 
 /* and everything that follows is the light page only */
 html:not(.dark) .vp-doc a {
+	--pad: 3px;                     /* the box's padding, and the one place it is said */
 	--stroke: 0.45em;               /* the bar's height */
 	--inset: 1px;                   /* how far short of the box it stops, so: 2px past the word */
-	--lift: 3px;                    /* off the box's bottom edge, cancelling the bottom padding */
+	--lift: var(--pad);             /* off the box's bottom edge, cancelling the bottom padding */
 
 	color: var(--vp-c-text-1);      /* the prose's own ink, so the bar is the whole signal */
 	text-decoration: none;
 
 	border-radius: 4px;             /* the flood's shape; a code pill's corners */
-	padding: 3px 3px;               /* 3 above and below like a pill, 3 at the sides where a pill has 6 */
-	margin: 0 -3px;                 /* and back out again, so the line does not reflow */
+	padding: var(--pad) var(--pad); /* above and below like a pill, and at the sides where a pill has 6 */
 
 	background-image: linear-gradient(var(--fuji-mint), var(--fuji-mint));
 	background-repeat: no-repeat;
@@ -226,6 +226,23 @@ html:not(.dark) .vp-doc a {
 	background-size: calc(100% - 2 * var(--inset)) var(--stroke);
 	box-decoration-break: clone;    /* a complete bar on each fragment when a link wraps */
 	-webkit-box-decoration-break: clone;
+}
+
+/*
+The negative margin that cancels that padding, kept off the one link in a document that is not prose.
+
+VitePress builds a heading's permalink as an ordinary <a class="header-anchor"> inside the heading, positioned absolutely at left: 0 with margin-left: -0.87em — and that margin is the whole of what holds the # out in the heading's left margin. A margin shorthand reaching it rewrites all four sides, the -0.87em goes, and the # lands on the heading's first letters. Ours won on specificity rather than on order, so moving this file later or earlier would not have helped.
+
+Nothing is restated here to put it back. The declaration simply moves to the links it was written for: its only job is keeping flowing text from shifting when padding widens an inline box, and an absolutely positioned element is out of flow with nothing to shift. So the anchor keeps VitePress's own figure untouched, and if that figure ever changes upstream this site follows it without noticing.
+
+The anchor still takes everything else above — the bar, the flood, the corners — because a permalink is a link, and on hover it should say so the way every other link on the page does. What it cannot take is where the padding leaves it: top places the box and the glyph starts at the content edge, so padding alone drops the # below the heading's cap line, which is plain the moment the two page colors are compared. The second rule pulls the box up by the same figure, which puts the glyph back where a stock VitePress site draws it and leaves the flood sitting symmetrically around it. The three pixels sideways stay, and are invisible out in the margin.
+*/
+html:not(.dark) .vp-doc a:not(.header-anchor) {
+	margin: 0 calc(-1 * var(--pad));   /* and back out again, so the line does not reflow */
+}
+
+html:not(.dark) .vp-doc .header-anchor {
+	margin-top: calc(-1 * var(--pad)); /* and up again, so the glyph sits where top: 0 asked for it */
 }
 
 html:not(.dark) .vp-doc a:hover {

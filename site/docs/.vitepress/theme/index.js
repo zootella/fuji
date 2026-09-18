@@ -5,9 +5,9 @@ import Download from './components/Download.vue'
 import './style.css'
 
 /*
-The default theme, deliberately unmodified. The documentation pages are stock VitePress — its colors, its Inter — and that is the intent, not an omission.
+VitePress's default theme, extended rather than replaced. Every layout, every component and every behaviour on a documentation page is stock, and that is the intent rather than an omission. What style.css changes is the color system, and it changes it through the theme's own --vp-* variables wherever one exists, so the parts no rule of ours ever names recolor themselves. Prose stays Inter, which is VitePress's default; code is IBM Plex Mono, which is not. That file carries the reasoning for all of it.
 
-Two components are registered globally so markdown can place them. HomePage is the whole of index.md, which carries layout: false — that page replaces the theme entirely rather than restyling it, which is why nothing here overrides a theme variable. Download is one installer's row, and the download page places three of them among its prose; it styles itself from the theme's own variables rather than against them.
+Two components are registered globally so markdown can place them. HomePage is the whole of index.md, which carries layout: false — VitePress renders no navbar, sidebar or footer there, so that page replaces the theme rather than restyling it, which is why it names its own fonts and paints its own background instead of reading theme variables. Download is one installer's box, and the download page places six of them among its prose; unlike HomePage it styles itself from the theme's variables rather than against them.
 */
 
 /** @type {import('vitepress').Theme} */

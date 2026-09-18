@@ -5,7 +5,7 @@ import { installerFiles, fetchSidecars, earliestBuild, readableDate, copyText } 
 /*
 The apex page. index.md carries layout: false, so VitePress renders no navbar, sidebar, or footer, and this component is the whole document.
 
-It is a port of the Nuxt page it replaces, class for class, now that Tailwind is gone. It names its own fonts rather than reading the theme's variables, so that the documentation pages can stay stock VitePress and the two never pull on each other. The Tailwind values it was written in are noted beside the CSS below so the two can be compared.
+It is a port of the Nuxt page it replaces, class for class, now that Tailwind is gone. It names its own fonts rather than reading the theme's variables, so the two never pull on each other: nothing style.css does to the documentation pages can move this one, and nothing here can reach them. The Tailwind values it was written in are noted beside the CSS below so the two can be compared.
 
 The Hashes reveal is the one moving part, and downloads.js holds its mechanism — what a sidecar is, why there is one per package rather than one combined file, and why the fetch has to happen on mount. The download page reads that same module and shows the rest of what a sidecar carries; this page shows a hash and a filename per row, which is what its box has room for. The row count follows installerFiles rather than being written here, so adding a package to that list adds a row to this reveal and nothing else has to change.
 */
