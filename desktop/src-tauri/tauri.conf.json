@@ -22,7 +22,6 @@
 		"homepage": "https://fujidesktop.app/",
 		"copyright": "Copyright © 2026 Fuji",
 		"license": "GPL-3.0-only",
-		"licenseFile": "../../LICENSE",
 		"shortDescription": "A multimedia file manager designed with privacy and precision in mind",
 		"longDescription": "A multimedia file manager designed with privacy and precision in mind",
 		"icon": [
