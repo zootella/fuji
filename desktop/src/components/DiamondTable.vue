@@ -66,6 +66,7 @@ async function onKey(e) {
 	else if (key == 'PageUp')     { flip(-1) }
 	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoom(true)  }//control and the [=+] key in browsers zooms in
 	else if (key == '-')                                    { zoom(false) }
+	else if (key == ' ')                                    { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 /*
@@ -211,7 +212,7 @@ function dragSegment(segment) {
 /*
 The arrows on this table, each from a named point to a named point.
 
-Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right and y downward. Naming both ends is the whole discipline: a width and a height say where an arrow points, and it means nothing until you also know where it points from. The frame is the rectangle the user sees the table through, this component's outer div, and its top left corner is where most arrows start.
+Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right and y downward. Naming both ends is the whole discipline: a width and a height say where an arrow points, and it means nothing until you also know where it points from. The frame is the rectangle the user sees the table through, this component's outer div, and its top left corner is where most arrows start. frameSize() is frame corner to the frame's bottom right corner, measured when it is asked for because the window changes size.
 
 space is frame corner to the center of the infinite plane. The card is always centered on that point, so panning moves space and zooming leaves it alone. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
 
@@ -227,8 +228,15 @@ function dimensionStart() {
 
 	quiverA.diamond = screen.width + screen.height//the card's width plus height at zoom 1, which is also the diamond's diagonal from vertex to vertex; the screen's own width plus height, so an image shaped like the screen fills it exactly at zoom 1
 	quiverA.zoom = 0.5//scales the diamond, so the card's width plus height is zoom times diamond
-	quiverA.space = xy(xy(frameRef.value.clientWidth, frameRef.value.clientHeight), '/', 2)//frame corner to space center
+	quiverA.space = xy(frameSize(), '/', 2)//frame corner to space center
 	quiverA.natural = xy(64, 64)//natural image pixel width and height from its own file data
+	quiver()
+}
+function frameSize() { return xy(frameRef.value.clientWidth, frameRef.value.clientHeight) }//frame corner to the frame's bottom right corner, measured now rather than kept, because the window changes size and the frame with it
+function dimensionFrame() {//spacebar: the diamond's width plus height becomes the frame's, and the card sits centered in the frame. An image shaped like the frame fills it exactly; any other overflows at the two ends of one axis by exactly the margin it leaves at the two ends of the other. Meant for fullscreen, where the frame is the screen
+	let frame = frameSize()
+	quiverA.space = xy(frame, '/', 2)//frame corner to the frame's center
+	quiverA.zoom = (frame.x + frame.y) / quiverA.diamond//the card's width plus height becomes the frame's; 1 in fullscreen, since the diamond is the screen's, and less in a window
 	quiver()
 }
 function quiver() {
