@@ -67,6 +67,7 @@ async function onKey(e) {
 	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoomStep(true)  }//control and the [=+] key in browsers zooms in
 	else if (key == '-')                                    { zoomStep(false) }
 	else if (key == ' ')                                    { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
+	else if (key == 'Enter')                                { dimensionFit() }//enter, main keyboard or number pad, which arrive as the same key: the whole image inside the frame, one side meeting it exactly
 	else if (/^[1-6]$/.test(key)) { zoomNatural(Number(key)) }//the number keys 1 to 6, main row or number pad, which arrive as the same key: exactly that many css pixels per natural pixel. 7, 8 and 9 are left unused, since past 6x the other zooms serve
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
@@ -235,7 +236,7 @@ Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right a
 
 space is frame corner to the center of the infinite plane. The card is always centered on that point. Panning moves space by the segment dragged, and zooming moves it too, scaling the arrow from the frame's center to it by the same factor as the diamond, so the frame's center is the point a zoom holds still. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
 
-One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key runs that the other way, computing the card at a whole number of CSS pixels per natural pixel and setting diamond to its width plus height, which the division in quiver() returns exactly.
+One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key and Enter run that the other way, computing the card first, at a whole number of CSS pixels per natural pixel or fitted inside the frame, and setting diamond to its width plus height, which the division in quiver() returns.
 
 A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. An arrow key makes a segment of its own, pan.step of the frame's shorter side, and the sign of pan.step says which way: negative moves the view the way the key points, so the picture slides the other way. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the diamond the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
 
@@ -257,6 +258,13 @@ function dimensionFrame() {//spacebar: the diamond's width plus height becomes t
 	let frame = frameSize()
 	quiverA.space = xy(frame, '/', 2)//frame corner to the frame's center
 	quiverA.diamond = frame.x + frame.y//the card's width plus height becomes the frame's
+	quiver()
+}
+function dimensionFit() {//enter: the card fits inside the frame, its width or its height meeting the frame's exactly and the other side shorter by the image's aspect, centered. The card first and the diamond around it, like a number key; the rounding in quiver() is what lands the meeting side on the frame's edge to the pixel
+	let frame = frameSize()
+	let scale = Math.min(frame.x / quiverA.natural.x, frame.y / quiverA.natural.y)//css pixels per natural pixel that brings the tighter side to the frame's edge
+	quiverA.space = xy(frame, '/', 2)//frame corner to the frame's center
+	quiverA.diamond = scale * (quiverA.natural.x + quiverA.natural.y)//the fitted card's width plus height
 	quiver()
 }
 function quiver() {
