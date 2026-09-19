@@ -164,7 +164,7 @@ function dragStart(e) {
 		button: e.button,//0 primary or 2 secondary mouse button
 		anchor:   xy(e.clientX, e.clientY),//viewport corner to where the button went down, which a right drag zooms about; a pointer position used as a point in the frame, which the essay below says is fine
 		previous: xy(e.clientX, e.clientY),//viewport corner to where the pointer was last seen, for the segments a left drag pans by
-		diamond: quiverA.diamond, space: quiverA.space,//the diamond as the drag found it, which a right drag sets the zoom from
+		diamond: quiverA.diamond, space: quiverA.space,//the diamond as the drag found it, which a right drag sets the zoom from. space is the arrow itself rather than a copy, which is safe only because no code ever changes an arrow in place: xy() always makes a new one
 		pointer: e.pointerId,
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
@@ -234,7 +234,7 @@ The arrows on this table, each from a named point to a named point.
 
 Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right and y downward. Naming both ends is the whole discipline: a width and a height say where an arrow points, and it means nothing until you also know where it points from. The frame is the rectangle the user sees the table through, this component's outer div, and its top left corner is where most arrows start. frameSize() is frame corner to the frame's bottom right corner, measured when it is asked for because the window changes size.
 
-space is frame corner to the center of the infinite plane. The card is always centered on that point. Panning moves space by the segment dragged, and zooming moves it too, scaling the arrow from the frame's center to it by the same factor as the diamond, so the frame's center is the point a zoom holds still. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
+space is frame corner to the center of the infinite plane. The card is always centered on that point. Panning moves space by the segment dragged, and zooming moves it too, scaling the arrow from the zoom's anchor to it by the same factor as the diamond, so the anchor is the point a zoom holds still: the frame's center for the step keys, the wheel and the number keys, and where the button went down for a right drag. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
 
 One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key and Enter run that the other way, computing the card first, at a whole number of CSS pixels per natural pixel or fitted inside the frame, and setting diamond to its width plus height, which the division in quiver() returns.
 
