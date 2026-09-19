@@ -2,7 +2,7 @@
 	"file": "fuji.dmg",
 	"version": "0.1.0",
 	"arch": "aarch64",
-	"bytes": 3177591,
-	"sha256": "8661addda9f0d38190273d12ee974b08157359387eda70b5165a9dd37cfc2133",
+	"bytes": 3177574,
+	"sha256": "af558ed0c7cdc8645798704db8058a762bfb2850691b670cd4732e6c158ed10a",
 	"date": "2026-09-19"
 }
