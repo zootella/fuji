@@ -5,7 +5,7 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 
 import {ref, onBeforeUnmount} from 'vue'
 import {
-xy, xyRound, raf, errorImageData, platform,
+xy, xySnap, raf, errorImageData, platform,
 screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 import {modelList, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
@@ -242,7 +242,7 @@ A pan is made of segments. The pointer events report positions from the viewport
 
 The fullscreen transition measures one more arrow, screen corner to viewport corner, once before the window changes and once after, and pans by their difference so the picture holds still on the glass while the frame moves around it.
 
-Quiver A is real numbers and quiver B is pixels. Every arrow B hands the page is rounded to whole CSS pixels, so two histories that agree to within rounding draw the identical picture, and a number key's exact card lands on the pixel grid rather than a fraction off it. Nothing in A is ever rounded, and nothing on the page is ever read back into A, so there is no path by which error accumulates.
+Quiver A is real numbers and quiver B is pixels: every arrow B hands the page is snapped to a whole backing pixel, so two histories that agree to within one draw the identical picture. Nothing in A is ever rounded, and nothing on the page is ever read back into A, so there is no path by which error accumulates. The essay above quiver() says which grid and why.
 */
 //the way this works is, change arrows in quiver a, then call quiver(); keep everything in quiver a; don't touch quiver b or c
 const quiverA = {}//Quiver A: {x, y} arrows and the diamond's size that completely describe where everything should appear
@@ -267,14 +267,24 @@ function dimensionFit() {//enter: the card fits inside the frame, its width or i
 	quiverA.diamond = scale * (quiverA.natural.x + quiverA.natural.y)//the fitted card's width plus height
 	quiver()
 }
+/*
+Quiver B snaps to the backing grid, and why that is the right grid.
+
+Quiver A is real numbers and is never rounded, so nothing drifts. Quiver B is what the page is told, and a position on a fraction of a pixel is drawn resampled, blurred by the fraction, so B snaps every arrow to a pixel before writing it. The question is which pixel. CSS pixels are the unit of layout, of the window and the frame, and of every number the user asks for, n per natural pixel or fit to the frame. Backing pixels are the unit of what is drawn. On a Mac the ratio between them is 1 or 2, so the backing grid contains the CSS grid: everything whole in CSS is whole in backing, and on a Retina display every half CSS pixel is a whole backing pixel as well. Snapping to CSS would throw those halves away for nothing, moving the card up to a backing pixel from where the math put it and leaving it unable to center in a frame with an odd side. Snapping to backing keeps every position the display can show, at the cost of one factor at this one gate.
+
+It is safe because it never makes a fraction of a backing pixel, which is the only thing that can leave a sliver, one row half image and half dots. The number keys keep their exact CSS sizes, since a whole number is on both grids. Enter's card meets the frame's edge, since the frame's size is a whole number of CSS pixels and so of backing pixels. And the fullscreen correction, measured in backing pixels, lands exactly.
+
+The grids stop nesting at Windows scales like 150 percent, where a CSS pixel is a pixel and a half. Nothing is exact there under any rule: whole CSS pixels put edges on half device pixels, and this rule puts them on device pixels while a number key reads 33.333 rather than 33 in the inspector. Whether Chromium honors a fractional CSS size or snaps it back to whole is a thing only the Windows box can check, and fidelity.md holds what that machine has measured so far. The ratio is read every time rather than kept, because a window can move to a display with a different one; B written for the old display stays on its grid until the next pan or zoom, and that is the whole of the gap.
+*/
 function quiver() {
 
 	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
-	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a, and rounded to whole css pixels on the way: a is real numbers and b is pixels, so the picture never depends on the fraction a zoom left behind, and nothing in a is ever rounded, so nothing drifts
+	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a, and snapped to whole backing pixels on the way: a is real numbers and b is pixels, so the picture never depends on the fraction a zoom left behind, and nothing in a is ever rounded, so nothing drifts
+	let grid = window.devicePixelRatio//backing pixels per css pixel, read every time rather than kept; the one place another pixel unit enters the table, and the essay above says why
 	let scale = quiverA.diamond / (quiverA.natural.x + quiverA.natural.y)//css pixels per natural pixel, so the card's width plus height comes out at the diamond; a whole number when a number key set the diamond, since n times the sum over the sum divides exactly
-	quiverB.space = xyRound(quiverA.space)//frame corner to the seam the card is centered on, whole
-	quiverB.card2 = xyRound(xy(quiverA.natural, '*', scale))//card top left corner to card bottom right corner, which is its size; math by Ramiel, No. 5
-	quiverB.card1 = xyRound(xy(quiverB.space, '-', xy(quiverB.card2, '/', 2)))//frame corner to card top left corner: the center less half the size, and when a side is odd the extra pixel goes to one end, so the center sits half a pixel off the seam
+	quiverB.space = xySnap(quiverA.space, grid)//frame corner to the seam the card is centered on, on a backing pixel
+	quiverB.card2 = xySnap(xy(quiverA.natural, '*', scale), grid)//card top left corner to card bottom right corner, which is its size; math by Ramiel, No. 5
+	quiverB.card1 = xySnap(xy(quiverB.space, '-', xy(quiverB.card2, '/', 2)), grid)//frame corner to card top left corner: the center less half the size, and when a side is an odd number of backing pixels the extra one goes to one end, so the center sits half a backing pixel off the seam
 	//ttd august, here's where, if quiverA says pixels are real, you should Math.round quiverB
 
 	//only bother the page if necessary
