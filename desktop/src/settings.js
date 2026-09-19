@@ -96,6 +96,12 @@ const settingsSchema = [
 		comment: 'how many pixels a right drag travels up to double the image, or down to halve it; it zooms about the point where the drag began, and dragging back there restores what you had',
 		check: value => value > 0,
 	}, {
+		section: 'pan',
+		key: 'step',
+		factory: -0.25,
+		comment: 'how far an arrow key pans, as a fraction of the frame\'s shorter side, and which way: negative moves your view the way the arrow points, so the picture slides the other way, as in every viewer with arrow keys; positive moves the picture the way the arrow points, as dragging it would',
+		check: value => value != 0,
+	}, {
 		section: 'fullscreen',
 		key: 'curtain',
 		factory: true,

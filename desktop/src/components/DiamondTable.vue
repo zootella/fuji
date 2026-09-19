@@ -48,6 +48,7 @@ async function onKey(e) {
 	let Shift = e.shiftKey
 	let key = e.key
 
+	//f, q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
 	if      (key == 'f') { log('⭕ table: key f, a branch with nothing behind it yet') }
 	else if (key == 'q') { log('⭕ table: key q, a branch with nothing behind it yet') }
 	else if (key == 'h') { toggleHelp()        }
@@ -57,11 +58,10 @@ async function onKey(e) {
 	} else if (key == 'Escape') {
 		await changeFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
 	}
-	//the arrows, f, q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour mostly is not, so the branches exist to be filled rather than rediscovered. The arrows are decided and not yet built: each pans that way, instantly, by a quarter of the frame's shorter side, the quarter being a setting, so the user can pan without the mouse
-	else if (key == 'ArrowLeft')  {  }
-	else if (key == 'ArrowRight') {  }
-	else if (key == 'ArrowUp')    {  }
-	else if (key == 'ArrowDown')  {  }
+	else if (key == 'ArrowLeft')  { panStep(xy(-1,  0)) }//the arrows pan one step that way, so a hand on the keyboard can get around without the mouse
+	else if (key == 'ArrowRight') { panStep(xy( 1,  0)) }
+	else if (key == 'ArrowUp')    { panStep(xy( 0, -1)) }
+	else if (key == 'ArrowDown')  { panStep(xy( 0,  1)) }
 	else if (key == 'PageDown')   { flip(1)  }
 	else if (key == 'PageUp')     { flip(-1) }
 	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoomStep(true)  }//control and the [=+] key in browsers zooms in
@@ -219,6 +219,10 @@ function onPointerMove(e) { if (!drag) return
 		drag.previous = current//the next segment starts here
 	}
 }
+function panStep(way) {//an arrow key: pan one step, instantly, pan.step of the frame's shorter side, so a step is the same share of the screen in a window or fullscreen. way is a unit arrow pointing the way the key points, and the sign of pan.step says whether the picture or the view moves that way
+	let frame = frameSize()
+	dragSegment(xy(way, '*', settings.pan.step * Math.min(frame.x, frame.y)))
+}
 function dragSegment(segment) {
 	quiverA.space = xy(quiverA.space, '+', segment)//a segment is a difference and carries no origin, so it adds straight onto space
 	quiver()
@@ -233,7 +237,7 @@ space is frame corner to the center of the infinite plane. The card is always ce
 
 One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key runs that the other way, computing the card at a whole number of CSS pixels per natural pixel and setting diamond to its width plus height, which the division in quiver() returns exactly.
 
-A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the diamond the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
+A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. An arrow key makes a segment of its own, pan.step of the frame's shorter side, and the sign of pan.step says which way: negative moves the view the way the key points, so the picture slides the other way. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the diamond the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
 
 The fullscreen transition measures one more arrow, screen corner to viewport corner, once before the window changes and once after, and pans by their difference so the picture holds still on the glass while the frame moves around it.
 */
