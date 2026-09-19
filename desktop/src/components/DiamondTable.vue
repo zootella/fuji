@@ -411,7 +411,7 @@ hud3Ref.value = ``
 hud4Ref.value = `middle of frame
 this HUD will likely be a card showing the user all the
 keyboard shortcuts the app supports, and be really easy to
-show and hide, such as by pressing the [H]elp or just [Spacebar]
+show and hide, by pressing the [H]elp key
 and here is yet another line`
 
 captionRef.value = `A multimedia file manager designed
