@@ -39,6 +39,7 @@ export function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to comp
 	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
 	else { return {x: a, y: o} }
 }
+export function xyRound(a) { return xy(Math.round(a.x), Math.round(a.y)) }//an arrow rounded to whole numbers, for the moment real numbers become pixels
 
 //paths
 

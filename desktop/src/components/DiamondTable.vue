@@ -5,7 +5,7 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 
 import {ref, onBeforeUnmount} from 'vue'
 import {
-xy, raf, errorImageData, platform,
+xy, xyRound, raf, errorImageData, platform,
 screenToViewport, sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
 import {modelList, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
@@ -240,6 +240,8 @@ One thing is a number rather than an arrow. diamond is the card's width plus hei
 A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. An arrow key makes a segment of its own, pan.step of the frame's shorter side, and the sign of pan.step says which way: negative moves the view the way the key points, so the picture slides the other way. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the diamond the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
 
 The fullscreen transition measures one more arrow, screen corner to viewport corner, once before the window changes and once after, and pans by their difference so the picture holds still on the glass while the frame moves around it.
+
+Quiver A is real numbers and quiver B is pixels. Every arrow B hands the page is rounded to whole CSS pixels, so two histories that agree to within rounding draw the identical picture, and a number key's exact card lands on the pixel grid rather than a fraction off it. Nothing in A is ever rounded, and nothing on the page is ever read back into A, so there is no path by which error accumulates.
 */
 //the way this works is, change arrows in quiver a, then call quiver(); keep everything in quiver a; don't touch quiver b or c
 const quiverA = {}//Quiver A: {x, y} arrows and the diamond's size that completely describe where everything should appear
@@ -260,11 +262,11 @@ function dimensionFrame() {//spacebar: the diamond's width plus height becomes t
 function quiver() {
 
 	//from quiver a arrows about what we want to show, calculate quiver b arrows which are styles for the page
-	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a
-	quiverB.space = quiverA.space//the same arrow, copied from a to b because b is our complete record of page styles
+	let quiverB = {}//Quiver B: a new set of page style dimensions calculated entirely from the current contents of quiver a, and rounded to whole css pixels on the way: a is real numbers and b is pixels, so the picture never depends on the fraction a zoom left behind, and nothing in a is ever rounded, so nothing drifts
 	let scale = quiverA.diamond / (quiverA.natural.x + quiverA.natural.y)//css pixels per natural pixel, so the card's width plus height comes out at the diamond; a whole number when a number key set the diamond, since n times the sum over the sum divides exactly
-	quiverB.card2 = xy(quiverA.natural, '*', scale)//card top left corner to card bottom right corner, which is its size; math by Ramiel, No. 5
-	quiverB.card1 = xy(quiverA.space, '-', xy(quiverB.card2, '/', 2))//frame corner to card top left corner: the center less half the size
+	quiverB.space = xyRound(quiverA.space)//frame corner to the seam the card is centered on, whole
+	quiverB.card2 = xyRound(xy(quiverA.natural, '*', scale))//card top left corner to card bottom right corner, which is its size; math by Ramiel, No. 5
+	quiverB.card1 = xyRound(xy(quiverB.space, '-', xy(quiverB.card2, '/', 2)))//frame corner to card top left corner: the center less half the size, and when a side is odd the extra pixel goes to one end, so the center sits half a pixel off the seam
 	//ttd august, here's where, if quiverA says pixels are real, you should Math.round quiverB
 
 	//only bother the page if necessary
@@ -426,7 +428,7 @@ function updateInformation() {
 		let f = cacheFootprint()//the store's running totals, free to read because they are kept rather than walked
 s = `${here.path}
 natural ${here.img.naturalWidth} width x ${here.img.naturalHeight} height, ${saySize4(here.blobBytes)} (${sayGroupDigits(here.blobBytes)} bytes)
-displayed ${Math.round(quiverC.card2.x)} width x ${Math.round(quiverC.card2.y)} height (CSS, not physical, pixels)
+displayed ${quiverC.card2.x} width x ${quiverC.card2.y} height (CSS, not physical, pixels)
 ${Math.round(here.loaded - here.requested)}ms disk + ${Math.round(here.rendered - here.loaded)}ms render, to load this one
 flip ${flipMs}ms (${flipFrames} frames) = ${storeMs}ms store + ${paintMs}ms paint
 cache ${f.count} images, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`
