@@ -285,7 +285,6 @@ function quiver() {
 	quiverB.space = xySnap(quiverA.space, grid)//frame corner to the seam the card is centered on, on a backing pixel
 	quiverB.card2 = xySnap(xy(quiverA.natural, '*', scale), grid)//card top left corner to card bottom right corner, which is its size; math by Ramiel, No. 5
 	quiverB.card1 = xySnap(xy(quiverB.space, '-', xy(quiverB.card2, '/', 2)), grid)//frame corner to card top left corner: the center less half the size, and when a side is an odd number of backing pixels the extra one goes to one end, so the center sits half a backing pixel off the seam
-	//ttd august, here's where, if quiverA says pixels are real, you should Math.round quiverB
 
 	//only bother the page if necessary
 	function same(name) { return quiverC && xy(quiverB[name], '==', quiverC[name]) }
