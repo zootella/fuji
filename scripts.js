@@ -295,7 +295,8 @@ function send(folder, name) {//copy one file into the downloads directory as the
 	//run from the staging directory and name the file bare. a windows absolute path contains the colon scp uses to split host from path, and a bare filename makes that question stop existing
 	execFileSync('scp', [
 		'-P', server.port,//scp spells the port capital -P, unlike ssh and rsync
-		'-i', server.fujiKey,//an explicit -i is offered before any default, so the admin key is never tried
+		'-o', 'IdentitiesOnly=yes',//offer only the key named below; without this, keys loaded in ssh-agent are offered too, and can go first, so the admin key could be tried
+		'-i', server.fujiKey,//with IdentitiesOnly above, the admin key is never tried
 		name,
 		`${server.fujiUser}@${server.host}:${server.fujiPath}`,
 	], {stdio: 'inherit', cwd: folder})
