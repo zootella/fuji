@@ -119,8 +119,17 @@ function activeView() { return showing.value == 'Sheet' ? sheetRef.value : table
 function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
 	if (e.key == 'c') { reportTrouble(() => showView(showing.value == 'Sheet' ? 'Table' : 'Sheet')); return }//the shell's own key, and never passed down
+	if (e.key == 'g') { toggleGamma(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	reportTrouble(() => activeView()?.onKey?.(e))
 }
+
+/*
+Gamma is a lens over every picture fuji shows, and it touches none of their pixels. The filter below is one SVG primitive, feComponentTransfer, whose gamma type computes out = in to the power of the exponent on each channel scaled 0 to 1, so black stays black and white stays white while the shadows lift. CSS points the sheet's tiles and the table's image at it through one class on the root element, so a tap of g is a single class change the engine applies to canvases and imgs alike: the canvases keep what the operating system handed them, the store keeps its decode, and nothing is read, drawn or decoded again.
+
+Off is no filter at all rather than an exponent of 1, so the pictures at rest are exactly what fidelity.md measured. The filter runs in sRGB rather than the linearRGB an SVG filter defaults to: a power curve comes out nearly the same in either space, because powers compose, and staying in sRGB spares the round trip to linear light, which at eight bits would merge the very shadow codes this exists to pull apart. Fuji always starts with it off, because the next folder may not need it.
+*/
+const gammaExponent = 0.5//what a tap of g applies: 0.5 is a strong lift in the shadows, the one a viewer would call gamma 2.0, and 1 would change nothing
+function toggleGamma() { document.documentElement.classList.toggle('gamma') }//on the root, so one rule below reaches both views whichever is showing
 function onResize() { reportTrouble(() => activeView()?.onResize?.()) }
 async function reportTrouble(work) {//a window event is where the platform starts fuji's code running, so anything the view throws has nowhere to land but here
 	try { await work() } catch (error) { logTrouble('shell: handling a window event', error) }//the work is handed in unrun so this catches a handler that throws on the way in, not only one that rejects later
@@ -149,4 +158,23 @@ function isFullscreen() {//a window the size of the screen is not one the user s
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" />
 
+<!-- the gamma filter, defined once and drawing nothing itself; the region is the element's own box, where the default reaches a tenth past each edge for nothing -->
+<svg aria-hidden="true" width="0" height="0" class="absolute w-0 h-0">
+	<filter id="fujiGamma" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
+		<feComponentTransfer>
+			<feFuncR type="gamma" :exponent="gammaExponent" />
+			<feFuncG type="gamma" :exponent="gammaExponent" />
+			<feFuncB type="gamma" :exponent="gammaExponent" />
+		</feComponentTransfer>
+	</filter>
+</svg>
+
 </template>
+<style>
+
+/* not scoped, because the pictures are other components' elements, and the table's are not even a template's; a thumbnail is a myTile and the table's image is a myImage, placeholders included, which brighten harmlessly */
+.gamma .myTile, .gamma .myImage {
+	filter: url(#fujiGamma);
+}
+
+</style>
