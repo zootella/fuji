@@ -51,11 +51,11 @@ pub fn run() {
 				associate::associate_register,//and in associate.rs
 			]
 		)
-		.setup(|app| {//before any page exists, which is the whole reason this is here rather than in the page
+		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
 			#[cfg(target_os = "macos")]
-			menu::menu_set(app.handle())?;
+			menu::menu_set(_app.handle())?;
 			#[cfg(target_os = "macos")]
-			dock::dock_install(app.handle());//and the other menu, the one on the dock icon//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
+			dock::dock_install(_app.handle());//and the other menu, the one on the dock icon//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
 			Ok(())
 		})
 		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
