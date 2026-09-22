@@ -34,6 +34,10 @@ Two habits lower the bar rather than clear it, and both come before writing anyt
 
 **The site.** `site/docs/` is the fourth destination and the only one that is not code. It takes long-form writing where a subject carries real research or engineering — measurements, the alternatives weighed and why, pictures of the defect. `site/docs/thumbnail-pipeline.md` is the worked example: all of it is implemented in the code, but no comment could hold it in one place or with that depth. Use it rarely. Most work does not earn a page, and a page nobody needed is worse than none.
 
+**All four are written in American English** — color, gray, behavior, center — and so is a session's conversation, since a spelling picked up in chat is the one that lands in the next file.
+
+**A page on the site leads with its result.** It assumes a reader who already knows school algebra and can read a table, so it states the finished equation or finding first, then what each term means, then examples — and does not walk the reader up to it the way a textbook would. `site/docs/gamma.md` is the worked example.
+
 **These four must be short, correct, and well placed.** Everything below is scaffolding for getting there.
 
 ## Planning documents

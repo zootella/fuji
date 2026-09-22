@@ -96,6 +96,36 @@ const settingsSchema = [
 		comment: 'how many pixels a right drag travels up to double the image, or down to halve it; it zooms about the point where the drag began, and dragging back there restores what you had',
 		check: value => value > 0,
 	}, {
+		section: 'gamma',
+		key: 'key',
+		factory: 1.25,
+		comment: 'how far one press of g lifts the shadows, in the convention picture viewers use: 1 changes nothing, 1.25 is a gentle lift that suits most pictures, and 2 floods the shadows so nothing dark stays hidden; black stays black and white stays white either way. A second press returns to normal, and so does g from any gamma the keys, the wheel or the drag below have set. Fuji always starts at normal',
+		check: value => value > 0,
+	}, {
+		section: 'gamma',
+		key: 'step',
+		factory: 0.2,
+		comment: 'how much one press of shift and plus raises the gamma, or shift and minus lowers it, from wherever it is',
+		check: value => value > 0,
+	}, {
+		section: 'gamma',
+		key: 'wheel',
+		factory: 0.1,
+		comment: 'and how much one notch of the wheel does with shift held on a table, away from you to raise it; smaller than a key press, because a wheel is easy to flick several notches at once',
+		check: value => value > 0,
+	}, {
+		section: 'gamma',
+		key: 'drag',
+		factory: 5,
+		comment: 'how much gamma a shift and right drag on a table adds over the whole height of the frame, up to brighten and down to darken; it counts only the height from where the drag began, like a slider laid up the frame, so at 5 a fifth of the frame takes 1 to 2, the same as five steps of 0.2',
+		check: value => value > 0,
+	}, {
+		section: 'gamma',
+		key: 'floor',
+		factory: 0.2,
+		comment: 'the lowest gamma the keys, the wheel and the drag reach: below 1 darkens, which is a way to check the blacks, and a floor keeps a long drag down from reaching 0, which would turn the whole picture black',
+		check: value => value > 0,
+	}, {
 		section: 'pan',
 		key: 'step',
 		factory: -0.25,

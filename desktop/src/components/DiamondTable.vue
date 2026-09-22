@@ -3,7 +3,7 @@
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
 
-import {ref, onBeforeUnmount} from 'vue'
+import {ref, watch, onBeforeUnmount} from 'vue'
 import {
 xy, xySnap, raf, errorImageData, platform,
 screenToViewport, sayGroupDigits, saySize4,
@@ -13,6 +13,7 @@ import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'/
 import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
 import {log, logFlip, logTrouble} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
 import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
+import {gamma, gammaStep, gammaDrag} from '../gamma.js'//the lens the shell draws every picture through, which shift with the wheel or a right drag here sets
 
 //                       _   
 //   _____   _____ _ __ | |_ 
@@ -45,7 +46,6 @@ defineExpose({start, onKey, onResize, onDrop, isFullscreen, toggleFullscreen})//
 
 async function onKey(e) {
 	let Ctrl = e.ctrlKey || e.metaKey
-	let Shift = e.shiftKey
 	let key = e.key
 
 	//f, q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
@@ -64,7 +64,7 @@ async function onKey(e) {
 	else if (key == 'ArrowDown')  { panStep(xy( 0,  1)) }
 	else if (key == 'PageDown')   { flip(1)  }
 	else if (key == 'PageUp')     { flip(-1) }
-	else if (key == '+' || (key == '=' && (Ctrl || Shift))) { zoomStep(true)  }//control and the [=+] key in browsers zooms in
+	else if (key == '+' || key == '=')                      { zoomStep(true)  }//the [=+] key zooms in, unshifted or with control as in browsers, and so does the number pad's plus; shift with it is gamma, which the shell takes before this sees it
 	else if (key == '-')                                    { zoomStep(false) }
 	else if (key == ' ')                                    { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
 	else if (key == 'Enter')                                { dimensionFit() }//enter, main keyboard or number pad, which arrive as the same key: the whole image inside the frame, one side meeting it exactly
@@ -139,7 +139,9 @@ function onWheel(e) {
 
 	let ctrl = e.ctrlKey || e.metaKey
 	let direction = e.deltaX > 0 || e.deltaY > 0
-	if (ctrl) zoomStep(!direction); else flip(direction ? 1 : -1)
+	if (ctrl) zoomStep(!direction)
+	else if (e.shiftKey) gammaStep(direction ? -settings.gamma.wheel : settings.gamma.wheel)//away from you brightens, the way ctrl zooms in; the mac reports a shift wheel as sideways, which direction already reads. One step an event, so a trackpad's stream of small events races, the same as the zoom does and the ttd above covers
+	else flip(direction ? 1 : -1)
 }
 
 //                    
@@ -165,6 +167,7 @@ function dragStart(e) {
 		anchor:   xy(e.clientX, e.clientY),//viewport corner to where the button went down, which a right drag zooms about; a pointer position used as a point in the frame, which the essay below says is fine
 		previous: xy(e.clientX, e.clientY),//viewport corner to where the pointer was last seen, for the segments a left drag pans by
 		diamond: quiverA.diamond, space: quiverA.space,//the diamond as the drag found it, which a right drag sets the zoom from. space is the arrow itself rather than a copy, which is safe only because no code ever changes an arrow in place: xy() always makes a new one
+		shift: e.shiftKey, gamma: gamma.value,//a right drag with shift held sets the gamma instead of the zoom, from the gamma it found; read once here, so letting go of shift partway through does not swap one for the other
 		pointer: e.pointerId,
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
@@ -211,7 +214,9 @@ function zoomNatural(n) {//the number keys: the card at exactly n css pixels per
 
 function onPointerMove(e) { if (!drag) return
 	let current = xy(e.clientX, e.clientY)//viewport corner to the pointer now
-	if (drag.button == 2) {//the secondary button zooms about where it went down, and the height of the drag sets the zoom: up is in, down is out, sideways is nothing
+	if (drag.button == 2 && drag.shift) {//with shift, the same drag is a slider laid up the frame: only its height counts, from where it began, and gamma.js says how far it goes
+		gammaDrag(drag.gamma, drag.anchor.y - current.y, frameSize().y)
+	} else if (drag.button == 2) {//the secondary button zooms about where it went down, and the height of the drag sets the zoom: up is in, down is out, sideways is nothing
 		let height = drag.anchor.y - current.y//how far above where the button went down the pointer is now, negative when below
 		quiverA.diamond = drag.diamond; quiverA.space = drag.space//put the diamond back as the drag found it, so the height sets the zoom rather than nudging it
 		zoom(drag.diamond * 2 ** (height / settings.zoom.drag), drag.anchor)//and scale from there by the whole height, zoom.drag pixels to a doubling
@@ -450,8 +455,10 @@ ${Math.round(here.loaded - here.requested)}ms disk + ${Math.round(here.rendered 
 flip ${flipMs}ms (${flipFrames} frames) = ${storeMs}ms store + ${paintMs}ms paint
 cache ${f.count} images, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`
 	}
+	s += `\ngamma ${gamma.value == 1 ? '1, off' : gamma.value.toFixed(2)}`//at the end of every reading, loaded or not, because it is a lens over the whole window rather than a fact about one picture
 	hud3Ref.value = s
 }
+watch(gamma, updateInformation)//the keys, the wheel and the drag all change it, and neither goes through the quiver, which is what refreshes this hud for everything else
 
 //  _              
 // | |_ __ _  __ _ 

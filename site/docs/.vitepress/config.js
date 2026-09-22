@@ -163,6 +163,7 @@ export default defineConfig({
 				text: 'Craftsmanship',
 				items: [
 					{ text: 'The thumbnail pipeline', link: '/thumbnail-pipeline' },
+					{ text: 'Gamma', link: '/gamma' },
 				],
 			},
 			{

@@ -43,6 +43,7 @@ There are no open letters right now.
 A planning document is written while something is being built and is finished the day it is. The ones worth keeping do not get deleted — they get rewritten as engineering documents on the website, in `site/docs/`, where they are addressed to a reader who does not have this repository open. What stays behind, in a file here, is only the part that is still open.
 
 - **`site/docs/thumbnail-pipeline.md`** — how a path becomes a thumbnail: the fork between an img tile and a canvas, between the operating system's decoder and the page's, and what was measured to choose each one. Speed, and fidelity of size, sharpness and color. It replaced the planning document written while the pipeline was being built, and `thumbnail-open.md` is the remainder.
+- **`site/docs/gamma.md`** — what gamma is, and the arithmetic of it: a file's value through a viewer's setting, the operating system's table and the display, as one equation worked on paper. Being written, and meant to grow the history around that core — film, television, the Mac's 1.8 against the PC's tube — and fuji's own gamma key below it.
 
 **Code refers to these pages and never to a planning document.** A planning document churns and is eventually retired, so a comment pointing at one goes stale or dangles; a page on the site is where an explanation has settled. A comment that needs the long version says "the thumbnail pipeline document on fuji's site" and stops there.
 

@@ -9,6 +9,7 @@ import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//th
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateRegister} from '../associate.js'//and what fuji tells the operating system it can open in return
+import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -119,17 +120,27 @@ function activeView() { return showing.value == 'Sheet' ? sheetRef.value : table
 function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
 	if (e.key == 'c') { reportTrouble(() => showView(showing.value == 'Sheet' ? 'Table' : 'Sheet')); return }//the shell's own key, and never passed down
-	if (e.key == 'g') { toggleGamma(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
+	if (e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
+	if (e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in
+	if (e.key == '_' || (e.key == '-' && e.shiftKey)) { gammaStep(-settings.gamma.step); return }//shift and minus, which the main row types as an underscore and the number pad as a minus with shift held
 	reportTrouble(() => activeView()?.onKey?.(e))
 }
 
 /*
-Gamma is a lens over every picture fuji shows, and it touches none of their pixels. The filter below is one SVG primitive, feComponentTransfer, whose gamma type computes out = in to the power of the exponent on each channel scaled 0 to 1, so black stays black and white stays white while the shadows lift. CSS points the sheet's tiles and the table's image at it through one class on the root element, so a tap of g is a single class change the engine applies to canvases and imgs alike: the canvases keep what the operating system handed them, the store keeps its decode, and nothing is read, drawn or decoded again.
+Gamma is a lens over every picture fuji shows, and it touches none of their pixels. The filter below is one SVG primitive, feComponentTransfer, whose gamma type computes out = in to the power of the exponent on each channel scaled 0 to 1, so black stays black and white stays white while the shadows lift. CSS points the sheet's tiles and the table's image at it through one custom property on the root element, so a change of gamma is a single style change the engine applies to canvases and imgs alike: the canvases keep what the operating system handed them, the store keeps its decode, and nothing is read, drawn or decoded again. gamma.js holds the number and says what changes it.
 
-Off is no filter at all rather than an exponent of 1, so the pictures at rest are exactly what fidelity.md measured. The filter runs in sRGB rather than the linearRGB an SVG filter defaults to: a power curve comes out nearly the same in either space, because powers compose, and staying in sRGB spares the round trip to linear light, which at eight bits would merge the very shadow codes this exists to pull apart. Fuji always starts with it off, because the next folder may not need it.
+There are two filters rather than one, and they take turns. WebKit does not redraw an element when a filter it is already showing through changes underneath it: a drag that rewrote the one filter's exponent moved the number on the hud and left the picture where it was, until leaving fullscreen forced a fresh draw and the right gamma appeared. So a change writes its exponent into the filter nothing is using, then points the pictures at that one. The property's value is different every time, and a different filter value is something every engine has to rebuild for.
+
+Off is no filter at all rather than an exponent of 1, so the pictures at rest are exactly what the thumbnail pipeline document on fuji's site measured. The filters run in sRGB rather than the linearRGB an SVG filter defaults to: a power curve comes out nearly the same in either space, because powers compose, and staying in sRGB spares the round trip to linear light, which at eight bits would merge the very shadow codes this exists to pull apart.
 */
-const gammaExponent = 0.5//what a tap of g applies: 0.5 is a strong lift in the shadows, the one a viewer would call gamma 2.0, and 1 would change nothing
-function toggleGamma() { document.documentElement.classList.toggle('gamma') }//on the root, so one rule below reaches both views whichever is showing
+let gammaFilter = 0//which of the two filters below the pictures are pointed at
+watch(gamma, value => {
+	let root = document.documentElement//where the one property lives, so a rule below reaches both views whichever is showing
+	if (value == 1) { root.style.removeProperty('--gamma-filter'); return }//off, and the rule's fallback is no filter at all
+	gammaFilter = 1 - gammaFilter//the one nothing is showing through
+	for (let f of document.getElementById(`fujiGamma${gammaFilter}`).firstElementChild.children) f.setAttribute('exponent', 1 / value)//its red, green and blue, rewritten while no picture can be looking
+	root.style.setProperty('--gamma-filter', `url(#fujiGamma${gammaFilter})`)//and only then pointed at, which is the change the engine redraws for
+})
 function onResize() { reportTrouble(() => activeView()?.onResize?.()) }
 async function reportTrouble(work) {//a window event is where the platform starts fuji's code running, so anything the view throws has nowhere to land but here
 	try { await work() } catch (error) { logTrouble('shell: handling a window event', error) }//the work is handed in unrun so this catches a handler that throws on the way in, not only one that rejects later
@@ -158,13 +169,13 @@ function isFullscreen() {//a window the size of the screen is not one the user s
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" />
 
-<!-- the gamma filter, defined once and drawing nothing itself; the region is the element's own box, where the default reaches a tenth past each edge for nothing -->
+<!-- the two gamma filters, taking turns and drawing nothing themselves; the exponents are written by the watch above rather than bound here, because the order of the write and the switch is the whole point. The region is the element's own box, where the default reaches a tenth past each edge for nothing -->
 <svg aria-hidden="true" width="0" height="0" class="absolute w-0 h-0">
-	<filter id="fujiGamma" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
+	<filter v-for="n in [0, 1]" :key="n" :id="`fujiGamma${n}`" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
 		<feComponentTransfer>
-			<feFuncR type="gamma" :exponent="gammaExponent" />
-			<feFuncG type="gamma" :exponent="gammaExponent" />
-			<feFuncB type="gamma" :exponent="gammaExponent" />
+			<feFuncR type="gamma" exponent="1" />
+			<feFuncG type="gamma" exponent="1" />
+			<feFuncB type="gamma" exponent="1" />
 		</feComponentTransfer>
 	</filter>
 </svg>
@@ -173,8 +184,8 @@ function isFullscreen() {//a window the size of the screen is not one the user s
 <style>
 
 /* not scoped, because the pictures are other components' elements, and the table's are not even a template's; a thumbnail is a myTile and the table's image is a myImage, placeholders included, which brighten harmlessly */
-.gamma .myTile, .gamma .myImage {
-	filter: url(#fujiGamma);
+.myTile, .myImage {
+	filter: var(--gamma-filter, none); /* none whenever the root carries no filter, which is every moment gamma is off */
 }
 
 </style>
