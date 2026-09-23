@@ -34,7 +34,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 
 A letter is written to a specific reader — usually a Claude Code session on the other machine, or on the other side of a long gap — and it starts a conversation rather than settling a subject. Read a letter, then talk; do not treat one as a document of record the way the files above are.
 
-There are no open letters right now.
+- **`argon/argon.md`**, in a folder with its program `argon.rs` and the `Cargo.toml` that builds it — to the Raspberry Pi 4B: build and run an Argon2id speed test, check that its keys match the Mac mini's, and add the results. Written 2026-09-23.
 
 **Three letters have been retired**, two named `windows.md` and one `mac.md`, each answered by the session it was written for and each leaving its findings in the document that owns the subject — `associations.md`, `icon.md`, `fidelity.md`, `instances.md`, `performance.md`. Both names are free, and a new letter to either machine would be a new letter rather than a continuation.
 

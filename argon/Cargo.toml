@@ -1,0 +1,13 @@
+[package]
+name = "argon"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# one file, named for what it is rather than src/main.rs; argon.md says what it measures and how to run it
+[[bin]]
+name = "argon"
+path = "argon.rs"
+
+[dependencies]
+argon2 = { version = "0.6", features = ["parallel"] } # parallel computes the four lanes on four threads; off by default, and it changes only the speed, never the key
