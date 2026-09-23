@@ -2,7 +2,7 @@
 
 What Fuji builds and publishes for Linux, and the research that decided it — two populations of Linux desktop users, sized and sorted by the package format each one would reach for, running from the two rooms through to a combined leaderboard of the builds those rooms vote for.
 
-**The decision has landed and the builds exist.** Fuji makes the top five of that leaderboard and nothing below them, the `linux` workspace makes them on the Mac in Docker containers, and `linux/README.md` is how you use it. This document is in its third act: what is still open is at the end, and the research in the middle is a candidate for a page on the site rather than for deletion. **That research chapter is left exactly as it was written**, so a caution or an open note inside it is dated rather than current — what became of each one is under "What the build answered" below.
+**The decision has landed and the builds exist.** Fuji makes four of the top five of that leaderboard and nothing below them, the `linux` workspace makes them on the Mac in Docker containers, and `linux/README.md` is how you use it. The fifth, the AUR recipe, was built, proven and then removed, and "What Fuji builds today" says why. This document is in its third act: what is still open is at the end, and the research in the middle is a candidate for a page on the site rather than for deletion. **That research chapter is left exactly as it was written**, so a caution or an open note inside it is dated rather than current — what became of each one is under "What the build answered" below.
 
 The research chapter — everything from here down to the leaderboards — was read from the web on 2026-09-16. None of it is a measurement taken on hardware, so no machine is implicated and the usual rule about saying which computer a number came from does not bite; what matters instead is which survey a number came from, and every table says. The sections after it describe what was then built, and those are read from the repository.
 
@@ -156,19 +156,21 @@ Two people in Room 1 appear on no row at all: their only Linux is a server reach
 
 ## What Fuji builds today, as a matter of record
 
-Against the combined leaderboard above, Fuji makes ranks 1 through 5 and nothing below them. Four are packages somebody downloads; rank 3 is a recipe an Arch user's own machine follows.
+Against the combined leaderboard above, Fuji makes ranks 1, 2, 4 and 5 and nothing below them, and all four are packages somebody downloads. Rank 3 was built and then removed, and the paragraph after the table says why.
 
 | Rank | Build | Made by | Published as |
 |---|---|---|---|
 | 1 | Flatpak x86_64 | `inside-flatpak.sh`, wrapping the amd64 `.deb` | `fuji.x86_64.flatpak` |
 | 2 | `.deb` x86_64 | the amd64 container, `--bundles deb,rpm` | `fuji.amd64.deb` |
-| 3 | AUR PKGBUILD | `linux/aur/PKGBUILD`, proved with `makepkg` | not published yet |
+| 3 | AUR PKGBUILD | removed; see below | nothing, Arch users take the Flatpak |
 | 4 | `.rpm` x86_64 | the same container and the same run as rank 2 | `fuji.x86_64.rpm` |
 | 5 | `.deb` arm64 | the arm64 container, `--bundles deb` | `fuji.arm64.deb` |
 
 Snap and AppImage, ranks 6 and 7 at three people each, are not built and were not attempted.
 
-**The Linux release machine is the Mac, and no Linux box is one.** That was the open logistical question here and it has an answer that removes it: all five are built together in containers against one base image and one lockfile, and `scripts.js` refuses to stage or upload from Linux while saying why. A Linux machine can still clone this repository and build Fuji for itself, which is the `desktop` workspace rather than this subject.
+**The AUR recipe was built, proven and removed, in September 2026.** `fuji-bin` was thirty lines that unpacked the amd64 `.deb`, and a fourth container ran `makepkg` over it on every build, the way an Arch user's machine would. The reason it went belongs to Arch rather than to the recipe. Arch is a rolling distribution: its mirrors carry only the current version of every package, and a machine is expected to bring itself up to today before it installs anything. The container installed the recipe's two dependencies at run time against a package list Docker had frozen into the image on the day the image was built, so within a day or two of every image build the list named files the mirrors had already deleted, and the step failed on most days. Both repairs were one line, sync inside the container on every run or stock the two libraries in the image, and neither was taken, because the recipe had never been published and the download page had never offered Arch users a file, so the build could fail for a channel that did not exist. The AUR is also tended rather than published: every release is a hand-edited version and hash pushed to Arch's own git server, and a recipe goes stale on Arch's schedule rather than Fuji's, which wants an Arch machine nobody here has. Arch users take the Flatpak, which their distributions install in one command, and the download page now says so. The recipe and its container are in git history before the commit that removed them, if the channel is ever opened, and since the AUR is a user repository, an Arch user may open it without Fuji's help.
+
+**The Linux release machine is the Mac, and no Linux box is one.** That was the open logistical question here and it has an answer that removes it: all four are built together in containers against one base image and one lockfile, and `scripts.js` refuses to stage or upload from Linux while saying why. A Linux machine can still clone this repository and build Fuji for itself, which is the `desktop` workspace rather than this subject.
 
 The engineering that came out of the build has homes of its own and is not repeated here. `linux/README.md` is the guide and carries the `debian:12-slim` floor; `linux/build.js` carries the whitelist and the two-layer image-and-container argument; `inside-flatpak.sh` carries why the Flatpak is assembled by hand; `scripts.js` owns the published names.
 
@@ -176,17 +178,15 @@ The engineering that came out of the build has homes of its own and is not repea
 
 Five of this document's open questions were closed by building the thing, and they are recorded closed rather than deleted, because each was a real doubt and a reader arriving at the research above will have the same one.
 
-**What Tauri's bundler makes natively.** `.deb` and `.rpm` are native and come out of one `tauri build --bundles deb,rpm`. The Flatpak is not: `flatpak-builder` cannot run here at all, because bubblewrap installs a seccomp filter that Rosetta rejects, so `inside-flatpak.sh` assembles the bundle with `flatpak build-init` and ordinary shell instead. The AUR is a recipe rather than a bundler output, and `makepkg` in a container proves it works.
+**What Tauri's bundler makes natively.** `.deb` and `.rpm` are native and come out of one `tauri build --bundles deb,rpm`. The Flatpak is not: `flatpak-builder` cannot run here at all, because bubblewrap installs a seccomp filter that Rosetta rejects, so `inside-flatpak.sh` assembles the bundle with `flatpak build-init` and ordinary shell instead. The AUR recipe was never a bundler output; `makepkg` in a container proved it worked, before the container was removed.
 
 **The WebKitGTK and glibc floor, and which machine sets it.** The base image is `debian:12-slim`, so glibc 2.36 is the floor, and it reaches Ubuntu 24.04 LTS, Mint 22.x, Fedora 40 and up, and both generations of Raspberry Pi OS — verified by installing the built packages on clean Debian, Ubuntu 24.04 and Fedora images. Debian 13 as a base would have moved that floor to 2.41 and shut out the current Ubuntu LTS. The build host does set the floor, and choosing the image is how that is controlled rather than suffered.
 
 **A Flatpak needs `--filesystem=host`, and it is flagged.** Confirmed and acted on. Fuji is handed a folder and reads what is in it, so the portal model — one file at a time, through a dialog the application cannot see past — describes a different program. `inside-flatpak.sh` says so where the permission is granted, and the download page tells the reader before they install.
 
-**Two questions the decision outran.** Reading the Stack Overflow survey directly, and sizing Flatpak's reach rather than its exclusive reach, would both sharpen the leaderboard — and neither can now change what is built, because the top five are all built and ranks 6 and 7 are three people each. They are interesting rather than load-bearing, and the AppImage `.desktop` question went the same way when AppImage was not built.
+**Two questions the decision outran.** Reading the Stack Overflow survey directly, and sizing Flatpak's reach rather than its exclusive reach, would both sharpen the leaderboard — and neither can now change what is built, because four of the top five are built, the fifth was removed on purpose, and ranks 6 and 7 are three people each. They are interesting rather than load-bearing, and the AppImage `.desktop` question went the same way when AppImage was not built.
 
 ## Open questions
-
-**Publish to the AUR.** `linux/aur/PKGBUILD` is validated on every `pnpm build` and has never been pushed. The download page already tells Arch users Fuji will be there as `fuji-bin`, so this is a promise outstanding rather than an idea. It also wants a decision about who owns the AUR account and what happens at the next version, since `pkgver` is bumped by hand.
 
 **Submit to Flathub.** The bundle Fuji publishes installs from a file; Flathub wants a manifest its own build farm reads, and that manifest does not exist. `inside-flatpak.sh` was written to be the specification for one — its permissions are exactly what a manifest's `finish-args` would say — so the work is transcription plus submission rather than research.
 

@@ -126,13 +126,13 @@ These two are also Tauri's own before-commands, named in `tauri.conf.json`, whic
 
 ```bash
 cd linux
-pnpm build        the four linux packages, and a check of the AUR recipe
+pnpm build        the four linux packages
 pnpm hash         stage them and write the sidecars, building nothing
 pnpm upload       send what is staged to the production server
 ```
-**Three commands and no setup step**, because `build` brings its own toolchain images up to date every time — three seconds once they exist, and the reason nobody has to notice when a version inside a `Dockerfile` moves. Docker Desktop has to be installed and running; the first build on a new machine is much longer, since it makes four images first. `build-distro`, `build-flatpak`, `build-aur`, `build-images` and `stage` sit underneath for factoring and are rarely typed.
+**Three commands and no setup step**, because `build` brings its own toolchain images up to date every time — three seconds once they exist, and the reason nobody has to notice when a version inside a `Dockerfile` moves. Docker Desktop has to be installed and running; the first build on a new machine is much longer, since it makes three images first. `build-distro`, `build-flatpak`, `build-images` and `stage` sit underneath for factoring and are rarely typed.
 
-`linux/README.md` is the guide — the commands, and every filename on the way through. It makes four packages — a `.deb` for arm64, a `.deb` and an `.rpm` for x86_64, and a `.flatpak` for x86_64 — plus the AUR's PKGBUILD, which is a recipe rather than a package and so is validated here rather than published. An image is the toolchain and a container is one build: nothing survives between runs, so every build starts from the same known state, which is worth more than speed at a few releases a year.
+`linux/README.md` is the guide — the commands, and every filename on the way through. It makes four packages — a `.deb` for arm64, a `.deb` and an `.rpm` for x86_64, and a `.flatpak` for x86_64. An image is the toolchain and a container is one build: nothing survives between runs, so every build starts from the same known state, which is worth more than speed at a few releases a year.
 
 **The base image is `debian:12-slim` and that is load-bearing.** A binary is compatible with its build machine's glibc and every later one, never an earlier one, so the base sets a floor on who can run the result. Debian 12's 2.36 reaches Ubuntu 24.04 LTS, Mint 22.x, Fedora 40 and up, and both generations of Raspberry Pi OS — verified by installing the built packages on clean Debian, Ubuntu 24.04 and Fedora images. Debian 13 would have moved that floor to 2.41 and shut out the current Ubuntu LTS.
 

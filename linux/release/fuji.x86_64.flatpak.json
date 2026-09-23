@@ -2,7 +2,7 @@
 	"file": "fuji.x86_64.flatpak",
 	"version": "0.1.0",
 	"arch": "x86_64",
-	"bytes": 2950104,
-	"sha256": "332d3e209569df66d34b20a6adbd5224fe7acaea576c190ad87c12a10df70092",
-	"date": "2026-09-21"
+	"bytes": 2950280,
+	"sha256": "504a2061e1940748b064d7b1577117d3ef57446bbfe6fd16288f406bffe976ee",
+	"date": "2026-09-23"
 }

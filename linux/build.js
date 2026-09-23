@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url'
 /*
 Fuji's linux packages, built on a mac through docker.
 
-Fuji is developed on a mac and its linux users are somebody else's machines, so the linux packages have to come from somewhere. This workspace is that somewhere: four containers, no linux computer, and nothing to check out on a second machine and remember to keep current.
+Fuji is developed on a mac and its linux users are somebody else's machines, so the linux packages have to come from somewhere. This workspace is that somewhere: three containers, no linux computer, and nothing to check out on a second machine and remember to keep current.
 
 ## The pipe flushes clean
 
@@ -24,20 +24,21 @@ Neither the site workspace nor this one goes in, and nothing misses them. pnpm-w
 
 Source is mounted read only. A container cannot write into the working tree on the mac; the one writable thing it is given is release/.
 
-## The four containers
+## The three containers
 
 Two are the same image at two architectures. On apple silicon the arm64 one runs native and the amd64 one runs through rosetta, which is slower and still the right way round — an emulated build is cheaper than a second computer.
 
 	fuji-tauri:arm64     .deb for aarch64          }  pnpm build-distro
 	fuji-tauri:amd64     .deb and .rpm for x86_64   }
 	fuji-flatpak:amd64   .flatpak for x86_64, built from the amd64 .deb     pnpm build-flatpak
-	fuji-arch:amd64      validates the PKGBUILD, a recipe rather than a package  pnpm build-aur
 
-The last two consume what the first produces, which is why `build` runs them in that order. The flatpak wraps the amd64 deb; the arch package extracts it.
+The third consumes what the second produces, which is why `build` runs them in that order: the flatpak wraps the amd64 deb.
+
+There was a fourth, an arch container that ran makepkg over an AUR recipe to prove the recipe worked. It was removed in September 2026. Arch's mirrors carry only today's version of every package, the container installed the recipe's dependencies at run time against a package list docker had frozen into the image, and the two disagreed within a day or two of every image build — a property of a rolling distribution rather than a bug in the recipe, and not worth carrying for a channel fuji never opened. Arch users take the flatpak, and linux-builds.md has the account.
 
 ## What this does not do
 
-It builds and it does not deliver. Staging packages under their published names, hashing them, uploading them, submitting to flathub, pushing to the AUR — none of that is here. `pnpm hash` and `pnpm upload` are scripts.js, which publishes and does not build, and this file is the other half of that split. What lands in release/ carries tauri's own filenames until hash stages it.
+It builds and it does not deliver. Staging packages under their published names, hashing them, uploading them, submitting to flathub — none of that is here. `pnpm hash` and `pnpm upload` are scripts.js, which publishes and does not build, and this file is the other half of that split. What lands in release/ carries tauri's own filenames until hash stages it.
 
 It also cannot smoke test. A container has no display, so the machines that actually run fuji are still the machines that run fuji.
 */
@@ -47,14 +48,12 @@ const here    = fileURLToPath(new URL('.', import.meta.url))
 const root    = join(here, '..')            //the monorepo, where the whitelist is gathered from
 const stage   = join(here, '.stage')        //the whitelist copy, and the only thing a container reads
 const release = join(here, 'release')       //what comes out, and the only thing a container writes
-const aurDir  = join(here, 'aur')           //the PKGBUILD, mounted rather than baked so editing it needs no image rebuild
 
-//the four toolchains. one file serves both architectures because the only difference is the platform docker is told to build for, and letting that be an argument rather than a second file is the same discipline the rust side uses for its three operating systems
+//the three toolchains. one file serves both architectures because the only difference is the platform docker is told to build for, and letting that be an argument rather than a second file is the same discipline the rust side uses for its three operating systems
 const images = {
 	'fuji-tauri:amd64':   {file: 'Dockerfile.tauri',   platform: 'linux/amd64'},
 	'fuji-tauri:arm64':   {file: 'Dockerfile.tauri',   platform: 'linux/arm64'},
 	'fuji-flatpak:amd64': {file: 'Dockerfile.flatpak', platform: 'linux/amd64'},
-	'fuji-arch:amd64':    {file: 'Dockerfile.arch',    platform: 'linux/amd64'},
 }
 
 //what goes into a container, said positively. desktop/ is copied whole except for the names below, which are all things a build makes rather than things a build needs
@@ -65,7 +64,7 @@ function run(args, options = {}) {//one place that shells out, so every docker i
 	execFileSync('docker', args, {stdio: 'inherit', ...options})
 }
 
-//what a container runs is mounted rather than baked, so a change to a build step takes effect on the next run instead of on the next image build. it is also what keeps an image honestly the toolchain and nothing else — the three inside-*.sh scripts are this workspace's code, not debian's
+//what a container runs is mounted rather than baked, so a change to a build step takes effect on the next run instead of on the next image build. it is also what keeps an image honestly the toolchain and nothing else — the two inside-*.sh scripts are this workspace's code, not debian's
 function inside(script) { return ['--entrypoint', 'sh', '-v', `${join(here, script)}:/build.sh:ro`] }
 
 function say(line) { console.log(line) }
@@ -118,18 +117,6 @@ function flatpak() {
 		'fuji-flatpak:amd64', '/build.sh', deb])
 }
 
-//the PKGBUILD is a recipe an arch user's own machine follows, so there is no binary to make here. what a container can do is prove the recipe works: makepkg assembles a package from it, which is the only check available until the deb it names is actually published somewhere
-function aur() {
-	let deb = newestIn(release, '.deb', 'amd64')
-	if (!deb) throw new Error('the PKGBUILD extracts the x86_64 deb and there is not one in release/ yet — run pnpm build-distro first')
-	say(`==> fuji-arch:amd64  validating PKGBUILD against ${deb}`)
-	run(['run', '--rm', '--platform', 'linux/amd64',
-		...inside('inside-arch.sh'),
-		'-v', `${aurDir}:/aur:ro`,
-		'-v', `${release}:/out`,
-		'fuji-arch:amd64', '/build.sh', deb])
-}
-
 /*
 find a package in release/ by extension and architecture token. the filenames are tauri's own, which is deliberate — naming them for publication is the delivery half and belongs elsewhere.
 
@@ -145,16 +132,15 @@ function newestIn(folder, extension, token) {
 }
 
 /*
-The three container runs `build` makes, in the order it makes them. They are grouped by container rather than by package format, and that grouping is forced rather than chosen: the rpm comes out of the same tauri run as the amd64 deb, which is the slow emulated one, so asking for it on its own would mean paying for that build twice.
+The two steps `build` runs, in the order it runs them. They are grouped by container rather than by package format, and that grouping is forced rather than chosen: the rpm comes out of the same tauri run as the amd64 deb, which is the slow emulated one, so asking for it on its own would mean paying for that build twice.
 
-`distro` is the word for those two together — a .deb and an .rpm are the distributions' own formats, installed into the system and leaning on its libraries, against flatpak's sandboxed bundle that carries its own and the AUR's recipe that is not a binary at all.
+`distro` is the word for those two together — a .deb and an .rpm are the distributions' own formats, installed into the system and leaning on its libraries, against flatpak's sandboxed bundle that carries its own.
 */
 const steps = {
 	//arm64 first on purpose: it runs native on apple silicon where amd64 runs emulated, so anything wrong with the image, the whitelist or the lockfile surfaces in a couple of minutes rather than twenty. the slow one is never worth discovering a typo in
 	distro:  () => { stageSource(); tauri('fuji-tauri:arm64', 'linux/arm64', 'deb')
 	                                tauri('fuji-tauri:amd64', 'linux/amd64', 'deb,rpm') },
 	flatpak: () => flatpak(),
-	aur:     () => aur(),
 }
 
 /*
@@ -170,8 +156,8 @@ function build(only) {
 	if (only) {
 		steps[only]()
 	} else {
-		//order matters: the flatpak and the PKGBUILD both consume the amd64 deb that distro makes
-		steps.distro(); steps.flatpak(); steps.aur()
+		//order matters: the flatpak wraps the amd64 deb that distro makes
+		steps.distro(); steps.flatpak()
 	}
 	report()
 }
@@ -183,11 +169,7 @@ function report() {
 	if (!existsSync(release)) return say('    nothing')
 	let names = readdirSync(release).sort()
 	if (!names.length) return say('    nothing')
-	for (let name of names) {
-		let found = statSync(join(release, name))
-		//aur/ is a folder holding a recipe rather than a package, and saying so beats printing the size of a directory entry as though it were a download
-		say('    ' + name.padEnd(34) + (found.isDirectory() ? 'a folder, not a package' : found.size + ' bytes'))
-	}
+	for (let name of names) say('    ' + name.padEnd(34) + statSync(join(release, name)).size + ' bytes')
 }
 
 /*

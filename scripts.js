@@ -48,7 +48,7 @@ const targets = {
 /*
 Which targets this computer stages and sends. Two machines publish fuji and no others: the mac makes its own dmg and, through docker, every linux package; windows makes the exe.
 
-Linux is deliberately absent, and its absence is the simpler answer rather than an omission. Somebody can clone this repository on ubuntu or raspberry pi os and run pnpm installer in the desktop workspace, and they will get a package built for the machine they are sitting at — that is development, and it works. What they cannot do is stage and upload it, because a published package comes from the mac where all five are built together against one base image and one lockfile. Teaching this file a third place to look for a built file, so that a borrowed linux box could publish one package out of five, would buy a case nobody has and cost a branch in every function below.
+Linux is deliberately absent, and its absence is the simpler answer rather than an omission. Somebody can clone this repository on ubuntu or raspberry pi os and run pnpm installer in the desktop workspace, and they will get a package built for the machine they are sitting at — that is development, and it works. What they cannot do is stage and upload it, because a published package comes from the mac where all four are built together against one base image and one lockfile. Teaching this file a third place to look for a built file, so that a borrowed linux box could publish one package out of four, would buy a case nobody has and cost a branch in every function below.
 */
 const machines = {
 	darwin: ['dmg', 'deb-arm64', 'deb-x64', 'rpm-x64', 'flatpak-x64'],

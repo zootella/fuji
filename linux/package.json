@@ -12,7 +12,6 @@
 		"build-images": "node build.js build-images",
 		"build-distro": "node build.js build distro",
 		"build-flatpak": "node build.js build flatpak",
-		"build-aur": "node build.js build aur",
 		"stage": "node build.js stage"
 	}
 }

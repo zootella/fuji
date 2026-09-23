@@ -87,9 +87,9 @@ $ pnpm upload       send them to the server, seconds
 
 Three rather than one because each leaves behind a different kind of thing. `build` writes packages, which are gitignored and disposable. `hash` writes sidecars, which are committed. `upload` puts files on a server, which is the only one of the three you can't take back.
 
-**The first `build` on a new machine takes much longer**, because it builds four toolchain images before it builds anything else, which come to about 12 GB on disk. There is no separate setup command to forget: `build` brings its own images up to date every time, which costs three seconds once they exist. That also means you never have to notice when somebody bumps Rust or the Debian base in a `Dockerfile` and you pull it; the next build rebuilds that image and uses it.
+**The first `build` on a new machine takes much longer**, because it builds three toolchain images before it builds anything else, which come to about 11 GB on disk. There is no separate setup command to forget: `build` brings its own images up to date every time, which costs three seconds once they exist. That also means you never have to notice when somebody bumps Rust or the Debian base in a `Dockerfile` and you pull it; the next build rebuilds that image and uses it.
 
-`build` makes five things: a `.deb` for ARM, a `.deb` and an `.rpm` for x86-64, a `.flatpak`, and the AUR's `PKGBUILD` — a recipe rather than a package, so it's checked here and published separately. Five more commands sit underneath for factoring — `build-images`, `build-distro`, `build-flatpak`, `build-aur` and `stage`. They're documented in the workspace and rarely typed.
+`build` makes four things: a `.deb` for ARM, a `.deb` and an `.rpm` for x86-64, and a `.flatpak`. Four more commands sit underneath for factoring — `build-images`, `build-distro`, `build-flatpak` and `stage`. They're documented in the workspace and rarely typed.
 
 ### Publishing
 
@@ -140,7 +140,6 @@ Linux packages, built in containers from the `linux` workspace
 ./linux/release/Fuji_0.1.0_amd64.deb
 ./linux/release/Fuji-0.1.0-1.x86_64.rpm
 ./linux/release/Fuji_0.1.0_x86_64.flatpak
-./linux/release/aur/PKGBUILD
 ```
 
 Staged for publishing by `pnpm hash`, on whichever machine built it. No published name carries a

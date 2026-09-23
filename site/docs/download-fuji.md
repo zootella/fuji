@@ -9,7 +9,7 @@ One package per system, and the architecture matters as much as the name: a buil
 <Download file="fuji.x86_64.rpm"     platform="Linux"   system="Fedora and RHEL on 64-bit Intel and AMD" />
 <Download file="fuji.x86_64.flatpak" platform="Linux"   system="any distribution, sandboxed, 64-bit Intel and AMD" />
 
-Arch Linux has no file here — Fuji will be in the AUR instead, and is not published there yet. See below.
+Arch Linux and its relatives have no file of their own here. The Flatpak runs on all of them. See below.
 
 ## Which file, and for what
 
@@ -25,7 +25,7 @@ Arch Linux has no file here — Fuji will be in the AUR instead, and is not publ
 
 Fuji reads the folders you point it at, so the Flatpak asks for access to your filesystem. Your software centre will say so when you install it, and it is the same access the other packages have without asking.
 
-**Arch, Manjaro, EndeavourOS, CachyOS.** Not published yet. When it arrives Fuji will be in the AUR as `fuji-bin`, so there will be nothing here to download — you will install it the way you install anything else from there, with `yay -S fuji-bin` or your own helper.
+**Arch, Manjaro, EndeavourOS, CachyOS.** There is no AUR package. The Flatpak above runs on every one of these. If your system did not come with `flatpak`, it is in Arch's own repositories, and then `flatpak install ./fuji.x86_64.flatpak` is the whole of it.
 
 ## The downloads are not code-signed
 

@@ -1,6 +1,6 @@
 # Linux builds
 
-Fuji's four Linux packages and its Arch recipe, built on a Mac through Docker.
+Fuji's four Linux packages, built on a Mac through Docker.
 
 Fuji is developed on a Mac and its Linux users are somebody else's machines, so the Linux packages have to come from somewhere. This workspace is that somewhere: a few containers, no Linux computer, and nothing to check out on a second machine and remember to keep current. `build.js` carries the reasoning; this file is how you use it.
 
@@ -15,7 +15,7 @@ Then, from the repository root, `pnpm install` once — it installs every worksp
 ## The commands
 
 ```
-pnpm build        the four packages, and a check of the AUR recipe
+pnpm build        the four packages
 pnpm hash         stage them and write the sidecars
 pnpm upload       send them to the server
 ```
@@ -24,17 +24,16 @@ That is the whole of it. Publishing a release from this workspace is those three
 
 **Three steps rather than one, because each leaves behind a different kind of thing.** `build` writes packages, which are gitignored and disposable. `hash` writes sidecars, which are committed. `upload` puts files on a server, which is the only one of the three you cannot take back — and that is why it stays a separate, deliberate act rather than the tail of something else.
 
-**The first `build` on a new machine takes far longer than the rest**, because it builds the four toolchain images before it builds anything else: Debian carrying Node and Rust, a second copy of it for the other architecture, a Flatpak image holding the GNOME runtime, and an Arch image for checking the AUR recipe. The four come to about 12 GB on disk once built. Every build after that is about eight minutes on the Mac mini — measured at 8m12s — of which the image step is three seconds.
+**The first `build` on a new machine takes far longer than the rest**, because it builds the three toolchain images before it builds anything else: Debian carrying Node and Rust, a second copy of it for the other architecture, and a Flatpak image holding the GNOME runtime. The three come to about 11 GB on disk once built. Every build after that is under eight minutes on the Mac mini — 8m12s was measured while a fifth step, since removed, was still part of it — of which the image step is three seconds.
 
-### The five commands underneath
+### The four commands underneath
 
 These exist so that `build` is factored rather than one long function. You would rarely type one.
 
 ```
-pnpm build-images     the four toolchain images
+pnpm build-images     the three toolchain images
 pnpm build-distro     the two .deb files and the .rpm, out of one Tauri run
 pnpm build-flatpak    the .flatpak, which needs the x86-64 .deb to exist first
-pnpm build-aur        check the PKGBUILD, which needs it too
 pnpm stage            copy the source a container would get, and stop
 ```
 
@@ -66,8 +65,6 @@ linux/release/Fuji_0.1.0_arm64.deb          from  build-distro   (arm64 containe
 linux/release/Fuji_0.1.0_amd64.deb          from  build-distro   (amd64 container, emulated)
 linux/release/Fuji-0.1.0-1.x86_64.rpm       from  build-distro   (same amd64 container, same run)
 linux/release/Fuji_0.1.0_x86_64.flatpak     from  build-flatpak  (wraps the amd64 .deb above)
-linux/release/aur/PKGBUILD                  from  build-aur
-linux/release/aur/.SRCINFO                  from  build-aur
 ```
 
 The `0.1.0` in those names is read from `desktop/src-tauri/tauri.conf.json`, which is the one place Fuji's version is written.
@@ -91,17 +88,14 @@ The architecture token is each ecosystem's own word — `amd64` for Debian, `x86
 
 **What git keeps.** The packages are gitignored and the sidecars are committed, so the repository keeps a dated record of what hash each release had. `.stage/` is ignored entirely.
 
-## The four packages and the recipe, and what each is for
+## The four packages, and what each is for
 
 | What | For | Notes |
 |---|---|---|
 | `.deb` arm64 | Raspberry Pi and other ARM Debian machines | published as `fuji.arm64.deb` |
 | `.deb` amd64 | Debian, Ubuntu, Mint, Pop!_OS, Zorin on x86-64 | the largest single audience |
 | `.rpm` x86_64 | Fedora, RHEL, Rocky, AlmaLinux | same build run as the amd64 deb |
-| `.flatpak` x86_64 | any distribution, sandboxed | the only one that works on SteamOS and Bazzite |
-| `PKGBUILD` | Arch, Manjaro, EndeavourOS, CachyOS | a recipe, not a package — see below |
-
-The PKGBUILD is the odd one. It is not a file anybody downloads: it is a build recipe that lives in a git repository the AUR hosts, and an Arch user's own machine follows it. `pnpm build-aur` cannot publish it — what it does is prove it works, by running `makepkg` against it exactly as a user's machine would, and leaving the recipe plus its `.SRCINFO` in `release/aur/` ready to push.
+| `.flatpak` x86_64 | any distribution, sandboxed, and what Arch users take | the only one that works on SteamOS and Bazzite |
 
 ## Why it is built this way
 
@@ -122,8 +116,6 @@ The PKGBUILD is the odd one. It is not a file anybody downloads: it is a build r
 **The Flatpak is not built with `flatpak-builder`.** Bubblewrap installs a seccomp filter, and Rosetta rejects that call, so the usual manifest route cannot build an x86-64 Flatpak on this Mac at all. Since the work is unpacking a `.deb` and placing files rather than compiling, `inside-flatpak.sh` uses `flatpak build-init` and ordinary shell instead, which needs no sandbox. Its comments carry the whole account.
 
 **The Flatpak container runs `--privileged`** for one narrow reason: `flatpak build-export` validates the icon inside bubblewrap, and that needs a namespace an ordinary container cannot make.
-
-**`pnpm build-aur` fails loudly if the versions disagree.** `aur/PKGBUILD` carries its own `pkgver`, which the AUR expects you to bump by hand. If it falls behind `tauri.conf.json` the container says so in those words rather than letting `makepkg` report a missing file.
 
 **There is no `pnpm reveal` here.** That is a Mac convenience in the `desktop` workspace; everything this one produces is in `linux/release/`, named above.
 
