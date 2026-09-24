@@ -23,6 +23,7 @@ The documents fuji is designed in. Each one owns a subject and is the place that
 - **`instances.md`** — one process or several, and how many windows a process holds. Built: a process per double-click on Windows and Linux, and one process holding many windows on macOS. The reasoning moved into `window.rs`, `open.rs` and `lib.rs`; what is left here is whether a settings guard is ever worth building.
 - **`menu.md`** — the menus, all built, with their reasoning in `menu.rs` and `dock.rs`. What is left here is Open Recent, decided against because the metaphor does not survive thousands of pictures and because such a menu names private files, and the recent-document traces that follow from that decision.
 - **`sort.md`** — the orders fuji will show a folder in. Half prior art, researched rather than remembered — how Windows and macOS actually sort names and date files — and half plan. Nothing in the plan is written yet.
+- **`touch.md`** — fuji's controls across the devices people actually have: a notched wheel, a trackpad, a Magic Mouse. Built and tested with a wheel alone, so a swipe is expected to flip through a dozen pictures. The stages from here: stop the bleeding on the Mac by dropping trackpad scrolls before the page sees them, a simple parity set for touch, and eventually pinch, pan and zoom as gestures.
 
 ## The project
 
