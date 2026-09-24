@@ -23,7 +23,9 @@ App.vue
 
 ## The shell
 
-**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, sizes and reveals the window, records where the user puts it, decides which view is showing and writes that to the model so a flow can wait on it, and owns the `c` key that switches between them. It draws nothing: no background, no HUD, no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
+**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, sizes and reveals the window, records where the user puts it, decides which view is showing and writes that to the model so a flow can wait on it, and owns the `c` key that switches between them. It draws no background and no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
+
+**It draws one thing, the help panel, and owns its `h` key.** Help has to work in every view, always, for a user who has forgotten a shortcut or gotten lost, so it belongs to the layer every view sits inside — the same reason the shell owns `g` and draws the gamma filters. `HelpPanel.vue` floats over whichever view is showing, lists every key and mouse action fuji has, and takes no clicks, so the view beneath is still the thing being used. A new table adds its keys to the panel's text and inherits the rest.
 
 **It exists because window events are global and everything else is not.** A view's `wheel`, `pointerdown`, and `dblclick` handlers live on its own element, so a hidden view receives none of them and two views cannot collide. But `window.addEventListener` fires regardless of what is visible, so `keydown` and `resize` are the entire interference surface between views. The shell holds one listener each and hands the event to whichever view is active. A hidden view cannot react to a key because it is never given one, rather than because it remembered to check.
 

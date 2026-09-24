@@ -50,7 +50,6 @@ async function onKey(e) {
 
 	//q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
 	if      (key == 'q') { log('⭕ table: key q, a branch with nothing behind it yet') }
-	else if (key == 'h') { toggleHelp()        }
 	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { log('⭕ table: key ctrl+s, a branch with nothing behind it yet')
 		e.preventDefault()//tell the browser not to show the file save dialog box
@@ -424,16 +423,10 @@ function cardShow(img) {//the one place an image becomes visible
 
 const showHud2Ref    = ref(false); const hud2Ref    = ref('')//upper right, empty and unshown: reserved for the Loading the ttd above _flip asks for
 const showHud3Ref    = ref(false); const hud3Ref    = ref('')//bottom, information; starts hidden so one the user turned off never flashes up before hudStart reads the setting
-const showHud4Ref    = ref(false); const hud4Ref    = ref('')//middle, help
 const showCaptionRef = ref(false); const captionRef = ref('')//caption, below card on table; hidden to start for the same reason
 function hudStart() {
 
 hud3Ref.value = ``
-hud4Ref.value = `middle of frame
-this HUD will likely be a card showing the user all the
-keyboard shortcuts the app supports, and be really easy to
-show and hide, by pressing the [H]elp key
-and here is yet another line`
 
 captionRef.value = `A multimedia file manager designed
 with privacy and precision in mind`//placeholder text, set once: the caption is meant to carry the image's path and natural size, and nothing updates it on a flip yet
@@ -448,7 +441,6 @@ function toggleInformation() {
 	updateInformation()//it built nothing while it was hidden, so fill it now rather than showing whatever it last said
 	settings.hud.information = showHud3Ref.value; settingsChanged()//the setting records where the user left this hud, not just where it started
 }
-function toggleHelp()        { showHud4Ref.value = !showHud4Ref.value }
 function updateInformation() {
 	if (!showHud3Ref.value) return//a hidden hud builds no string and touches no ref, so measuring with it off measures fuji rather than fuji plus a readout
 	let s = 'no image loaded'
@@ -511,7 +503,6 @@ let here = null//the store's entry for the image on the card, which is where the
 	<!-- HUD, inside the frame, next to the card -->
 	<div v-if="showHud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
 	<div v-if="showHud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
-	<div v-if="showHud4Ref" class="myHud myDry absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">{{hud4Ref}}</div>
 
 	<!-- curtain, last so it covers everything: blacks out the frame during fullscreen transitions -->
 	<div v-if="showCurtainRef" class="myDry absolute inset-0 bg-black"></div>

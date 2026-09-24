@@ -10,6 +10,7 @@ import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateRegister} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
+import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -19,7 +20,7 @@ import MyList from './MyList.vue'
 import MySpace from './MySpace.vue'
 
 /*
-The shell owns the window and none of the pixels. It reads the settings file, reveals the window rust built, records the size the user gives it, keeps the title bar saying what the user is looking at, holds the one listener for each window event, and remembers which view was showing. It has no background, no chrome, and no HUD, so a view never has to negotiate with a parent about how it looks.
+The shell owns the window and none of the pixels. It reads the settings file, reveals the window rust built, records the size the user gives it, keeps the title bar saying what the user is looking at, holds the one listener for each window event, and remembers which view was showing. It has no background and no chrome, so a view never has to negotiate with a parent about how it looks. The one thing it draws is the help panel, floating over whichever view is showing, because h has to work everywhere in fuji and a panel each view drew for itself would be a key each new table had to remember.
 
 It exists because window events are global and everything else is not. A view's wheel, pointer, and double-click handlers live on its own element, so a hidden view is handed none of them and two views cannot collide. But window.addEventListener fires no matter what is visible, and so does a tauri window event, so keydown, resize, and drag-drop are the entire interference surface between views. One listener each lives here and gives the event to the view that is showing. A hidden view cannot react to a key because it is never given one, rather than because it remembered to check.
 
@@ -45,10 +46,11 @@ const tables = {//everything the shell can show in place of a table; view.table 
 	Space: MySpace,//pink polka dots
 }
 
-const sheetRef   = ref(null)
-const tableRef   = ref(null)
-const showing    = modelShowing//Sheet or Table: which kind of view the user is looking at; the model's ref, written only here
-const whichTable = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
+const sheetRef    = ref(null)
+const tableRef    = ref(null)
+const showing     = modelShowing//Sheet or Table: which kind of view the user is looking at; the model's ref, written only here
+const whichTable  = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
+const helpShowing = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
 
 onMounted(async () => {
 	let w = getCurrentWindow()
@@ -66,6 +68,7 @@ onMounted(async () => {
 	}
 	showing.value = opened.length ? 'Table' : settings.view.showing//before the reveal, so the first frame the user sees is the view they left — or a table, when they double-clicked a picture and asked to see that picture rather than the folder around it. Not written back to the file, because opening one image is not a decision about where fuji opens next time
 	whichTable.value = settings.view.table
+	helpShowing.value = settings.hud.help//on at the factory, so a new user is greeted by it
 	if (!tables[whichTable.value]) {//a name settings cannot check, because the tables fuji has are known here and not there
 		notices.push(`⭕ settings: no table named ${whichTable.value}, showing Diamond instead`)
 		whichTable.value = 'Diamond'
@@ -115,11 +118,17 @@ async function menuChose(id) {//the page's half of the menu bar: rust makes a wi
 	else if (id == 'menu-fullscreen') await activeView()?.toggleFullscreen?.()//fuji's own fullscreen rather than macOS's, which is a subject of its own: the essay above toggleFullscreen in DiamondTable.vue says why there are two and how they keep out of each other's way. Optional because only a table has one; on the sheet the item does nothing rather than breaking
 }
 
+function helpToggle() {
+	helpShowing.value = !helpShowing.value
+	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
+}
+
 function activeView() { return showing.value == 'Sheet' ? sheetRef.value : tableRef.value }
 
 function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
 	if (e.key == 'c') { reportTrouble(() => showView(showing.value == 'Sheet' ? 'Table' : 'Sheet')); return }//the shell's own key, and never passed down
+	if (e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
 	if (e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	if (e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in
 	if (e.key == '_' || (e.key == '-' && e.shiftKey)) { gammaStep(-settings.gamma.step); return }//shift and minus, which the main row types as an underscore and the number pad as a minus with shift held
@@ -168,6 +177,7 @@ function isFullscreen() {//a window the size of the screen is not one the user s
 
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" />
+<HelpPanel v-if="helpShowing" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view -->
 
 <!-- the two gamma filters, taking turns and drawing nothing themselves; the exponents are written by the watch above rather than bound here, because the order of the write and the switch is the whole point. The region is the element's own box, where the default reaches a tenth past each edge for nothing -->
 <svg aria-hidden="true" width="0" height="0" class="absolute w-0 h-0">

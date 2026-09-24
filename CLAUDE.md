@@ -235,6 +235,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **Key Components**:
 - `Shell.vue` - Owns the window and none of the pixels: reads settings, sizes and reveals the window, records where the user puts it, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
+- `HelpPanel.vue` - Every shortcut fuji has, in one text; the shell draws it over every view and owns its `h` key, and `hud.help` remembers whether it was open
 - `Sheet.vue` - The contact sheet: one folder seen whole, as a top-to-bottom scroll over a stack of cards
 - `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to the flow; names the one flow there is, and a second one brings a register back with it
 - `SquareFlow.vue` - The one flow, and the whole of how a path becomes a tile: probes a card's files in one call, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden. `TagFlow.vue` and `CanvasFlow.vue` were the experiment it replaced and are deleted
@@ -242,7 +243,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - Handles the events the shell hands it, plus wheel, pointer, and double-click on its own element
   - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
   - Shows the cache's own `<img>` element, adopted into its card — never one of its own pointed at the same picture
-  - HUD overlays for help and information display
+  - HUD overlays for information display; help is the shell's
 - `ComicTable.vue` - Another table, a stub. One image full width, read down a vertical scroll
 
 **Model**:

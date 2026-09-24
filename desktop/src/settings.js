@@ -138,9 +138,14 @@ const settingsSchema = [
 		comment: 'black out the frame through a fullscreen transition, which hides an occasional one-frame shear at the cost of a blink; the user chose true by feel',
 	}, {
 		section: 'hud',
-		key: 'information',
+		key: 'help',
 		factory: true,
-		comment: 'show the information panel along the bottom of the frame, the one [i] toggles; fuji writes this back as you turn it on and off, so it comes back the way you left it',
+		comment: 'show the help panel in the middle of the window, the one [h] toggles in every view; on at the factory so it greets a new user, and fuji writes this back as you turn it on and off, so it comes back the way you left it',
+	}, {
+		section: 'hud',
+		key: 'information',
+		factory: false,
+		comment: 'show the information panel along the bottom of the frame, the one [i] toggles; off at the factory, since the help panel names the key, and written back the same way',
 	}, {
 		section: 'hud',
 		key: 'caption',
