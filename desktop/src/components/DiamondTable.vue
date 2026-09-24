@@ -48,9 +48,8 @@ async function onKey(e) {
 	let Ctrl = e.ctrlKey || e.metaKey
 	let key = e.key
 
-	//f, q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
-	if      (key == 'f') { log('⭕ table: key f, a branch with nothing behind it yet') }
-	else if (key == 'q') { log('⭕ table: key q, a branch with nothing behind it yet') }
+	//q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
+	if      (key == 'q') { log('⭕ table: key q, a branch with nothing behind it yet') }
 	else if (key == 'h') { toggleHelp()        }
 	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { log('⭕ table: key ctrl+s, a branch with nothing behind it yet')
@@ -67,7 +66,8 @@ async function onKey(e) {
 	else if (key == '+' || key == '=')                      { zoomStep(true)  }//the [=+] key zooms in, unshifted or with control as in browsers, and so does the number pad's plus; shift with it is gamma, which the shell takes before this sees it
 	else if (key == '-')                                    { zoomStep(false) }
 	else if (key == ' ')                                    { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
-	else if (key == 'Enter')                                { dimensionFit() }//enter, main keyboard or number pad, which arrive as the same key: the whole image inside the frame, one side meeting it exactly
+	else if (key == 'f')                                    { dimensionFit() }//the whole image inside the frame, one side meeting it exactly
+	else if (key == 'w')                                    { dimensionWidth() }//the image's width meeting the frame's exactly, its height overflowing or falling short
 	else if (/^[1-6]$/.test(key)) { zoomNatural(Number(key)) }//the number keys 1 to 6, main row or number pad, which arrive as the same key: exactly that many css pixels per natural pixel. 7, 8 and 9 are left unused, since past 6x the other zooms serve
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
@@ -241,7 +241,7 @@ Every arrow is an {x, y} pair made by xy(), in CSS pixels, with x to the right a
 
 space is frame corner to the center of the infinite plane. The card is always centered on that point. Panning moves space by the segment dragged, and zooming moves it too, scaling the arrow from the zoom's anchor to it by the same factor as the diamond, so the anchor is the point a zoom holds still: the frame's center for the step keys, the wheel and the number keys, and where the button went down for a right drag. card2 is the card's top left corner to its bottom right corner, which is its size. card1 is frame corner to the card's top left corner: space less half of card2. natural is the image's top left corner to its bottom right corner in the image's own pixels rather than CSS pixels, and it enters the math only as a ratio, so its unit never reaches the page.
 
-One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key and Enter run that the other way, computing the card first, at a whole number of CSS pixels per natural pixel or fitted inside the frame, and setting diamond to its width plus height, which the division in quiver() returns.
+One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key, f and w run that the other way, computing the card first, at a whole number of CSS pixels per natural pixel, fitted inside the frame, or fitted to its width, and setting diamond to its width plus height, which the division in quiver() returns.
 
 A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. An arrow key makes a segment of its own, pan.step of the frame's shorter side, and the sign of pan.step says which way: negative moves the view the way the key points, so the picture slides the other way. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the diamond the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
 
@@ -265,11 +265,18 @@ function dimensionFrame() {//spacebar: the diamond's width plus height becomes t
 	quiverA.diamond = frame.x + frame.y//the card's width plus height becomes the frame's
 	quiver()
 }
-function dimensionFit() {//enter: the card fits inside the frame, its width or its height meeting the frame's exactly and the other side shorter by the image's aspect, centered. The card first and the diamond around it, like a number key; the rounding in quiver() is what lands the meeting side on the frame's edge to the pixel
+function dimensionFit() {//f: the card fits inside the frame, its width or its height meeting the frame's exactly and the other side shorter by the image's aspect, centered. The card first and the diamond around it, like a number key; the rounding in quiver() is what lands the meeting side on the frame's edge to the pixel
 	let frame = frameSize()
 	let scale = Math.min(frame.x / quiverA.natural.x, frame.y / quiverA.natural.y)//css pixels per natural pixel that brings the tighter side to the frame's edge
 	quiverA.space = xy(frame, '/', 2)//frame corner to the frame's center
 	quiverA.diamond = scale * (quiverA.natural.x + quiverA.natural.y)//the fitted card's width plus height
+	quiver()
+}
+function dimensionWidth() {//w: the card's width meets the frame's exactly, centered, whatever that does to its height. A picture taller than the frame at that width overflows equally above and below, for the user to pan down it; a shorter one sits in the middle with dots above and below. Built the way f's is, the card first and the diamond around it
+	let frame = frameSize()
+	let scale = frame.x / quiverA.natural.x//css pixels per natural pixel that brings the card's width to the frame's
+	quiverA.space = xy(frame, '/', 2)//frame corner to the frame's center
+	quiverA.diamond = scale * (quiverA.natural.x + quiverA.natural.y)//that card's width plus height
 	quiver()
 }
 /*
@@ -277,7 +284,7 @@ Quiver B snaps to the backing grid, and why that is the right grid.
 
 Quiver A is real numbers and is never rounded, so nothing drifts. Quiver B is what the page is told, and a position on a fraction of a pixel is drawn resampled, blurred by the fraction, so B snaps every arrow to a pixel before writing it. The question is which pixel. CSS pixels are the unit of layout, of the window and the frame, and of every number the user asks for, n per natural pixel or fit to the frame. Backing pixels are the unit of what is drawn. On a Mac the ratio between them is 1 or 2, so the backing grid contains the CSS grid: everything whole in CSS is whole in backing, and on a Retina display every half CSS pixel is a whole backing pixel as well. Snapping to CSS would throw those halves away for nothing, moving the card up to a backing pixel from where the math put it and leaving it unable to center in a frame with an odd side. Snapping to backing keeps every position the display can show, at the cost of one factor at this one gate.
 
-It is safe because it never makes a fraction of a backing pixel, which is the only thing that can leave a sliver, one row half image and half dots. The number keys keep their exact CSS sizes, since a whole number is on both grids. Enter's card meets the frame's edge, since the frame's size is a whole number of CSS pixels and so of backing pixels. And the fullscreen correction, measured in backing pixels, lands exactly.
+It is safe because it never makes a fraction of a backing pixel, which is the only thing that can leave a sliver, one row half image and half dots. The number keys keep their exact CSS sizes, since a whole number is on both grids. The card f and w fit meets the frame's edge, since the frame's size is a whole number of CSS pixels and so of backing pixels. And the fullscreen correction, measured in backing pixels, lands exactly.
 
 The grids stop nesting at Windows scales like 150 percent, where a CSS pixel is a pixel and a half. Nothing is exact there under any rule: whole CSS pixels put edges on half device pixels, and this rule puts them on device pixels while a number key reads 33.333 rather than 33 in the inspector. Whether Chromium honors a fractional CSS size or snaps it back to whole is a thing only the Windows box can check, and fidelity.md holds what that machine has measured so far. The ratio is read every time rather than kept, because a window can move to a display with a different one; B written for the old display stays on its grid until the next pan or zoom, and that is the whole of the gap.
 */
