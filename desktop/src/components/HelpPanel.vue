@@ -6,27 +6,27 @@
 <template>
 
 <!-- a pre because it is the one element whose text vue's compiler leaves alone: in any other, the runs of spaces that line up the two columns would condense to one -->
-<pre class="myHelp">Fuji
+<pre class="myHelp">
+                                      Fuji
 
-H                                          [H]elp
-I                                          [I]nformation
+                                 H    [H]elp
+                                 I    [I]nformation
 
-Esc          double click                  Full screen
+double click                   Esc    Full screen
+mouse wheel    PgDn|Up|Ctrl+arrows    Flip through images in order
 
-PgDn|PgUp    mouse wheel                   Flip through images in order
+drag                        arrows    Pan
+                             space    Center image large in frame
+                                 F    [F]it image within frame
+                                 W    Size [W]idth to frame
 
-arrows       drag                          Pan
-space                                      Center image large in frame
-F                                          [F]it image within frame
-W                                          Size [W]idth to frame
+Ctrl + mouse wheel             +|-    Zoom around frame center
+Shift + drag up|down                  Zoom around drag start
+                               1-6    Set 1x-6x raster to CSS pixels
 
-+|-          Ctrl + mouse wheel            Zoom around frame center
-             Shift + drag up|down          Zoom around drag start
-1-6                                        Set 1x-6x raster to CSS pixels
-
-G                                          Gamma on and off
-Shift +|-    Shift + mouse wheel           Gamma more and less
-             Shift + right drag up|down    Detail gamma drag up and down
+                                 G    Gamma on and off
+Shift + mouse wheel      Shift +|-    Gamma more and less
+Shift + right drag up|down            Smooth gamma
 </pre>
 
 </template>

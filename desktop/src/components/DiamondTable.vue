@@ -56,6 +56,8 @@ async function onKey(e) {
 	} else if (key == 'Escape') {
 		await changeFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
 	}
+	else if (Ctrl && (key == 'ArrowRight' || key == 'ArrowDown')) { flip(1)  }//control with any arrow flips, right or down for the next picture and left or up for the one before, for a keyboard without page keys, which is every mac laptop; ahead of the plain arrows below, which never ask about control. On the mac, control with an arrow is the system's own shortcut for moving between spaces and never arrives, so there it is command, which Ctrl above already reads
+	else if (Ctrl && (key == 'ArrowLeft'  || key == 'ArrowUp'))   { flip(-1) }
 	else if (key == 'ArrowLeft')  { panStep(xy(-1,  0)) }//the arrows pan one step that way, so a hand on the keyboard can get around without the mouse
 	else if (key == 'ArrowRight') { panStep(xy( 1,  0)) }
 	else if (key == 'ArrowUp')    { panStep(xy( 0, -1)) }
