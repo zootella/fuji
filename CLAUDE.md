@@ -341,6 +341,8 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 The linux containers do not use that list. They pass `--bundles deb` or `--bundles deb,rpm` on the command line instead, which overrides it for that run only — so the linux specifics stay in the `linux` workspace and what the mac and windows builds are told to make never changed.
 
+`bundle.macOS.signingIdentity` is `-`, the pseudo-identity that seals the app with an ad-hoc signature and no certificate. It changes which Gatekeeper dialog a downloaded copy meets, from "damaged" with no way through to "could not verify" with an Open Anyway button, and nothing else; the essay under the targets table in `scripts.js` says why, and the download page says what a user does. Windows and the linux containers ignore it. Every mac installer build now tries to notarize after signing, finds no credentials, and says so, which is expected: fuji does not sign with a Developer ID by choice, and the download page says why, so do not propose it.
+
 `pnpm hash` copies the bundle out from under its versioned, architecture-specific name into `release/` under a stable publishing name, and writes the sidecar beside it from the bytes that landed. The rename happens here rather than at upload time, which is what lets the site side copy known filenames from a known path with no rules about versions or architectures. The installers stay out of git; the sidecars are committed, so history keeps a dated record of what hash each release had.
 
 ## Path Handling

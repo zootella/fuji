@@ -46,6 +46,16 @@ const targets = {
 }
 
 /*
+The app inside the dmg carries an ad-hoc code signature, asked for by one line: signingIdentity "-" under bundle.macOS in tauri.conf.json. That file cannot hold a comment, so the line is explained here, beside the pipeline that ships what it produces.
+
+Without it, tauri skips signing, and the app leaves with only the stamp the linker puts on every arm64 executable: nothing seals the bundle, Info.plist is not bound, and codesign --verify reports "code has no resources but signature indicates they must be present". A browser quarantines whatever it downloads, and at the first launch of a quarantined app Gatekeeper reads a signature that fails to verify as corruption. The dialog says "Fuji is damaged and can't be opened. You should move it to the Trash", under a caution triangle, with no button that proceeds. That is what a presenter met on a Mac Studio running Tahoe on 2026-09-23, and it reproduced on the Sequoia mini the next morning from a Chrome download. It had never shown up in development because nothing there quarantines: a dmg built here and dragged in, or fetched with curl, carries no quarantine attribute, and Gatekeeper never looks.
+
+With the identity "-", tauri runs codesign over the executable and then the bundle, with hardened runtime and no certificate — an ad-hoc signature is a seal with nobody's name on it. The seal verifies, so Gatekeeper can read what the app is, an unnotarized app from no known developer, and shows the dialog it has for that: "Apple could not verify Fuji is free of malware", with Done and Move to Trash, and for about an hour afterwards an Open Anyway button under Privacy & Security in System Settings. So this moves fuji from a dialog that calls the file broken and offers no way in to the one every unnotarized app gets, and the download page describes the way through. It removes nothing: only a Developer ID certificate and notarization take the dialog away, which fuji declines on purpose — the download page says why. Tauri does try to notarize after signing, finds no credentials, and logs a warning — expected in every mac installer build.
+
+Windows is untouched by this and has the same story in its own words: an installer with no certificate meets SmartScreen's "Windows protected your PC", and Run anyway sits behind More info. Neither dialog is about the bytes; the sidecar's hash is. Version 0.1.0 was published unsealed on 2026-09-22 and sealed after, and only the sidecar's date tells the two apart.
+*/
+
+/*
 Which targets this computer stages and sends. Two machines publish fuji and no others: the mac makes its own dmg and, through docker, every linux package; windows makes the exe.
 
 Linux is deliberately absent, and its absence is the simpler answer rather than an omission. Somebody can clone this repository on ubuntu or raspberry pi os and run pnpm installer in the desktop workspace, and they will get a package built for the machine they are sitting at — that is development, and it works. What they cannot do is stage and upload it, because a published package comes from the mac where all four are built together against one base image and one lockfile. Teaching this file a third place to look for a built file, so that a borrowed linux box could publish one package out of four, would buy a case nobody has and cost a branch in every function below.

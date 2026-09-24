@@ -31,6 +31,9 @@
 			"icons/mac/icon.icns",
 			"icons/icon.ico"
 		],
+		"macOS": {
+			"signingIdentity": "-"
+		},
 		"linux": {
 			"deb": {"desktopTemplate": "fuji.desktop.hbs"},
 			"rpm": {"desktopTemplate": "fuji.desktop.hbs"}

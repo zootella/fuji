@@ -135,6 +135,7 @@ export default defineConfig({
 	},
 
 	themeConfig: {
+		outline: 'deep',//the outline on the right lists every heading level rather than h2 alone, so the four flows on the download page appear under their section
 		origin,// not a theme setting; themeConfig is just how VitePress hands a value of our own to the app, where useData().theme reads it
 
 		// https://vitepress.dev/reference/default-theme-config

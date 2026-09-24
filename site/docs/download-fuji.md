@@ -1,6 +1,6 @@
 # Download Fuji
 
-One package per system, and the architecture matters as much as the name: a build for ARM will not run on an x86 machine, and the reverse. Take the one that matches your computer, and if you are not sure which that is, the notes under the list say who each file is for.
+There is one package for each system, and the processor architecture matters as well: a build for ARM does not run on an x86 machine, and an x86 build does not run on ARM. Choose the file that matches your computer.
 
 <Download file="fuji.dmg"            platform="macOS"   system="Apple silicon" />
 <Download file="fuji.exe"            platform="Windows" system="64-bit Intel and AMD" />
@@ -9,7 +9,7 @@ One package per system, and the architecture matters as much as the name: a buil
 <Download file="fuji.x86_64.rpm"     platform="Linux"   system="Fedora and RHEL on 64-bit Intel and AMD" />
 <Download file="fuji.x86_64.flatpak" platform="Linux"   system="any distribution, sandboxed, 64-bit Intel and AMD" />
 
-Arch Linux and its relatives have no file of their own here. The Flatpak runs on all of them. See below.
+Arch Linux and its relatives have no package of their own. The Flatpak runs on all of them.
 
 ## Which file, and for what
 
@@ -23,17 +23,56 @@ Arch Linux and its relatives have no file of their own here. The Flatpak runs on
 
 **Any distribution at all, on a 64-bit Intel or AMD machine.** `fuji.x86_64.flatpak` is a Flatpak bundle, which carries its own libraries and runs in a sandbox, so it does not care what your distribution ships — though it does still care what processor you have, and this one is not for a Raspberry Pi. Download it and install it with `flatpak install ./fuji.x86_64.flatpak`. It is the only one of these that works on an immutable system like SteamOS on the Steam Deck, or Bazzite, where the root filesystem is read-only and an ordinary package cannot be installed at all.
 
-Fuji reads the folders you point it at, so the Flatpak asks for access to your filesystem. Your software centre will say so when you install it, and it is the same access the other packages have without asking.
+Fuji reads the folders you point it at, so the Flatpak asks for access to your filesystem. Your software center will say so when you install it, and it is the same access the other packages have without asking.
 
-**Arch, Manjaro, EndeavourOS, CachyOS.** There is no AUR package. The Flatpak above runs on every one of these. If your system did not come with `flatpak`, it is in Arch's own repositories, and then `flatpak install ./fuji.x86_64.flatpak` is the whole of it.
+**Arch, Manjaro, EndeavourOS, CachyOS.** There is no AUR package. The Flatpak runs on every one of these. If your system did not come with `flatpak`, it is in Arch's own repositories, and then `flatpak install ./fuji.x86_64.flatpak` installs Fuji.
 
-## The downloads are not code-signed
+## Running Fuji for the first time
 
-Fuji is not signed by Apple or by a Windows certificate authority, and until it is, each system will say so in its own way.
+Fuji is deliberately not signed with an Apple Developer ID or a Windows code-signing certificate. As a result, each operating system stops the first run of a downloaded file and asks you to confirm it. The warning concerns where the file came from rather than the file itself: a browser marks every file it downloads, and that mark is what triggers the check. A copy you build from source carries no mark and opens without any of this.
 
-On Windows, a browser attaches a mark-of-the-web to anything it downloads, and that mark is what raises the SmartScreen warning when you run the installer. The screen has a **More info** link, and the button to continue sits behind it. The warning is about where the file came from, not about the file itself: a copy you built on your own machine carries no mark and runs without it.
+The instructions are in four parts. For each system, the first part gives the steps to install and run Fuji with the system's default settings, which you follow once per computer. The second part, separately, describes the settings that turn this kind of check off for every program.
 
-On macOS, an application downloaded from the web is quarantined, and the first attempt to open it is refused because Fuji carries no Apple signature. Control-click Fuji in your Applications folder, choose Open, and the dialog that appears has a button that proceeds. You do this once.
+### Windows: installing and running Fuji
+
+1. Download `fuji.exe` and run it.
+2. [Microsoft Defender SmartScreen](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) displays a blue screen with the message **Windows protected your PC. Microsoft Defender SmartScreen prevented an unrecognized app from starting.** Click **More info**, then click **Run anyway**.
+3. The installer's wizard follows. Once Fuji is installed, it runs without further prompts.
+
+If a Windows 11 computer instead displays a message from Smart App Control, with no **Run anyway** button, that feature has to be turned off before the installer can run.
+
+### Windows: turning the check off for every program
+
+Two settings are involved, and both are in the [Windows Security](https://support.microsoft.com/en-us/windows/security/windows-security/windows-security-app-overview) app under [App & browser control](https://support.microsoft.com/en-us/windows/security/windows-security/app-browser-control-in-the-windows-security-app).
+
+The first is SmartScreen itself. Under **Reputation-based protection settings**, turn off **Check apps and files**. Changing it requires an administrator account, and it stops the check for every download, so Windows no longer checks downloaded programs before they run.
+
+The second is [Smart App Control](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions), which exists on Windows 11 only. When it is turned on, it blocks any unsigned program outright, and Microsoft's documentation states that there is no way to allow an individual program. Under **Smart App Control settings**, choose **Off**. Recent Windows updates allow it to be turned back on afterwards. On earlier builds, turning it off is permanent until Windows is reinstalled, so check your update level before you change it.
+
+### macOS: installing and running Fuji
+
+1. Download `fuji.dmg`, open it, and drag Fuji into the Applications folder.
+2. Double-click Fuji in your Applications folder. macOS displays the message **"Fuji" Not Opened. Apple could not verify "Fuji" is free of malware that may harm your Mac or compromise your privacy**, with the buttons **Done** and **Move to Trash**. Click **Done**.
+3. Open System Settings, select **Privacy & Security**, and scroll down to the **Security** section. A message states that Fuji was blocked to protect your Mac, with an **Open Anyway** button beside it. Click the button and enter your login password when asked.
+4. Fuji opens, and macOS saves the exception, so later launches need no confirmation.
+
+The check is performed by [Gatekeeper](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web), and Apple documents these steps in [Open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac). The **Open Anyway** button remains available for about an hour after the refusal; if it has disappeared, double-click Fuji again to bring it back. Control-clicking Fuji and choosing Open, the older method of bypassing this dialog, no longer works on macOS Sequoia or later, as Apple's page [Safely open apps on your Mac](https://support.apple.com/en-us/102445) describes.
+
+### macOS: turning the check off for every program
+
+The setting is [Allow applications from](https://support.apple.com/guide/mac-help/change-privacy-security-settings-on-mac-mchl211c911f/mac), in System Settings under **Privacy & Security**, in the **Security** section. It offers two choices, **App Store** and **App Store & Known Developers**. A third choice, **Anywhere**, stops the check for every program. macOS hides it until you run one command in Terminal, after which it appears in the menu and can be chosen:
+
+```bash
+sudo spctl --global-disable   # Sequoia and later; --master-disable on earlier versions
+```
+
+## Why Fuji is not signed
+
+Fuji is a multimedia file manager designed with privacy and precision in mind. The project is dedicated to open source and the open web, and takes security seriously. Both commitments lead to the same principle: the person who owns a computer should control what runs on it, and Fuji is built so that you do.
+
+The industry has been moving in the other direction for years. More of what runs on your computer must first be approved somewhere else: registered with a [developer program](https://developer.apple.com/programs/), [signed with a certificate](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options) the vendor issues and can revoke, [submitted for review](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution), and checked against a server at launch. Each step is presented as a security measure, and each one moves a decision from your machine to a company's. We disagree with that direction, and we opt out of it. Fuji is not registered with an app store or a developer program, and it does not enter their signing and notarization processes. This is a deliberate decision, and it is the reason each system stops the first run.
+
+Fuji relies instead on an older method that anyone can verify. The source code is public, so anyone can read what the program does, and build the copy they run from that code themselves. Each installer is built on a machine we control and published beside its SHA-256 hash. The hash is also committed to the repository, so the record of what was published is public and dated. Checking the hash of a downloaded file against it takes one command. A matching hash proves that the file is exactly what we built, byte for byte, which is the assurance a signature provides. It proves it on your own machine, without anyone else's involvement. We believe this is more secure, not less, because it rests on a public record rather than a private key, and on your own computer rather than a vendor's servers. **More importantly, it places you in control.** Your computer is your property, and the choice of what runs on it belongs to you.
 
 ## Checking the hash
 
