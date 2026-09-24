@@ -9,6 +9,7 @@ import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//th
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateRegister} from '../associate.js'//and what fuji tells the operating system it can open in return
+import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
@@ -109,6 +110,9 @@ watch([showing, modelPath, modelFolder], () => {
 	getCurrentWindow().setTitle(windowTitle(showing.value, modelPath.value, modelFolder.value))
 		.catch(error => logTrouble('shell: setting the window title', error))
 }, {immediate: true})
+
+//a trackpad or a magic mouse reaches the page as a stream of wheel events, and a table would read every one as a flip; rust drops them before the page sees them while a table is showing, and lets them through while the sheet is, because the sheet scrolls by them. Immediate, so the window has said which before it is revealed; touch.rs is the whole of it, and does nothing off the mac
+watch(showing, value => touchBlock(value == 'Table').catch(error => logTrouble('shell: blocking touch', error)), {immediate: true})
 
 async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these two down, because the page already knows how to do both
 	if (id == 'menu-open') {

@@ -26,6 +26,7 @@ mod open;
 mod panel;
 mod settings;
 mod thumbnail;
+mod touch;
 mod window;
 
 pub fn run() {
@@ -49,6 +50,7 @@ pub fn run() {
 				thumbnail::thumbnail_probe,
 				open::open_files,//and in open.rs
 				associate::associate_register,//and in associate.rs
+				touch::touch_block,//and in touch.rs
 			]
 		)
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
@@ -56,6 +58,7 @@ pub fn run() {
 			menu::menu_set(_app.handle())?;
 			#[cfg(target_os = "macos")]
 			dock::dock_install(_app.handle());//and the other menu, the one on the dock icon//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
+			touch::touch_start();//watch scroll wheel events for the pages that will ask to be spared a trackpad's; every platform calls it and only the mac installs anything
 			Ok(())
 		})
 		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
