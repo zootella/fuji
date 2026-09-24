@@ -7,12 +7,13 @@ A package is built where it can be — the dmg on a Mac, the exe on Windows, and
 
 The server answers one hostname from two directories and falls through to downloads on a miss, so an installer and its sidecar sit at the apex: fujidesktop.app/fuji.dmg beside fujidesktop.app/fuji.dmg.json. Nothing in this build knows a hash. A page fetches the sidecars when it opens, and that is the point of the whole arrangement — publishing an installer changes what the site says without the site being rebuilt.
 
-	scripts.js                 pnpm hash writes a sidecar, pnpm upload sends it
-	  ↓                        the server's downloads directory — or, in development, .vitepress/config.js
-	theme/downloads.js         this file — the list, the fetch, three small readings and the clipboard call
+	scripts.js                      pnpm hash writes a sidecar, pnpm upload sends it
+	  ↓                             the server's downloads directory — or, in development, .vitepress/config.js
+	theme/downloads.js              this file — the list, the fetch, three small readings and the clipboard call
 	  ↓
-	components/Download.vue    one download; download-fuji.md places six of them by hand
-	components/HomePage.vue    the same six hashes, in the reveal behind Hashes
+	components/DownloadLink.vue     one download; download-fuji.md places six of them by hand
+	components/DownloadCommand.vue  the hash written into a fenced install command; download-fuji.md places two
+	components/HomePage.vue         the same six hashes, in the reveal behind Hashes
 
 Development has no downloads directory, so config.js stands in for it twice over: a plugin serves whatever is staged in desktop/release and linux/release, and a proxy asks production for whatever is not. Staged work wins and production fills the gaps, which means `pnpm local` shows the release you are assembling rather than only the one already out.
 

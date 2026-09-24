@@ -1,4 +1,4 @@
-<script setup>//./.vitepress/theme/components/Download.vue
+<script setup>//./.vitepress/theme/components/DownloadLink.vue
 import { ref, computed, onMounted } from 'vue'
 import { useData } from 'vitepress'
 import { fetchSidecar, readableDate, saySize, copyText } from '../downloads.js'
@@ -8,7 +8,7 @@ One download: the outlined box on the download page that offers a file and says 
 
 The page places six of these by hand rather than looping over a list, because fuji ships six packages and will for a long time:
 
-	<Download file="fuji.dmg" platform="macOS" system="Apple silicon" />
+	<DownloadLink file="fuji.dmg" platform="macOS" system="Apple silicon" />
 
 The attributes are what a sidecar cannot say. A sidecar knows the version, the architecture token, the byte count and the build date, because the machine that built the installer wrote them down; it does not know that aarch64 on a Mac is what everyone calls Apple silicon. So the words come from the page and the numbers come from the build.
 
@@ -83,16 +83,5 @@ async function copyHash() {
 .download code {
 	cursor: pointer;
 	overflow-wrap: anywhere;   /* sixty-four characters has to be free to break anywhere on a phone */
-}
-
-/* the face and size code is set in, without the highlighter chip it carries, because a byte count is a
-   fact rather than a token to type. weight 500 for the reason style.css gives beside its own code rule:
-   plex mono at this size reads lighter than it measures, and regular here would look thinner than the
-   hash above it. scoped because one component wants it so far; a second one moves it to style.css */
-.detail {
-	font-family: var(--vp-font-family-mono);
-	font-size: var(--vp-code-font-size);
-	font-weight: 500;
-	color: var(--vp-c-text-2);
 }
 </style>

@@ -391,3 +391,11 @@ The two hover rules mirror VitePress's own selector exactly, because it carries 
 .VPSidebar .VPSidebarItem.level-1.is-active.is-link > .item > .link:hover .text {
 	color: var(--fuji-mint-ink);
 }
+
+/* a line of facts under a download or an install command: the face and size code is set in, without the highlighter chip it carries, because a byte count is a fact rather than a token to type. weight 500 for the reason given beside the code rule: plex mono at this size reads lighter than it measures, and regular would look thinner than the hash above it. DownloadLink.vue and DownloadCommand.vue both set it, which is why it is here rather than scoped in either */
+.detail {
+	font-family: var(--vp-font-family-mono);
+	font-size: var(--vp-code-font-size);
+	font-weight: 500;
+	color: var(--vp-c-text-2);
+}

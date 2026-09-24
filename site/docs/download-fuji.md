@@ -2,12 +2,12 @@
 
 There is one package for each system, and the processor architecture matters as well: a build for ARM does not run on an x86 machine, and an x86 build does not run on ARM. Choose the file that matches your computer.
 
-<Download file="fuji.dmg"            platform="macOS"   system="Apple silicon" />
-<Download file="fuji.exe"            platform="Windows" system="64-bit Intel and AMD" />
-<Download file="fuji.arm64.deb"      platform="Linux"   system="Raspberry Pi, and other ARM machines running Debian or Ubuntu" />
-<Download file="fuji.amd64.deb"      platform="Linux"   system="Debian and Ubuntu on 64-bit Intel and AMD" />
-<Download file="fuji.x86_64.rpm"     platform="Linux"   system="Fedora and RHEL on 64-bit Intel and AMD" />
-<Download file="fuji.x86_64.flatpak" platform="Linux"   system="any distribution, sandboxed, 64-bit Intel and AMD" />
+<DownloadLink file="fuji.dmg"            platform="macOS"   system="Apple silicon" />
+<DownloadLink file="fuji.exe"            platform="Windows" system="64-bit Intel and AMD" />
+<DownloadLink file="fuji.arm64.deb"      platform="Linux"   system="Raspberry Pi, and other ARM machines running Debian or Ubuntu" />
+<DownloadLink file="fuji.amd64.deb"      platform="Linux"   system="Debian and Ubuntu on 64-bit Intel and AMD" />
+<DownloadLink file="fuji.x86_64.rpm"     platform="Linux"   system="Fedora and RHEL on 64-bit Intel and AMD" />
+<DownloadLink file="fuji.x86_64.flatpak" platform="Linux"   system="any distribution, sandboxed, 64-bit Intel and AMD" />
 
 Arch Linux and its relatives have no package of their own. The Flatpak runs on all of them.
 
@@ -33,22 +33,6 @@ Fuji is deliberately not signed with an Apple Developer ID or a Windows code-sig
 
 The instructions are in four parts. For each system, the first part gives the steps to install and run Fuji with the system's default settings, which you follow once per computer. The second part, separately, describes the settings that turn this kind of check off for every program.
 
-### Windows: installing and running Fuji
-
-1. Download `fuji.exe` and run it.
-2. [Microsoft Defender SmartScreen](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) displays a blue screen with the message **Windows protected your PC. Microsoft Defender SmartScreen prevented an unrecognized app from starting.** Click **More info**, then click **Run anyway**.
-3. The installer's wizard follows. Once Fuji is installed, it runs without further prompts.
-
-If a Windows 11 computer instead displays a message from Smart App Control, with no **Run anyway** button, that feature has to be turned off before the installer can run.
-
-### Windows: turning the check off for every program
-
-Two settings are involved, and both are in the [Windows Security](https://support.microsoft.com/en-us/windows/security/windows-security/windows-security-app-overview) app under [App & browser control](https://support.microsoft.com/en-us/windows/security/windows-security/app-browser-control-in-the-windows-security-app).
-
-The first is SmartScreen itself. Under **Reputation-based protection settings**, turn off **Check apps and files**. Changing it requires an administrator account, and it stops the check for every download, so Windows no longer checks downloaded programs before they run.
-
-The second is [Smart App Control](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions), which exists on Windows 11 only. When it is turned on, it blocks any unsigned program outright, and Microsoft's documentation states that there is no way to allow an individual program. Under **Smart App Control settings**, choose **Off**. Recent Windows updates allow it to be turned back on afterwards. On earlier builds, turning it off is permanent until Windows is reinstalled, so check your update level before you change it.
-
 ### macOS: installing and running Fuji
 
 1. Download `fuji.dmg`, open it, and drag Fuji into the Applications folder.
@@ -66,6 +50,57 @@ The setting is [Allow applications from](https://support.apple.com/guide/mac-hel
 sudo spctl --global-disable   # Sequoia and later; --master-disable on earlier versions
 ```
 
+### Windows: installing and running Fuji
+
+1. Download `fuji.exe` and run it.
+2. [Microsoft Defender SmartScreen](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) displays a blue screen with the message **Windows protected your PC. Microsoft Defender SmartScreen prevented an unrecognized app from starting.** Click **More info**, then click **Run anyway**.
+3. The installer's wizard follows. Once Fuji is installed, it runs without further prompts.
+
+If a Windows 11 computer instead displays a message from Smart App Control, with no **Run anyway** button, that feature has to be turned off before the installer can run.
+
+### Windows: turning the check off for every program
+
+Two settings are involved, and both are in the [Windows Security](https://support.microsoft.com/en-us/windows/security/windows-security/windows-security-app-overview) app under [App & browser control](https://support.microsoft.com/en-us/windows/security/windows-security/app-browser-control-in-the-windows-security-app).
+
+The first is SmartScreen itself. Under **Reputation-based protection settings**, turn off **Check apps and files**. Changing it requires an administrator account, and it stops the check for every download, so Windows no longer checks downloaded programs before they run.
+
+The second is [Smart App Control](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions), which exists on Windows 11 only. When it is turned on, it blocks any unsigned program outright, and Microsoft's documentation states that there is no way to allow an individual program. Under **Smart App Control settings**, choose **Off**. Recent Windows updates allow it to be turned back on afterwards. On earlier builds, turning it off is permanent until Windows is reinstalled, so check your update level before you change it.
+
+## Use the command line
+
+As an alternative to downloading through your browser and then encountering all these hurdles, you can install Fuji from your command line. This has the added benefit of automatically checking the hash before anything is installed. These steps work without needing an administrator account.
+
+**macOS:** Click search in the upper right, and type **Terminal**. Copy and paste the command below, and hit the **Return** key. Two spaces follow the hash value; this is necessary for the command to work.
+
+<DownloadCommand file="fuji.dmg">
+
+```bash
+cd ~/Downloads && \
+curl -fsSLO https://fujidesktop.app/fuji.dmg && \
+echo "0000000000000000000000000000000000000000000000000000000000000000  fuji.dmg" | shasum -a 256 -c && \
+hdiutil attach -nobrowse -quiet -mountpoint fuji-image fuji.dmg && \
+cp -R fuji-image/Fuji.app /Applications/ && \
+hdiutil detach -quiet fuji-image
+```
+
+</DownloadCommand>
+
+**Windows:** Click the Start menu and type **PowerShell**. Copy and paste the command below, and hit the **Enter** key.
+
+<DownloadCommand file="fuji.exe">
+
+```powershell
+cd ~\Downloads
+curl.exe -fsSLO https://fujidesktop.app/fuji.exe
+if ((Get-FileHash fuji.exe).Hash -eq '0000000000000000000000000000000000000000000000000000000000000000') { .\fuji.exe } else { 'The hash does not match. Fuji was not installed.' }
+```
+
+</DownloadCommand>
+
+Each block does the same things. It downloads the file into your Downloads folder. It computes the file's SHA-256 hash and compares it with the hash written in the block, which is the hash published for that file, and stops if they differ, so nothing is installed from a file that is not the one we built. On macOS it then opens the disk image, copies Fuji into Applications, and closes the image. On Windows it runs the installer, and the wizard follows. Neither system shows its first-run warning, because that warning is triggered by a mark the browser adds to a download, and a file fetched by <code>curl</code> carries none. The exception is Smart App Control on Windows 11, which ignores the mark and blocks an unsigned installer wherever it came from; where it is turned on, it has to be turned off first.
+
+The hash in each block is read from the same published record as the hash beside the download link, when this page opens, so the block always names the current build. The block installs a first copy. To update later, move the old Fuji to the Trash first, because copying over an existing application merges the two rather than replacing it.
+
 ## Why Fuji is not signed
 
 Fuji is a multimedia file manager designed with privacy and precision in mind. The project is dedicated to open source and the open web, and takes security seriously. Both commitments lead to the same principle: the person who owns a computer should control what runs on it, and Fuji is built so that you do.
@@ -79,11 +114,15 @@ Fuji relies instead on an older method that anyone can verify. The source code i
 Every package is published with its SHA-256 beside it, and comparing the two catches a download that was corrupted or truncated on the way to you, along with the ordinary mistake of having grabbed the wrong file.
 
 ```bash
-shasum -a 256 fuji.dmg        # macOS and Linux
+shasum -a 256 fuji.dmg        # macOS, in Terminal
 ```
 
 ```powershell
-Get-FileHash fuji.exe         # Windows PowerShell
+Get-FileHash fuji.exe         # Windows, in PowerShell
+```
+
+```bash
+sha256sum fuji.amd64.deb      # Linux
 ```
 
 Compare the result against the hash on this page. If they match, you have the whole file, exactly as it was published.

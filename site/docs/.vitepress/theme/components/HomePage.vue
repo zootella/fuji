@@ -7,10 +7,10 @@ The apex page. index.md carries layout: false, so VitePress renders no navbar, s
 
 It is a port of the Nuxt page it replaces, class for class, now that Tailwind is gone. It names its own fonts rather than reading the theme's variables, so the two never pull on each other: nothing style.css does to the documentation pages can move this one, and nothing here can reach them. The Tailwind values it was written in are noted beside the CSS below so the two can be compared.
 
-The Hashes reveal is the one moving part, and downloads.js holds its mechanism — what a sidecar is, why there is one per package rather than one combined file, and why the fetch has to happen on mount. The download page reads that same module and shows the rest of what a sidecar carries; this page shows a hash and a filename per row, which is what its box has room for. The row count follows installerFiles rather than being written here, so adding a package to that list adds a row to this reveal and nothing else has to change.
+Three reveals open below the links, one at a time: Mac and Win each show a short paragraph on getting past the first-run warning, on the same click that starts the download, and Hashes shows the hash list. The hash list is the one with a mechanism, and downloads.js holds it — what a sidecar is, why there is one per package rather than one combined file, and why the fetch has to happen on mount. The download page reads that same module and shows the rest of what a sidecar carries; this page shows a hash and a filename per row, which is what its box has room for. The row count follows installerFiles rather than being written here, so adding a package to that list adds a row to this reveal and nothing else has to change.
 */
 
-let showing = ref(false)//is the hash list open
+let showing = ref('')//which reveal is open below the links: mac, win, hashes, or blank for none. One at a time, because they share the space
 let rows = ref(installerFiles.map(file => ({file, sha256: ''})))//one row per installer, named from the start so opening the list never changes its height; a hash arrives when its sidecar does
 let release = ref(false)//the version and date above the rows, or false before anything is published
 let loaded = ref(false)//every fetch has settled, so a blank hash now means unpublished rather than unread
@@ -28,11 +28,16 @@ onMounted(async () => {
 	loaded.value = true
 })
 
+//a download link opens its reveal and never closes it: the click is a download first, and downloading again should not fold the instructions away
+function show(name) { showing.value = name }
+
 //open and close the list; the hashes are already in hand by the time anyone can click this
 function toggleHashes() {
-	showing.value = !showing.value
-	if (!showing.value) status.value = ''//collapsing clears the status
+	showing.value = showing.value == 'hashes' ? '' : 'hashes'
+	status.value = ''//collapsing clears the status
 }
+
+function close() { showing.value = ''; status.value = '' }//every reveal ends with a Close
 
 //the hash is clickable but not underlined, so the status line carries the affordance
 function hintCopy() { status.value = 'Click to Copy' }
@@ -65,17 +70,28 @@ async function copyHash(row) {
 				<!--
 				Downloads on the left of the hyphen, everything else on the right.
 				
-				The Mac and Windows paths are the real files and are deliberately stable: the build names its output Fuji_0.1.0_aarch64.dmg and the like, and the upload renames on the way out, so a link posted today keeps working across releases. They 404 until the first release is uploaded, which is expected — nothing about this markup changes when it stops being true.
+				The Mac and Windows paths are the real files and are deliberately stable, and each click also opens the reveal for that system beneath the links, without getting in the way of the download: the build names its output Fuji_0.1.0_aarch64.dmg and the like, and the upload renames on the way out, so a link posted today keeps working across releases. They 404 until the first release is uploaded, which is expected — nothing about this markup changes when it stops being true.
 				
 				Linux is a link to the download page rather than to a file, and has to be. Fuji ships four linux packages — two debs, an rpm and a flatpak — and one Linux button could only pick one of them for everybody, handing most people something their machine cannot install. One word here cannot ask which distribution and which processor; that page can.
 				
 				GitHub points at the application's own repository, not this one.
 				-->
 				<p class="links">
-					<a href="/fuji.dmg" download>Mac</a> <a href="/fuji.exe" download>Win</a> <a href="/download-fuji.html">Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/getting-started.html">Docs</a>
+					<a href="/fuji.dmg" download @click="show('mac')">Mac</a> <a href="/fuji.exe" download @click="show('win')">Win</a> <a href="/download-fuji.html">Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/getting-started.html">Docs</a>
 				</p>
 
-				<div v-if="showing" class="hashes">
+				<!-- what the first launch asks for, in a few sentences, with the words on the screen in italics; the download page has the long version and More Information points at it -->
+				<div v-if="showing == 'mac'" class="reveal">
+					<p>Note: Open your download <i>fuji.dmg</i> and drag <i>Fuji</i> into <i>Applications</i>. The first time you run Fuji, macOS will say <i>"Fuji Not Opened. Apple could not verify Fuji is free of malware"</i> with the buttons <i>Done</i> and <i>Move to Trash</i>. Click <i>Done</i>. Go to macOS settings, click <i>Privacy & Security</i>, and scroll to the bottom. <i>Fuji</i> will be listed, click <i>Open Anyway</i>. Fuji runs normally after these first-time steps. <a href="/download-fuji.html#running-fuji-for-the-first-time">More Information</a></p>
+					<p class="close"><a tabindex="0" @click="close" @keyup.enter="close">Close</a></p>
+				</div>
+
+				<div v-if="showing == 'win'" class="reveal">
+					<p>Note: Double-click your download, <i>fuji.exe</i>. Windows will show a blue warning with the text <i>"Windows protected your PC."</i> Click <i>More info</i>, then <i>Run anyway</i> to install Fuji. <a href="/download-fuji.html#running-fuji-for-the-first-time">More Information</a></p>
+					<p class="close"><a tabindex="0" @click="close" @keyup.enter="close">Close</a></p>
+				</div>
+
+				<div v-if="showing == 'hashes'" class="reveal hashes">
 					<p class="heading">SHA-256<span v-if="release" class="apart">Fuji {{ release.version }}</span><span v-if="release" class="apart">{{ readableDate(release.date) }}</span></p>
 					<p v-for="row in rows" :key="row.file"><a
 						v-if="row.sha256" class="hash" tabindex="0"
@@ -85,7 +101,7 @@ async function copyHash(row) {
 					<!--
 					The status shares Close's line, and its span is always rendered rather than v-if'd in. Both are deliberate. On its own line it changed the block's height as it appeared, which moved the hash out from under the pointer, which fired mouseleave, which cleared the status and gave the height back — a flicker loop you could hold the mouse still inside. Nothing here may change layout on hover.
 					-->
-					<p class="close"><a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Close</a><span class="status">{{ status }}</span></p>
+					<p class="close"><a tabindex="0" @click="close" @keyup.enter="close">Close</a><span class="status">{{ status }}</span></p>
 				</div>
 			</div>
 
@@ -175,18 +191,18 @@ The tagline's two lines get none: they are one sentence broken to fit, not two p
 }
 
 .copy .links,                    /* qualified because .copy p above outranks a bare class */
-.copy .hashes {
+.copy .reveal {
 	margin-top: var(--blank-line);
 }
 
 .links a,
-.hashes a {
+.reveal a {
 	color: inherit;                /* the mint page sets its own black; links follow it rather than the theme's brand */
 	text-decoration: underline;
 	cursor: pointer;               /* the toggles carry no href, so they would not get one on their own */
 }
 
-.hashes a.hash {                 /* qualified: .hashes a above is (0,1,1) and would outrank a bare .hash */
+.hashes a.hash {                 /* qualified: .reveal a above is (0,1,1) and would outrank a bare .hash */
 	text-decoration: none;         /* clickable without looking like a link; the status line says so on hover */
 	overflow-wrap: anywhere;       /* sixty-four hex characters offer the browser no break of their own */
 }
@@ -196,7 +212,7 @@ The tagline's two lines get none: they are one sentence broken to fit, not two p
 	margin-bottom: var(--blank-line);
 }
 
-.hashes .close {
+.reveal .close {
 	margin-top: var(--blank-line);
 }
 
