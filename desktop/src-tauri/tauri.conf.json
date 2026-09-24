@@ -32,7 +32,13 @@
 			"icons/icon.ico"
 		],
 		"macOS": {
-			"signingIdentity": "-"
+			"signingIdentity": "-",
+			"dmg": {
+				"background": "dmg/jinbocho.jpg",
+				"windowSize": {"width": 800, "height": 800},
+				"appPosition": {"x": 200, "y": 360},
+				"applicationFolderPosition": {"x": 600, "y": 360}
+			}
 		},
 		"linux": {
 			"deb": {"desktopTemplate": "fuji.desktop.hbs"},
