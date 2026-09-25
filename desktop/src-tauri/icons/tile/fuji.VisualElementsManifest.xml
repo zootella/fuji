@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Black stays black in a light Start menu, and that is accepted. Windows 10 paints its own tile,
+     light or dark with the theme, behind Chrome, Edge and Firefox whatever color they name here, but
+     not behind fuji: gray, then Chrome's manifest copied line for line, were each drawn as written. -->
 <Application xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<VisualElements
 		BackgroundColor="#000000"
