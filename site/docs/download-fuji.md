@@ -68,7 +68,7 @@ The second is [Smart App Control](https://support.microsoft.com/en-us/windows/se
 
 ## Use the command line
 
-As an alternative to downloading through your browser and then encountering all these hurdles, you can install Fuji from your command line. This has the added benefit of automatically checking the hash before anything is installed. These steps work without needing an administrator account.
+As an alternative to downloading through your browser and then encountering all these hurdles, you can get Fuji using your command line. This method has the added benefit of automatically checking the hash! These steps work without needing an administrator account.
 
 **macOS:** Click search in the upper right, and type **Terminal**. Copy and paste the command below, and hit the **Return** key. Two spaces follow the hash value; this is necessary for the command to work.
 
@@ -76,11 +76,9 @@ As an alternative to downloading through your browser and then encountering all 
 
 ```bash
 cd ~/Downloads && \
-curl -fsSLO https://fujidesktop.app/fuji.dmg && \
-echo "0000000000000000000000000000000000000000000000000000000000000000  fuji.dmg" | shasum -a 256 -c && \
-hdiutil attach -nobrowse -quiet -mountpoint fuji-image fuji.dmg && \
-cp -R fuji-image/Fuji.app /Applications/ && \
-hdiutil detach -quiet fuji-image
+curl -fsSL -o fuji_setup.dmg https://fujidesktop.app/fuji.dmg && \
+echo "0000000000000000000000000000000000000000000000000000000000000000  fuji_setup.dmg" | shasum -a 256 -c && \
+open fuji_setup.dmg
 ```
 
 </DownloadCommand>
@@ -91,15 +89,13 @@ hdiutil detach -quiet fuji-image
 
 ```powershell
 cd ~\Downloads
-curl.exe -fsSLO https://fujidesktop.app/fuji.exe
-if ((Get-FileHash fuji.exe).Hash -eq '0000000000000000000000000000000000000000000000000000000000000000') { .\fuji.exe } else { 'The hash does not match. Fuji was not installed.' }
+curl.exe -fsSL -o fuji_setup.exe https://fujidesktop.app/fuji.exe
+if ((Get-FileHash fuji_setup.exe).Hash -eq '0000000000000000000000000000000000000000000000000000000000000000') { .\fuji_setup.exe } else { 'The hash does not match. Fuji was not installed.' }
 ```
 
 </DownloadCommand>
 
-Each block does the same things. It downloads the file into your Downloads folder. It computes the file's SHA-256 hash and compares it with the hash written in the block, which is the hash published for that file, and stops if they differ, so nothing is installed from a file that is not the one we built. On macOS it then opens the disk image, copies Fuji into Applications, and closes the image. On Windows it runs the installer, and the wizard follows. Neither system shows its first-run warning, because that warning is triggered by a mark the browser adds to a download, and a file fetched by <code>curl</code> carries none. The exception is Smart App Control on Windows 11, which ignores the mark and blocks an unsigned installer wherever it came from; where it is turned on, it has to be turned off first.
-
-The hash in each block is read from the same published record as the hash beside the download link, when this page opens, so the block always names the current build. The block installs a first copy. To update later, move the old Fuji to the Trash first, because copying over an existing application merges the two rather than replacing it.
+The macOS and Windows commands do the same three things. They save `fuji_setup.dmg` or `fuji_setup.exe` in your _Downloads_ folder. They compute the file's SHA-256 hash and make sure it is correct. Lastly, they open the file, same as a double-click. On macOS the disk image appears, and you drag Fuji into _Applications_. On Windows the setup wizard begins. Neither system shows its warning, because that warning is triggered by a mark browsers add to files they download, and a file fetched by <code>curl</code> carries none.
 
 ## Why Fuji is not signed
 

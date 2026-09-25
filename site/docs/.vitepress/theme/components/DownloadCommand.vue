@@ -8,7 +8,7 @@ One install command with the current hash written into it. The command itself is
 	<DownloadCommand file="fuji.dmg">
 
 	```bash
-	echo "0000000000000000000000000000000000000000000000000000000000000000  fuji.dmg" | shasum -a 256 -c
+	echo "0000000000000000000000000000000000000000000000000000000000000000  fuji_setup.dmg" | shasum -a 256 -c
 	```
 
 	</DownloadCommand>
