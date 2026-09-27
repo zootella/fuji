@@ -155,6 +155,18 @@ export function windowTitle(showing, path, folder) {//what the title bar says: t
 	return platform() == 'windows' ? name + ' - Fuji' : name
 }
 
+export async function workArea() {//the desktop this window is on, less the menu bar, dock or taskbar on whichever edge they sit, as {x, y, width, height} in css pixels; false when there is no monitor to ask
+	let m = await currentMonitor()
+	if (!m) return false
+	let s = m.scaleFactor//tauri answers in physical pixels, and every rectangle the page handles is css
+	return {x: m.workArea.position.x / s, y: m.workArea.position.y / s, width: m.workArea.size.width / s, height: m.workArea.size.height / s}
+}
+export function rectFit(natural, area) {//the largest rectangle of natural's shape that fits inside area, centered in it, in whole css pixels; larger than natural when area is, since a picture shown alone should fill what it has
+	let scale = Math.min(area.width / natural.x, area.height / natural.y)//the tighter side meets the area's edge
+	let width = Math.round(natural.x * scale), height = Math.round(natural.y * scale)
+	return {x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + (area.height - height) / 2), width, height}
+}
+
 export async function revealWindow() {//show the window, which rust built at the size it read out of the settings file before the page existed; settings.rs has why
 	await getCurrentWindow().show()
 }

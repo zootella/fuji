@@ -42,7 +42,7 @@ function start() {//the shell calls this when this view first comes on screen; m
 }
 function isFullscreen() { return fullscreenNow }//the shell asks before recording a window, because a fullscreen one is not one the user placed
 
-defineExpose({start, onKey, onResize, onDrop, isFullscreen, toggleFullscreen})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing. toggleFullscreen is here for the View menu, so the menu and a double-click reach the same code rather than two
+defineExpose({start, onKey, onResize, onDrop, isFullscreen, toggleFullscreen, dimensionFit})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing. toggleFullscreen is here for the View menu, so the menu and a double-click reach the same code rather than two, and dimensionFit for a preview handing its picture over, so the card starts where the preview's picture stood
 
 async function onKey(e) {
 	let Ctrl = e.ctrlKey || e.metaKey

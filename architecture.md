@@ -12,6 +12,7 @@ App.vue
     │       └── SquareFlow.vue    the flow that sizes and arranges them, and routes each file to a decoder
     └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
+        PreviewTable.vue          the picture a double-click opened, alone, before any other table
                 ↓ both import, neither knows the other exists
         the model                 folder, sort, ordered list, current path, which view is showing
                 ↓
@@ -105,7 +106,7 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What is built today
 
-`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js`, `log.js`, and `thumbnail.js` over `thumbnail.rs`. `ComicTable.vue` is a stub.
+`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js`, `log.js`, and `thumbnail.js` over `thumbnail.rs`. `PreviewTable.vue` is real and short on purpose: no flip, no pan, no zoom. `ComicTable.vue` is a stub.
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 

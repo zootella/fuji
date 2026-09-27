@@ -202,6 +202,10 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - `open_files()` - The paths handed over since the page last asked, emptying the list as it answers
   - Filled from `RunEvent::Opened` on macOS and from the command line on Windows and Linux, and held rather than delivered because at launch both arrive before the page exists
 
+- `window.rs` - Making fuji's windows, placing them, and saying where one is:
+  - `window_frame()`, `window_frame_set(frame)` - The visible frame in CSS pixels, which on Windows is not Tauri's outer rectangle; the Windows correction is still to be written, in `window_seen`
+  - Its essays carry why the Mac holds every window in one process, where a new window lands, and how long fuji outlives its last one
+
 - `associate.rs` - What fuji has told the operating system it can open:
   - `associate_register(types)` - Write the Windows registry entries that offer fuji for a list of extensions; a no-op on macOS, on Linux, and in a debug build
   - Offers and never claims: the one value it does not write is the extension's own default, which is what would take a file type. macOS needs nothing here, since its declaration is `CFBundleDocumentTypes` in `src-tauri/Info.plist`, which Tauri merges into the bundle at build time
@@ -245,6 +249,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - Shows the cache's own `<img>` element, adopted into its card — never one of its own pointed at the same picture
   - HUD overlays for information display; help is the shell's
 - `ComicTable.vue` - Another table, a stub. One image full width, read down a vertical scroll
+- `PreviewTable.vue` - What a double-clicked picture opens as: the window without its title bar, fitted around the picture in the work area; a click hands it to the diamond table fullscreen, and a lost focus closes it. The shell does the window's part
 
 **Model**:
 - `model.js` - What the user is looking at, and no view owns it: the folder, the sort, the ordered list, the current path, and which of the sheet and a table is showing. The position is a path rather than an index, so changing the sort leaves the user on the same picture
@@ -268,6 +273,9 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 - `associate.js` - Composes the type list out of `imageTypes` and hands it down:
   - `associateRegister()`
+
+- `window.js` - Exposes where the window is, as the user sees its frame:
+  - `windowFrame()`, `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`

@@ -1,0 +1,20 @@
+# To the Windows box: the preview, and where a window really is
+
+Written on the Mac mini, 2026-09-27, alongside PreviewTable. Read this, then talk to the user before changing anything; a letter starts a conversation rather than settling one.
+
+## What changed
+
+**A double-click on a picture now opens a preview.** The shell takes the window's title bar off and fits the window around the picture, as tall or as wide as the work area allows, centered in it. A click on the picture swaps in the diamond table, fitted around the same card, and goes fullscreen. A double-click is meant to end in an ordinary diamond window instead. Losing focus or pressing Escape closes the window. `PreviewTable.vue` has the behavior, and the essay above `previewShape` in `Shell.vue` has the window's part.
+
+**The page can now ask where its window is**, through `window_frame` and `window_frame_set` in `window.rs`, in CSS pixels, meaning the frame a person sees. On the Mac, Tauri's outer rectangle already is that. On Windows 10 and 11 it is not, because it includes the invisible resize borders, about 7 pixels on the left, right and bottom at 100 percent. The essay above `Frame` in `window.rs` has the whole of it. `window_seen` is the one function that answers, and today it passes Tauri's outer rectangle through on every platform. `window_settle` now goes through it too.
+
+## What only this machine can do
+
+1. **Write the Windows body of `window_seen`.** `DwmGetWindowAttribute` with `DWMWA_EXTENDED_FRAME_BOUNDS` gives the visible frame in physical pixels. The risk is that fuji places every window while it is still hidden, and that attribute is known to answer badly for a window that has not been shown. So measure it both ways: the same window hidden and shown, at 100 percent and at another scale. If the hidden answer is wrong, calculate the invisible border from the window's style and DPI with `AdjustWindowRectExForDpi` and the frame metrics instead. `window_seen_move` and `window_frame_set` already subtract whatever difference `window_seen` reports, so nothing else should need to change. Checking it from the Mac is not possible, because `cargo check --target x86_64-pc-windows-msvc` fails inside Tauri's build script, as `CLAUDE.md` notes.
+2. **See whether the preview has invisible borders at all.** A window without decorations may have none, because tao makes the whole window its client area. Compare `window_frame` against Tauri's outer rectangle on a preview and on an ordinary window.
+3. **Double-click the preview.** The first click swaps to the diamond table and starts fullscreen immediately. The second press lands on a different element, in a different table, while the window changes. Whether WebView2 still fires `dblclick` there decides whether the double-click ends in an ordinary window. If it does not, the fix is for DiamondTable to treat a primary press with `e.detail == 2` as its double-click, which `onPointerDown` already detects and ignores. Ask the user what the Mac did before changing it, since the change has to work on both.
+4. **Launch from Explorer, and check the preview has focus.** The preview closes on losing focus, but only after it has had it once. If Explorer does not hand focus to the new process, the preview never closes by itself, which is safe but wrong.
+5. **Leave fullscreen and check that the title bar comes back.** On Windows, simple fullscreen is Tauri's ordinary fullscreen, which restores the window's previous style when it ends. That style is the bare one, and `dressWindow` in the shell adds the title bar on the resize that follows.
+6. **Select several pictures and press Enter.** Explorer starts one fuji per file. Each new preview takes focus from the one before, so all but the last should close. Worth watching once, to see it happen cleanly rather than leave windows behind.
+
+Put what you measure in `window.rs` and in the essay above `previewShape`, with the machine and the date. Then retire this letter, as its predecessors were.

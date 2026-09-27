@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use serde::{Deserialize, Serialize};
+use tauri::{command, AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::{open, settings};
 
@@ -16,13 +17,13 @@ Making fuji's windows, and deciding how long fuji outlives them. This is here ra
 
 **Where.** The builder is given a size and no position, and fuji remembers no position — several windows returning to one remembered rectangle would land on top of each other. What happens next is not the same on the two platforms, and the difference is worth knowing because the obvious assumption is wrong.
 
-On Windows the window manager places the window, cascading it down a staircase of its own. **On macOS nothing places it, and tao centres it** — `if attrs.position.is_none() { ns_window.center() }`, read out of tao 0.35.3. Two windows of one size on one screen therefore centre to the identical rectangle and stack perfectly. Nothing was ever going to intervene: a plain NSWindow sits exactly where its frame says, and cascading on macOS is an AppKit convenience that document-based applications opt into through NSWindowController and Tauri does not use. Observed on the Mac mini 2026-09-14, which is what put the cascade below into this file.
+On Windows the window manager places the window, cascading it down a staircase of its own. **On macOS nothing places it, and tao centers it** — `if attrs.position.is_none() { ns_window.center() }`, read out of tao 0.35.3. Two windows of one size on one screen therefore center to the identical rectangle and stack perfectly. Nothing was ever going to intervene: a plain NSWindow sits exactly where its frame says, and cascading on macOS is an AppKit convenience that document-based applications opt into through NSWindowController and Tauri does not use. Observed on the Mac mini 2026-09-14, which is what put the cascade below into this file.
 
 **And then where it actually went, which is the part that needs correcting.** Windows cascades new windows down a fixed staircase and does not check that what it is placing fits the work area. Measured on 2026-09-13: three instances 1062 pixels tall on a work area 1160 deep, cascaded to 52, 104 and 138, the last two hanging 6 and 40 pixels under the taskbar. Building the window at its true size does not help — that was tried first, on the theory that the operating system would place a window properly if only it were told the truth, and it made no difference.
 
 So the window is checked after it is built and moved if it is out of bounds. The one thing that makes this invisible is that the window is created hidden: the page calls show() later, once it has something to draw, so all of this happens before anyone is looking. Nothing flashes and nothing jumps.
 
-**So fuji staggers its own windows before anything else**, stepping a new one down and to the right of any sibling already standing where it landed, until it stands alone. That is `window_cascade`, and it needs no platform test of its own: it asks whether another window of this process is at this spot, and on Windows and Linux there is never another window of this process, so it does nothing there and the manager's own cascade stands. A window the user has dragged elsewhere frees the spot it left, so the next one opens centred rather than stepping around a ghost.
+**So fuji staggers its own windows before anything else**, stepping a new one down and to the right of any sibling already standing where it landed, until it stands alone. That is `window_cascade`, and it needs no platform test of its own: it asks whether another window of this process is at this spot, and on Windows and Linux there is never another window of this process, so it does nothing there and the manager's own cascade stands. A window the user has dragged elsewhere frees the spot it left, so the next one opens centered rather than stepping around a ghost.
 
 **A window that is still out of bounds goes somewhere random inside the work area**, rolled on both axes even if only one of them was out. Both axes, because keeping a good one sounds tidier and piles windows up instead: Windows cascades in both directions at once, so every window corrected for hanging off the bottom would keep the same cascaded column and come to rest in a line — trading a stack for a row. The roll is the last resort now rather than the only tool, since a uniform roll was all that was available back when every window was its own process and no copy of fuji could know where its siblings were.
 
@@ -61,7 +62,7 @@ pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
 		.fullscreen(false)
 		.build()?;
 
-	window_cascade(&window);//macos centres every window it is given no position for, so a second one lands exactly on the first
+	window_cascade(&window);//macos centers every window it is given no position for, so a second one lands exactly on the first
 	window_settle(&window);//best effort: a window that cannot be measured is left where it is rather than moved somewhere worse
 	Ok(())
 }
@@ -110,14 +111,61 @@ fn window_cascade(window: &WebviewWindow) {
 fn window_settle(window: &WebviewWindow) {
 	let Ok(Some(monitor)) = window.current_monitor() else { return };//the monitor it actually landed on, which on more than one screen is not necessarily the primary one
 	let work = monitor.work_area();//the screen minus whatever the operating system keeps: the taskbar on any edge, the menu bar, the dock
-	let (Ok(at), Ok(size)) = (window.outer_position(), window.outer_size()) else { return };//outer at both ends, because the frame is what overhangs rather than the web view inside it
+	let Ok((at, size)) = window_seen(window) else { return };//the frame as the user sees it, because that is what overhangs rather than the web view inside it or a border nobody can see
 
 	if inside(at.x, size.width, work.position.x, work.size.width)
-	&& inside(at.y, size.height, work.position.y, work.size.height) { return }//wholly within the work area, so whatever put it there stands untouched — the manager's own cascade on windows, tao's centring and our step away from a sibling on the mac
+	&& inside(at.y, size.height, work.position.y, work.size.height) { return }//wholly within the work area, so whatever put it there stands untouched — the manager's own cascade on windows, tao's centering and our step away from a sibling on the mac
 
 	let x = roll(size.width, work.position.x, work.size.width);
 	let y = roll(size.height, work.position.y, work.size.height);
-	let _ = window.set_position(PhysicalPosition::new(x, y));
+	let _ = window_seen_move(window, PhysicalPosition::new(x, y));
+}
+
+/*
+Where a window is, as the person looking at the screen would say.
+
+Tauri's outer position and size are the platform's own window rectangle, and on the mac that is what anyone would mean: a frame there leaves the shadow out. On Windows 10 and 11 it does not. The rectangle includes the resize borders, which since Windows 10 are invisible, about 7 pixels on the left, the right and the bottom at 100 percent. So the numbers say a window is 7 pixels wider on each side and taller at the bottom than anything drawn on the screen, and a window placed flush with the bottom of the work area by them stops 7 pixels short of it. The desktop window manager knows where the visible frame is, through DwmGetWindowAttribute with DWMWA_EXTENDED_FRAME_BOUNDS, and window_seen is the one place that answer belongs.
+
+It does not have it yet: it passes the outer rectangle through on every platform, until the Windows body is written and measured on that machine. The measuring matters, because fuji places its windows while they are still hidden, and that attribute is known to answer badly for a window that has never been shown. Everything else here is already written against window_seen, so the correction is one function body and nothing that calls it changes.
+
+The page asks through window_frame and window_frame_set, in css pixels, and so never learns that a platform counts borders it does not draw.
+*/
+
+/// Where the window is and how big, in css pixels, as the user sees its frame
+#[derive(Serialize, Deserialize)]
+pub struct Frame { x: f64, y: f64, width: f64, height: f64 }
+
+/// The window's visible frame, in css pixels
+#[command]
+pub fn window_frame(window: WebviewWindow) -> tauri::Result<Frame> {//tauri turns its own error into the rejection the page sees, so none of these need converting
+	let scale = window.scale_factor()?;//tauri's physical pixels per css pixel, on this window's screen
+	let (at, size) = window_seen(&window)?;
+	Ok(Frame { x: at.x as f64 / scale, y: at.y as f64 / scale, width: size.width as f64 / scale, height: size.height as f64 / scale })
+}
+
+/// Put the window's visible frame exactly here, in css pixels
+#[command]
+pub fn window_frame_set(window: WebviewWindow, frame: Frame) -> tauri::Result<()> {
+	let scale = window.scale_factor()?;
+	let (_, seen) = window_seen(&window)?;
+	let inner = window.inner_size()?;
+	let chrome = (seen.width.saturating_sub(inner.width), seen.height.saturating_sub(inner.height));//what the frame has around the content: a title bar and borders, or nothing on a window without decorations. set_size means the content, so this comes off the frame asked for
+	let width  = ((frame.width  * scale).round() as u32).saturating_sub(chrome.0);
+	let height = ((frame.height * scale).round() as u32).saturating_sub(chrome.1);
+	window.set_size(PhysicalSize::new(width, height))?;//size first and then position, because a resize on the mac keeps the bottom left corner, which is where AppKit measures from, and so moves the top; tao queues both onto the main thread, in this order
+	window_seen_move(&window, PhysicalPosition::new((frame.x * scale).round() as i32, (frame.y * scale).round() as i32))
+}
+
+//the visible frame, in tauri's physical pixels: the outer rectangle on every platform for now, and the place the windows correction goes
+fn window_seen(window: &WebviewWindow) -> tauri::Result<(PhysicalPosition<i32>, PhysicalSize<u32>)> {
+	Ok((window.outer_position()?, window.outer_size()?))
+}
+
+//move the window so its visible corner lands here. set_position places the outer corner, so this steps back by whatever lies between the outer corner and the visible one, which is nothing until window_seen learns otherwise
+fn window_seen_move(window: &WebviewWindow, to: PhysicalPosition<i32>) -> tauri::Result<()> {
+	let outer = window.outer_position()?;
+	let (seen, _) = window_seen(window)?;
+	window.set_position(PhysicalPosition::new(to.x - (seen.x - outer.x), to.y - (seen.y - outer.y)))
 }
 
 //is this edge and the far one within the work area
