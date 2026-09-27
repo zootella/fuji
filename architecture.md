@@ -24,7 +24,7 @@ App.vue
 
 ## The shell
 
-**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, sizes and reveals the window, records where the user puts it, decides which view is showing and writes that to the model so a flow can wait on it, and owns the `c` key that switches between them. It draws no background and no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
+**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, places and reveals the window, decides which view is showing and writes that to the model so a flow can wait on it, and puts the window in fuji's fullscreen for a table and in an ordinary window for the sheet. It draws no background and no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
 
 **It draws one thing, the help panel, and owns its `h` key.** Help has to work in every view, always, for a user who has forgotten a shortcut or gotten lost, so it belongs to the layer every view sits inside — the same reason the shell owns `g` and draws the gamma filters. `HelpPanel.vue` floats over whichever view is showing, lists every key and mouse action fuji has, and takes no clicks, so the view beneath is still the thing being used. A new table adds its keys to the panel's text and inherits the rest.
 
@@ -38,11 +38,11 @@ App.vue
 
 **The sheet scrolls over cards, not over thumbnails.** A card holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every card at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `card.md` carries what a card is for, and the thumbnail pipeline document on the site how the flow gets its pixels.
 
-**`c` switches between the sheet and the current table, and they swap with `v-show`.** That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
+**A double-click moves between the sheet and the current table, and they swap with `v-show`.** A double-clicked thumbnail opens its picture on the table, and a double-click on the table goes back to the sheet. That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
 
 **Tables switch between each other with `v-if`.** Choosing a different table is rare, a lost frame is fine, and a table nobody is using should not exist — five mounted tables each holding decoded bitmaps is the memory the cache exists to bound. Destroying one is affordable precisely because everything worth keeping lives below it: the new table reads the same model and asks the same cache, which answers from memory.
 
-**Two orthogonal values, not one mode.** Whether the sheet is showing, and which table is behind it. `c` flips the first. A menu, a click, or a key picks the second. That they are independent is the whole reason the sheet does not care how many tables exist.
+**Two orthogonal values, not one mode.** Whether the sheet is showing, and which table is behind it. A double-click flips the first. A menu, a click, or a key picks the second. That they are independent is the whole reason the sheet does not care how many tables exist.
 
 ## The model
 
@@ -56,7 +56,7 @@ App.vue
 
 **Sort order lives here even though the sheet is where it is chosen, and no view is told when it changes.** The sheet writes one value, the model rebuilds the ordered list from it, and every table is already looking at that list. A table written next year inherits sort order by importing the model; there is nothing to wire, because there is no wire.
 
-**Back belongs here too, not to a router.** A file manager's back has to move through folders and images as one sequence and survive the `c` key, and no route history can hold that. The path box and the folder tree read and write the model the way a breadcrumb does.
+**Back belongs here too, not to a router.** A file manager's back has to move through folders and images as one sequence and survive moving between the sheet and the table, and no route history can hold that. The path box and the folder tree read and write the model the way a breadcrumb does.
 
 ## The cache
 

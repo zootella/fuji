@@ -216,15 +216,15 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 </script>
 <template>
 
-<!-- items-start so a short tile keeps its own height instead of stretching to the tallest in its row; a tile with a known size holds its box from the start -->
+<!-- every tile names its path in data-path, which is how the sheet knows which one was double-clicked without a handler on each. items-start so a short tile keeps its own height instead of stretching to the tallest in its row; a tile with a known size holds its box from the start -->
 <div class="flex flex-wrap items-start" :style="{'--box': flowBox + 'px'}">
 	<template v-for="tile in flowTiles" :key="tile.path">
 		<canvas v-if="tile.kind == 'canvas'"
 			:ref="el => el ? flowCanvases.set(tile.path, el) : flowCanvases.delete(tile.path)"
-			class="myTile" :style="flowStyle(tile)" width="0" height="0"
+			class="myTile" :data-path="tile.path" :style="flowStyle(tile)" width="0" height="0"
 		></canvas>
-		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile myImg" :src="tile.url" :style="flowStyle(tile)" @error="flowRefuse(tile, 'the engine could not show it')" />
-		<img v-else-if="tile.kind == 'placeholder'" class="myTile" :src="errorImageData" :style="{width: flowBox + 'px', height: flowBox + 'px'}" />
+		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile myImg" :data-path="tile.path" :src="tile.url" :style="flowStyle(tile)" @error="flowRefuse(tile, 'the engine could not show it')" />
+		<img v-else-if="tile.kind == 'placeholder'" class="myTile" :data-path="tile.path" :src="errorImageData" :style="{width: flowBox + 'px', height: flowBox + 'px'}" />
 	</template>
 </div>
 

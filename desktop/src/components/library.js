@@ -9,7 +9,7 @@
 //keep, this is the new unifed library to keep components short and tell what's a pure function in here
 
 import {invoke} from '@tauri-apps/api/core';
-import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
+import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
@@ -155,83 +155,65 @@ export function windowTitle(showing, path, folder) {//what the title bar says: t
 	return platform() == 'windows' ? name + ' - Fuji' : name
 }
 
-export async function workArea() {//the desktop this window is on, less the menu bar, dock or taskbar on whichever edge they sit, as {x, y, width, height} in css pixels; false when there is no monitor to ask
+//where an ordinary window opens, as portions of the screen's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
+const windowPreset = {
+	safeWidth:  0.8, safeHeight:  0.8,//the band in the middle of the screen an ordinary window stays inside; a tenth of the screen on every side clears a menu bar or a taskbar on any edge, and all but the largest dock, so the title bar is always there to grab
+	width:      0.7, height:      0.7,//the window itself, which leaves it a tenth of the screen to move in along each axis
+}
+
+export async function screenAreas() {//the screen this window is on, whole and less the menu bar, dock or taskbar, each as {x, y, width, height} in css pixels; false when there is no monitor to ask
 	let m = await currentMonitor()
 	if (!m) return false
 	let s = m.scaleFactor//tauri answers in physical pixels, and every rectangle the page handles is css
-	return {x: m.workArea.position.x / s, y: m.workArea.position.y / s, width: m.workArea.size.width / s, height: m.workArea.size.height / s}
+	let rect = (at, size) => ({x: at.x / s, y: at.y / s, width: size.width / s, height: size.height / s})
+	return {screen: rect(m.position, m.size), work: rect(m.workArea.position, m.workArea.size)}
 }
-export function rectFit(natural, area) {//the largest rectangle of natural's shape that fits inside area, centered in it, in whole css pixels; larger than natural when area is, since a picture shown alone should fill what it has
-	let scale = Math.min(area.width / natural.x, area.height / natural.y)//the tighter side meets the area's edge
+export function rectOrdinary(screen) {//where an ordinary window goes: the preset size, somewhere random inside the safe band in the middle of this screen, so two windows opened one after the other rarely stack exactly, though they can land close
+	let width  = Math.round(screen.width  * windowPreset.width)
+	let height = Math.round(screen.height * windowPreset.height)
+	let left = screen.x + screen.width  * (1 - windowPreset.safeWidth)  / 2//the safe band's top left corner
+	let top  = screen.y + screen.height * (1 - windowPreset.safeHeight) / 2
+	let roomX = Math.max(0, screen.width  * windowPreset.safeWidth  - width)//how far the window can move inside the band along each axis
+	let roomY = Math.max(0, screen.height * windowPreset.safeHeight - height)
+	return {x: Math.round(left + Math.random() * roomX), y: Math.round(top + Math.random() * roomY), width, height}
+}
+export async function pointerPosition() {//where the pointer is, in the same css pixels as screenAreas, or false when the platform will not say
+	try {
+		let [p, m] = await Promise.all([cursorPosition(), platform() == 'mac' ? primaryMonitor() : currentMonitor()])//on the mac tao numbers the pointer with the primary display's scale, in util::cursor_position, where every monitor and work area uses that monitor's own, so it comes back to points, the unit screenAreas answers in there, only divided by the primary's. Windows reports the pointer in true physical pixels, and linux on x11 has one scale for every monitor, so the window's own monitor is right for both
+		if (!m) return false
+		return {x: p.x / m.scaleFactor, y: p.y / m.scaleFactor}
+	} catch (error) {
+		return false//the platform would not say, and the preview centers instead. Linux on wayland does not land here: tao answers (0, 0) there rather than failing, which reads as the work area's corner, where the larger side is all of it, so the preview centers there too
+	}
+}
+
+const previewZoomMost = 2//the most a preview enlarges a small picture, in css pixels per raster pixel, the unit the table's number keys use, so a capped preview hands over a card the 2 key would give. A constant rather than a setting
+
+/*
+Where the preview goes, which is a picture sized to the work area and placed out from under the pointer.
+
+The size is the picture's own shape, as large as the work area allows, so a portrait on a wide screen meets the menu bar and the dock, and a landscape meets the sides. A small picture stops at previewZoomMost rather than filling the screen with enlarged pixels.
+
+The place is chosen one axis at a time, by one rule: the pointer splits the work area in two, and the picture centers in the larger side. A pointer over the menu bar, the dock or anywhere else past the work area's edge counts as at that edge, where the larger side is the whole work area and the picture simply centers. A picture too big for the larger side slides toward the far edge until it fits, and no further. Since the pointer is uncovered if the picture clears it on either axis, and the larger side is the only one worth trying on each, this leaves the pointer uncovered whenever any placement inside the work area could.
+*/
+export function rectPreview(natural, work, pointer) {//the preview's frame in css pixels: natural is the picture's raster size, work the work area, and pointer where the pointer is, or false to center
+	let scale = Math.min(work.width / natural.x, work.height / natural.y, previewZoomMost)//the tighter side meets the work area's edge, unless the picture would pass the most a preview enlarges first
 	let width = Math.round(natural.x * scale), height = Math.round(natural.y * scale)
-	return {x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + (area.height - height) / 2), width, height}
+	return {x: _away(work.x, work.width, width, pointer ? pointer.x : false), y: _away(work.y, work.height, height, pointer ? pointer.y : false), width, height}
+}
+function _away(start, length, size, pointer) {//one axis of rectPreview: where along it a size goes, inside start to start plus length, and away from pointer
+	let end = start + length
+	let at = start + (length - size) / 2//centered, which is where a picture goes when the platform gives no pointer
+	if (pointer !== false) {//strict, because zero is a position
+		let p = Math.min(Math.max(pointer, start), end)//past either edge counts as at it
+		let [from, to] = end - p >= p - start ? [p, end] : [start, p]//the larger side, and on an exact tie the right or lower one
+		at = (from + to) / 2 - size / 2//centered in that side
+	}
+	return Math.round(Math.max(start, Math.min(at, end - size)))//kept inside the work area, sliding toward the far edge when the side is too small
 }
 
-export async function revealWindow() {//show the window, which rust built at the size it read out of the settings file before the page existed; settings.rs has why
+export async function revealWindow() {//show the window, which rust built hidden and the shell has placed
 	await getCurrentWindow().show()
-}
-
-export async function screenToViewport() {//arrow from the screen corner above the os menu to the viewport corner below the titlebar
-	/*
-	The Pixel Unit Challenge: there are multiple pixel units at play
-	1. CSS pixels - What web APIs report
-	2. Logical/Points pixels - macOS "looks like" resolution
-	3. Backing store pixels - The large bitmap macOS renders to
-	4. Physical/Hardware pixels - Actual screen pixels
-	you're seeing that 1 and 2 are the same, and 3 is a macOS only thing
-
-	also, tauri APIs are broken:
-	- getCurrentWindow().outerSize works, but is in backing store pixels
-	- and is the same as what .innerSize says
-	- window.innerWidth and .innerHeight are nonsensical
-
-	so the crazy workaround here assumes a border width that's the same all around
-	and a title bar height that's only on the top
-	and then we can do the math from there!
-
-	on mac, border is 0, so all the extra height is title bar at the top
-	on windows, crazily, position points to outside a 7 pixel all the way around shadow,
-	except with the top shaved off--so the math still works
-	*/
-	let w = getCurrentWindow()
-	let p = await w.outerPosition()
-	let s = await w.outerSize()
-	let m = await currentMonitor()
-
-	//measurements from tauri are in macOS backing store pixels
-	let backingPosition = xy(p.x, p.y)//screen corner to window outer corner
-	let backingWindowOuter = xy(s.width, s.height)//outer window dimensions, including titlebar and borders
-	let backingScreen = xy(m.size.width, m.size.height)//screen dimensions
-
-	//measurements from HTML are in CSS pixels
-	let cssScreen = xy(screen.width, screen.height)//screen dimensions
-	let cssWindowInner = xy(window.innerWidth, window.innerHeight)//inner window dimensions, the renderer viewport which is the frame div
-
-	//scale everything CSS pixels
-	let scale = cssScreen.y / backingScreen.y
-	let cssPosition = xy(backingPosition, '*', scale)
-	let cssWindowOuter = xy(backingWindowOuter, '*', scale)
-
-	//here, we assume there's a border all the way around, and a title bar only at the top
-	let border = (cssWindowOuter.x - cssWindowInner.x) / 2
-	let title = cssWindowOuter.y - border - cssWindowInner.y - border
-	let cssScreenToViewport = xy(cssPosition.x + border, cssPosition.y + border + title)
-
-if (false) log(`in backing units:
-${backingScreen.x} × ${backingScreen.y} screen
-${backingWindowOuter.x} × ${backingWindowOuter.y} outer window
-${backingPosition.x} × ${backingPosition.y} position
-
-all in css units from here:
-${cssScreen.x} × ${cssScreen.y} screen
-${cssWindowOuter.x} × ${cssWindowOuter.y} outer window (calculated, scale of ${scale})
-${cssWindowInner.x} × ${cssWindowInner.y} inner window
-${cssPosition.x} × ${cssPosition.y} position (calculated)
-
-from that we assume ${border} border all the way around, and ${title} title bar on the top, and
-${cssScreenToViewport.x} × ${cssScreenToViewport.y} screen to viewport
-`)
-	return cssScreenToViewport
 }
 
 export async function measureScreen() {//get the screen resolution as {x, y} in all the different real and fake pixel units

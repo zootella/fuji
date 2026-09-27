@@ -1,14 +1,11 @@
 <script setup>//one image sized to an invisible diamond, on an infinite plane that pan and zoom move
 
-import {getCurrentWindow} from '@tauri-apps/api/window'
-import {getCurrentWebview} from '@tauri-apps/api/webview'
-
 import {ref, watch, onBeforeUnmount} from 'vue'
 import {
-xy, xySnap, raf, errorImageData, platform,
-screenToViewport, sayGroupDigits, saySize4,
+xy, xySnap, raf, errorImageData,
+sayGroupDigits, saySize4,
 } from './library.js'//our javascript library
-import {modelList, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
+import {modelList, modelPath, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
 import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
 import {log, logFlip, logTrouble} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
@@ -31,18 +28,24 @@ onBeforeUnmount(() => {
 	flipCacheClose()//this table is going away, so the store should not still be holding images on its behalf
 })
 
-let started = false//start() comes every time this view is shown, and the setup below must happen once: running dimensionStart again would throw away the pan and zoom the user left
-function start() {//the shell calls this when this view first comes on screen; measuring any earlier reads the hidden window's size, or nothing at all
-	if (started) return
-	started = true
-	log('⭕ table: the shell has revealed the window and handed this view the screen')
-	dimensionStart()
-	hudStart()
-	frameRef.value.addEventListener('wheel', onWheel, {passive: false})//on the frame, not the window, so a hidden table is handed nothing; and last, so no wheel can reach the quiver before dimensionStart has filled it
-}
-function isFullscreen() { return fullscreenNow }//the shell asks before recording a window, because a fullscreen one is not one the user placed
+const emit = defineEmits(['sheet'])//a double-click, for the shell to show the contact sheet; which view is showing, and the fullscreen that goes with it, are the shell's, so this only asks
 
-defineExpose({start, onKey, onResize, onDrop, isFullscreen, toggleFullscreen, dimensionFit})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing. toggleFullscreen is here for the View menu, so the menu and a double-click reach the same code rather than two, and dimensionFit for a preview handing its picture over, so the card starts where the preview's picture stood
+let started = false//start() comes every time this view is shown, and the setup below must happen once: running dimensionStart again would throw away the pan and zoom the user left
+function start() {//the shell calls this every time this view comes on screen, already fullscreen, so the frame measured here is the one the table keeps
+	if (!started) {
+		started = true
+		log('⭕ table: the shell has revealed the window and handed this view the screen')
+		dimensionStart()
+		hudStart()
+		frameRef.value.addEventListener('wheel', onWheel, {passive: false})//on the frame, not the window, so a hidden table is handed nothing; and last, so no wheel can reach the quiver before dimensionStart has filled it
+	}
+	if (modelPath.value && modelPath.value != here?.path) {//the sheet opened a folder or a thumbnail was double-clicked while this table was away, so show where the model is standing
+		cardRef.value.style.visibility = 'hidden'//the card still holds the picture this table last showed, which the user has moved on from; the dots show until the new one is on it, however long its decode takes
+		queue(async () => { try { await _showModel() } finally { cardRef.value.style.visibility = '' } })
+	}
+}
+
+defineExpose({start, onKey, onDrop, cardAt})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing. cardAt is for a preview handing its picture over, so the card starts where the preview's picture stood
 
 async function onKey(e) {
 	let Ctrl = e.ctrlKey || e.metaKey
@@ -53,8 +56,6 @@ async function onKey(e) {
 	else if (key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { log('⭕ table: key ctrl+s, a branch with nothing behind it yet')
 		e.preventDefault()//tell the browser not to show the file save dialog box
-	} else if (key == 'Escape') {
-		await changeFullscreen(false)//in simple fullscreen, escape is entirely ours to handle; macos no longer intervenes
 	}
 	else if (Ctrl && (key == 'ArrowRight' || key == 'ArrowDown')) { flip(1)  }//control with any arrow flips, right or down for the next picture and left or up for the one before: a control of its own beside the page keys, and on a mac laptop, which has no page keys, the keyboard's only flip; ahead of the plain arrows below, which never ask about control. On the mac, control with an arrow is the system's own shortcut for moving between spaces and never arrives, so there it is command, which Ctrl above already reads
 	else if (Ctrl && (key == 'ArrowLeft'  || key == 'ArrowUp'))   { flip(-1) }
@@ -72,63 +73,6 @@ async function onKey(e) {
 	else if (/^[1-6]$/.test(key)) { zoomNatural(Number(key)) }//the number keys 1 to 6, main row or number pad, which arrive as the same key: exactly that many css pixels per natural pixel. 7, 8 and 9 are left unused, since past 6x the other zooms serve
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
-/*
-Fuji has two fullscreens, and that is on purpose.
-
-Anyone reading one of the places this touches will meet half of it and conclude something is wrong. Here is the whole of it.
-
-**The two are different things and each is right for a different moment.** macOS's own moves the window onto a Space of its own, with a second of animation, and is what Split View is built on; it suits settling in. Fuji's is *simple fullscreen* — `setSimpleFullscreen` below — which fills the screen where the window already is, instantly, with no Space and no animation. That is the one a picture viewer wants: check a detail, come straight back. The system's alone would be wrong for fuji, and fuji's alone would take Split View and a Space of one's own away from a Mac user who wants them. So fuji offers both.
-
-**The user meets both without having to learn a distinction.** In the View menu, fuji's item says *Toggle* Full Screen and the system's says *Enter*, becoming Exit once you are in it. Fuji's carries ⌃⌘F, the legacy spelling of the system shortcut that macOS no longer advertises; the system's carries Globe+F, which is what macOS shows today — so each label's shortcut does what that label says. A double-click on the table is fuji's, and the green traffic light is the system's.
-
-**Only one of those two menu items is fuji's.** macOS puts *Enter Full Screen* into the View menu by itself, so `menu.rs` writes one item and two appear. Nothing in fuji's code creates the second, and going looking for it is a wasted hour.
-
-**Telling the two states apart is possible because Tauri only knows about one of them.** `isFullscreen()` reports the system fullscreen and does not report the simple mode, which is why `fullscreenNow` below exists at all — fuji has to remember its own. Those two together answer, at any moment, which kind of fullscreen the window is in.
-
-**The one rule that stops them stacking: toggle means leave, whichever kind you are in.** Fuji's toggle asks first whether the window is already in a Space, and if it is, it leaves the Space rather than laying simple fullscreen on top. Without that a user ends up in both at once and has to peel out of each in turn, which is the defect this arrangement exists to prevent.
-
-**The other direction cannot be refused, only repaired.** The system's own menu item is macOS's, and fuji gets no say when it fires. So if the window is taken into a Space while simple fullscreen is on, `onResize` notices and lets fuji's state go, leaving the user cleanly in the Space they asked for. Whether macOS will even do that to a window whose Titled style mask has been cleared is unknown, so this may be a guard against something impossible.
-
-**Windows and Linux have one fullscreen, and that is why the two checks above are asked only on the mac.** Neither desktop has Spaces, so there is nothing for fuji's to collide with. It matters more than it sounds, because Tauri's `setSimpleFullscreen` falls back to the ordinary `setFullscreen` off macOS — so on those platforms fuji's own fullscreen *is* the system one, and `isFullscreen()` answers true for it. Asked there, the rule would read fuji's own fullscreen as a Space somebody else put the window in: the toggle would exit without the pan correction, and the repair would throw away `fullscreenNow` while the window was still fullscreen, leaving the next toggle trying to enter a fullscreen it was already in.
-
-**And the obvious shortcut is a trap.** `NSWindowCollectionBehaviorFullScreenNone` shuts every door into the system fullscreen at once, and it works — at the cost of Split View and of ever using a fuji window as a Space of its own, to solve a confusion the rule above solves for nothing. It was tried and taken back out.
-*/
-
-async function onDoubleClick(e) { await toggleFullscreen() }//fuji's own, and the shortest way to it
-let fullscreenNow = false//our own record of where fullscreen is headed; we initiate every transition, and tauri's isFullscreen() doesn't report the simple mode
-const twoFullscreens = platform() == 'mac'//is there a second, system fullscreen for ours to collide with. Only on the mac: setSimpleFullscreen falls back to the ordinary setFullscreen on windows and linux, so there isFullscreen() reports fuji's own fullscreen as true, and both checks below would read it as macOS having taken the window and act on a collision that cannot happen
-async function toggleFullscreen() {//fuji's own fullscreen, and the one place the two kinds meet
-	if (twoFullscreens && await getCurrentWindow().isFullscreen()) { await getCurrentWindow().setFullscreen(false); return }//already in a macos space, put there by the system's own Enter Full Screen: toggle then means leave fullscreen, whichever kind it is, rather than laying ours on top of theirs
-	await changeFullscreen(!fullscreenNow)
-}
-async function changeFullscreen(destination) {
-	if (fullscreenNow == destination) return
-	fullscreenNow = destination//record where we're headed before awaiting frames, so a request arriving mid-transition sees the destination and not the state we're leaving
-	if (settings.fullscreen.curtain) {
-		curtainUp()//black out the frame so the transition's in-between frames can't show the image out of place
-		await raf(); await raf()//two frame boundaries: the first schedules the curtain's paint, the second confirms it reached the screen before the window changes beneath it
-	}
-	screenToViewport1 = await screenToViewport()
-	//ttd august, this is pixel perfect now on mac and windows (but you haven't tested high res windows yet) to work around the shift-melt-blink render a black curtain over the frame, go full screen, get the resize event, do the pan, and then remove the curtain. this is a cool idea
-	await getCurrentWindow().setSimpleFullscreen(destination)//simple fullscreen: instant, no macos space, no fade animation; on windows, identical to setFullscreen
-	await getCurrentWebview().setFocus()//hand the keyboard back to the page; awaited after the line above so it lands second, and explained below
-}
-
-/*
-Why fuji has to hand the keyboard back after a fullscreen change.
-
-Simple fullscreen hides the titlebar by clearing the window's Titled style mask, and changing an NSWindow's style mask drops its first responder. tao knows this — util::toggle_style_mask carries the comment "If we don't do this, key handling will break" — and repairs it by calling makeFirstResponder with tao's own content view. That is the right view for a window tao draws into itself. Fuji's window has a WKWebView as a subview of that one, so the repair leaves the responder chain pointing a level above the web content: the mouse still works, because a click makes the view under it first responder, but no keystroke reaches JavaScript at all. The symptom is a fullscreen window that ignores the keyboard until the user clicks once.
-
-Focusing the webview is wry's makeFirstResponder aimed a level lower, which is the same repair with the right argument. It needs core:webview:allow-set-webview-focus, which core:webview:default does not grant.
-
-This belongs to the window rather than to this table, and moves to the shell whenever fullscreen does — otherwise the next table has to remember to carry a copy.
-*/
-
-const showCurtainRef = ref(false)//a black cover over the whole frame during fullscreen transitions; up before the window changes, down after the pan lands
-let curtainTimer//started when the curtain goes up, cleared when it comes down normally
-function curtainUp()   { showCurtainRef.value = true;  clearTimeout(curtainTimer); curtainTimer = setTimeout(curtainDown, 800) }//the timer means the curtain always falls, even if the resize event never arrives; a brief shear beats a stuck black window
-function curtainDown() { showCurtainRef.value = false; clearTimeout(curtainTimer) }
-
 function onWheel(e) {
 	e.preventDefault()//tell the browser not to scroll
 
@@ -151,6 +95,8 @@ function onWheel(e) {
 // | |_) | (_| | | | |
 // | .__/ \__,_|_| |_|
 // |_|                
+
+function onDoubleClick() { emit('sheet') }//back to the contact sheet, which is the way from a picture to the folder around it
 
 function onPointerDown(e) {
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
@@ -185,21 +131,6 @@ function onUp(e) {
 // |___/_/___\___|
 //                
 
-let screenToViewport1//arrow from screen corner to viewport corner before a change in to our out of full screen
-async function onResize() {//called whenever the viewport size changes
-	if (screenToViewport1) {//we've been waiting for this resize event to see where the viewport moved on the screen
-		let stv2 = await screenToViewport()//where it is now, after the full screen change
-		if (screenToViewport1 && stv2) dragSegment(xy(screenToViewport1, '-', stv2))
-		screenToViewport1 = null//we don't need resize events generally
-		if (showCurtainRef.value) {//the curtain is up, waiting on this pan
-			await raf()//let the corrective pan reach the screen while the curtain still hides it
-			curtainDown()
-		}
-	}
-	//the other direction, which fuji cannot refuse: the system's own Enter Full Screen can take the window into a space while ours is on, and it never asks. So notice it here and let ours go, rather than keeping a record of a state the window no longer has. Only asked while ours is on, which is rare, and last so the transition above keeps its frame timing
-	if (twoFullscreens && fullscreenNow && await getCurrentWindow().isFullscreen()) fullscreenNow = false
-}
-
 function zoom(diamond, anchor) {//set the diamond's width plus height, holding the plane still at anchor, frame corner to the point that must not move: every arrow from the anchor scales by the same ratio, the card's size and the arrow from the anchor to the diamond's center alike
 	let k = diamond / quiverA.diamond//the ratio everything grows by
 	quiverA.diamond = diamond//set rather than multiplied, so a caller that computed an exact size gets exactly that size
@@ -226,7 +157,7 @@ function onPointerMove(e) { if (!drag) return
 		drag.previous = current//the next segment starts here
 	}
 }
-function panStep(way) {//an arrow key: pan one step, instantly, pan.step of the frame's shorter side, so a step is the same share of the screen in a window or fullscreen. way is a unit arrow pointing the way the key points, and the sign of pan.step says whether the picture or the view moves that way
+function panStep(way) {//an arrow key: pan one step, instantly, pan.step of the frame's shorter side, so a step is the same share of any screen. way is a unit arrow pointing the way the key points, and the sign of pan.step says whether the picture or the view moves that way
 	let frame = frameSize()
 	dragSegment(xy(way, '*', settings.pan.step * Math.min(frame.x, frame.y)))
 }
@@ -245,8 +176,6 @@ space is frame corner to the center of the infinite plane. The card is always ce
 One thing is a number rather than an arrow. diamond is the card's width plus height right now, in CSS pixels, which is the diagonal of the invisible diamond every card fits, vertex to vertex. Every zoom sets it and nothing else, and the card's size follows from it and the image's aspect. A number key, f and w run that the other way, computing the card first, at a whole number of CSS pixels per natural pixel, fitted inside the frame, or fitted to its width, and setting diamond to its width plus height, which the division in quiver() returns.
 
 A pan is made of segments. The pointer events report positions from the viewport corner: previous is where the pointer was last seen, current is where it is now, and a segment is current less previous. A segment is a difference, so it has no origin of its own and adds straight onto space although space starts at the frame corner. An arrow key makes a segment of its own, pan.step of the frame's shorter side, and the sign of pan.step says which way: negative moves the view the way the key points, so the picture slides the other way. A right drag zooms instead of panning: anchor is where the button went down, and the height of the pointer above it sets the zoom, the diamond the drag began with times two to the power of that height over zoom.drag, with the diamond scaled about the anchor from where the drag found it. So the plane holds still under the point where the drag began, and a drag that comes back to it restores what it had. That anchor is a pointer position used as a point in the frame, and a position does care about its origin. It works because the frame fills the window, so the frame corner and the viewport corner are one point; a table with a sidebar would have to subtract the frame's own position first.
-
-The fullscreen transition measures one more arrow, screen corner to viewport corner, once before the window changes and once after, and pans by their difference so the picture holds still on the glass while the frame moves around it.
 
 Quiver A is real numbers and quiver B is pixels: every arrow B hands the page is snapped to a whole backing pixel, so two histories that agree to within one draw the identical picture. Nothing in A is ever rounded, and nothing on the page is ever read back into A, so there is no path by which error accumulates. The essay above quiver() says which grid and why.
 */
@@ -273,6 +202,11 @@ function dimensionFit() {//f: the card fits inside the frame, its width or its h
 	quiverA.diamond = scale * (quiverA.natural.x + quiverA.natural.y)//the fitted card's width plus height
 	quiver()
 }
+function cardAt(rect) {//the card exactly at this rectangle of the frame, which is how the shell hands over a preview's picture where it stood; the rectangle is the picture's own shape, so the diamond around it is its width plus height
+	quiverA.space = xy(rect.x + rect.width / 2, rect.y + rect.height / 2)//frame corner to the rectangle's center
+	quiverA.diamond = rect.width + rect.height
+	quiver()
+}
 function dimensionWidth() {//w: the card's width meets the frame's exactly, centered, whatever that does to its height. A picture taller than the frame at that width overflows equally above and below, for the user to pan down it; a shorter one sits in the middle with dots above and below. Built the way f's is, the card first and the diamond around it
 	let frame = frameSize()
 	let scale = frame.x / quiverA.natural.x//css pixels per natural pixel that brings the card's width to the frame's
@@ -285,7 +219,7 @@ Quiver B snaps to the backing grid, and why that is the right grid.
 
 Quiver A is real numbers and is never rounded, so nothing drifts. Quiver B is what the page is told, and a position on a fraction of a pixel is drawn resampled, blurred by the fraction, so B snaps every arrow to a pixel before writing it. The question is which pixel. CSS pixels are the unit of layout, of the window and the frame, and of every number the user asks for, n per natural pixel or fit to the frame. Backing pixels are the unit of what is drawn. On a Mac the ratio between them is 1 or 2, so the backing grid contains the CSS grid: everything whole in CSS is whole in backing, and on a Retina display every half CSS pixel is a whole backing pixel as well. Snapping to CSS would throw those halves away for nothing, moving the card up to a backing pixel from where the math put it and leaving it unable to center in a frame with an odd side. Snapping to backing keeps every position the display can show, at the cost of one factor at this one gate.
 
-It is safe because it never makes a fraction of a backing pixel, which is the only thing that can leave a sliver, one row half image and half dots. The number keys keep their exact CSS sizes, since a whole number is on both grids. The card f and w fit meets the frame's edge, since the frame's size is a whole number of CSS pixels and so of backing pixels. And the fullscreen correction, measured in backing pixels, lands exactly.
+It is safe because it never makes a fraction of a backing pixel, which is the only thing that can leave a sliver, one row half image and half dots. The number keys keep their exact CSS sizes, since a whole number is on both grids. The card f and w fit meets the frame's edge, since the frame's size is a whole number of CSS pixels and so of backing pixels. And a card the shell hands over at a preview's rectangle lands exactly, since that rectangle is whole CSS pixels.
 
 The grids stop nesting at Windows scales like 150 percent, where a CSS pixel is a pixel and a half. Nothing is exact there under any rule: whole CSS pixels put edges on half device pixels, and this rule puts them on device pixels while a number key reads 33.333 rather than 33 in the inspector. Whether Chromium honors a fractional CSS size or snaps it back to whole is a thing only the Windows box can check, and fidelity.md holds what that machine has measured so far. The ratio is read every time rather than kept, because a window can move to a display with a different one; B written for the old display stays on its grid until the next pan or zoom, and that is the whole of the gap.
 */
@@ -331,6 +265,9 @@ async function _drop(path) {
 	log(`⭕ table: dropped ${path}, loading and showing it right away`)
 
 	await modelOpen(path)//the model lists the folder and puts it in the current order, and every other view is reading that list already
+	await _showModel()
+}
+async function _showModel() {//show the picture the model is standing on, wherever it came from: a drop here, or a folder opened or a thumbnail chosen while the sheet was showing
 	if (modelIndex() < 0) { log('❌ table: no images in that folder, ignoring the drop'); return }
 	flipCacheWindow(modelList.value, modelIndex())//ask for this image and its neighbours before showing anything, because showIndex wants what the window is holding
 	//the card empties here rather than by a display none: sliding the window releases the old folder, and the store takes its element back out; this is blinkey but ok for a drop, ttd august
@@ -505,9 +442,6 @@ let here = null//the store's entry for the image on the card, which is where the
 	<!-- HUD, inside the frame, next to the card -->
 	<div v-if="showHud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
 	<div v-if="showHud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
-
-	<!-- curtain, last so it covers everything: blacks out the frame during fullscreen transitions -->
-	<div v-if="showCurtainRef" class="myDry absolute inset-0 bg-black"></div>
 
 </div>
 

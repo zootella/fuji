@@ -1089,7 +1089,6 @@ dependencies = [
  "core-foundation",
  "core-graphics",
  "display-info",
- "fastrand",
  "foreign-types-shared",
  "objc2",
  "objc2-app-kit",
@@ -1100,7 +1099,6 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
- "toml 0.8.2",
  "windows 0.62.2",
 ]
 

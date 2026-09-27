@@ -30,7 +30,7 @@ Two habits lower the bar rather than clear it, and both come before writing anyt
 
 **Comments.** At the end of a line, above a group of lines, above a function — the *why* that the *how* cannot show. They are dense here by design and `style.md` argues for that at length.
 
-**Essays.** A `/* */` block in ordinary prose, for a mechanism that runs through several files where any one site reads as a contradiction on its own. The essay above `toggleFullscreen` in `DiamondTable.vue` is the worked example: fuji has two fullscreens on purpose, and every place that touches them looks like a mistake until you have read it.
+**Essays.** A `/* */` block in ordinary prose, for a mechanism that runs through several files where any one site reads as a contradiction on its own. The essay above `fullscreenSet` in `Shell.vue` is the worked example: fuji has two fullscreens on purpose, and every place that touches them looks like a mistake until you have read it.
 
 **The site.** `site/docs/` is the fourth destination and the only one that is not code. It takes long-form writing where a subject carries real research or engineering — measurements, the alternatives weighed and why, pictures of the defect. `site/docs/thumbnail-pipeline.md` is the worked example: all of it is implemented in the code, but no comment could hold it in one place or with that depth. Use it rarely. Most work does not earn a page, and a page nobody needed is worse than none.
 
@@ -203,7 +203,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - Filled from `RunEvent::Opened` on macOS and from the command line on Windows and Linux, and held rather than delivered because at launch both arrive before the page exists
 
 - `window.rs` - Making fuji's windows, placing them, and saying where one is:
-  - `window_frame()`, `window_frame_set(frame)` - The visible frame in CSS pixels, which on Windows is not Tauri's outer rectangle; the Windows correction is still to be written, in `window_seen`
+  - `window_frame_set(frame)` - Put the visible frame here, in CSS pixels, which on Windows is not Tauri's outer rectangle; the Windows correction is still to be written, in `window_seen`
   - Its essays carry why the Mac holds every window in one process, where a new window lands, and how long fuji outlives its last one
 
 - `associate.rs` - What fuji has told the operating system it can open:
@@ -238,7 +238,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 `main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view or a new home for state: it carries the layers, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Key Components**:
-- `Shell.vue` - Owns the window and none of the pixels: reads settings, sizes and reveals the window, records where the user puts it, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
+- `Shell.vue` - Owns the window and none of the pixels: reads settings, places and reveals the window, puts it in fullscreen for a table and a window for the sheet, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
 - `HelpPanel.vue` - Every shortcut fuji has, in one text; the shell draws it over every view and owns its `h` key, and `hud.help` remembers whether it was open
 - `Sheet.vue` - The contact sheet: one folder seen whole, as a top-to-bottom scroll over a stack of cards
 - `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to the flow; names the one flow there is, and a second one brings a register back with it
@@ -274,8 +274,8 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `associate.js` - Composes the type list out of `imageTypes` and hands it down:
   - `associateRegister()`
 
-- `window.js` - Exposes where the window is, as the user sees its frame:
-  - `windowFrame()`, `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
+- `window.js` - Exposes placing the window, as the user sees its frame:
+  - `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`
@@ -290,7 +290,6 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - `listSiblings(path)` - List all image files in same directory
   - `revealWindow(rect)` - Size the hidden window and show it; the window is created invisible so it never appears at one size and jumps
   - `readAndRenderImage(img, path)` - Load a file into an img element as a data url; the retired experiment components are its only callers
-  - `screenToViewport()` - Calculate viewport position accounting for CSS/backing/physical pixels
   - `sayGroupDigits(n)`, `saySize4(n)` - Format numbers for display
 
 **Key Patterns**:

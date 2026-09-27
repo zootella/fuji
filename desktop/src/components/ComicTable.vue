@@ -13,9 +13,8 @@ function start() {
 }
 function onKey(e) {}
 function onResize() {}
-function isFullscreen() { return false }//no way to enter fullscreen from here yet
 
-defineExpose({start, onKey, onResize, isFullscreen})
+defineExpose({start, onKey, onResize})
 
 </script>
 <template>

@@ -15,12 +15,6 @@ const settingsThumbnailSizes = ['Small', 'Medium', 'Large', 'Xl']//the four name
 const settingsSchema = [
 	{
 		section: 'view',
-		key: 'showing',
-		factory: 'Table',
-		comment: 'which kind of view fuji was showing when it last closed, so it opens there again: Sheet for the contact sheet, Table for whichever table',
-		check: value => value == 'Sheet' || value == 'Table',
-	}, {
-		section: 'view',
 		key: 'table',
 		factory: 'Diamond',
 		comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead',
@@ -32,8 +26,8 @@ const settingsSchema = [
 	}, {
 		section: 'card',
 		key: 'images',
-		factory: 200,
-		comment: 'how many images one card holds before the next card starts, so a folder of 220 at this setting is a card of 200 and then a card of 20; a card never mixes two folders. card.md says why the sheet scrolls over cards rather than over the thumbnails themselves, and is honest that this is scaffolding',
+		factory: 50,
+		comment: 'how many images one card holds; for now the sheet shows a single card, so this is also how many of a folder it shows, from the first in the current order. A card never mixes two folders. card.md says why the sheet scrolls over cards rather than over the thumbnails themselves, and is honest that this is scaffolding',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'thumbnail',
@@ -74,15 +68,6 @@ const settingsSchema = [
 		factory: 5,
 		comment: 'and how many after it; flipping forward is the common direction, so this is the one to raise first if a folder of large images still makes the user wait',
 		check: value => Number.isInteger(value) && value >= 1,
-	}, {
-		section: 'window',
-		key: 'width',
-		factory: 0,
-		comment: 'the size of the window fuji last recorded, in css pixels, and the only thing it remembers about it; fuji never records or restores a position, because it can be running several times over and every instance would return to the same rectangle and land on top of the last. Placing a new window is the window manager\'s job and it is better at it. A width or height that is not positive means fuji has not recorded a window yet, and it opens at a fraction of the desktop instead. Rust reads these two numbers before the window is built, which is the one part of this file the page does not read first',
-	}, {
-		section: 'window',
-		key: 'height',
-		factory: 0,
 	}, {
 		section: 'zoom',
 		key: 'step',
@@ -131,11 +116,6 @@ const settingsSchema = [
 		factory: -0.25,
 		comment: 'how far an arrow key pans, as a fraction of the frame\'s shorter side, and which way: negative moves your view the way the arrow points, so the picture slides the other way, as in every viewer with arrow keys; positive moves the picture the way the arrow points, as dragging it would',
 		check: value => value != 0,
-	}, {
-		section: 'fullscreen',
-		key: 'curtain',
-		factory: true,
-		comment: 'black out the frame through a fullscreen transition, which hides an occasional one-frame shear at the cost of a blink; the user chose true by feel',
 	}, {
 		section: 'hud',
 		key: 'help',

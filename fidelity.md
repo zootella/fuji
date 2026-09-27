@@ -34,7 +34,7 @@ The backing → native squish is invisible to every web API, and it happens to e
     tauri monitor.scaleFactor            2
     matchMedia('(color-gamut: p3)')      true
 
-**Tauri reports the backing store, not the panel.** That single fact is what makes `screenToViewport` correct, and it is the kind of thing only hardware can settle.
+**Tauri reports the backing store, not the panel.** That single fact is what every conversion between Tauri's sizes and CSS pixels has to get right, and it is the kind of thing only hardware can settle.
 
 The native 2560 × 1664 figure comes from the earlier code-reading audit, which replicated `panel.rs`'s heuristic in C on the MacBook; it was not re-measured in this session. That heuristic — enumerate every display mode and keep the tallest by pixel height — is right *only* because it passes null options to `CGDisplayCopyAllDisplayModes`. With `kCGDisplayShowDuplicateLowResolutionModes` the list gains the scaled modes' backing stores and the winner becomes 3420 × 2224, which is exactly the wrong answer. The null is load-bearing.
 
@@ -225,23 +225,9 @@ Three properties are worth recording. There is **no reflow**: `flowApply` reserv
 
 ## The window
 
-### screenToViewport
+### Tauri's window sizes on the Mac
 
-`screenToViewport()` converts everything to CSS pixels before subtracting, using `scale = cssScreen.y / backingScreen.y`. On the Dell that scale was 1 and any unit confusion in it was invisible. Here it is `1112 / 2224 = 0.5` exactly, because Tauri reports the backing store. Measured alongside it: Tauri's `outerSize` and `innerSize` are both `1972 × 1716` — they are the same number on the Mac, which is why the function takes its inner size from `window.innerWidth/Height` instead — giving a border of 0 and a title bar of 32 CSS points.
-
-Its one consumer is the diamond table's full-screen transition, which uses the before-and-after difference to hold the image still on the glass. Measured as the image's bounding box in *screen* coordinates, computed as the window's origin plus its box within the window's own buffer:
-
-    windowed      screen x 1083..2959   y 500..1438   1877 × 939   n = 1,762,502
-    fullscreen    screen x 1083..2959   y 500..1438   1877 × 939   n = 1,762,502
-    windowed      screen x 1083..2959   y 500..1438   1877 × 939   n = 1,762,502
-
-Not one pixel of movement, in either direction, with an identical pixel count each time.
-
-### Remember and restore
-
-Fuji records the window in physical pixels at both ends, which is self-consistent on one machine. Driven through Tauri's own `setPosition` and `setSize` so the real listeners fired: the window was moved to `300,200` and sized to `1400×1000` physical, and on a clean exit `fuji.toml` held exactly `x = 300, y = 200, width = 1400, height = 1000`. Relaunching put it back at 150,100 points and 700 × 500 — the same rectangle. Restore was separately confirmed twice at the original `1036,78 / 1972×1716`.
-
-Worth knowing rather than testing: a rectangle recorded on a `devicePixelRatio` 1 machine restores at half size on the MacBook. That is cross-machine settings migration, not a defect in this code.
+Tauri reports the backing store here, `2224` for a screen `1112` CSS points tall, so its sizes divide by the scale factor to become CSS pixels. And on a window with a title bar 32 points tall, `outerSize` and `innerSize` both came back `1972 × 1716`. That matters to `window_frame_set` in `window.rs`, which takes the title bar to be the difference between the two: if it still holds, an ordinary window comes out a title bar taller than the preset asks. tao 0.35.3 reads the outer size from the NSWindow's frame and the inner size from its content view, which should differ, so this is worth measuring again rather than trusting either. One likely explanation: tao queues a change of title bar onto the main thread rather than making it, so a size read straight after one sees the window as it was. The shell now places a window before changing its title bar, never after, so nothing is queued when it measures. The function this was measured for, `screenToViewport`, went with the pan it corrected, once the diamond table became fullscreen only.
 
 ## Smaller things the audit settled
 

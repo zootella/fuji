@@ -2,8 +2,9 @@
 
 import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
+import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {open as openDialog} from '@tauri-apps/plugin-dialog'//the picker behind File, Open; the plugin is registered in lib.rs and granted in capabilities/default.json
-import {raf, forwardize, revealWindow, windowTitle, workArea, rectFit} from './library.js'
+import {raf, forwardize, platform, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectOrdinary} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it; the path and the folder are here for the title bar, which is the shell's because the window is
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
@@ -12,7 +13,7 @@ import {associateRegister} from '../associate.js'//and what fuji tells the opera
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
-import {windowFrameSet} from '../window.js'//and to shape the window to the picture a preview opened on
+import {windowFrameSet} from '../window.js'//and to place the window before it is revealed
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
@@ -24,13 +25,13 @@ import MyList from './MyList.vue'
 import MySpace from './MySpace.vue'
 
 /*
-The shell owns the window and none of the pixels. It reads the settings file, reveals the window rust built, records the size the user gives it, keeps the title bar saying what the user is looking at, holds the one listener for each window event, and remembers which view was showing. It has no background and no chrome, so a view never has to negotiate with a parent about how it looks. The one thing it draws is the help panel, floating over whichever view is showing, because h has to work everywhere in fuji and a panel each view drew for itself would be a key each new table had to remember.
+The shell owns the window and none of the pixels. It reads the settings file, places and reveals the window rust built, keeps the title bar saying what the user is looking at, holds the one listener for each window event, and puts the window in fullscreen or out of it as the view changes. It has no background and no chrome, so a view never has to negotiate with a parent about how it looks. The one thing it draws is the help panel, floating over whichever view is showing, because h has to work everywhere in fuji and a panel each view drew for itself would be a key each new table had to remember.
 
 It exists because window events are global and everything else is not. A view's wheel, pointer, and double-click handlers live on its own element, so a hidden view is handed none of them and two views cannot collide. But window.addEventListener fires no matter what is visible, and so does a tauri window event, so keydown, resize, and drag-drop are the entire interference surface between views. One listener each lives here and gives the event to the view that is showing. A hidden view cannot react to a key because it is never given one, rather than because it remembered to check.
 
 There is one sheet and there are several tables, and the two facts are separate: whether the sheet is showing, and which table is behind it. The sheet and the current table swap with v-show and both stay mounted, because that switch is frequent and has to be instant with nothing reloading. Tables swap with each other by :is, which destroys and creates, because a table nobody is using should not be holding decoded images. Adding a table is one entry in the tables object below.
 
-Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, at the size the settings file remembers, and the viewport does not report that size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it when that view first comes on screen, and the view makes it happen only once.
+Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, the shell places it, and the viewport does not report its size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it when that view first comes on screen, and the view makes it happen only once.
 
 Every handoff below is optional, start included. A view answers only the calls it has a use for, which is what lets a retired experiment be listed among the tables and shown without first being taught the contract. A real table that forgot start() would measure nothing rather than throw, which is the price.
 
@@ -71,7 +72,7 @@ onMounted(async () => {
 	} catch (error) {
 		notices.push(sayTrouble('shell: asking what fuji was opened with', error))//the same reasoning as above: nothing here is worth leaving the window hidden for
 	}
-	showing.value = opened.length ? 'Table' : settings.view.showing//before the reveal, so the first frame the user sees is the view they left — or a table, when they double-clicked a picture and asked to see that picture rather than the folder around it. Not written back to the file, because opening one image is not a decision about where fuji opens next time
+	showing.value = opened.length ? 'Table' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, and every other launch on the contact sheet, since the sheet is the view that lives in a window
 	whichTable.value = settings.view.table
 	helpShowing.value = settings.hud.help//on at the factory, so a new user is greeted by it
 	if (!tables[whichTable.value]) {//a name settings cannot check, because the tables fuji has are known here and not there
@@ -79,14 +80,14 @@ onMounted(async () => {
 		whichTable.value = 'Diamond'
 		settings.view.table = whichTable.value; settingsChanged()//written back, so a name fuji cannot use is repaired in the file the same way a bad value anywhere else in it is
 	}
-	if (opened.length) whichTable.value = 'Preview'//a double-clicked picture opens alone, fitted to the desktop, before any table the user has to learn; not written back, for the same reason as the view above
+	if (opened.length) whichTable.value = 'Preview'//a double-clicked picture opens alone, fitted to the desktop, before any table the user has to learn; not written back, because opening one picture is not a choice of table
 	logStart(`${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`)//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
-	if (opened.length) await reportTrouble(() => previewShape(w, opened[0]))//before the reveal, so the window first appears already the shape of the picture. Only the first of them, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
+	await reportTrouble(() => placeWindow(w, opened[0]))//before the reveal, so the window first appears where it will stay. Only the first picture, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
 
-	await revealWindow()//rust built the window at the right size already, or the preview has just reshaped it; this only reveals it
+	await revealWindow()
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
 	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a build with nothing to do, and only windows has anything to say
@@ -97,18 +98,14 @@ onMounted(async () => {
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView()?.onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
 	})
-	//record the size the user gives the window, so the next launch opens at it. Where the window sits is deliberately not recorded — library.js says why, and the short of it is that fuji can be running several times over
-	await recordWindow(w)//onResized reports only changes, so without this a session where the user never touches the window records nothing
-	unlistenResized = await w.onResized(() => { if (isFullscreen()) return; reportTrouble(() => dressWindow(w)); recordWindow(w) })//the payload is in tauri's physical pixels, so ask again in css ones rather than convert it here
 	unlistenFocus = await w.onFocusChanged(event => reportTrouble(() => activeView()?.onFocus?.(event.payload)))//a window event like the rest, handed to the view showing; the preview closes on losing it
 	reportTrouble(async () => activeView()?.onFocus?.(await w.isFocused()))//and once now, since the focus arrived with the reveal, before there was anyone listening for it
 })
-let unlistenFileDrop, unlistenResized, unlistenMenu, unlistenFocus//will hold the unsubscribe functions set above and called below
+let unlistenFileDrop, unlistenMenu, unlistenFocus//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
 	if (unlistenFileDrop) unlistenFileDrop()
-	if (unlistenResized) unlistenResized()
 	if (unlistenMenu) unlistenMenu()
 	if (unlistenFocus) unlistenFocus()
 })
@@ -127,7 +124,7 @@ async function menuChose(id) {//the page's half of the menu bar: rust makes a wi
 		let chosen = await openDialog({multiple: false, directory: false})//every file, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter. Choosing something fuji cannot show is harmless — the model lists the folder and stands on the first picture in it
 		if (chosen) await activeView()?.onDrop?.(forwardize(chosen))//the same call a dropped file takes and a double-clicked one takes, which is the point: three ways in, one road after that
 	}
-	else if (id == 'menu-fullscreen') await activeView()?.toggleFullscreen?.()//fuji's own fullscreen rather than macOS's, which is a subject of its own: the essay above toggleFullscreen in DiamondTable.vue says why there are two and how they keep out of each other's way. Optional because only a table has one; on the sheet the item does nothing rather than breaking
+	else if (id == 'menu-fullscreen') await toggleView()//fuji's own fullscreen rather than macOS's, which is the table: the essay above fullscreenSet says why there are two and how they keep out of each other's way
 }
 
 function helpToggle() {
@@ -139,7 +136,7 @@ function activeView() { return showing.value == 'Sheet' ? sheetRef.value : table
 
 function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
-	if (e.key == 'c') { reportTrouble(() => showView(showing.value == 'Sheet' ? 'Table' : 'Sheet')); return }//the shell's own key, and never passed down
+	if (e.key == 'Escape' && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own key, never passed down: escape on any table, preview included, closes the window, as the red button or the × would
 	if (e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
 	if (e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	if (e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in
@@ -162,68 +159,125 @@ watch(gamma, value => {
 	for (let f of document.getElementById(`fujiGamma${gammaFilter}`).firstElementChild.children) f.setAttribute('exponent', 1 / value)//its red, green and blue, rewritten while no picture can be looking
 	root.style.setProperty('--gamma-filter', `url(#fujiGamma${gammaFilter})`)//and only then pointed at, which is the change the engine redraws for
 })
-function onResize() { reportTrouble(() => activeView()?.onResize?.()) }
+function onResize() {
+	for (let landed of resizeWaiting.splice(0)) landed()//a fullscreen change waiting for the window to arrive at its new size
+	reportTrouble(() => activeView()?.onResize?.())
+}
 async function reportTrouble(work) {//a window event is where the platform starts fuji's code running, so anything the view throws has nowhere to land but here
 	try { await work() } catch (error) { logTrouble('shell: handling a window event', error) }//the work is handed in unrun so this catches a handler that throws on the way in, not only one that rejects later
 }
 
-async function showView(name, remember = true) {//show the sheet or the current table; both stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
-	if (showing.value == name) return
-	showing.value = name
-	if (remember) { settings.view.showing = name; settingsChanged() }//the user pressing c is choosing where fuji opens next time; fuji switching to show a picture the user double-clicked is not
-	await nextTick()//v-show has been applied, so the view arriving has a layout box and can measure itself
-	activeView()?.start?.()
-}
-
 /*
-A launch on a picture opens as a preview: the window without its title bar, fitted around the picture in the part of the desktop the menu bar, dock and taskbar leave free, and centered there. PreviewTable.vue says what the user does with it. The shell does the part that is the window's, which is shaping it before the reveal, swapping in the diamond table when the preview is clicked, and putting the title bar back once that table leaves fullscreen for an ordinary window.
+The sheet lives in a window and a table lives fullscreen. That is the whole of fuji's window, and every rule below follows from it: going to the table puts the window in fullscreen, going to the sheet takes it out, and nothing else ever does either. The preview is the one exception, a table in a window with no title bar, and it only ever happens first.
 
-The title bar comes back from the resize handler rather than from the table, because the diamond table does not know it was ever a preview and should not have to. Leaving simple fullscreen restores whatever frame the window had before, which here is the bare one, and the resize that follows is the first moment the window is neither a preview nor fullscreen.
+The shell places every window fuji makes, before it is revealed, and remembers nothing about any of them between launches; Rust builds each one hidden at no particular size, and window.rs says why fuji places them rather than the platform. A launch on a picture opens as a preview, fitted around the picture in the work area, the part of the desktop the menu bar, dock and taskbar leave free, and placed out from under the pointer; library.js has the rule. Every other launch is an ordinary window at the preset size somewhere in the middle of the screen, which library.js keeps.
+
+Where the sheet's window is between visits to the table needs no record of fuji's own. Leaving fullscreen puts a window back exactly where it was before, at the size it had, on every platform — tao saves the frame on the mac, and the other two restore it themselves — and every trip to the table starts from the sheet's window. The one exception is a preview's: the frame restored after it is the one fitted to a picture, so the first sheet after a preview gets a title bar and an ordinary frame of its own, and the platform keeps that one from then on. That change happens with the window hidden. A user never takes the preview or the table for a window — neither has a title bar — so fuji's window first exists for them when the sheet appears, and it should simply appear rather than be seen leaving the preview's place.
+
+Every other change of view changes the window's size too, and the two cannot land in the same frame: the native window takes its new frame at once, and the page repaints for it a frame or two later, so for a moment the old view would show stretched to the screen or squeezed into a window. The curtain, a black cover over the whole window, hides those frames. It goes up for the preview becoming the table, where the picture has to hold still across the change, and for the sheet and the table trading places. It lifts as soon as the window has arrived and the new view is showing, and deliberately not later: a table changing to a picture chosen on the sheet shows its dots until that picture is decoded, rather than keep the screen black for the length of a decode, or show the picture the user has moved on from.
+
+Fuji has two fullscreens, and that is on purpose. macOS's own moves the window onto a Space of its own, with a second of animation, and is what Split View is built on; it suits settling in. Fuji's is simple fullscreen, which fills the screen where the window already is, instantly, with no Space and no animation, and is the one a picture viewer wants. The table uses fuji's, and the green button and the View menu's Enter Full Screen still reach the system's. That second menu item is macOS's own, put into any menu titled View, so menu.rs writes one item and two appear.
+
+Tauri reports only the system's fullscreen on the mac, which is why fullscreenOurs keeps fuji's own record, and which also tells the two apart. The rule that keeps them from stacking is that fuji never lays its fullscreen over a Space: a window already in one takes the table as it is, and leaving the table turns off only what fuji turned on. Windows and Linux have one fullscreen, and there Tauri's simple fullscreen is the ordinary one, which isFullscreen does report, so the Space check is asked only on the mac. The obvious shortcut is a trap: NSWindowCollectionBehaviorFullScreenNone shuts every door into the system's fullscreen at once, and takes Split View and a Space of one's own with it. It was tried and taken back out.
+
+On the mac, simple fullscreen also hides the dock and the menu bar for the whole application rather than the window, and only leaving it puts them back — read out of tao 0.35.3 — so closeWindow leaves it before closing. And it clears the window's Titled style mask, which drops the first responder. tao repairs that with its own content view, a level above the WKWebView, so the mouse still works and no key reaches JavaScript until the user clicks; focusing the webview after every change is the same repair aimed a level lower, and needs core:webview:allow-set-webview-focus.
 */
-let bare = false//the preview took the title bar off, and it has not come back yet
-async function previewShape(w, path) {//show the picture and fit the hidden window around it
-	await activeView()?.onDrop?.(path)
-	let natural = activeView()?.natural?.()
-	let area = await workArea()
-	if (!natural || !area) return//a picture that would not load, or no monitor to measure, keeps the window rust built, title bar and all
-	await w.setDecorations(false); bare = true
-	await windowFrameSet(rectFit(natural, area))
+let fullscreenOurs = false//fuji's own simple fullscreen is on, which tauri will not report on the mac
+let previewFramed = false//the window still has the frame the preview fitted to one picture, and no title bar
+let previewPath = '', previewCard = null//the picture the preview opened on, and where it stood, as a rectangle of the fullscreen frame, for the diamond table to take it over in the same place
+let resizeWaiting = []//fullscreen changes waiting for the viewport to arrive at its new size, which onResize answers
+const curtainShowing = ref(false)//the curtain, a black cover over the whole window while the view and the window's size change beneath it
+
+async function placeWindow(w, path) {//put the hidden window where it will first be seen: fitted around the picture it opened on, or an ordinary window
+	let natural = false
+	if (path) { await activeView()?.onDrop?.(path); natural = activeView()?.natural?.() }//the preview shows the picture now, since its size is what shapes the window
+	let areas = await screenAreas()
+	if (!areas) return//no monitor to measure, so the window stays where the operating system put it
+	if (!natural) { await windowFrameSet(rectOrdinary(areas.screen)); return }//no picture, or one that would not load: an ordinary window, title bar and all
+	let frame = rectPreview(natural, areas.work, await pointerPosition())//where the user double-clicked, very likely, or wherever the pointer has just gone
+	previewPath = path
+	previewCard = {x: frame.x - areas.screen.x, y: frame.y - areas.screen.y, width: frame.width, height: frame.height}//fullscreen fills the screen, so its frame's corner is the screen's
+	await windowFrameSet(frame)//the frame first and the title bar after, never the other way: tao queues a change of title bar onto the main thread rather than making it, and window_frame_set measures the title bar the moment it is called, so placing a window straight after a change would measure the window as it was. A window keeps its frame when its title bar comes or goes, and the content grows or shrinks inside it
+	await w.setDecorations(false); previewFramed = true
 }
-async function previewExpand(path) {//the preview was clicked: the diamond table, fitted around the same picture where it stood, and then fullscreen
+
+async function toggleView() {//the View menu's Toggle Full Screen: the table fullscreen or the sheet in a window, and from the preview on into the table
+	if (whichTable.value == 'Preview') {
+		if (previewPath) return previewExpand(previewPath)
+		whichTable.value = settings.view.table//a preview whose picture would not load has nothing to hand over, so the table behind the sheet is the usual one
+	}
+	return showView(showing.value == 'Sheet' ? 'Table' : 'Sheet')
+}
+async function showView(name) {//show the sheet in a window or the current table fullscreen; both stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
+	if (showing.value == name) return
+	if (name == 'Sheet' && previewFramed) return sheetFromPreview()
+	await curtained(async () => {
+		await fullscreenSet(name == 'Table')//into fullscreen for the table and out of it for the sheet, before the view is shown, so a table measures the frame it will keep
+		showing.value = name
+		await nextTick()//v-show has been applied, so the view arriving has a layout box and can measure itself
+		activeView()?.start?.()//not awaited: a table changing to a newly chosen picture hides its card until the picture is on it, so the curtain can lift on the dots rather than wait for a decode
+	})
+}
+async function previewExpand(path) {//the preview was clicked: the diamond table, fullscreen, with the card where the preview's picture stood
 	cacheNeed(path, 'Shell')//hold the picture across the swap: the preview lets go as it unmounts, which is before the diamond table exists to ask, and the store would free the decode in between
 	try {
-		whichTable.value = 'Diamond'//the diamond by name rather than whatever fuji.toml says, because the fitting and the fullscreen below are the diamond's
-		await nextTick()
-		activeView()?.start?.()
-		await activeView()?.onDrop?.(path)//the drop road, so the model lists the folder and the table can flip from here
-		activeView()?.dimensionFit?.()//the window is the picture's shape, so a fitted card fills it exactly, where the preview's picture was
-		await activeView()?.toggleFullscreen?.()//and the table's own fullscreen change holds the card still on the screen while the frame grows around it
+		await curtained(async () => {
+			whichTable.value = 'Diamond'//the diamond by name rather than whatever fuji.toml says, because it is the table that takes a card at a rectangle. Swapped in before the fullscreen change rather than after, so the preview, which closes the window when it loses the focus, is gone before the window's style changes under it
+			await nextTick()
+			await fullscreenSet(true)
+			await activeView()?.start?.()//after the fullscreen change, so the table measures the frame it will keep
+			await activeView()?.onDrop?.(path)//the drop road, so the model lists the folder and the table can flip from here
+			if (previewCard) activeView()?.cardAt?.(previewCard)
+		})
 	} finally {
 		cacheRelease(path, 'Shell')
 	}
 }
-async function dressWindow(w) {//put the title bar back on a window the preview took it off, once it is an ordinary window again
-	if (!bare || whichTable.value == 'Preview') return
-	bare = false
+async function sheetFromPreview() {//the first sheet after a preview: the window goes away and comes back as an ordinary one, because the user never took the preview or the table for a window, and a window appearing where the preview was would say it had been one all along
+	let w = getCurrentWindow()
+	await w.hide()
+	if (fullscreenOurs) { await w.setSimpleFullscreen(false); fullscreenOurs = false }//without fullscreenSet's wait for the resize, which a hidden window cannot be relied on to deliver; nothing measures until the window is back
+	previewFramed = false
+	let areas = await screenAreas()
+	if (areas) await windowFrameSet(rectOrdinary(areas.screen))//the frame first and the title bar after, for the reason placeWindow gives
 	await w.setDecorations(true)
+	showing.value = 'Sheet'
+	await nextTick()
+	activeView()?.start?.()
+	await w.show()
+	await getCurrentWebview().setFocus()//the title bar came back, which is a change of style mask, so the keyboard needs handing back for the reason the essay above gives
 }
-
-async function recordWindow(w) {//write down the size the window has right now, for the settings file to carry to the next launch
-	if (whichTable.value == 'Preview') return//a preview is the picture's size rather than one the user chose
-	let size = (await w.innerSize()).toLogical(await w.scaleFactor())//css pixels: the one unit that means the same thing on a retina panel and beside it, and what rust hands the window builder next launch. Inner, because mixing inner and outer would grow the window by a titlebar every time
-	settings.window.width = Math.round(size.width); settings.window.height = Math.round(size.height)
-	settingsChanged()
+async function fullscreenSet(on) {//turn fuji's own fullscreen on or off, and wait for the window to arrive
+	if (on == fullscreenOurs) return
+	let w = getCurrentWindow()
+	if (on && platform() == 'mac' && await w.isFullscreen()) return//already in a macos space, which the table can have as it is
+	fullscreenOurs = on
+	let landed = new Promise(resolve => { resizeWaiting.push(resolve); setTimeout(resolve, 1000) })//the resize that says the window got there, or a second, so a change that moves nothing never hangs
+	await w.setSimpleFullscreen(on)//instant, no Space and no animation; on windows and linux, the ordinary fullscreen
+	await getCurrentWebview().setFocus()//hand the keyboard back to the page, after the change, for the reason the essay above gives
+	await landed
 }
-function isFullscreen() {//a window the size of the screen is not one the user sized, so it must not become the size fuji remembers
-	return tableRef.value?.isFullscreen?.()//the table is asked whichever view is showing, because only a table enters fullscreen and it keeps the flag; the operating system will not report simple fullscreen, so there is nobody else to ask. Optional like every other handoff, so a table that does not do fullscreen is simply never in it
+async function curtained(work) {//do a change of view behind the curtain the essay above describes
+	curtainShowing.value = true
+	await raf(); await raf()//the first frame schedules the cover's paint, and the second confirms it reached the screen before anything changes beneath it
+	try { await work(); await raf() } finally { curtainShowing.value = false }//one frame more, so what changed has painted before the cover lifts
+}
+async function closeWindow() {//close the window as the red button or the × would, hidden and out of fuji's fullscreen first
+	let w = getCurrentWindow()
+	if (fullscreenOurs) {
+		await w.hide()//so the user never sees it come back to its window size on the way out
+		await w.setSimpleFullscreen(false); fullscreenOurs = false//on the mac, left before closing so the dock and menu bar come back for the whole application
+	}
+	await w.close()
 }
 
 </script>
 <template>
 
-<Sheet ref="sheetRef" v-show="showing == 'Sheet'" />
-<component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" />
+<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" />
+<component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
+<div v-if="curtainShowing" class="fixed inset-0 bg-black"></div><!-- last, so it covers everything while the view and the fullscreen change -->
 
 <!-- the two gamma filters, taking turns and drawing nothing themselves; the exponents are written by the watch above rather than bound here, because the order of the write and the switch is the whole point. The region is the element's own box, where the default reaches a tenth past each edge for nothing -->
 <svg aria-hidden="true" width="0" height="0" class="absolute w-0 h-0">
