@@ -170,7 +170,7 @@ async function reportTrouble(work) {//a window event is where the platform start
 /*
 The sheet lives in a window and a table lives fullscreen. That is the whole of fuji's window, and every rule below follows from it: going to the table puts the window in fullscreen, going to the sheet takes it out, and nothing else ever does either. The preview is the one exception, a table in a window with no title bar, and it only ever happens first.
 
-The shell places every window fuji makes, before it is revealed, and remembers nothing about any of them between launches; Rust builds each one hidden at no particular size, and window.rs says why fuji places them rather than the platform. A launch on a picture opens as a preview, fitted around the picture in the work area, the part of the desktop the menu bar, dock and taskbar leave free, and placed out from under the pointer; library.js has the rule. Every other launch is an ordinary window at the preset size somewhere in the middle of the screen, which library.js keeps.
+The shell places every window fuji makes, before it is revealed, and remembers nothing about any of them between launches; Rust builds each one hidden at no particular size, and window.rs says why fuji places them rather than the platform. A launch on a picture opens as a preview, fitted around the picture in the work area, the part of the desktop the menu bar, dock and taskbar leave free, and placed out from under the pointer; library.js has the rule. Every other launch is an ordinary window at the preset size somewhere in the work area, which library.js keeps.
 
 Where the sheet's window is between visits to the table needs no record of fuji's own. Leaving fullscreen puts a window back exactly where it was before, at the size it had, on every platform — tao saves the frame on the mac, and the other two restore it themselves — and every trip to the table starts from the sheet's window. The one exception is a preview's: the frame restored after it is the one fitted to a picture, so the first sheet after a preview gets a title bar and an ordinary frame of its own, and the platform keeps that one from then on. That change happens with the window hidden. A user never takes the preview or the table for a window — neither has a title bar — so fuji's window first exists for them when the sheet appears, and it should simply appear rather than be seen leaving the preview's place.
 
@@ -193,7 +193,7 @@ async function placeWindow(w, path) {//put the hidden window where it will first
 	if (path) { await activeView()?.onDrop?.(path); natural = activeView()?.natural?.() }//the preview shows the picture now, since its size is what shapes the window
 	let areas = await screenAreas()
 	if (!areas) return//no monitor to measure, so the window stays where the operating system put it
-	if (!natural) { await windowFrameSet(rectOrdinary(areas.screen)); return }//no picture, or one that would not load: an ordinary window, title bar and all
+	if (!natural) { await windowFrameSet(rectOrdinary(areas.work)); return }//no picture, or one that would not load: an ordinary window, title bar and all
 	let frame = rectPreview(natural, areas.work, await pointerPosition())//where the user double-clicked, very likely, or wherever the pointer has just gone
 	previewPath = path
 	previewCard = {x: frame.x - areas.screen.x, y: frame.y - areas.screen.y, width: frame.width, height: frame.height}//fullscreen fills the screen, so its frame's corner is the screen's
@@ -239,7 +239,7 @@ async function sheetFromPreview() {//the first sheet after a preview: the window
 	if (fullscreenOurs) { await w.setSimpleFullscreen(false); fullscreenOurs = false }//without fullscreenSet's wait for the resize, which a hidden window cannot be relied on to deliver; nothing measures until the window is back
 	previewFramed = false
 	let areas = await screenAreas()
-	if (areas) await windowFrameSet(rectOrdinary(areas.screen))//the frame first and the title bar after, for the reason placeWindow gives
+	if (areas) await windowFrameSet(rectOrdinary(areas.work))//the frame first and the title bar after, for the reason placeWindow gives
 	await w.setDecorations(true)
 	showing.value = 'Sheet'
 	await nextTick()

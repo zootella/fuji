@@ -155,11 +155,8 @@ export function windowTitle(showing, path, folder) {//what the title bar says: t
 	return platform() == 'windows' ? name + ' - Fuji' : name
 }
 
-//where an ordinary window opens, as portions of the screen's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
-const windowPreset = {
-	safeWidth:  0.8, safeHeight:  0.8,//the band in the middle of the screen an ordinary window stays inside; a tenth of the screen on every side clears a menu bar or a taskbar on any edge, and all but the largest dock, so the title bar is always there to grab
-	width:      0.7, height:      0.7,//the window itself, which leaves it a tenth of the screen to move in along each axis
-}
+//how big an ordinary window opens, as portions of the work area's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
+const windowPreset = {width: 0.65, height: 0.75}
 
 export async function screenAreas() {//the screen this window is on, whole and less the menu bar, dock or taskbar, each as {x, y, width, height} in css pixels; false when there is no monitor to ask
 	let m = await currentMonitor()
@@ -168,14 +165,10 @@ export async function screenAreas() {//the screen this window is on, whole and l
 	let rect = (at, size) => ({x: at.x / s, y: at.y / s, width: size.width / s, height: size.height / s})
 	return {screen: rect(m.position, m.size), work: rect(m.workArea.position, m.workArea.size)}
 }
-export function rectOrdinary(screen) {//where an ordinary window goes: the preset size, somewhere random inside the safe band in the middle of this screen, so two windows opened one after the other rarely stack exactly, though they can land close
-	let width  = Math.round(screen.width  * windowPreset.width)
-	let height = Math.round(screen.height * windowPreset.height)
-	let left = screen.x + screen.width  * (1 - windowPreset.safeWidth)  / 2//the safe band's top left corner
-	let top  = screen.y + screen.height * (1 - windowPreset.safeHeight) / 2
-	let roomX = Math.max(0, screen.width  * windowPreset.safeWidth  - width)//how far the window can move inside the band along each axis
-	let roomY = Math.max(0, screen.height * windowPreset.safeHeight - height)
-	return {x: Math.round(left + Math.random() * roomX), y: Math.round(top + Math.random() * roomY), width, height}
+export function rectOrdinary(work) {//where an ordinary window goes: the preset size, somewhere random in the work area, so two windows opened one after the other rarely stack exactly, though they can land close
+	let width  = Math.round(work.width  * windowPreset.width)
+	let height = Math.round(work.height * windowPreset.height)
+	return {x: Math.round(work.x + Math.random() * (work.width - width)), y: Math.round(work.y + Math.random() * (work.height - height)), width, height}//the room left over along each axis, rolled
 }
 export async function pointerPosition() {//where the pointer is, in the same css pixels as screenAreas, or false when the platform will not say
 	try {

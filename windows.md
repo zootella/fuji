@@ -8,7 +8,7 @@ Written on the Mac mini, 2026-09-27, alongside PreviewTable. Read this, then tal
 
 **The page can now place its window exactly**, through `window_frame_set` in `window.rs`, in CSS pixels, meaning the frame a person sees. On the Mac, Tauri's outer rectangle already is that. On Windows 10 and 11 it is not, because it includes the invisible resize borders, about 7 pixels on the left, right and bottom at 100 percent. The essay above `Frame` in `window.rs` has the whole of it. `window_seen` is the one function that answers, and today it passes Tauri's outer rectangle through on every platform.
 
-**And the page now places every window itself**, before the reveal, and fuji no longer remembers a window's size. An ordinary window is 0.7 of the screen, somewhere random inside the middle 0.8, from the presets in `library.js`, and those portions are meant to describe the frame a person sees. So on Windows an ordinary window is 7 pixels smaller on each side than intended until `window_seen` is corrected. Rust no longer cascades or corrects a window's position at all.
+**And the page now places every window itself**, before the reveal, and fuji no longer remembers a window's size. An ordinary window is 0.65 of the work area wide and 0.75 tall, somewhere random inside it, from the presets in `library.js`, and those portions are meant to describe the frame a person sees. So on Windows an ordinary window is 7 pixels smaller on each side than intended until `window_seen` is corrected. Rust no longer cascades or corrects a window's position at all.
 
 ## What only this machine can do
 

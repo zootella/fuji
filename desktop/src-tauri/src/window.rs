@@ -13,7 +13,7 @@ Making fuji's windows, saying where one is, and deciding how long fuji outlives 
 
 **What it is called.** Each window gets a label of its own, counted from one, and `capabilities/default.json` grants permissions to the pattern rather than to a name. A window whose label the capability does not match is built and then silently has no permissions at all, which looks like a page that loads and cannot do anything, so the two have to be kept in step.
 
-**Where, and how big, is the page's to decide.** Every window is built hidden at whatever size Tauri defaults to, and the shell places it before the reveal: fitted around the picture for a preview, or at the ordinary preset size somewhere in the middle of the screen, which library.js keeps. Nothing about a window is remembered between launches. The window is hidden while this happens, so nothing flashes and nothing jumps.
+**Where, and how big, is the page's to decide.** Every window is built hidden at whatever size Tauri defaults to, and the shell places it before the reveal: fitted around the picture for a preview, or at the ordinary preset size somewhere in the work area, which library.js keeps. Nothing about a window is remembered between launches. The window is hidden while this happens, so nothing flashes and nothing jumps.
 
 Fuji places its windows itself because neither platform does it well. Windows cascades new ones down a fixed staircase without checking that they fit — measured on 2026-09-13, three windows 1062 pixels tall on a work area 1160 deep, the last two hanging 6 and 40 pixels under the taskbar. macOS places nothing at all, and tao centers every window it is given no position for, so two windows of one size stack exactly on top of each other.
 
