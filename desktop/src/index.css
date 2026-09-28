@@ -10,3 +10,20 @@ Every view fills the window exactly, and the obvious spelling is `h-screen` — 
 So do not put `h-screen` back, and do not let the page scroll. Both are the tidier-looking spelling of a bug.
 */
 html, body, #app { height: 100%; overflow: hidden }
+
+/*
+Nothing resizes a picture unless fuji says so. Tailwind's reset gives every img `max-width: 100%`, which shrinks a picture wider than its container and has the engine resample it without any of fuji's code asking, and it did exactly that to the diamond table once, which DiamondTable.vue records. Every img fuji shows sets its own size, so cancelling the rule changes no picture on screen, and an img that forgets to size itself shows at its own size: a mistake anyone can see, rather than a resample nobody notices. In the base layer beside the reset, so a utility on an img can still set a max-width of its own.
+*/
+@layer base {
+	img { max-width: none }
+}
+
+/* the smoky plastic every hud and the help panel are made of; global rather than scoped, because the shell draws the help panel and a table draws its huds, and one component's scoped styles never reach the other's. The font and the wrapping stay with each view, which sets them differently */
+@layer components {
+	.myHud {
+		color: rgba(255, 255, 255, 0.8); /* transparent text */
+		background-color: rgba(0, 0, 0, 0.4); /* smokey plastic from 1980 */
+		padding: 0.1rem 0.4rem; /* square corners */
+		font-size: 0.875rem;
+	}
+}

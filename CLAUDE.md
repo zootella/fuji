@@ -323,10 +323,12 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Styling
 
-- Tailwind CSS 4.x with Vite plugin
-- Custom classes defined in `<style scoped>` sections:
+- Tailwind CSS 4.x with Vite plugin, kept for its reset, which evens out three engines' defaults, and for layout that reads in the template
+- **Tailwind classes in the template** for layout and one-off values; **a named class in CSS** when other code finds the element by it — `myTile` for the gamma filter, `myImage` reached with `:deep()` because the template did not make that element — or when the style is one utilities say badly, like a gradient pattern or a layered shadow
+- **Nothing resizes a picture unless fuji says so.** `index.css` cancels the reset's `img { max-width: 100% }`, which shrinks and resamples any picture wider than its container without asking, so every img sizes itself
+- Custom classes, in `<style scoped>` sections unless named otherwise:
   - `.myDots` - Repeating dot background pattern
-  - `.myHud` - Semi-transparent overlay styling
+  - `.myHud` - Semi-transparent overlay styling, global in `index.css` because the shell's help panel and a table's huds share it
   - `.myDry` - Disables pointer events and text selection
   - `.myWillChangeTransform` - Performance hint for animations
 

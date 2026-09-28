@@ -5,8 +5,8 @@
 </script>
 <template>
 
-<!-- a pre because it is the one element whose text vue's compiler leaves alone: in any other, the runs of spaces that line up the two columns would condense to one -->
-<pre class="myHelp">
+<!-- a pre because it is the one element whose text vue's compiler leaves alone: in any other, the runs of spaces that line up the two columns would condense to one. The huds' smoky plastic from index.css, and no clicks or selection, so a click, a drag or the wheel goes through to the view beneath, which is still the thing the user is using -->
+<pre class="myHud pointer-events-none select-none">
                                       Fuji
 
                                  H    [H]elp
@@ -32,15 +32,3 @@ Shift + right drag up|down            Smooth gamma
 </pre>
 
 </template>
-<style scoped>
-
-.myHelp { /* the same smoky plastic as the table's huds in DiamondTable.vue, whose .myHud cannot reach this, since the shell draws it */
-	color: rgba(255, 255, 255, 0.8);
-	background-color: rgba(0, 0, 0, 0.4);
-	padding: 0.1rem 0.4rem;
-	font-size: 0.875rem;
-	pointer-events: none; /* a click, a drag or the wheel goes through to the view beneath, which is still the thing the user is using */
-	user-select: none;
-}
-
-</style>

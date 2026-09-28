@@ -448,12 +448,8 @@ let here = null//the store's entry for the image on the card, which is where the
 </template>
 <style scoped>
 
-.myHud {
-	color: rgba(255, 255, 255, 0.8); /* transparent text */
-	background-color: rgba(0, 0, 0, 0.4); /* smokey plastic from 1980 */
-	padding: 0.1rem 0.4rem; /* square corners */
+.myHud { /* the table's huds, over the look index.css gives every hud */
 	font-family: monospace;
-	font-size: 0.875rem;
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {} /* not using this yet, but it's here */
