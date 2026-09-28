@@ -40,7 +40,7 @@ mod platform {
 	use objc2_app_kit::{NSEvent, NSEventMask};
 	use crate::log;
 
-	static BLOCKED: Mutex<Vec<usize>> = Mutex::new(Vec::new());//the addresses of the windows whose pages asked for precise scrolls to be dropped; a handful at most, so a list rather than a set. A Mutex because the command arrives on tauri's pool threads and the monitor runs on the main one
+	static BLOCKED: Mutex<Vec<usize>> = Mutex::new(Vec::new());//the addresses of the windows whose pages asked for precise scrolls to be dropped; a handful at most, so a list rather than a set. A Mutex because a static that changes has to be safe to share between threads, though the command and the monitor both run on the main one
 	static SEEN: AtomicBool = AtomicBool::new(false);//whether the monitor has fired yet, so the log can say once a run that it is live
 
 	pub fn touch_start() {

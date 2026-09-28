@@ -234,7 +234,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 **Command Registration**: All Rust functions exposed to JavaScript must be registered in `lib.rs::run()` using `tauri::generate_handler![]`
 
 **Important Architecture Notes**:
-- File I/O uses synchronous operations; `disk_read()` loads entire files into memory (suitable for images, not large files)
+- File I/O uses synchronous `std::fs` calls inside `#[command(async)]`, so they run on Tauri's thread pool rather than the thread that runs the window; `disk_read()` loads entire files into memory (suitable for images, not large files). `lib.rs` has the rule for which commands are async
 - `disk.rs` holds no guard on paths, deliberately: its opening essay is the contract, and the walls are outside the file, argued once in `lib.rs`
 - Comments in `disk.rs` extensively document memory efficiency tradeoffs between direct reads vs. streaming
 - Platform-specific code uses `#[cfg(target_os = "...")]` attributes for Windows/macOS/Linux

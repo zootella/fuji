@@ -18,7 +18,7 @@ pub struct Arrow {//general {x, y} pair useful for a positions or a dimensions
 }
 
 //the one command javascript calls; the body it reaches was chosen when this was compiled
-#[tauri::command]
+#[tauri::command(async)]//on the pool because linux answers by running xrandr and waiting for it; the mac asks CoreGraphics and windows asks user32, and neither minds which thread asks
 pub fn panel_resolution() -> Arrow {
 	platform::panel_resolution()//returns a {x, y} pixel count, or {0, 0} for any error or inability to find the answer
 }

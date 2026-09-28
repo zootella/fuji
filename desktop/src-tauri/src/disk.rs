@@ -36,7 +36,7 @@ pub struct FileStat {
 }
 
 /// POSIX-like `readdir`, shallow only
-#[command]
+#[command(async)]//every command here waits on the disk, so every one runs on tauri's thread pool rather than the thread that runs the window, where a slow folder or a large file would hold up every window event and every other reply until it finished
 pub fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 	let mut results = Vec::new();
 	for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
@@ -56,7 +56,7 @@ pub fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 
 /// POSIX-like `stat(2)` metadata
 //no caller in the page yet: a date sort needs one of these per file, which sort.md says is the shape the listing will have to grow to carry
-#[command]
+#[command(async)]
 pub fn disk_stat(path: String) -> Result<FileStat, String> {
 	let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
 	let ft    = meta.file_type();
@@ -75,7 +75,7 @@ fn millis(time: std::io::Result<std::time::SystemTime>) -> u128 {//milliseconds 
 }
 
 /// POSIX-like `open` + `read` + `close`
-#[command]
+#[command(async)]
 pub fn disk_read(path: String) -> Result<tauri::ipc::Response, String> {
 	std::fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())//Response carries the bytes raw; the essay below has the cost
 }
@@ -91,7 +91,7 @@ so this will be fine for images, but for big files, you'll have to use plugin-fs
 
 /// "cp" (shallow, files only)
 //also without a caller yet, and correct to be ready: copying is what a backup feature is made of, and the essay below is the research behind doing it well
-#[command]
+#[command(async)]
 pub fn disk_copy(source: String, destination: String) -> Result<(), String> {
 	fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string())
 }
@@ -106,7 +106,7 @@ There is a third shape, if fuji ever needs a progress bar on a large copy: keep 
 */
 
 /// POSIX `open` with `O_TRUNC|O_CREAT` + `write` + `close`
-#[command]
+#[command(async)]
 pub fn disk_write(path: String, data: Vec<u8>) -> Result<(), String> {
 	fs::write(&path, data).map_err(|e| e.to_string())
 }
