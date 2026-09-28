@@ -19,6 +19,15 @@ const settingsSchema = [
 		factory: 'Diamond',
 		comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead',
 	}, {
+		section: 'sheet',
+		key: 'width',
+		factory: 0,
+		comment: 'the size of the contact sheet window as you last left it, in css pixels, recorded as you resize it; fuji opens the next one at this size, somewhere at random, whenever it fits the desktop less its menu bar, dock or taskbar, and at a portion of that desktop when it does not. A width of 0 means nothing has been recorded yet',
+	}, {
+		section: 'sheet',
+		key: 'height',
+		factory: 0,
+	}, {
 		section: 'sort',
 		key: 'order',
 		factory: 'Alphabet',

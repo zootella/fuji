@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::{command, AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::open;
@@ -13,7 +13,7 @@ Making fuji's windows, saying where one is, and deciding how long fuji outlives 
 
 **What it is called.** Each window gets a label of its own, counted from one, and `capabilities/default.json` grants permissions to the pattern rather than to a name. A window whose label the capability does not match is built and then silently has no permissions at all, which looks like a page that loads and cannot do anything, so the two have to be kept in step.
 
-**Where, and how big, is the page's to decide.** Every window is built hidden at whatever size Tauri defaults to, and the shell places it before the reveal: fitted around the picture for a preview, or at the ordinary preset size somewhere in the work area, which library.js keeps. Nothing about a window is remembered between launches. The window is hidden while this happens, so nothing flashes and nothing jumps.
+**Where, and how big, is the page's to decide.** Every window is built hidden at whatever size Tauri defaults to, and the shell places it before the reveal: fitted around the picture for a preview, or as the contact sheet, at the size the user last gave one or a preset portion of the work area, somewhere at random inside it, by the rule library.js keeps. Rust reads none of it: the page has the settings file before it places anything. The window is hidden while this happens, so nothing flashes and nothing jumps.
 
 Fuji places its windows itself because neither platform does it well. Windows cascades new ones down a fixed staircase without checking that they fit — measured on 2026-09-13, three windows 1062 pixels tall on a work area 1160 deep, the last two hanging 6 and 40 pixels under the taskbar. macOS places nothing at all, and tao centers every window it is given no position for, so two windows of one size stack exactly on top of each other.
 
@@ -59,17 +59,25 @@ Tauri's outer position and size are the platform's own window rectangle, and on 
 
 It does not have it yet: it passes the outer rectangle through on every platform, until the Windows body is written and measured on that machine. The measuring matters, because fuji places its windows while they are still hidden, and that attribute is known to answer badly for a window that has never been shown. Everything else here is already written against window_seen, so the correction is one function body and nothing that calls it changes.
 
-The page places a window through window_frame_set, in css pixels, and so never learns that a platform counts borders it does not draw.
+The page reads and places a window through window_frame and window_frame_set, in css pixels, and so never learns that a platform counts borders it does not draw.
 */
 
-/// Where the window goes and how big, in css pixels, as the user sees its frame
-#[derive(Deserialize)]
+/// Where the window is and how big, in css pixels, as the user sees its frame
+#[derive(Serialize, Deserialize)]
 pub struct Frame { x: f64, y: f64, width: f64, height: f64 }
+
+/// The window's visible frame, in css pixels
+#[command]
+pub fn window_frame(window: WebviewWindow) -> tauri::Result<Frame> {//tauri turns its own error into the rejection the page sees, so none of these need converting
+	let scale = window.scale_factor()?;//tauri's physical pixels per css pixel, on this window's screen
+	let (at, size) = window_seen(&window)?;
+	Ok(Frame { x: at.x as f64 / scale, y: at.y as f64 / scale, width: size.width as f64 / scale, height: size.height as f64 / scale })
+}
 
 /// Put the window's visible frame exactly here, in css pixels
 #[command]
-pub fn window_frame_set(window: WebviewWindow, frame: Frame) -> tauri::Result<()> {//tauri turns its own error into the rejection the page sees, so none of these need converting
-	let scale = window.scale_factor()?;//tauri's physical pixels per css pixel, on this window's screen
+pub fn window_frame_set(window: WebviewWindow, frame: Frame) -> tauri::Result<()> {
+	let scale = window.scale_factor()?;
 	let (_, seen) = window_seen(&window)?;
 	let inner = window.inner_size()?;
 	let chrome = (seen.width.saturating_sub(inner.width), seen.height.saturating_sub(inner.height));//what the frame has around the content: a title bar and borders, or nothing on a window without decorations. set_size means the content, so this comes off the frame asked for

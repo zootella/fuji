@@ -70,7 +70,7 @@ App.vue
 
 ## Settings
 
-**Settings are not a fifth layer.** `fuji.toml` is the persistence facility the model and the views use for the values worth surviving a restart, and `settings.js` is the only file that knows what a setting is. Sort order belongs there, and so does which view the user was last in, so fuji opens where they left it. A current index does not. The rule is whether the user would be annoyed to lose it when they quit.
+**Settings are not a fifth layer.** `fuji.toml` is the persistence facility the model and the views use for the values worth surviving a restart, and `settings.js` is the only file that knows what a setting is. Sort order belongs there, and so does the size the user last gave the contact sheet's window. Which view fuji opens on does not: a double-clicked picture opens as a preview and every other launch on the sheet, whatever the user was looking at when they quit. A current index does not either. The rule is whether the user would be annoyed to lose it when they quit.
 
 **The settings object is plain and not reactive, on purpose.** A value the interface has to re-render on — sort order, once the sheet has a toolbar — is stored in `fuji.toml` and watched in the model. Two homes, two jobs: one keeps it across launches, the other tells the page it moved.
 

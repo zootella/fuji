@@ -155,8 +155,7 @@ export function windowTitle(showing, path, folder) {//what the title bar says: t
 	return platform() == 'windows' ? name + ' - Fuji' : name
 }
 
-//how big an ordinary window opens, as portions of the work area's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
-const windowPreset = {width: 0.65, height: 0.75}
+const sheetPreset = {width: 0.6, height: 0.85}//how big the sheet's window opens when settings have no size that fits, as portions of the work area's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
 
 export async function screenAreas() {//the screen this window is on, whole and less the menu bar, dock or taskbar, each as {x, y, width, height} in css pixels; false when there is no monitor to ask
 	let m = await currentMonitor()
@@ -165,10 +164,10 @@ export async function screenAreas() {//the screen this window is on, whole and l
 	let rect = (at, size) => ({x: at.x / s, y: at.y / s, width: size.width / s, height: size.height / s})
 	return {screen: rect(m.position, m.size), work: rect(m.workArea.position, m.workArea.size)}
 }
-export function rectOrdinary(work) {//where an ordinary window goes: the preset size, somewhere random in the work area, so two windows opened one after the other rarely stack exactly, though they can land close
-	let width  = Math.round(work.width  * windowPreset.width)
-	let height = Math.round(work.height * windowPreset.height)
-	return {x: Math.round(work.x + Math.random() * (work.width - width)), y: Math.round(work.y + Math.random() * (work.height - height)), width, height}//the room left over along each axis, rolled
+export function rectSheet(work, saved) {//where the contact sheet's window goes, in css pixels: the size the user last gave a sheet if it fits the work area, or sheetPreset of the work area if not, and a random place inside it either way, so two sheets opened at once almost never land on each other. saved is the size from settings, a width of 0 meaning none
+	let width = Math.round(work.width * sheetPreset.width), height = Math.round(work.height * sheetPreset.height)
+	if (saved.width > 0 && saved.width <= Math.round(work.width) && saved.height <= Math.round(work.height)) { width = saved.width; height = saved.height }//a size from a bigger desktop, or from before the dock moved, gives way to the preset. Compared in whole pixels, because settings keep whole pixels and a work area at a fractional scale, 150 percent on windows, is fractional in css pixels, so a maximized sheet saved at 1707 would otherwise fail to fit a work area 1706.67 wide
+	return {x: Math.round(work.x + Math.random() * (work.width - width)), y: Math.round(work.y + Math.random() * (work.height - height)), width, height}//the room left over along each axis, rolled evenly
 }
 export async function pointerPosition() {//where the pointer is, in the same css pixels as screenAreas, or false when the platform will not say
 	try {

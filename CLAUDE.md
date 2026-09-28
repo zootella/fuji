@@ -203,7 +203,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - Filled from `RunEvent::Opened` on macOS and from the command line on Windows and Linux, and held rather than delivered because at launch both arrive before the page exists
 
 - `window.rs` - Making fuji's windows, placing them, and saying where one is:
-  - `window_frame_set(frame)` - Put the visible frame here, in CSS pixels, which on Windows is not Tauri's outer rectangle; the Windows correction is still to be written, in `window_seen`
+  - `window_frame()`, `window_frame_set(frame)` - Read or put the visible frame, in CSS pixels, which on Windows is not Tauri's outer rectangle; the Windows correction is still to be written, in `window_seen`
   - Its essays carry why the Mac holds every window in one process, where a new window lands, and how long fuji outlives its last one
 
 - `associate.rs` - What fuji has told the operating system it can open:
@@ -274,8 +274,8 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `associate.js` - Composes the type list out of `imageTypes` and hands it down:
   - `associateRegister()`
 
-- `window.js` - Exposes placing the window, as the user sees its frame:
-  - `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
+- `window.js` - Exposes where the window is and placing it, as the user sees its frame:
+  - `windowFrame()`, `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`
