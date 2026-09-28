@@ -1,32 +1,31 @@
 /*
-The boundary, and the table of contents. Everything the page is allowed to ask Rust to do is named once in this file, and anything not named here is unreachable from JavaScript no matter what the page tries to invoke. So this is both the map of fuji's Rust and the whole of its attack surface, and adding a line to the handler list below is the deliberate act of widening it.
+The boundary. Everything the page may ask Rust to do is named once in this file, in the handler list below, and nothing else is reachable from JavaScript. So that list is the map of fuji's Rust and the whole of its attack surface, and adding a line to it is the deliberate act of widening that surface.
 
-The other half of that surface is the plugins. A plugin brings a family of commands written by somebody else, and registering one here does not decide how much of it the page may reach — capabilities/default.json does, naming individual permissions rather than a plugin's default set. Read the two files together; neither tells the whole story alone.
+**The page is the application, and Rust is a library beneath it.** The page decides everything: what a setting is, which files to show and in what order, which types to offer Windows under which keys, when to ask and how often. Rust grows only for what the page cannot do well — speed, reaching the operating system, or holding a security wall — and what it adds is a general command any desktop application could use as it stands: read a file, write a registry value, make a thumbnail of a path. The test for a new one is to describe it without naming a fuji feature. "Write this string value under the current user" passes; "register fuji's image types with Windows" fails, and was split into registry.rs and associate.js. A command that has to know why it is called, or that spells a fuji name in its code, is application logic that has leaked down; even the product name comes from tauri.conf.json, through package_info.
 
-Neither plugin has a caller in the page yet, and both are here on purpose: reveal and the file dialogs are the next features, the grants beside them are already narrowed to what those features need, and taking them out to put them back is churn rather than safety.
+**A command takes one thing.** A list stays in the page, which calls once per item and owns the order, how many are in flight, and when to stop; so thumbnail_probe takes one path and registry_set writes one value. A crossing costs little, and a loop down here is a decision taken away from the page.
 
-Three registrations, one piece of setup, and a launch is all this does. Plugins, then the shared state that outlives any one command, then the commands themselves, then the menu, then start.
+**Rust trusts the page, and guards only what the page cannot.** A check here that repeats a decision the page made is a second copy of it, and second copies go stale. The trust rests on three walls around the page: every path it acts on came from the user or was built by fuji itself, never from outside content; untrusted text reaches it only through Vue's escaping interpolation, so it never becomes script; and the Content-Security-Policy in tauri.conf.json keeps foreign script out even if one of those cracks. The walls Rust does hold are the ones that must stand before the page could look: thumbnail.rs refuses bytes that are not what they claim, and headers claiming more memory than the machine has, before any decoder runs. disk.rs names the next one, for when deleting arrives.
 
-**No window is made here.** Every window fuji has comes from the event closure below, under one rule rather than a launch case and a running case: Ready makes a window if fuji has none. A double-click on the mac delivers Opened before Ready, so the picture already has its window and Ready finds one and does nothing; a launch with nothing to show reaches Ready empty-handed and gets its window there; on windows and linux Opened never fires at all, so Ready is always the one. Making the window in setup instead is what made a double-click open two, one of them blank.
+The plugins are the other half of the surface. Registering one here does not decide how much of it the page can reach; capabilities/default.json does, naming individual permissions, so read the two files together. Neither plugin has a caller yet, on purpose: reveal and the file dialogs are the next features, and their grants are already narrowed to what those features need.
 
-The launch is split on purpose. Tauri's builder offers .run(), which starts the application and never returns; this file calls .build() and then .run(closure) instead, because the closure is handed every event the application loop produces, and one of them — Exit — is fuji's last chance to write anything to disk. desktop.rs carries the long version of why that event and no other.
-
-For a reader new to Rust: `mod desktop;` compiles the sibling file desktop.rs as a module of this one, which is how a Rust program is assembled — there is no import path listing files, the module declarations are the listing. The chain of dots is a builder, each call returning the thing it was called on so the next can follow. `.expect(...)` says take the value or panic with this message, which is the right shape at startup because a configuration fuji cannot parse is a bug to fix rather than a condition to survive.
+**No window is made here.** Every window comes from the event closure below, under one rule: Ready makes a window if there is none. A double-click on the Mac delivers Opened before Ready, so the picture already has its window; on Windows and Linux Opened never fires, so Ready always makes it. Making a window in setup instead is what once opened two for one double-click, one of them blank.
 */
 
-mod associate;//each of these compiles the sibling .rs file of the same name
-mod desktop;
-mod disk;
-#[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit; dock.rs says what it does
-mod dock;
-mod log;
+mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
+mod disk;//and disk.rs: file commands, thin wrappers over std::fs
+#[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
+mod dock;//and dock.rs: the dock icon's own menu, and its one New Window item
+mod log;//and log.rs: the log's text, held from both sides and written on the way out
 #[cfg(target_os = "macos")]//the whole module is macos-only: it calls tauri menu methods that do not exist on other targets, and a menu belongs along the top of the screen only here
-mod menu;
-mod open;
-mod panel;
-mod thumbnail;
-mod touch;
-mod window;
+mod menu;//and menu.rs: the menu bar
+mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
+mod panel;//and panel.rs: how many pixels the main display really has
+mod paths;//and paths.rs: where this copy of the program is
+mod registry;//and registry.rs: the windows registry, read and written for the page
+mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, behind a probe and a render
+mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
+mod window;//and window.rs: making windows, placing them, and how long the process outlives them
 
 pub fn run() {
 	tauri::Builder::default()//start building the Tauri application
@@ -48,7 +47,10 @@ pub fn run() {
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				thumbnail::thumbnail_probe,
 				open::open_files,//and in open.rs
-				associate::associate_register,//and in associate.rs
+				paths::paths_executable,//and in paths.rs
+				registry::registry_get,//and in registry.rs
+				registry::registry_set,
+				registry::registry_notify,
 				touch::touch_block,//and in touch.rs
 				window::window_frame,//and in window.rs
 				window::window_frame_set,
@@ -56,13 +58,13 @@ pub fn run() {
 		)
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
 			#[cfg(target_os = "macos")]
-			menu::menu_set(_app.handle())?;
+			menu::menu_set(_app.handle())?;//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
 			#[cfg(target_os = "macos")]
-			dock::dock_install(_app.handle());//and the other menu, the one on the dock icon//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
+			dock::dock_install(_app.handle());//and the other menu, the one on the dock icon
 			touch::touch_start();//watch scroll wheel events for the pages that will ask to be spared a trackpad's; every platform calls it and only the mac installs anything
 			Ok(())
 		})
-		.build(tauri::generate_context!())//build rather than run, so the closure below gets the event loop
+		.build(tauri::generate_context!())//build and then run with a closure, rather than a bare run that never returns, so the closure below sees every event the loop produces; Exit among them is the last chance to write to disk, and desktop.rs has why
 		.expect("error while building tauri application")//panic if startup fails (e.g. bad config)
 		.run(|app, event| {//this closure sees every event the application loop produces, for the life of the process
 			match event {

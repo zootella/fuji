@@ -90,7 +90,7 @@ onMounted(async () => {
 	await revealWindow()
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
-	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a build with nothing to do, and only windows has anything to say
+	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
@@ -158,8 +158,8 @@ watch(gamma, value => {
 	let root = document.documentElement//where the one property lives, so a rule below reaches both views whichever is showing
 	if (value == 1) { root.style.removeProperty('--gamma-filter'); return }//off, and the rule's fallback is no filter at all
 	gammaFilter = 1 - gammaFilter//the one nothing is showing through
-	for (let f of document.getElementById(`fujiGamma${gammaFilter}`).firstElementChild.children) f.setAttribute('exponent', 1 / value)//its red, green and blue, rewritten while no picture can be looking
-	root.style.setProperty('--gamma-filter', `url(#fujiGamma${gammaFilter})`)//and only then pointed at, which is the change the engine redraws for
+	for (let f of document.getElementById(`gammaFilter${gammaFilter}`).firstElementChild.children) f.setAttribute('exponent', 1 / value)//its red, green and blue, rewritten while no picture can be looking
+	root.style.setProperty('--gamma-filter', `url(#gammaFilter${gammaFilter})`)//and only then pointed at, which is the change the engine redraws for
 })
 function onResize() {
 	for (let landed of resizeWaiting.splice(0)) landed()//a fullscreen change waiting for the window to arrive at its new size
@@ -290,7 +290,7 @@ async function closeWindow() {//close the window as the red button or the × wou
 
 <!-- the two gamma filters, taking turns and drawing nothing themselves; the exponents are written by the watch above rather than bound here, because the order of the write and the switch is the whole point. The region is the element's own box, where the default reaches a tenth past each edge for nothing -->
 <svg aria-hidden="true" width="0" height="0" class="absolute w-0 h-0">
-	<filter v-for="n in [0, 1]" :key="n" :id="`fujiGamma${n}`" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
+	<filter v-for="n in [0, 1]" :key="n" :id="`gammaFilter${n}`" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
 		<feComponentTransfer>
 			<feFuncR type="gamma" exponent="1" />
 			<feFuncG type="gamma" exponent="1" />

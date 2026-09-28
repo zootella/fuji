@@ -39,10 +39,10 @@ pub fn dock_install(app: &AppHandle) {
 	let object: &AnyObject = delegate.as_ref();//tao's delegate as a plain object, which is all that is wanted here: its class, and something to re-class
 	let original = object.class();
 
-	let Some(mut builder) = ClassBuilder::new(c"FujiDockDelegate", original) else { return };//a name already taken means this ran twice, and the guard above should have stopped that
+	let Some(mut builder) = ClassBuilder::new(c"DockMenuDelegate", original) else { return };//a name already taken means this ran twice, and the guard above should have stopped that
 	unsafe {//each of these adds a method the superclass does not have, so nothing tao wrote is replaced
 		builder.add_method(sel!(applicationDockMenu:), dock_menu as extern "C" fn(_, _, _) -> _);
-		builder.add_method(sel!(fujiDockNewWindow:), dock_new_window as extern "C" fn(_, _, _));
+		builder.add_method(sel!(dockMenuNewWindow:), dock_new_window as extern "C" fn(_, _, _));
 	}
 	let class = builder.register();
 
@@ -58,7 +58,7 @@ extern "C" fn dock_menu(this: &AnyObject, _command: Sel, _sender: &AnyObject) ->
 		NSMenuItem::initWithTitle_action_keyEquivalent(
 			marker.alloc(),
 			&NSString::from_str("New Window"),
-			Some(sel!(fujiDockNewWindow:)),
+			Some(sel!(dockMenuNewWindow:)),
 			&NSString::from_str(""),//no key equivalent: the dock menu is a mouse gesture, and ⌘N already lives in the menu bar
 		)
 	};

@@ -176,7 +176,9 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **One codebase behaves differently on each platform in exactly one place, and three rules keep it that way.** *Ask the platform question once, where a thing is made, and never where it is used* — `window_build` is the only way a window comes into being, every caller is in `lib.rs`, and nothing downstream ever asks again. *Write for the plural and let the simpler platform be the degenerate case* — paths waiting for a page are keyed by window label everywhere, and Windows runs that map with one entry forever, needing no branch to do it. *Where a rule can be identical for free, make it identical* — settings and the log flush when the last window closes on every platform, not only at a quit. The alternative, per-process on one platform and per-window on another, is what makes every later feature ask which world it is in.
 
-**The payoff is fewer commands and a smaller conversation across the boundary,** which is what keeps the whole reliable and easy to reason about. `disk.rs` is five atomic calls, `thumbnail.rs` is two, `panel.rs` answers one question, and `log.rs` and `desktop.rs` each hold some text and write it on the way out. None of them knows what it is part of. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
+**A command takes one thing, and a list stays in the page.** The page calls down once per item and owns the loop, the order, and how many are in flight; `thumbnail_probe` takes one path and `registry_set` writes one value for that reason. More crossings are the cheap side of that trade, and a command that loops over what the page handed it has pulled a decision down out of the page.
+
+**The payoff is fewer and simpler commands across the boundary,** which is what keeps the whole reliable and easy to reason about. `disk.rs` is five atomic calls, `thumbnail.rs` is two, `registry.rs` three, `panel.rs` and `paths.rs` each answer one question, and `log.rs` and `desktop.rs` each hold some text and write it on the way out. None of them knows what it is part of, and none spells fuji's name: Rust reads the product name from `tauri.conf.json` through `package_info`, and the page reads the same file through `brand.js`. The test for a new command is the one `lib.rs` opens with — describe it without naming a fuji feature. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
 
 ### Rust Backend (desktop/src-tauri/src/)
 
@@ -205,11 +207,16 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `window.rs` - Making fuji's windows, placing them, and saying where one is:
   - `window_frame()`, `window_frame_set(frame)` - Read or put the visible frame, in CSS pixels, which on Windows is not Tauri's outer rectangle; the Windows correction is still to be written, in `window_seen`
   - Its essays carry why the Mac holds every window in one process, where a new window lands, and how long fuji outlives its last one
+  - Labels windows `window-1` and on, and `capabilities/default.json` grants to `window-*`, so the two change together
 
-- `associate.rs` - What fuji has told the operating system it can open:
-  - `associate_register(types)` - Write the Windows registry entries that offer fuji for a list of extensions; a no-op on macOS, on Linux, and in a debug build
-  - Offers and never claims: the one value it does not write is the extension's own default, which is what would take a file type. macOS needs nothing here, since its declaration is `CFBundleDocumentTypes` in `src-tauri/Info.plist`, which Tauri merges into the bundle at build time
-  - `associations.md` is the whole subject
+- `paths.rs` - Where this copy of the program is, which only Rust can learn:
+  - `paths_executable()` - The running program file. Fuji is always installed, so this is the one fact the page needs, and `associate.js` compares its folder with the one the installer recorded
+
+- `registry.rs` - The Windows registry, offered the way `disk.rs` offers the disk, knowing no key fuji uses; all under `HKEY_CURRENT_USER`:
+  - `registry_get(key, name)` - One string value, or blank when the key or the value is not there
+  - `registry_set(key, name, value)` - One string value, created if missing and written only if it would change; answers whether it changed
+  - `registry_notify()` - Tell the shell that file associations changed
+  - All three reject off Windows. `associate.js` is the caller and holds the whole policy
 
 - `log.rs` - Fuji's log, the half that holds the text and writes it:
   - `log(text)` - One line from any Rust code, appended to the run's log; a no-op unless the page started a log
@@ -219,7 +226,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - Written from `RunEvent::Exit`, the one event every way of quitting reaches, making the file's folder first if it is missing
 
 - `thumbnail.rs` - The operating system's thumbnailer, ImageIO on macOS and WIC on Windows, behind two commands:
-  - `thumbnail_probe(paths)` - For each path, what its first bytes say it is and what its header says its size is, without decoding; one call per card. Refuses bytes fuji does not know and a header claiming a raster over half the machine's memory
+  - `thumbnail_probe(path)` - What a file's first bytes say it is and what its header says its size is, without decoding; the page calls it for every file on a card at once. Refuses bytes fuji does not know and a header claiming a raster over half the machine's memory
   - `thumbnail_render(path, format, maximum, gamut)` - Decode the file scaled so its longer side is at most `maximum` pixels, oriented and color-converted, returning one buffer: a 12-byte header of width, height and whether the pixels are Display P3, then straight-alpha RGBA. Refuses a file whose bytes are not `format`. Runs on Tauri's thread pool. Rejects on Linux
   - `SquareFlow.vue` is the caller; the thumbnail pipeline document on the site says which files go here and which the page makes for itself
 
@@ -227,7 +234,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **Important Architecture Notes**:
 - File I/O uses synchronous operations; `disk_read()` loads entire files into memory (suitable for images, not large files)
-- `disk.rs` holds no guard on paths, deliberately: its opening essay is the contract, and the walls are outside the file
+- `disk.rs` holds no guard on paths, deliberately: its opening essay is the contract, and the walls are outside the file, argued once in `lib.rs`
 - Comments in `disk.rs` extensively document memory efficiency tradeoffs between direct reads vs. streaming
 - Platform-specific code uses `#[cfg(target_os = "...")]` attributes for Windows/macOS/Linux
 
@@ -242,7 +249,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `HelpPanel.vue` - Every shortcut fuji has, in one text; the shell draws it over every view and owns its `h` key, and `hud.help` remembers whether it was open
 - `Sheet.vue` - The contact sheet: one folder seen whole, as a top-to-bottom scroll over a stack of cards
 - `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to the flow; names the one flow there is, and a second one brings a register back with it
-- `SquareFlow.vue` - The one flow, and the whole of how a path becomes a tile: probes a card's files in one call, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden. `TagFlow.vue` and `CanvasFlow.vue` were the experiment it replaced and are deleted
+- `SquareFlow.vue` - The one flow, and the whole of how a path becomes a tile: probes a card's files together, a call each, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden. `TagFlow.vue` and `CanvasFlow.vue` were the experiment it replaced and are deleted
 - `DiamondTable.vue` - One of fuji's tables, showing one image sized to an invisible diamond on an infinite pannable plane:
   - Handles the events the shell hands it, plus wheel, pointer, and double-click on its own element
   - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
@@ -271,8 +278,18 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `open.js` - Exposes the files fuji was opened with:
   - `openFiles()`
 
-- `associate.js` - Composes the type list out of `imageTypes` and hands it down:
-  - `associateRegister()`
+- `associate.js` - What fuji offers Windows to open, and the whole of the policy: which keys, which values, in what order, and the gate that only an installed copy registers:
+  - `associateRegister()` - Resolves to a line for the log, blank where there was nothing to do
+  - `associations.md` is the whole subject; macOS needs nothing here, since its declaration is `CFBundleDocumentTypes` in `src-tauri/Info.plist`
+
+- `registry.js` - Exposes the registry commands:
+  - `registryGet(key, name)`, `registrySet(key, name, value)`, `registryNotify()`
+
+- `paths.js` - Exposes where the program is, forwardized:
+  - `pathsExecutable()`
+
+- `brand.js` - The product's name and description, imported from `tauri.conf.json` at build time:
+  - `brandName`, `brandFile` (lowercase, for file and folder names), `brandDescription`
 
 - `window.js` - Exposes where the window is and placing it, as the user sees its frame:
   - `windowFrame()`, `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
@@ -281,7 +298,8 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - `panelResolution()`
 
 - `thumbnail.js` - Exposes the operating system thumbnailer:
-  - `thumbnailRender(path, maximum, gamut)` - One ArrayBuffer, header then pixels
+  - `thumbnailProbe(path)` - `{format, width, height, problem}` for one file
+  - `thumbnailRender(path, format, maximum, gamut)` - One ArrayBuffer, header then pixels
   - `thumbnailUnpack(buffer)` - `{width, height, pixels}` shaped for `new ImageData()`
 
 - `library.js` - Pure utility functions:

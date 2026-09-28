@@ -151,7 +151,7 @@ The other way round is the reciprocal of each, 0.88, 0.82 and 0.72, and each of 
 - The mechanism is one SVG filter, one class on the root, and one CSS rule. Snippets from `Shell.vue`, to be refreshed from the code when the page is written, since the exponent is now `1 / gamma` and the class follows the number:
 
 ```html
-<filter id="fujiGamma" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
+<filter id="gammaFilter0" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
 	<feComponentTransfer>
 		<feFuncR type="gamma" :exponent="gammaExponent" />
 		<feFuncG type="gamma" :exponent="gammaExponent" />
@@ -162,7 +162,7 @@ The other way round is the reciprocal of each, 0.88, 0.82 and 0.72, and each of 
 
 ```css
 .gamma .myTile, .gamma .myImage {
-	filter: url(#fujiGamma);
+	filter: url(#gammaFilter0);
 }
 ```
 

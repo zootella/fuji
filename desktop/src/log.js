@@ -4,20 +4,21 @@ import {getCurrentWindow} from '@tauri-apps/api/window'
 import parse from 'path-browserify'
 import {forwardize} from './components/library.js'
 import {settings} from './settings.js'
+import {brandFile} from './brand.js'
 
 /*
 Fuji's log: every line the page or Rust chose to keep, in one text file per run, written when fuji exits. Off unless log.record in fuji.toml says otherwise, and off at the factory: this is for answering a question about a run, not for running the app. Turn it on, use fuji, quit, and the file is in fuji-temp under the home folder, named for the moment the run began.
 
 It exists because console.log cannot get over any of five fences, and a file gets over all of them.
 
-The first fence is the platform. A console is a different tool on the Mac and on Windows, reached through a different browser's inspector, and a note left in one is not readable from the other; a file is the same file on both. The second is who is looking. The user cannot see a console without opening an inspector, and a Claude session cannot see one at all; a file can be opened by either and handed from one to the other, which is the whole reason to keep a note. The third is development against production. A console exists only in a development build with the inspector open; a production build of fuji has no console, and a line written to it goes nowhere; a file is written by the same code in both. The fourth is where fuji is installed, in an application folder, a portable folder, or a checkout being run with pnpm local; the file lands under the user's home folder whichever it is. The fifth, and the one that made this a redesign rather than a rename, is the language. console.log belongs to the page, and Rust has only stderr, which goes somewhere else again; a line that matters can be born on either side, and this log takes both into one file. So the rule is: every line fuji wants kept comes here, from any file and from either language, and the console is used in exactly two places, both of them below, where the log is reporting that the log itself is broken and has nowhere else to say it.
+The first fence is the platform. A console is a different tool on the Mac and on Windows, reached through a different browser's inspector, and a note left in one is not readable from the other; a file is the same file on both. The second is who is looking. The user cannot see a console without opening an inspector, and a Claude session cannot see one at all; a file can be opened by either and handed from one to the other, which is the whole reason to keep a note. The third is development against production. A console exists only in a development build with the inspector open; a production build of fuji has no console, and a line written to it goes nowhere; a file is written by the same code in both. The fourth is where fuji is running from, an installed copy or a checkout being run with pnpm local; the file lands under the user's home folder whichever it is. The fifth, and the one that made this a redesign rather than a rename, is the language. console.log belongs to the page, and Rust has only stderr, which goes somewhere else again; a line that matters can be born on either side, and this log takes both into one file. So the rule is: every line fuji wants kept comes here, from any file and from either language, and the console is used in exactly two places, both of them below, where the log is reporting that the log itself is broken and has nowhere else to say it.
 
-Two functions called log, one here and one in log.rs, each taking a string the way console.log does. This one gathers lines and hands them down after things go quiet, so even that small crossing never lands beside a flip being timed; performance.md has why nothing else may touch the disk during a session. Rust's appends in place. Lines from the two sides keep no exact order against each other, and console.log never promised one either, so every line begins with who wrote it and when: this window's label, or rust--, and the utc time, to the millisecond, of when it was recorded rather than when it was handed down. On the mac several windows share one file, and that prefix is how their lines are told apart. The cost of writing at exit is that a crash loses the log, which is the right trade for an instrument, since a crash mid-run invalidates the measurement anyway.
+Two functions called log, one here and one in log.rs, each taking a string the way console.log does. This one gathers lines and hands them down after things go quiet, so even that small crossing never lands beside a flip being timed; performance.md has why nothing else may touch the disk during a session. Rust's appends in place. Lines from the two sides keep no exact order against each other, and console.log never promised one either, so every line begins with who wrote it and when: this window's label, or rust----, and the utc time, to the millisecond, of when it was recorded rather than when it was handed down. On the mac several windows share one file, and that prefix is how their lines are told apart. The cost of writing at exit is that a crash loses the log, which is the right trade for an instrument, since a crash mid-run invalidates the measurement anyway.
 
 The typed rows — a load, a flip, a thumbnail, a card — are helpers over log() that write aligned columns, because reading a hundred flips means reading down a column rather than along a row. Loads and flips are interleaved on purpose, since a decode landing in the middle of a flip is what explains a slow one. performance.md says what the rows mean and what they have already shown.
 */
 
-const logFolder = 'fuji-temp'//under the user's home folder, on every platform; rust makes it on the way out if it is missing
+const logFolder = `${brandFile}-temp`//fuji-temp, under the user's home folder, on every platform; rust makes it on the way out if it is missing
 const logQuiet = 1500//milliseconds of nothing happening before pending lines go down to rust; long enough that a burst of flipping sends once rather than once a flip
 const logCeiling = 5000//lines, after which recording stops rather than growing without end; the beginning of a session is the most diagnostic part of it, so this keeps the start and drops the rest
 
@@ -27,7 +28,7 @@ let logPending = []//lines recorded but not yet handed down; rust holds everythi
 let logTotal = 0//lines ever recorded, which is what the ceiling counts
 let logFull = false//the ceiling was reached, which the file says plainly so a short log is never mistaken for a quiet session
 let logQuietTimer = null
-let logWindow = ''//this window's label, fuji-1 and on, which starts every line it records; read at the start of a run rather than at import, so the module loads outside tauri too
+let logWindow = ''//this window's label, window-1 and on, which starts every line it records; read at the start of a run rather than at import, so the module loads outside tauri too
 
 export function logStart(label) {//name this run and hand rust the file; the shell calls this once, after settings are read
 	logRecording = settings.log.record
@@ -37,7 +38,7 @@ export function logStart(label) {//name this run and hand rust the file; the she
 
 	let stamp = sayStamp(new Date())
 	homeDir()
-		.then(home => invoke('log_start', {path: parse.join(forwardize(home), logFolder, `fuji-log-${stamp}.txt`)}))
+		.then(home => invoke('log_start', {path: parse.join(forwardize(home), logFolder, `${brandFile}-log-${stamp}.txt`)}))
 		.then(() => { logStarted = true; logHeader(label, stamp); logLater() })//the header first, then whatever lines gathered while the path was crossing
 		.catch(error => { logRecording = false; console.error('log, starting:', error) })//a recording nobody can write is worse than none; the console because the thing that would have taken this line is the thing that just failed
 }
@@ -87,9 +88,9 @@ function logSend() {
 
 function logHeader(label, stamp) {//once, ahead of the first lines
 	logPending.unshift(
-		`# fuji log, ${logWindow}, ${label}, run began ${stamp} utc`,//on the mac a second window's header lands partway down, and says where it joined the run the first one started
+		`# ${brandFile} log, ${logWindow}, ${label}, run began ${stamp} utc`,//on the mac a second window's header lands partway down, and says where it joined the run the first one started
 		`# flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`,
-		`# every line the page and rust chose to keep, roughly in the order they happened, each beginning with the window that recorded it, or rust--, and the utc time; other times in milliseconds`,
+		`# every line the page and rust chose to keep, roughly in the order they happened, each beginning with the window that recorded it, or rust----, and the utc time; other times in milliseconds`,
 		`# a load row: disk is the read, render the decode. A flip row: store is the wait on the cache, zero for an image it already had, and paint is the swap reaching the screen`,
 		`# a thumb row is one thumbnail the sheet made: hit is its path, native, page or img, or refused with the reason in the note; render is the milliseconds to make it; bytes its canvas; natural its pixels`,
 		`# a card row is one card filled: index is how many images, render the milliseconds, bytes the canvases, and the note the count by path`,

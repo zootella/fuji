@@ -13,6 +13,7 @@ import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
+import {brandName} from '../brand.js'
 import {log} from '../log.js'//log.js imports forwardize from here in return, which is fine: neither file calls the other while the modules are loading, only later from inside a function
 
 //promises
@@ -151,11 +152,12 @@ export function windowTitle(showing, path, folder) {//what the title bar says: t
 	The suffix is where the platforms genuinely differ, so this is one of the few places fuji does something different on each. Windows spells a document window 'name - App', which Notepad and Paint still do, and a taskbar button carries that string. macOS spells it just the name, because the application's own name is already in the menu bar an inch away and repeating it there reads as a mistake — Preview and TextEdit both show the bare filename. GNOME agrees with macOS and its file manager shows a bare folder name. KDE would rather have 'name — App' with an em dash, which is a third form and is not followed here.
 	*/
 	let name = showing == 'Sheet' ? folder && parse.basename(folder) : path && parse.basename(path)
-	if (!name) return 'Fuji'//nothing open yet, or a path with no last segment like a bare root; either way the application's own name and nothing else
-	return platform() == 'windows' ? name + ' - Fuji' : name
+	if (!name) return brandName//nothing open yet, or a path with no last segment like a bare root; either way the application's own name and nothing else
+	return platform() == 'windows' ? `${name} - ${brandName}` : name
 }
 
 const sheetPreset = {width: 0.6, height: 0.85}//how big the sheet's window opens when settings have no size that fits, as portions of the work area's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
+const sheetWidest = 16 / 9//but the preset is never wider than this for its height, so a super wide monitor gets a sheet rather than a banner. The portions above make about 1.2 to 1 on a 16:10 laptop, 1.3 on a 16:9 screen and 1.7 on a 21:9 one, so only the 32:9 screens meet this, which would otherwise open a sheet 2.6 to 1 and over three thousand pixels wide. A size the user gave a sheet is theirs, and is never capped
 
 export async function screenAreas() {//the screen this window is on, whole and less the menu bar, dock or taskbar, each as {x, y, width, height} in css pixels; false when there is no monitor to ask
 	let m = await currentMonitor()
@@ -165,7 +167,8 @@ export async function screenAreas() {//the screen this window is on, whole and l
 	return {screen: rect(m.position, m.size), work: rect(m.workArea.position, m.workArea.size)}
 }
 export function rectSheet(work, saved) {//where the contact sheet's window goes, in css pixels: the size the user last gave a sheet if it fits the work area, or sheetPreset of the work area if not, and a random place inside it either way, so two sheets opened at once almost never land on each other. saved is the size from settings, a width of 0 meaning none
-	let width = Math.round(work.width * sheetPreset.width), height = Math.round(work.height * sheetPreset.height)
+	let height = Math.round(work.height * sheetPreset.height)
+	let width = Math.min(Math.round(work.width * sheetPreset.width), Math.round(height * sheetWidest))
 	if (saved.width > 0 && saved.width <= Math.round(work.width) && saved.height <= Math.round(work.height)) { width = saved.width; height = saved.height }//a size from a bigger desktop, or from before the dock moved, gives way to the preset. Compared in whole pixels, because settings keep whole pixels and a work area at a fractional scale, 150 percent on windows, is fractional in css pixels, so a maximized sheet saved at 1707 would otherwise fail to fit a work area 1706.67 wide
 	return {x: Math.round(work.x + Math.random() * (work.width - width)), y: Math.round(work.y + Math.random() * (work.height - height)), width, height}//the room left over along each axis, rolled evenly
 }

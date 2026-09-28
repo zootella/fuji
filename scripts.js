@@ -1,5 +1,3 @@
-//./scripts.js
-
 import {execFile, execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from 'node:fs'

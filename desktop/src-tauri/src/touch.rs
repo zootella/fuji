@@ -24,7 +24,7 @@ pub fn touch_block(window: tauri::WebviewWindow, on: bool) -> Result<(), String>
 
 	#[cfg(not(target_os = "macos"))]
 	{
-		let _ = (window, on);//there is nothing to do with them here; the same reasoning as associate.rs
+		let _ = (window, on);//there is nothing to do with them here; spelling the parameters _window and _on instead would hide genuinely unused ones on the mac
 		Ok(())
 	}
 }

@@ -1,9 +1,9 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "default",
-	"description": "Capability for every window fuji makes",
+	"description": "Capability for every window the application makes",
 	"windows": [
-		"fuji-*"
+		"window-*"
 	],
 	"permissions": [
 		"core:default",

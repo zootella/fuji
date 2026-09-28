@@ -21,14 +21,14 @@ Fuji places its windows itself because neither platform does it well. Windows ca
 */
 
 static WINDOW_COUNT: AtomicUsize = AtomicUsize::new(0);//how many windows this process has ever made, which is where the next label comes from
-fn window_label() -> String { format!("fuji-{}", WINDOW_COUNT.fetch_add(1, Ordering::Relaxed) + 1) }//counted rather than reused, so a label never names two windows even after one closes; capabilities/default.json grants to fuji-*
+fn window_label() -> String { format!("window-{}", WINDOW_COUNT.fetch_add(1, Ordering::Relaxed) + 1) }//counted rather than reused, so a label never names two windows even after one closes; capabilities/default.json grants to window-*
 
 /// Make a hidden window for these pictures, for its page to place and reveal
 pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
 	let label = window_label();
 	open::open_hold(app, &label, paths);//before the window exists, so its page finds them the moment it mounts and asks
 	WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
-		.title("Fuji")
+		.title(&app.package_info().name)//the product name from tauri.conf.json, until the page titles the window for what it shows
 		.visible(false)//the page places it and then shows it, once it has something to draw
 		.fullscreen(false)
 		.build()?;
@@ -50,7 +50,7 @@ pub fn window_open(app: &AppHandle, paths: Vec<String>) {
 #[cfg(all(target_os = "macos", not(debug_assertions)))]
 pub fn window_stays_resident() -> bool { true }
 #[cfg(not(all(target_os = "macos", not(debug_assertions))))]
-pub fn window_stays_resident() -> bool { false }//and a debug build answers no on the mac as well, the way associate.rs excuses itself from the registry for its own reasons. pnpm local runs the binary out of target/debug rather than a bundle, so there is no dock tile a user could click to ask for a window back, and closing the window is how a development run is meant to end
+pub fn window_stays_resident() -> bool { false }//and a debug build answers no on the mac as well. pnpm local runs the binary out of target/debug rather than a bundle, so there is no dock tile a user could click to ask for a window back, and closing the window is how a development run is meant to end
 
 /*
 Where a window is, as the person looking at the screen would say.

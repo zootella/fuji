@@ -12,7 +12,7 @@ import {xy, imageTypes, errorImageData, platform} from './library.js'
 /*
 The one flow, and the whole of how a path becomes a tile. A card hands this its paths. The extension says what kind of tile each gets: a GIF or an SVG is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count. A canvas gets its pixels one of two ways. A format on this platform's native list goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
-First, one probe for the whole card: Rust reads each file's first bytes and its header and says what it is and how big, without decoding. A file whose bytes are not what its name claims, or not any format fuji knows, or whose header claims a raster that would not fit in memory, gets the placeholder and nothing is tried. Every other tile is laid out at its final size at once, so the flow does not reflow as it fills.
+First, a probe for every file on the card, all at once: Rust reads each file's first bytes and its header and says what it is and how big, without decoding. A file whose bytes are not what its name claims, or not any format fuji knows, or whose header claims a raster that would not fit in memory, gets the placeholder and nothing is tried. Every other tile is laid out at its final size at once, so the flow does not reflow as it fills.
 
 Two loops. The native loop keeps a few thumbnails in flight, each a pool thread that never touches the page. The page loop keeps one, each a full decode held in the store and a draw on the main thread. Both stop when the card goes away, and both wait while the sheet is hidden, so a sheet behind the table does no work inside the table's frames.
 
@@ -63,7 +63,7 @@ onBeforeUnmount(() => {
 async function flowFill() {//probe, lay out, then fill by path
 	let began = performance.now()
 	await flowShowing()
-	let probes = await thumbnailProbe(props.paths)
+	let probes = await Promise.all(props.paths.map(path => thumbnailProbe(path)))//every file on the card at once, a call each, since the layout below waits for all of them
 	if (flowClosed) return
 	for (let [i, tile] of flowTiles.value.entries()) flowApply(tile, probes[i])
 

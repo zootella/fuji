@@ -1,5 +1,3 @@
-//./.vitepress/theme/downloads.js
-
 /*
 Fuji's downloads, end to end: from the machine that built an installer to the page that offers it.
 

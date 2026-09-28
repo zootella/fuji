@@ -5,9 +5,10 @@ import {diskRead, diskWrite} from './disk.js'
 import {desktopExitHold} from './desktop.js'
 import {forwardize} from './components/library.js'
 import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
+import {brandFile} from './brand.js'
 
-const settingsFileName = 'fuji.toml'//in the user's home folder for now; portable installs and the per-platform config folders are a later decision
-const settingsHeader = `# fuji.toml — fuji reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
+const settingsFileName = `${brandFile}.toml`//fuji.toml, in the user's home folder for now; the per-platform config folders are a later decision, and a portable copy carrying its own is not one, since fuji is always installed
+const settingsHeader = `# ${settingsFileName} — fuji reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
 
 const settingsThumbnailSizes = ['Small', 'Medium', 'Large', 'Xl']//the four named thumbnail sizes; each names the setting below it, lowercased
 

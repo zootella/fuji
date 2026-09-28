@@ -3,7 +3,7 @@ The operating system's thumbnailer, called from Rust: ImageIO on the Mac and the
 
 Both libraries take a path or bytes, and the path is right: the library reads the file itself and the page never holds it. That is the same trust disk_read extends, under the contract disk.rs states.
 
-Two commands. thumbnail_probe takes a card's paths and says, for each, what its first bytes are and what its header claims its size is, without decoding, so the page can route every file and lay out every box before any thumbnail is made. thumbnail_render makes one thumbnail. Both hold the same two walls: bytes that are not a format fuji handles are refused whatever the extension, and a header claiming a raster that would not fit in half this machine's memory is refused before any decoder allocates. That second is the decompression bomb, which needs no bug in anything, and it is a share of the machine's memory rather than a number, so it never limits capable hardware.
+Two commands. thumbnail_probe takes one path and says what its first bytes are and what its header claims its size is, without decoding; the page asks it about every file on a card before anything else, so it can route every file and lay out every box before any thumbnail is made. thumbnail_render makes one thumbnail. Both hold the same two walls: bytes that are not a format fuji handles are refused whatever the extension, and a header claiming a raster that would not fit in half this machine's memory is refused before any decoder allocates. That second is the decompression bomb, which needs no bug in anything, and it is a share of the machine's memory rather than a number, so it never limits capable hardware.
 
 The render returns one buffer, so the bytes cross as an ArrayBuffer rather than a json array of numbers — that serialization was measured at about 150 milliseconds a megabyte, flat and linear in file size, which no disk is. Twelve bytes of header — width, height, and whether the pixels are Display P3 — as little-endian unsigned 32-bit integers, then straight-alpha RGBA, top row first; thumbnail.js unpacks it for ImageData. The longer side is the maximum asked for, or the picture's own when it was smaller, because neither library enlarges.
 
@@ -30,10 +30,10 @@ pub struct Probe {//what the probe says about one path, in one shape whatever it
 	pub problem: String,//why this file will not be shown, or blank
 }
 
-//a card's worth of paths at once, so the page asks once per card rather than once per file; on tauri's thread pool, like the render
+//one path; the page asks about a card's files together, and each runs on tauri's thread pool, like the render
 #[tauri::command(async)]
-pub fn thumbnail_probe(paths: Vec<String>) -> Vec<Probe> {
-	paths.iter().map(|path| probe(path)).collect()
+pub fn thumbnail_probe(path: String) -> Probe {
+	probe(&path)
 }
 
 //the one thumbnail; the async in the attribute has tauri run this sync body on its thread pool, which is what keeps a decode off the thread that runs the window
@@ -43,7 +43,7 @@ pub fn thumbnail_render(path: String, format: String, maximum: u32, gamut: Strin
 	if maximum == 0 { return Err("thumbnail_render: expected a longest side of at least 1".into()) }
 	let head = head(&path)?;
 	let found = sniff(&head);
-	if found.is_empty() { return Err(format!("thumbnail: the first bytes are not an image fuji knows: {path}")) }//before the comparison below, because blank matches blank: a caller that named no format would otherwise walk an unknown file straight past this wall
+	if found.is_empty() { return Err(format!("thumbnail: the first bytes are not a known image format: {path}")) }//before the comparison below, because blank matches blank: a caller that named no format would otherwise walk an unknown file straight past this wall
 	if found != format { return Err(format!("thumbnail: the bytes say {found} and the caller expected {format}: {path}")) }//the first wall, held here as well as in the probe, so a caller that skipped the probe cannot hand this a mystery
 	let wide = gamut == "display-p3";//anything else is srgb, which is what a canvas is unless asked
 	let t = platform::render(&path, maximum, wide)?;//which holds the second wall, the ceiling, because it has the header in hand before it decodes
@@ -60,7 +60,7 @@ fn probe(path: &str) -> Probe {//one file: its format from its bytes, its size f
 	let mut p = Probe { format: String::new(), width: 0, height: 0, problem: String::new() };
 	let head = match head(path) { Ok(head) => head, Err(problem) => { p.problem = problem; return p } };
 	p.format = sniff(&head).to_string();
-	if p.format.is_empty() { p.problem = "the first bytes are not an image fuji knows".into(); return p }
+	if p.format.is_empty() { p.problem = "the first bytes are not a known image format".into(); return p }
 
 	let (mut width, mut height) = head_size(&p.format, &head);//png, gif and bmp say their size in the bytes already read
 	if width == 0 && matches!(p.format.as_str(), "jpeg" | "webp" | "avif" | "heic") {//the rest need the library to read further into the header, which the mac and windows can do without decoding and linux cannot

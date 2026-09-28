@@ -6,7 +6,7 @@ use tauri::command;
 /*
 The design contract of this module: these commands hand the interface the full, standard power a desktop application has over the disk — the same power a native Mac or Windows app wields through its file APIs. They follow POSIX semantics faithfully, sharp edges included: disk_copy overwrites an existing destination, just like cp and std::fs::copy do, and disk_write truncates one. Code that calls these commands must be careful, exactly as native application code must.
 
-The commands take any path and hold no guard, so the safety of the whole application rests on walls outside this file. First, every path originates from a user gesture — a drag onto the window, a choice in a dialog — never from outside content. Second, untrusted text (file names, file contents, metadata) reaches the page only through Vue's escaping interpolation, so it can never become script that calls these commands. Third, the Content-Security-Policy in tauri.conf.json keeps foreign script out of the webview even if a first wall someday cracks.
+The commands take any path and hold no guard, on purpose: the page alone knows what a path means and whether writing it is right, and a guard here would be a second copy of that knowledge. So the safety of the whole application rests on walls outside this file, and lib.rs has the long version of what they are.
 
 Two of these commands now change the disk rather than read it. disk_copy writes a file the user asked for; disk_write is how settings and the performance log reach the disk at all, and both of its callers hand it a path they built themselves rather than one that came from the page. That is the current line, and it is thinner than it was when this contract was first written.
 

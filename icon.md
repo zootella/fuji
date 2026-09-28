@@ -350,7 +350,7 @@ It was looked at **without installing**, which is worth recording because it mak
 
 The first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are three drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
 
-**Why there are any.** `associate.rs` writes a `DefaultIcon` per ProgID. With nothing else to name it named fuji's own executable, and every picture a user let fuji open wore the application icon — a full-bleed mint disc, identical on every file, most visible in Details view and with Explorer's thumbnails turned off. An application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document.
+**Why there are any.** `associate.js` writes a `DefaultIcon` per ProgID. With nothing else to name it named fuji's own executable, and every picture a user let fuji open wore the application icon — a full-bleed mint disc, identical on every file, most visible in Details view and with Explorer's thumbnails turned off. An application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document.
 
 **Three, and only one is used.**
 
@@ -370,7 +370,7 @@ That is **a richer set than `tauri icon` produces** for the application icon: ou
 
 **The safe-area rule above does not apply here, and nobody should apply it.** The one sentence the platform sections keep restating — the circle touches the bounds, macOS excepted — is about an *application* icon sitting on a grid of other application icons. A document icon sits among other documents, has a shape of its own, and gets whatever margin its artwork wants. A later session finding these files inset should leave them alone.
 
-**How one reaches Explorer.** Three hops, and no new machinery in any of them. `bundle.resources` in `tauri.conf.json` maps each file to a bare filename, which Tauri lands beside the executable — the same mechanism, proven by the Start menu tile, that needs no NSIS or WiX template. `associate.rs` builds the icon location from `current_exe()`'s own directory and falls back to the application icon if the file is not there. And `SHChangeNotify` already fires whenever a value moves, so Explorer catches up without a sign-out.
+**How one reaches Explorer.** Three hops, and no new machinery in any of them. `bundle.resources` in `tauri.conf.json` maps each file to a bare filename, which Tauri lands beside the executable — the same mechanism, proven by the Start menu tile, that needs no NSIS or WiX template. `associate.js` builds the icon location from the program's folder, which `paths.rs` reads from `current_exe()`, and falls back to the application icon if the file is not there. And `SHChangeNotify` already fires whenever a value moves, so Explorer catches up without a sign-out.
 
 **What is not in the repository yet** is the artwork these were made from. The `.ico` files are committed artifacts like everything else here, and the lesson two sections up is that a committed artifact is frozen at whatever made it with nothing to report that it is stale — so the designer's PNG set belongs beside them, as the source of record, whenever it arrives.
 

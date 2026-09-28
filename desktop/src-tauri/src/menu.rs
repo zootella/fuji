@@ -32,7 +32,7 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 	])?;
 
 	let menu = Menu::with_items(app, &[
-		&Submenu::with_items(app, "Fuji", true, &[
+		&Submenu::with_items(app, &app.package_info().name, true, &[//the application menu, named for the product in tauri.conf.json
 			&PredefinedMenuItem::about(app, None, None)?,//the panel macos assembles out of Info.plist, which already carries fuji's name and version
 			&PredefinedMenuItem::separator(app)?,
 			&PredefinedMenuItem::services(app, None)?,

@@ -132,13 +132,13 @@ For context on how much headroom that leaves: ImageIO on a current Mac will deco
 
 ## The probe
 
-Before Fuji makes any thumbnail, one Rust call — *the probe* — reads the file's first bytes:
+Before Fuji makes any thumbnail, a Rust call — *the probe* — reads the file's first bytes. It asks about every file on a card at once, one call per file:
 
 ```js
-thumbnailProbe(paths)   // → [{format, width, height, problem}, …]
+thumbnailProbe(path)   // → {format, width, height, problem}
 ```
 
-For each file path it answers what the bytes say the file is, how big the header claims the picture is, and, if Fuji will not show it, why. It decodes nothing to answer any of that.
+For a file path it answers what the bytes say the file is, how big the header claims the picture is, and, if Fuji will not show it, why. It decodes nothing to answer any of that.
 
 The format comes from a signature table, the same signatures Chromium chooses a decoder by:
 

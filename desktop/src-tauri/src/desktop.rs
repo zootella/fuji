@@ -33,7 +33,7 @@ pub fn desktop_exit_write(app: &AppHandle) {
 	let mut files = state.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());//panicking here would lose the settings silently, for nothing
 	for (path, text) in files.drain() {//drain empties as it goes, so nothing is written twice if this is somehow reached again
 		if let Err(e) = disk::disk_write(path, text.into_bytes()) {//a rename, not a conversion: a String is already the utf-8 bytes disk_write wants
-			eprintln!("fuji could not write a file on the way out: {e}");//nothing above can be told now, and the process is leaving
+			eprintln!("could not write a file on the way out: {e}");//nothing above can be told now, and the process is leaving
 		}
 	}
 }
