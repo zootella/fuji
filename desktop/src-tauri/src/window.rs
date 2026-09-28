@@ -55,9 +55,11 @@ pub fn window_stays_resident() -> bool { false }//and a debug build answers no o
 /*
 Where a window is, as the person looking at the screen would say.
 
-Tauri's outer position and size are the platform's own window rectangle, and on the mac that is what anyone would mean: a frame there leaves the shadow out. On Windows 10 and 11 it does not. The rectangle includes the resize borders, which since Windows 10 are invisible, about 7 backing pixels on the left, the right and the bottom at 100 percent. So the numbers say a window is 7 backing pixels wider on each side and taller at the bottom than anything drawn on the screen, and a window placed flush with the edge of the work area by them stops 7 backing pixels short of it. The desktop window manager knows where the visible frame is, through DwmGetWindowAttribute with DWMWA_EXTENDED_FRAME_BOUNDS, and window_seen is the one place that answer belongs.
+Tauri's outer position and size are the platform's own window rectangle, and on the mac that is what anyone would mean: a frame there leaves the shadow out. On Windows 10 and 11 it does not. The rectangle includes the resize borders, the thick frame a window is grabbed by, which Windows 10 kept and made transparent: about 7 backing pixels on the left, the right and the bottom at 100 percent. So the numbers say a window is 7 backing pixels wider on each side and taller at the bottom than anything drawn on the screen, and a window placed flush with the edge of the work area by them stops 7 backing pixels short of it. The desktop window manager knows where the visible frame is, through DwmGetWindowAttribute with DWMWA_EXTENDED_FRAME_BOUNDS, and window_seen is the one place that answer belongs. Every rectangle and metric Windows hands back here is in backing pixels, the display resolution, because fuji declares itself DPI aware; window_frame and window_frame_set are where they become css pixels, dividing or multiplying by backing per css.
 
-It does not have it yet: it passes the outer rectangle through on every platform, until the Windows body is written and measured on that machine. The measuring matters, because fuji places its windows while they are still hidden, and that attribute is known to answer badly for a window that has never been shown. Everything else here is already written against window_seen, so the correction is one function body and nothing that calls it changes.
+That answer is right only once a window has been shown. For one that never has, the manager returns the outer rectangle unchanged, and every window fuji places is one of those, because it places them hidden. So while a window is hidden window_unseen works the border out instead: the resize frame and its padding at the window's own DPI, less the one pixel of it that is drawn, on the left, the right and the bottom and never the top. The top border is there too, but painted as the upper band of the title bar rather than left transparent, which is why a maximized window, with its frame pushed off the screen, loses exactly that much of its title bar: 8 of 31 backing pixels at 100 percent. A maximized window hangs the whole frame off every side of the screen, top included, and a fullscreen one has no resize border at all.
+
+All of that was measured on the Windows 10 box on 2026-09-28, at 1920 by 1200. The border came to 7, 8, 10 and 11 backing pixels at 100, 125, 150 and 175 percent, the formula and the manager agreeing at every one; maximized hung 8 off every side at 100 percent and 11 at 150, and fullscreen none. A sheet placed one backing pixel in from each corner of the work area showed exactly one pixel of desktop and then the one-pixel border at every scale, with the taskbar at the bottom and on the left, and read back the css frame it had asked for, fractions and all. A window that has been shown keeps the manager's right answer after it is hidden again, so only the never-shown case needs the arithmetic, but a hidden window cannot say which it is, and the two agree.
 
 The page reads and places a window through window_frame and window_frame_set, in css pixels, and so never learns that a platform counts borders it does not draw.
 */
@@ -87,12 +89,44 @@ pub fn window_frame_set(window: WebviewWindow, frame: Frame) -> tauri::Result<()
 	window_seen_move(&window, PhysicalPosition::new((frame.x * backing_per_css).round() as i32, (frame.y * backing_per_css).round() as i32))
 }
 
-//the visible frame, in backing pixels, which tauri calls physical: the outer rectangle on every platform for now, and the place the windows correction goes
+//the visible frame, in backing pixels, which tauri calls physical: the outer rectangle less whatever the platform counts in it and does not draw
 fn window_seen(window: &WebviewWindow) -> tauri::Result<(PhysicalPosition<i32>, PhysicalSize<u32>)> {
-	Ok((window.outer_position()?, window.outer_size()?))
+	let (at, size) = (window.outer_position()?, window.outer_size()?);
+	let (left, top, right, bottom) = window_unseen(window);
+	Ok((PhysicalPosition::new(at.x + left, at.y + top), PhysicalSize::new((size.width as i32 - left - right).max(0) as u32, (size.height as i32 - top - bottom).max(0) as u32)))
 }
 
-//move the window so its visible corner lands here. set_position places the outer corner, so this steps back by whatever lies between the outer corner and the visible one, which is nothing until window_seen learns otherwise
+//what the outer rectangle holds beyond the visible frame, left, top, right and bottom: nothing, off windows
+#[cfg(not(target_os = "windows"))]
+fn window_unseen(_window: &WebviewWindow) -> (i32, i32, i32, i32) { (0, 0, 0, 0) }
+
+//the invisible resize border, left, top, right and bottom, in backing pixels; the essay above has the rule and the measurements
+#[cfg(target_os = "windows")]
+fn window_unseen(window: &WebviewWindow) -> (i32, i32, i32, i32) {
+	use windows::Win32::Foundation::{HWND, RECT};
+	use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+	use windows::Win32::UI::HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi};
+	use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongW, GetWindowRect, IsIconic, IsWindowVisible, IsZoomed, GWL_STYLE, SM_CXBORDER, SM_CXPADDEDBORDER, SM_CXSIZEFRAME, WS_THICKFRAME};
+
+	let Ok(handle) = window.hwnd() else { return (0, 0, 0, 0) };
+	let h = HWND(handle.0);//tauri's windows crate is an older version than fuji's, so the handle crosses as the pointer inside it
+	unsafe {
+		if IsWindowVisible(h).as_bool() && !IsIconic(h).as_bool() {//shown, so the manager knows, and knows for maximized and snapped windows as well as ordinary ones
+			let (mut outer, mut seen) = (RECT::default(), RECT::default());
+			if GetWindowRect(h, &mut outer).is_ok() && DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, &mut seen as *mut RECT as *mut _, std::mem::size_of::<RECT>() as u32).is_ok() {
+				return (seen.left - outer.left, seen.top - outer.top, outer.right - seen.right, outer.bottom - seen.bottom)
+			}
+		}
+		if GetWindowLongW(h, GWL_STYLE) as u32 & WS_THICKFRAME.0 == 0 { return (0, 0, 0, 0) }//no resize border at all, which is fullscreen
+		let dpi = GetDpiForWindow(h);//the window's own, 96 at 100 percent, which the metrics below are asked at: a system metric is otherwise the primary display's, and Windows rounds each metric at each scale on its own, so the border at 100 percent scaled up is wrong everywhere above it, 7 times 1.5 saying 10.5 where the border is 10
+		let frame = GetSystemMetricsForDpi(SM_CXSIZEFRAME, dpi) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+		if IsZoomed(h).as_bool() { return (frame, frame, frame, frame) }//maximized, with the whole frame off every side of the screen
+		let unseen = frame - GetSystemMetricsForDpi(SM_CXBORDER, dpi);//less the one pixel of it that is drawn
+		(unseen, 0, unseen, unseen)//none on top, where the same border is the title bar's upper band, drawn rather than transparent
+	}
+}
+
+//move the window so its visible corner lands here. set_position places the outer corner, so this steps back by whatever lies between the outer corner and the visible one, which on windows is the invisible border's left and top
 fn window_seen_move(window: &WebviewWindow, to: PhysicalPosition<i32>) -> tauri::Result<()> {
 	let outer = window.outer_position()?;
 	let (seen, _) = window_seen(window)?;
