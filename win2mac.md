@@ -1,4 +1,4 @@
-# From the Windows box to the Mac: copies that start together
+# From the Windows box to the Mac: copies that start together, and a sheet left zoomed
 
 Written on the Windows box, 2026-09-28, alongside the change to `window_first` in `window.rs`. Read this, then talk to the user before changing anything; a letter starts a conversation rather than settling one.
 
@@ -17,4 +17,11 @@ Written on the Windows box, 2026-09-28, alongside the change to `window_first` i
 1. **Select five pictures in Finder and open them with fuji.** Expect one window. The essay says the Mac already opens a selection as one window, because the shell expects Finder to hand the whole selection over in one `Opened` event and opens its window on the first picture. That was read from the shell's code rather than seen. Five windows would mean Finder sends an event per file, and the Mac would then behave differently from Windows, where the same selection now opens one window.
 2. **Leave a `pnpm local` window open for thirty seconds.** The watchdog counts a window as arrived when Tauri's `on_page_load` reports its page beginning to load, and that has only been seen to fire with WebView2. A development build is not resident, so if WKWebView's page load never reached it, the watchdog would close the window at twenty seconds and the terminal would say "window: the first window's page never began to load". Expect it to stay. A release build is resident and would stay either way, which is why only the development build can tell.
 
-Put what you find in the essay above the `WINDOW_TURN` presets, replacing "still to be confirmed there" with the answer, and then retire this letter.
+## And a sheet left zoomed
+
+Written later the same day, alongside a change to `recordSheet` and `maximizeSheet` in `Shell.vue`. The sheet now records maximized as a state rather than as a size: `sheet.maximized` in `fuji.toml` is set, `sheet.width` and `sheet.height` keep the size from before, and the next sheet is placed at that size while hidden, maximized, and then shown. On the Mac maximized is zoomed, because tao answers `isMaximized` with `isZoomed` and maximizes a titled window by calling its own `zoom:`. A minimized sheet and a sheet in a Space now record nothing, so a Space never comes back at launch.
+
+3. **Zoom the sheet, quit, and launch again.** Option-click the green button, or double-click the title bar where that is set to zoom. Expect the sheet to appear already zoomed, with no frame at its old size first. tao zooms asynchronously on the main dispatch queue while the page's `show` reaches the window through the event loop, so which lands first is not guaranteed. Then un-zoom it, and expect the size it had before you zoomed: fuji placed it there before zooming, but macOS keeps its own record of the frame to un-zoom to, and after a zoom done in code that record may not be the one fuji meant.
+4. **Resize the sheet to something you will recognize, then zoom it, or enter a Space with the green button, and quit from there.** Expect `[sheet]` in `fuji.toml` to hold the size you recognize. The size is recorded on every resize event, and both changes animate, so if the animation reports frames before `isZoomed` or `isFullscreen` turns true, an in-between frame is saved instead. That fix would belong in `recordSheet`.
+
+Put what you find about copies in the essay above the `WINDOW_TURN` presets, replacing "still to be confirmed there" with the answer, and anything the sheet needs in the essay above `placeWindow` in `Shell.vue`. Then retire this letter.

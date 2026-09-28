@@ -29,6 +29,11 @@ const settingsSchema = [
 		key: 'height',
 		factory: 0,
 	}, {
+		section: 'sheet',
+		key: 'maximized',
+		factory: false,
+		comment: 'whether you left the contact sheet maximized, which on a mac is zoomed, so the next one opens that way; the size above stays the one it had before, which is where restoring it goes',
+	}, {
 		section: 'sort',
 		key: 'order',
 		factory: 'Alphabet',

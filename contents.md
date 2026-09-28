@@ -37,7 +37,7 @@ A letter is written to a specific reader — usually a Claude Code session on th
 
 - **`argon/argon.md`**, in a folder with its program `argon.rs` and the `Cargo.toml` that builds it — to the Raspberry Pi 4B: build and run an Argon2id speed test, check that its keys match the Mac mini's, and add the results. Written 2026-09-23.
 
-- **`win2mac.md`** — from the Windows box to the Mac: copies that start together now open one window between them, take turns, or exit, and two checks only the Mac can make — that Finder opens a selection as one window, and that the watchdog sees WKWebView's page load. Written 2026-09-28.
+- **`win2mac.md`** — from the Windows box to the Mac: copies that start together now open one window between them, take turns, or exit, and two checks only the Mac can make — that Finder opens a selection as one window, and that the watchdog sees WKWebView's page load. And the sheet now remembers being maximized, which on the Mac is zoomed, with two checks of how zoom and a Space behave around it. Written 2026-09-28.
 
 - **`win2linux.md`** — from the Windows box to Linux: the same change, and the one check that matters there, that the watchdog sees WebKitGTK's page load and so leaves a working window alone. Written 2026-09-28.
 
