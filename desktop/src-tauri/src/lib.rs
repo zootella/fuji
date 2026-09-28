@@ -28,6 +28,7 @@ mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, fo
 mod window;//and window.rs: making windows, placing them, and how long the process outlives them
 
 pub fn run() {
+	window::window_launch();//first of all, so this copy's launch moment is when it started; window.rs tells a flurry of copies from a deliberate second launch by it
 	tauri::Builder::default()//start building the Tauri application
 		.plugin(tauri_plugin_opener::init())//reveal a file in finder or explorer; capabilities grant only reveal, not url opening
 		.plugin(tauri_plugin_dialog::init())//the familiar os open and save dialog boxes; capabilities grant only those two, not message boxes

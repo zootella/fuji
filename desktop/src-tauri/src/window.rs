@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::fs::{File, OpenOptions, TryLockError};
+use std::sync::{Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tauri::{command, AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
@@ -20,7 +23,25 @@ Fuji places its windows itself because neither platform does it well. Windows ca
 **How long fuji outlives its last window** is the one place fuji deliberately behaves differently on each platform, and `window_stays_resident` below is the whole of it. On Windows and Linux, closing the window closes fuji, which is what those desktops mean by closing a window. On macOS an application is a place the user is in rather than a window they have open: the dock icon stays, with its dot, which is how a Mac user reopens it, learns they can keep it there, and decides what to quit when the machine is busy. Going with that grain costs almost nothing here, because a fuji with no windows has destroyed its webviews and is the Rust host alone — and the Rust is dumb, so it is doing nothing.
 */
 
+/*
+Copies of fuji that start together.
+
+Windows and Linux start a copy of fuji for each picture opened, and Explorer starts one for every picture a user selects and opens with Enter, all within a fraction of a second. On Windows those copies race: WebView2 lets a second process into the data folder they share only once the first has its browser running, and refuses one that asks sooner. Measured on the Windows box on 2026-09-28, four copies started in the same millisecond made one window between them, as two copies of Microsoft's own sample app do. And the refusal was silent. Tauri answers a request for a window before trying it, then drops the half-made window without a word fuji can hear, so the copies that lost sat idle forever, with no window to close and nothing to end them.
+
+Three rules answer it. A copy's first window takes a turn, holding a lock on a file until its page begins to load, when the web engine is up and the next copy can join it. A flurry opens one window: the copy that takes the turn stamps the file with its launch moment, as the file's modified time, which other copies can read through the lock, and a copy launched within WINDOW_FLURRY of the stamp leaves before making anything. A user who opens a folder's worth of pictures has one to look at, and the rest a flip or a contact sheet away; a copy launched later is a deliberate second launch, and waits its turn for a window of its own. And a copy whose first page never begins to load exits after WINDOW_ARRIVAL_WAIT, so whatever goes wrong, nothing is left running without a window.
+
+The mac should open a selection as one window already, since the shell expects Finder to hand it over in one event, but that is still to be confirmed there. Its later windows never take a turn, because they join a web engine already running in the same process.
+*/
+const WINDOW_TURN_FILE: &str = "window-turn.lock";//empty, in the app's local data folder beside the web engine's own; its modified time is the stamp
+const WINDOW_TURN_WAIT: Duration = Duration::from_secs(4);//the longest a deliberate launch waits behind another copy's turn before going ahead regardless: enough for a cold start on a slow machine, and harmless when long, since a waiting copy goes the moment the turn is free
+const WINDOW_FLURRY: Duration = Duration::from_millis(200);//how close two launches must be to count as one flurry. Explorer started five copies within a tenth of a second, and fifteen across about 430 ms, which made two windows and is fine; a person's second double-click comes later than this
+const WINDOW_TURN_POLL: Duration = Duration::from_millis(20);//how often a waiting copy looks at the stamp and tries the lock, about a frame, so a flurry clears and a turn passes on unseen
+const WINDOW_ARRIVAL_WAIT: Duration = Duration::from_secs(20);//how long a copy's first page has to begin loading before the copy takes its window to be lost and exits: long, because it ends a process, and a cold start on a slow machine can take seconds
+
 static WINDOW_COUNT: AtomicUsize = AtomicUsize::new(0);//how many windows this process has ever made, which is where the next label comes from
+static WINDOW_TURN: Mutex<Option<File>> = Mutex::new(None);//the locked file while this copy has the turn; dropping it lets the next copy go
+static WINDOW_ARRIVED: AtomicBool = AtomicBool::new(false);//whether a page in this process has begun to load
+static WINDOW_LAUNCHED: OnceLock<SystemTime> = OnceLock::new();//when this copy started, which window_flurry compares with the stamp
 fn window_label() -> String { format!("window-{}", WINDOW_COUNT.fetch_add(1, Ordering::Relaxed) + 1) }//counted rather than reused, so a label never names two windows even after one closes; capabilities/default.json grants to window-*
 
 /// Make a hidden window for these pictures, for its page to place and reveal
@@ -31,6 +52,7 @@ pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
 		.title(&app.package_info().name)//the product name from tauri.conf.json, until the page titles the window for what it shows
 		.visible(false)//the page places it and then shows it, once it has something to draw
 		.fullscreen(false)
+		.on_page_load(|_, _| window_arrived())//the one sign a window really came, since build answers before anything is tried
 		.build()?;
 	Ok(())
 }
@@ -38,7 +60,78 @@ pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
 /// Make fuji's first window, unless something has already made one, which is how a launch produces exactly one window however it was started
 pub fn window_first(app: &AppHandle, paths: Vec<String>) {
 	if !app.webview_windows().is_empty() { return }//a picture opened by double-click has already been given a window: measured on the Mac mini 2026-09-14, macOS delivers that event 39 milliseconds before setup() even runs and 52 before the one that calls this, so by now it is done. Only the second number is load-bearing; the first is worth knowing because a double-click builds fuji's first window before fuji has finished setting itself up, which is the opposite of what anyone adding to setup() would assume. Making a window in setup instead of here is what used to open two, one of them blank
-	window_open(app, paths)//nothing has, so this is an ordinary launch: empty from the dock, or on the pictures the command line carried, which is how windows and linux hand over a double-click
+	let app = app.clone();
+	std::thread::spawn(move || {//nothing has, so this is an ordinary launch: empty from the dock, or on the pictures the command line carried, which is how windows and linux hand over a double-click. On a thread of its own, because taking a turn can mean waiting, and the main thread has to stay free to make the window
+		match window_turn(&app) {//the essay above says why
+			WindowTurn::Flurry => { app.exit(0); return }//launched with the copy that won, which is already opening the one window, so leave having made nothing
+			WindowTurn::Taken(file) => *window_turn_held() = Some(file),//held until the first page begins to load
+			WindowTurn::Without => {}
+		}
+		window_open(&app, paths);
+		std::thread::sleep(WINDOW_ARRIVAL_WAIT);
+		if !WINDOW_ARRIVED.load(Ordering::Relaxed) { window_lost(&app) }//whichever way it failed, including the way tauri reports to nobody
+	});
+}
+
+//what waiting for a turn came to
+enum WindowTurn {
+	Taken(File),//this copy holds the turn, and has stamped the file with its launch moment
+	Flurry,//a copy launched with this one holds the turn, or held it a moment ago, and is opening the one window
+	Without,//no turn to be had, after WINDOW_TURN_WAIT or for want of the file, so the copy goes ahead regardless
+}
+
+//wait for this copy's turn to bring its web engine up, looking at the stamp before every try, so a copy in a flurry leaves the moment it can tell rather than when the winner is done
+fn window_turn(app: &AppHandle) -> WindowTurn {
+	let Some(file) = window_turn_file(app) else { return WindowTurn::Without };
+	let began = Instant::now();
+	loop {
+		if window_flurry(&file) { return WindowTurn::Flurry }
+		match file.try_lock() {
+			Ok(()) => {
+				if window_flurry(&file) { return WindowTurn::Flurry }//the winner can stamp and let go between the look above and this lock
+				let _ = file.set_modified(window_launched());//the stamp is this copy's now; a copy that cannot stamp still opens its window, and only a flurry behind it goes unrecognized
+				return WindowTurn::Taken(file)
+			}
+			Err(TryLockError::WouldBlock) if began.elapsed() < WINDOW_TURN_WAIT => std::thread::sleep(WINDOW_TURN_POLL),
+			Err(_) => return WindowTurn::Without,//the whole wait gone by, or the lock itself refused
+		}
+	}
+}
+
+//the turn file, opened to be locked and stamped. One made new is stamped back to 1970 at once, since its own creation time would read as a fresh stamp and the copy that made it would leave as if another had won
+fn window_turn_file(app: &AppHandle) -> Option<File> {
+	let folder = app.path().app_local_data_dir().ok()?;
+	std::fs::create_dir_all(&folder).ok()?;//a first launch arrives before the web engine has made it
+	let path = folder.join(WINDOW_TURN_FILE);
+	match OpenOptions::new().write(true).create_new(true).open(&path) {
+		Ok(file) => { let _ = file.set_modified(UNIX_EPOCH); Some(file) }
+		Err(_) => OpenOptions::new().write(true).open(&path).ok(),//there already, which is every launch but the first
+	}
+}
+fn window_turn_held() -> std::sync::MutexGuard<'static, Option<File>> { WINDOW_TURN.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) }//take the turn even if a previous holder panicked, as log.rs does
+
+//whether the copy that last took the turn was launched within WINDOW_FLURRY of this one, either side, since the copy that won need not be the one that started first. The stamp is the file's modified time rather than anything written in it, because windows lets no other process read a locked file's contents but lets any process read its times, which the Windows box confirmed
+fn window_flurry(file: &File) -> bool {
+	let Ok(stamp) = file.metadata().and_then(|m| m.modified()) else { return false };
+	let gap = window_launched().duration_since(stamp).unwrap_or_else(|earlier| earlier.duration());
+	gap <= WINDOW_FLURRY
+}
+
+/// Note the moment this copy started; the run calls this before anything else, so a machine busy starting fifteen copies still records when each began rather than when tauri got round to it
+pub fn window_launch() { window_launched(); }
+fn window_launched() -> SystemTime { *WINDOW_LAUNCHED.get_or_init(SystemTime::now) }
+
+//a page has begun to load, so the web engine is up: the first window came, and the next copy can take its turn
+fn window_arrived() {
+	WINDOW_ARRIVED.store(true, Ordering::Relaxed);
+	window_turn_held().take();//dropping the file lets go of the lock
+}
+
+//the first window is not coming: let the next copy take its turn, and leave, where a copy with no window has nothing to show and nothing that would ever end it
+fn window_lost(app: &AppHandle) {
+	eprintln!("window: the first window's page never began to load, so this copy is leaving");//for a terminal running fuji; the log belongs to a page, and no page came
+	window_turn_held().take();
+	if !window_stays_resident() { app.exit(1) }//the mac keeps its process resident on purpose, window or not
 }
 
 /// Make a window and report trouble to the log rather than to a caller who has nowhere to put it; the run event closure is that caller

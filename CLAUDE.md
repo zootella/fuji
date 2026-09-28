@@ -205,8 +205,8 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - Filled from `RunEvent::Opened` on macOS and from the command line on Windows and Linux, and held rather than delivered because at launch both arrive before the page exists
 
 - `window.rs` - Making fuji's windows, placing them, and saying where one is:
-  - `window_frame()`, `window_frame_set(frame)` - Read or put the visible frame, in CSS pixels, which on Windows is not Tauri's outer rectangle; the Windows correction is still to be written, in `window_seen`
-  - Its essays carry why the Mac holds every window in one process, where a new window lands, and how long fuji outlives its last one
+  - `window_frame()`, `window_frame_set(frame)` - Read or put the visible frame, in CSS pixels, which on Windows is not Tauri's outer rectangle; `window_seen` takes off the invisible resize border there, and its essay has the rule and the measurements
+  - Its essays carry why the Mac holds every window in one process, where a new window lands, how long fuji outlives its last one, and how copies started together behave: a flurry opens one window, a later launch takes its turn, and a copy whose window never arrives exits rather than lingering
   - Labels windows `window-1` and on, and `capabilities/default.json` grants to `window-*`, so the two change together
 
 - `paths.rs` - Where this copy of the program is, which only Rust can learn:
