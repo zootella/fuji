@@ -1,7 +1,7 @@
 /*
-How many pixels are really on the glass. Not CSS pixels, not the backing store, not whatever the operating system scaled things to — the count the panel was manufactured with.
+How many panel pixels are really on the glass. Not css pixels, not backing pixels, not whatever the operating system scaled things to — the count the panel was manufactured with. That is what the Mac answers. Windows answers its display resolution, and Linux the current mode xrandr reports, which is the same kind of answer: backing, and the panel only while the display runs at its native resolution. A user who lowered the resolution instead has the monitor or the graphics card stretching backing onto the panel, and fuji neither detects that nor adjusts for it.
 
-The page cannot answer this. screen.width is CSS pixels, and devicePixelRatio is a ratio the operating system chose, so multiplying them gives the backing store rather than the hardware. On a MacBook Air running a scaled resolution those numbers describe a convenient fiction: 1710 x 1112 css against a 2560 x 1664 panel, at a ratio that matches neither. Fuji needs the real count so that "100%" can mean one image pixel sitting on one hardware pixel, which is a promise only this file can keep. library.js collects all three numbers together in screenToViewport.
+The page cannot answer this. screen.width is css pixels, and devicePixelRatio is backing per css, so multiplying them gives backing pixels rather than panel ones. On a MacBook Air running a scaled resolution those numbers describe a convenient fiction: 1710 x 1112 css against a 2560 x 1664 panel, at a ratio of panel to css that matches neither. Fuji needs the real count so that "100%" can mean one image pixel sitting on one panel pixel, which is a promise only this file can keep. library.js collects all three numbers together in measureScreen.
 
 Every operating system answers differently and none of them answers directly, so this is one command with four bodies and the detail sits beside the code it belongs to.
 
@@ -31,7 +31,7 @@ mod platform {
 
 	pub fn panel_resolution() -> Arrow {
 		panic::catch_unwind(|| unsafe {//unsafe promises the compiler we checked what it cannot; catch_unwind makes a panic a value rather than a dead app
-			let width = GetSystemMetrics(SM_CXSCREEN);//the primary display's size, and only the panel's own when the process is dpi aware
+			let width = GetSystemMetrics(SM_CXSCREEN);//the primary display's resolution, in backing pixels because the process is dpi aware, and the panel's own only while the display runs at its native resolution
 			let height = GetSystemMetrics(SM_CYSCREEN);
 			if width <= 0 || height <= 0 {//a signed int, so compare before casting: a negative cast to u32 becomes an enormous number
 				return Arrow { x: 0, y: 0 };
@@ -43,9 +43,9 @@ mod platform {
 }
 
 /*
-Quartz has no call that says "this is the native resolution." What it has is the list of every mode the display can be set to, and the tallest of those is the panel's own, because a display cannot offer more pixels than it has. So: ask for the whole list, keep the biggest. It is a heuristic rather than a fact — a display offering a mode taller than its own panel would defeat it — and it has been checked on one machine, a MacBook Air, where it returns the true 2560 x 1664.
+Quartz has no call that says "this is the panel's resolution." What it has is the list of every mode the display can be set to, and the tallest of those is the panel's own, because a display cannot offer more pixels than it has. So: ask for the whole list, keep the biggest. It is a heuristic rather than a fact — a display offering a mode taller than its own panel would defeat it — and it has been checked on one machine, a MacBook Air, where it returns the true 2560 x 1664.
 
-Two simpler calls were tried first and both answer a different question. CGDisplayPixelsHigh is one line and looks exactly right, but it reports the current display mode rather than the panel, so a scaled retina display answers with the size of the desktop it is pretending to be — 1112 where the glass has 1664. CGDisplay::main().display_mode() fails from the other direction: it gives the framebuffer of whichever mode is set, and macOS will happily render a scaled mode larger than the panel and downsample.
+Two simpler calls were tried first and both answer a different question. CGDisplayPixelsHigh is one line and looks exactly right, but it reports the current display mode rather than the panel, so a scaled retina display answers with the size of the desktop it is pretending to be — 1112 css pixels where the panel has 1664. CGDisplay::main().display_mode() fails from the other direction: it gives the backing pixels of whichever mode is set, and macOS will happily render a scaled mode larger than the panel and downsample.
 
 CoreFoundation's memory rules decide the shape of the loop below. A function with Create or Copy in its name hands you something you own and must release; a function with Get in its name lends you something you must not. Rust makes the second half easy to get wrong, because wrapping a borrowed pointer in a type that knows how to release it is exactly what you would do with an owned one — and this file did that for a year, releasing each mode once more than it had been retained, which corrupts memory rather than raising anything catch_unwind could see. The rule to carry away: a pointer from a Get function must never end up somewhere with a destructor.
 */
@@ -71,7 +71,7 @@ mod platform {
 	pub fn panel_resolution() -> Arrow {
 		panic::catch_unwind(|| unsafe {
 			let id = CGMainDisplayID();//the display with the menu bar on it, not necessarily the one fuji is showing on
-			let modes = CGDisplayCopyAllDisplayModes(id, std::ptr::null());//Copy in the name, so this array is ours to release below. The null options are load-bearing: pass kCGDisplayShowDuplicateLowResolutionModes instead and the list gains the scaled modes' backing stores, so the tallest below becomes 3420 by 2224 on a machine whose glass is 2560 by 1664 — the backing store, which is the one answer this function exists not to give. fidelity.md has the measurement
+			let modes = CGDisplayCopyAllDisplayModes(id, std::ptr::null());//Copy in the name, so this array is ours to release below. The null options are load-bearing: pass kCGDisplayShowDuplicateLowResolutionModes instead and the list gains the scaled modes' backing stores, so the tallest below becomes 3420 by 2224 on a machine whose panel is 2560 by 1664 — the backing store, which is the one answer this function exists not to give. fidelity.md has the measurement
 			if modes.is_null() {
 				return Arrow { x: 0, y: 0 };
 			}
@@ -86,7 +86,7 @@ mod platform {
 					continue;
 				}
 				let mode = ManuallyDrop::new(CGDisplayMode::from_ptr(mode_ref as *mut _));//from_ptr would release this mode; ManuallyDrop cancels that
-				let height = mode.pixel_height() as u32;//the framebuffer, not the point size: 1920 x 1080 points is backed by 3840 x 2160 pixels
+				let height = mode.pixel_height() as u32;//backing pixels, not css: a mode that looks like 1920 x 1080 is backed by 3840 x 2160
 				let width = mode.pixel_width() as u32;
 				if height > winning_height {
 					winning_height = height;

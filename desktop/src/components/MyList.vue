@@ -15,8 +15,8 @@ ${s.tauriWindowScaleFactor} from Tauri, await getCurrentWindow().scaleFactor()
 ${s.tauriMonitorScaleFactor} from Tauri, (await currentMonitor()).scaleFactor
 
 ${s.cssScreen.x} × ${s.cssScreen.y} from HTML, screen.width and screen.height (CSS pixels)
-${s.backingScreen.x} × ${s.backingScreen.y} from Tauri, (await currentMonitor()).size.width and .height (macOS backing pixels)
-${s.physicalScreen.x} × ${s.physicalScreen.y} from our own Rust code, panelResolution() 🦀 (physical pixels)
+${s.backingScreen.x} × ${s.backingScreen.y} from Tauri, (await currentMonitor()).size.width and .height (backing pixels)
+${s.panelScreen.x} × ${s.panelScreen.y} from our own Rust code, panelResolution() 🦀 (panel pixels)
 `)
 })
 
@@ -42,7 +42,7 @@ ttd august, note that on a macbook air you're seeing
 so following from the panel resolution, screen css really needs to be either
 1710.769 x 1112, or
 1710 x 1111.5
-yeah that's better so use width, not height, when computing the scale ratio css to physical
+yeah that's better so use width, not height, when computing the ratio of panel to css
 */
 
 const refLines = ref([])

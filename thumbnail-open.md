@@ -36,7 +36,7 @@ What is still unread is the rest: what a card costs to fill, how that is spread 
 
 **A thumbnail cache on disk.** How Finder is instant on a folder it has seen, and what would make the walk through a drive free on the way back. It is a store with an eviction policy, a location, and an invalidation rule, so it belongs to the document above rather than to this list.
 
-**A change of monitor.** Canvases are never remade when a window moves to a different screen, so both the device pixel ratio and the gamut go stale until the sheet rebuilds. Read from the code, never exercised, and it needs two screens of different character to exercise at all.
+**A change of monitor.** Canvases are never remade when a window moves to a different screen, so both `devicePixelRatio` and the gamut go stale until the sheet rebuilds. Read from the code, never exercised, and it needs two screens of different character to exercise at all.
 
 ## Owned somewhere else
 

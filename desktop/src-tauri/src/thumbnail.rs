@@ -365,7 +365,7 @@ mod platform {
 	fn fit(width: u32, height: u32, maximum: u32) -> (u32, u32) {//the longer side to maximum, never enlarging, which is what ImageIO does for itself on the mac
 		let longer = width.max(height);
 		if longer <= maximum { return (width, height) }
-		let scale = maximum as f64 / longer as f64;
+		let scale = maximum as f64 / longer as f64;//backing pixels per image pixel, since the page asks for maximum in backing pixels
 		(((width as f64 * scale).round() as u32).max(1), ((height as f64 * scale).round() as u32).max(1))
 	}
 

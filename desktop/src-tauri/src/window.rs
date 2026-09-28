@@ -15,7 +15,7 @@ Making fuji's windows, saying where one is, and deciding how long fuji outlives 
 
 **Where, and how big, is the page's to decide.** Every window is built hidden at whatever size Tauri defaults to, and the shell places it before the reveal: fitted around the picture for a preview, or as the contact sheet, at the size the user last gave one or a preset portion of the work area, somewhere at random inside it, by the rule library.js keeps. Rust reads none of it: the page has the settings file before it places anything. The window is hidden while this happens, so nothing flashes and nothing jumps.
 
-Fuji places its windows itself because neither platform does it well. Windows cascades new ones down a fixed staircase without checking that they fit — measured on 2026-09-13, three windows 1062 pixels tall on a work area 1160 deep, the last two hanging 6 and 40 pixels under the taskbar. macOS places nothing at all, and tao centers every window it is given no position for, so two windows of one size stack exactly on top of each other.
+Fuji places its windows itself because neither platform does it well. Windows cascades new ones down a fixed staircase without checking that they fit — measured on 2026-09-13, three windows 1062 tall on a work area 1160 deep, the last two hanging 6 and 40 under the taskbar. A work area 1160 deep on that 1200-row screen is what 100 percent leaves, so css and backing pixels were one and the numbers need no unit. macOS places nothing at all, and tao centers every window it is given no position for, so two windows of one size stack exactly on top of each other.
 
 **How long fuji outlives its last window** is the one place fuji deliberately behaves differently on each platform, and `window_stays_resident` below is the whole of it. On Windows and Linux, closing the window closes fuji, which is what those desktops mean by closing a window. On macOS an application is a place the user is in rather than a window they have open: the dock icon stays, with its dot, which is how a Mac user reopens it, learns they can keep it there, and decides what to quit when the machine is busy. Going with that grain costs almost nothing here, because a fuji with no windows has destroyed its webviews and is the Rust host alone — and the Rust is dumb, so it is doing nothing.
 */
@@ -55,7 +55,7 @@ pub fn window_stays_resident() -> bool { false }//and a debug build answers no o
 /*
 Where a window is, as the person looking at the screen would say.
 
-Tauri's outer position and size are the platform's own window rectangle, and on the mac that is what anyone would mean: a frame there leaves the shadow out. On Windows 10 and 11 it does not. The rectangle includes the resize borders, which since Windows 10 are invisible, about 7 pixels on the left, the right and the bottom at 100 percent. So the numbers say a window is 7 pixels wider on each side and taller at the bottom than anything drawn on the screen, and a window placed flush with the edge of the work area by them stops 7 pixels short of it. The desktop window manager knows where the visible frame is, through DwmGetWindowAttribute with DWMWA_EXTENDED_FRAME_BOUNDS, and window_seen is the one place that answer belongs.
+Tauri's outer position and size are the platform's own window rectangle, and on the mac that is what anyone would mean: a frame there leaves the shadow out. On Windows 10 and 11 it does not. The rectangle includes the resize borders, which since Windows 10 are invisible, about 7 backing pixels on the left, the right and the bottom at 100 percent. So the numbers say a window is 7 backing pixels wider on each side and taller at the bottom than anything drawn on the screen, and a window placed flush with the edge of the work area by them stops 7 backing pixels short of it. The desktop window manager knows where the visible frame is, through DwmGetWindowAttribute with DWMWA_EXTENDED_FRAME_BOUNDS, and window_seen is the one place that answer belongs.
 
 It does not have it yet: it passes the outer rectangle through on every platform, until the Windows body is written and measured on that machine. The measuring matters, because fuji places its windows while they are still hidden, and that attribute is known to answer badly for a window that has never been shown. Everything else here is already written against window_seen, so the correction is one function body and nothing that calls it changes.
 
@@ -69,25 +69,25 @@ pub struct Frame { x: f64, y: f64, width: f64, height: f64 }
 /// The window's visible frame, in css pixels
 #[command]
 pub fn window_frame(window: WebviewWindow) -> tauri::Result<Frame> {//tauri turns its own error into the rejection the page sees, so none of these need converting
-	let scale = window.scale_factor()?;//tauri's physical pixels per css pixel, on this window's screen
+	let backing_per_css = window.scale_factor()?;//what tauri calls the scale factor, on this window's screen
 	let (at, size) = window_seen(&window)?;
-	Ok(Frame { x: at.x as f64 / scale, y: at.y as f64 / scale, width: size.width as f64 / scale, height: size.height as f64 / scale })
+	Ok(Frame { x: at.x as f64 / backing_per_css, y: at.y as f64 / backing_per_css, width: size.width as f64 / backing_per_css, height: size.height as f64 / backing_per_css })
 }
 
 /// Put the window's visible frame exactly here, in css pixels
 #[command]
 pub fn window_frame_set(window: WebviewWindow, frame: Frame) -> tauri::Result<()> {
-	let scale = window.scale_factor()?;
+	let backing_per_css = window.scale_factor()?;
 	let (_, seen) = window_seen(&window)?;
 	let inner = window.inner_size()?;
 	let chrome = (seen.width.saturating_sub(inner.width), seen.height.saturating_sub(inner.height));//what the frame has around the content: a title bar and borders, or nothing on a window without decorations. set_size means the content, so this comes off the frame asked for
-	let width  = ((frame.width  * scale).round() as u32).saturating_sub(chrome.0);
-	let height = ((frame.height * scale).round() as u32).saturating_sub(chrome.1);
+	let width  = ((frame.width  * backing_per_css).round() as u32).saturating_sub(chrome.0);
+	let height = ((frame.height * backing_per_css).round() as u32).saturating_sub(chrome.1);
 	window.set_size(PhysicalSize::new(width, height))?;//size first and then position, because a resize on the mac keeps the bottom left corner, which is where AppKit measures from, and so moves the top; tao queues both onto the main thread, in this order
-	window_seen_move(&window, PhysicalPosition::new((frame.x * scale).round() as i32, (frame.y * scale).round() as i32))
+	window_seen_move(&window, PhysicalPosition::new((frame.x * backing_per_css).round() as i32, (frame.y * backing_per_css).round() as i32))
 }
 
-//the visible frame, in tauri's physical pixels: the outer rectangle on every platform for now, and the place the windows correction goes
+//the visible frame, in backing pixels, which tauri calls physical: the outer rectangle on every platform for now, and the place the windows correction goes
 fn window_seen(window: &WebviewWindow) -> tauri::Result<(PhysicalPosition<i32>, PhysicalSize<u32>)> {
 	Ok((window.outer_position()?, window.outer_size()?))
 }

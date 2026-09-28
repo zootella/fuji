@@ -25,7 +25,7 @@ So the case for doing it ourselves is not about the number of bytes. **It is abo
 
 An `<img>`'s decoded pixels are the engine's to keep or to drop, on a byte budget it does not publish. Under that budget the engine holds a hidden picture's decoded frame, and showing it again takes about fifteen milliseconds. Over the budget the engine throws the frame away, and showing that same picture again means reading and decoding the file from scratch, a quarter of a second for a large one. The budget covers everything else the page is holding as well. Fuji cannot ask what it is, cannot ask how much of it is spent, and the engine tells it nothing when it drops a frame — so the only move Fuji has is to hold less and hope that is enough.
 
-A canvas works the other way round. When Fuji sets a canvas to 480 by 320 device pixels, the engine allocates 480 × 320 × 4 bytes — 600 kilobytes — and gives Fuji a surface to paint on. Those bytes become the only copy of that thumbnail in the process: Fuji draws the picture in, then releases the file it came from, so nothing in the page points at the original any more.
+A canvas works the other way round. Its size is set in backing pixels, the grid the operating system draws the screen in, and when Fuji sets one to 480 by 320 the engine allocates 480 × 320 × 4 bytes — 600 kilobytes — and gives Fuji a surface to paint on. Those bytes become the only copy of that thumbnail in the process: Fuji draws the picture in, then releases the file it came from, so nothing in the page points at the original any more.
 
 That is what the engine cannot work around. It drops an `<img>`'s decoded frame only because it can decode the file again when the picture comes back on screen; here it would have nothing to decode. So the 600 kilobytes stand for exactly as long as the canvas element stands. They go when the element goes — when the user scrolls that stretch of the contact sheet away and Fuji tears the tile down, or when Fuji quits — and nothing else frees them, however hard the machine is squeezed for memory.
 
@@ -38,7 +38,7 @@ What Fuji gets for that is a number it can work out before it opens a file:
 | Large, 360 px | 1.35 MB | 270 MB |
 | XL, 480 px | 2.4 MB | 480 MB |
 
-At a [device pixel ratio](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) of 2, for an image three units wide by two tall. On Windows at 150% the same numbers are a little over half of these.
+For an image three units wide by two tall, on a Retina Mac, where a [`devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) of 2 makes each CSS pixel two backing pixels across. On Windows at 150% the same numbers are a little over half of these.
 
 Two hundred Medium thumbnails come to a hundred and twenty megabytes where two hundred full decodes would be twenty gigabytes. The saving is not really the point, since the engine was never going to hold twenty gigabytes either; the point is that Fuji knows the figure. So **every raster thumbnail in Fuji is a canvas**, whichever route made its pixels, and Fuji adds their bytes up as it goes. That turns "how much is the contact sheet holding" from a question about the engine's internals into a number Fuji can print.
 
@@ -205,7 +205,7 @@ One image at a time, because each one is a full decode held in memory and a draw
 
 ### Why the page halves instead of drawing once
 
-A single [`drawImage`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage) from a full-size decode into a small canvas comes out rough on the Mac: fine repeating texture in a 6240 by 4160 raster turns to jaggies at 240 pixels, where Safari shows the same file smooth as an `<img>`. Two engine behaviours cause it, and they compound.
+A single [`drawImage`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage) from a full-size decode into a small canvas comes out rough on the Mac: fine repeating texture in a 6240 by 4160 raster turns to jaggies at 240 CSS pixels, where Safari shows the same file smooth as an `<img>`. Two engine behaviours cause it, and they compound.
 
 *Core Graphics*' high interpolation reads a fixed footprint of source pixels around each output pixel. At twenty-six to one, that leaves most of the picture unread, and pixels that are never read alias. Chromium's `high` is a chain of successive halvings sampled with a cubic filter, which does read everything, and is why the same one-pass draw looks fine on Windows.
 
@@ -269,7 +269,7 @@ The costs above are per picture, and they are what this document is about. How m
 
 ## Fidelity
 
-Three things can go wrong between the file and the tile: the wrong size, the wrong sharpness, the wrong colors. Everything in this section was measured on hardware rather than reasoned about, because two of the three are invisible on an ordinary sRGB monitor where a CSS pixel and a device pixel are the same thing.
+Three things can go wrong between the file and the tile: the wrong size, the wrong sharpness, the wrong colors. Everything in this section was measured on hardware rather than reasoned about, because two of the three are invisible on an ordinary sRGB monitor where a CSS pixel and a backing pixel are the same thing.
 
 ### Fit
 
@@ -281,11 +281,11 @@ let scale = Math.min(box / size.x, box / size.y, 1)
 
 A square picture lands exactly on the box, a wide one hits the limit on width alone, and a picture already smaller than the box keeps its own size. **Fuji crops nothing** — every tile shows a whole picture, and the rows come out ragged because of it. The box is one of four named sizes: Small, Medium, Large and XL, at 120, 240, 360 and 480 CSS pixels. All four are settings, so Medium means whatever the user says it means.
 
-### One device pixel
+### One backing pixel
 
-The engine lays a canvas out on whole CSS pixels and paints it at the device pixel ratio, so the box it occupies on screen is a whole number of CSS pixels times that ratio. If the bitmap is not exactly that many device pixels, the compositor cannot *blit* it one to one, copying each pixel straight onto the screen. It resamples instead.
+The engine lays a canvas out on whole CSS pixels and paints it in backing pixels, so the box it occupies on screen is a whole number of CSS pixels times `devicePixelRatio`. If the bitmap is not exactly that many backing pixels, the compositor cannot *blit* it one to one, copying each pixel straight onto the screen. It resamples instead.
 
-The long axis always survives and the short one often does not. For a landscape thumbnail that comes back 480 × 269, in a box of 240 at a ratio of 2:
+The long axis always survives and the short one often does not. For a landscape thumbnail that comes back 480 × 269, in a box of 240 at a `devicePixelRatio` of 2:
 
 ```
 scale = 240/480 = 0.5
@@ -293,11 +293,11 @@ css.x = round(480 × 0.5) = 240 → 240 × 2 = 480 = bitmap  matches
 css.y = round(269 × 0.5) = 135 → 135 × 2 = 270 ≠ 269     one short
 ```
 
-The long axis is the box times the ratio by construction, so it always matches. The short axis is whatever the thumbnailer computed for the aspect ratio, and that is odd about half the time — so on a Retina panel **half of all native-route thumbnails** would sit in a box one device pixel taller or wider than they have pixels for, and the compositor would resample every row.
+The long axis is the box times `devicePixelRatio` by construction, so it always matches. The short axis is whatever the thumbnailer computed for the aspect ratio, and that is odd about half the time — so on a Retina panel **half of all native-route thumbnails** would sit in a box one backing pixel taller or wider than they have pixels for, and the compositor would resample every row.
 
 That resample is not a soft edge. The phase between source and destination rows drifts from zero at one end of the picture to a full pixel at the other, passing through exactly half a pixel in the middle, where every output row is the mean of two source rows.
 
-Measured on a Retina, Display P3 Mac at a device pixel ratio of 2, macOS 26.2, with two test images authored at exactly the size the thumbnailer returns, so neither is resampled on the way in, each carrying one-pixel black and white rows. The figure is the share of pixels that came back neither near-black nor near-white:
+Measured on a Retina, Display P3 Mac at a `devicePixelRatio` of 2, macOS 26.2, with two test images authored at exactly the size the thumbnailer returns, so neither is resampled on the way in, each carrying one-pixel black and white rows. The figure is the share of pixels that came back neither near-black nor near-white:
 
 | tile | canvas sized to the picture | canvas sized to the box |
 | --- | --: | --: |
@@ -308,49 +308,49 @@ Sized to the picture, the odd tile decays from clean alternating rows at the top
 
 The even tile is the control, and its two figures are not a result: its geometry is the same under both rules, and the 0.11% against the 0.00% comes from two different kinds of screen capture rather than from anything on the page.
 
-**Fractional CSS does not fix this**, though it looks as though it should. Giving the element a height of `backing / devicePixelRatio` un-rounded is legal, and the engine honours it exactly: `style 134.5px`, `computed 134.5px`, a layout rectangle of 134.5. The odd tile still reads 90.74% intermediate. Padding the bitmap instead, against a whole-pixel CSS height, drops it to zero. A fractional CSS box does not buy a device-pixel-exact blit in WebKit.
+**Fractional CSS does not fix this**, though it looks as though it should. Giving the element a height of `backing / devicePixelRatio` un-rounded is legal, and the engine honours it exactly: `style 134.5px`, `computed 134.5px`, a layout rectangle of 134.5. The odd tile still reads 90.74% intermediate. Padding the bitmap instead, against a whole-pixel CSS height, drops it to zero. A fractional CSS box does not buy a backing-pixel-exact blit in WebKit.
 
 **So Fuji sizes each canvas to the box the compositor will use**, rather than to the picture, and puts the picture in the corner of it:
 
 ```js
 function flowSnap(side, have) {
-	let ratio = window.devicePixelRatio
-	let want = Math.round(side * ratio)
-	return want > have + ratio ? have : want
+	let backingPerCss = window.devicePixelRatio
+	let want = Math.round(side * backingPerCss)
+	return want > have + backingPerCss ? have : want
 }
 ```
 
-That tolerance, `have + ratio`, separates two cases. A thumbnail shrunk to fit misses its box by at most one device pixel of rounding, and taking that sliver buys a one-to-one blit for every row — so Fuji takes it, and repeats the picture's last row and column into it, making the seam the picture's own color rather than a transparent line. A picture *smaller* than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an `<img>` would; that one keeps the pixels it has.
+That tolerance, `have + backingPerCss`, separates two cases. A thumbnail shrunk to fit misses its box by at most one backing pixel of rounding, and taking that sliver buys a one-to-one blit for every row — so Fuji takes it, and repeats the picture's last row and column into it, making the seam the picture's own color rather than a transparent line. A picture *smaller* than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an `<img>` would; that one keeps the pixels it has.
 
-Three things follow. There is **no reflow**, because the box Fuji reserves from the header size and the box it computes from the thumbnail land on the same whole CSS pixel. The rule is a **no-op at ratio 1**, so an ordinary monitor behaves exactly as before. And it is a **no-op on the page route**, where the canvas is derived from the CSS size and the two cannot disagree — the native route is the only place where a bitmap arrives from outside and the CSS size has to be recovered from it by division.
+Three things follow. There is **no reflow**, because the box Fuji reserves from the header size and the box it computes from the thumbnail land on the same whole CSS pixel. The rule is a **no-op where a CSS pixel is one backing pixel**, so an ordinary monitor behaves exactly as before. And it is a **no-op on the page route**, where the canvas is derived from the CSS size and the two cannot disagree — the native route is the only place where a bitmap arrives from outside and the CSS size has to be recovered from it by division.
 
-One platform difference works out differently. macOS scale factors are only ever 1 or 2, so a whole-CSS box times the ratio is always a whole number of device pixels and Fuji can always size a canvas to it exactly. Windows offers 125%, 150% and 175%, so the ratio is fractional and a whole-CSS box lands on a fraction of a device pixel: at 1.5, a 135-pixel box is 202.5 device pixels, and a canvas can be 202 or 203 but not 202.5. Windows has one pixel unit fewer than macOS, and pays for the simpler model with worse arithmetic.
+One platform difference works out differently. On macOS `devicePixelRatio` is only ever 1 or 2, so a whole-CSS box is always a whole number of backing pixels and Fuji can always size a canvas to it exactly. Windows offers 125%, 150% and 175%, where it is fractional and a whole-CSS box lands on a fraction of a backing pixel: at 150%, a box of 135 CSS pixels is 202.5 backing pixels, and a canvas can be 202 or 203 but not 202.5. Windows has one pixel unit fewer than macOS, and pays for the simpler model with worse arithmetic.
 
 Measured on a Windows 10 box at 1920 × 1200, 2026-09-13, across four runs covering all three of Windows' fractional scales, by the method above: PNGs authored at exactly the size the thumbnailer returns, carrying one-pixel black and white rows, read back off the screen rather than out of the canvas. Roughly a quarter of the tiles were resampled.
 
-`flowSnap`'s arithmetic is correct at every ratio — each canvas came back the size the rule predicts, confirmed from the log's own `bytes` column. What separates the tiles that resample from the ones that do not is harder, and only one part of it is firm.
+`flowSnap`'s arithmetic is correct at every scale — each canvas came back the size the rule predicts, confirmed from the log's own `bytes` column. What separates the tiles that resample from the ones that do not is harder, and only one part of it is firm.
 
-**How far the canvas misses its box matters more than which side it misses on.** A miss of a quarter of a device pixel was almost always clean; a miss of a half or three quarters resampled far more often, and that holds whether the canvas is over or under. This is the finding the flooring experiment below rests on, and it is why the rule rounds rather than floors: rounding bounds the miss at half a device pixel in either direction, and nothing can do better than that, because the box is not a whole number of device pixels and no canvas can sit on it.
+**How far the canvas misses its box matters more than which side it misses on.** A miss of a quarter of a backing pixel was almost always clean; a miss of a half or three quarters resampled far more often, and that holds whether the canvas is over or under. This is the finding the flooring experiment below rests on, and it is why the rule rounds rather than floors: rounding bounds the miss at half a backing pixel in either direction, and nothing can do better than that, because the box is not a whole number of backing pixels and no canvas can sit on it.
 
-**Where a tile sits matters as well, and that part is not characterized.** A tile's place on the device grid depends on every row above it, since row heights accumulate in halves and quarters at a fractional ratio. At 150% the rows began at 45, 310.5 and 579 device pixels and every failure was in the middle one; at 125% they began at 38, 315.5, 595.5 and 878, and every failure was in the two fractional ones. That looks like a rule and is not one — across the four runs it has exceptions in both directions, tiles on a fractional row that stayed clean and tiles on a whole row that did not, and no model built from one run has survived a fresh set of files.
+**Where a tile sits matters as well, and that part is not characterized.** A tile's place on the backing grid depends on every row above it, since row heights accumulate in halves and quarters at a fractional scale. At 150% the rows began at 45, 310.5 and 579 backing pixels and every failure was in the middle one; at 125% they began at 38, 315.5, 595.5 and 878, and every failure was in the two fractional ones. That looks like a rule and is not one — across the four runs it has exceptions in both directions, tiles on a fractional row that stayed clean and tiles on a whole row that did not, and no model built from one run has survived a fresh set of files.
 
-**What follows is that the resampling that remains is a layout problem rather than a canvas one.** At a fractional ratio a layout on whole CSS pixels cannot keep landing on the device grid, and nothing about how a thumbnail is sized can put a row there. That is a property of laying a grid out in CSS pixels on a fractionally scaled display, not something the thumbnail pipeline does to itself.
+**What follows is that the resampling that remains is a layout problem rather than a canvas one.** At a fractional scale, a layout on whole CSS pixels cannot keep landing on the backing grid, and nothing about how a thumbnail is sized can put a row there. That is a property of laying a grid out in CSS pixels on a fractionally scaled display, not something the thumbnail pipeline does to itself.
 
 The failure is the same one the Retina measurement found, and it looks identical: down a resampled tile the luma walks from a clean 248/8 at the top toward a flat 128/128 at the midpoint, the phase drifting a full pixel across the picture.
 
 <img src="./images/thumbnail-resample-175.png" alt="Two thumbnails side by side, each a test pattern of alternating one-pixel black and white rows. The left one holds crisp stripes from top to bottom. The right one is crisp at the top and bottom but fades to flat grey through its middle." width="420" height="207" style="image-rendering:pixelated;max-width:100%">
 
-Two tiles from one contact sheet at 175%, cropped from a screen capture at their exact size. Both files are the same test pattern of alternating one-pixel black and white rows, and both thumbnails were made by the same code in the same run; the green band is a marker the test images carry so each tile can be identified. Neither canvas sits exactly on its box, because at this ratio none can. The left one is a **quarter** of a device pixel over its box — 205 against 204.75 — and every row was blitted one to one anyway. The right one is a **half** over — 207 against 206.5 — and every row was resampled. That is the whole of the difference, and it is why the size of the miss is what the rule above turns on.
+Two tiles from one contact sheet at 175%, cropped from a screen capture at their exact size. Both files are the same test pattern of alternating one-pixel black and white rows, and both thumbnails were made by the same code in the same run; the green band is a marker the test images carry so each tile can be identified. Neither canvas sits exactly on its box, because at this scale none can. The left one is a **quarter** of a backing pixel over its box — 205 against 204.75 — and every row was blitted one to one anyway. The right one is a **half** over — 207 against 206.5 — and every row was resampled. That is the whole of the difference, and it is why the size of the miss is what the rule above turns on.
 
 Read the right tile from the top down and the phase drifts a full pixel across it: aligned and crisp at the top, half a pixel out and flat grey through the middle where each output row is the mean of two source rows, then a whole row out and crisp again at the bottom — where it is also inverted, the black rows landing where the left tile's white ones do. Sampled down one column, its luma walks 11, 60, 110, 134, 184, 233 while the left tile holds 0 all the way.
 
-**This picture only works at its own size.** Alternating one-pixel rows turn to grey under any resampling at all, so a browser scaling this image down renders both halves grey and shows nothing. If both tiles look the same here, the page is not displaying it one to one. That fragility is the subject rather than an inconvenience with the illustration: it is the same arithmetic, and it is why a thumbnail a single device pixel out looks soft rather than merely smaller.
+**This picture only works at its own size.** Alternating one-pixel rows turn to grey under any resampling at all, so a browser scaling this image down renders both halves grey and shows nothing. If both tiles look the same here, the page is not displaying it one to one. That fragility is the subject rather than an inconvenience with the illustration: it is the same arithmetic, and it is why a thumbnail a single backing pixel out looks soft rather than merely smaller.
 
 ### Why it rounds, and the alternative that was tried
 
 The obvious improvement is to floor rather than round, so the canvas can never overshoot its box and the compositor has nothing to resample. The four runs above appeared to endorse it: all eight canvases that came out *smaller* than their box were clean, in fractional-offset rows as readily as whole ones, which is the condition that breaks an overshoot.
 
-It was built, measured at 175% against the same eleven files, and it is worse. **Two tiles were fixed and three were broken**, one of them in a row sitting squarely on the device grid.
+It was built, measured at 175% against the same eleven files, and it is worse. **Two tiles were fixed and three were broken**, one of them in a row sitting squarely on the backing grid.
 
 | bitmap | canvas, rounding | result | canvas, flooring | result |
 | --- | --: | :-- | --: | :-- |
@@ -360,11 +360,11 @@ It was built, measured at 175% against the same eleven files, and it is worse. *
 | 210 × 206 | 207 | resampled | 206 | clean |
 | 210 × 207 | 207 | resampled | 206 | clean |
 
-The reasoning was wrong in a way worth recording, because it is the kind of wrong that reads as sound. Every clean undershoot in the earlier runs was short by exactly a quarter of a device pixel — that is simply what rounding produces, and the sample contained no other magnitude. Flooring produces undershoots of a half and three quarters, and those resample as readily as an overshoot does. **How far a canvas misses its box matters more than which side it misses on**, and rounding is what keeps the miss under half a pixel in either direction.
+The reasoning was wrong in a way worth recording, because it is the kind of wrong that reads as sound. Every clean undershoot in the earlier runs was short by exactly a quarter of a backing pixel — that is simply what rounding produces, and the sample contained no other magnitude. Flooring produces undershoots of a half and three quarters, and those resample as readily as an overshoot does. **How far a canvas misses its box matters more than which side it misses on**, and rounding is what keeps the miss under half a backing pixel in either direction.
 
 So `flowSnap` rounds, and the tiles that still resample belong to the row-position problem rather than to any choice about canvas size.
 
-**What can be claimed for Windows now** is no longer "no worse than before". It is that `flowSnap` is correct everywhere it can reach and that rounding is the right rule there, that roughly a quarter of tiles at fractional scaling are resampled regardless, and that the remedy for those is a layout question rather than a canvas-sizing one — nothing about how a canvas is sized can put a row on the device grid.
+**What can be claimed for Windows now** is no longer "no worse than before". It is that `flowSnap` is correct everywhere it can reach and that rounding is the right rule there, that roughly a quarter of tiles at fractional scaling are resampled regardless, and that the remedy for those is a layout question rather than a canvas-sizing one — nothing about how a canvas is sized can put a row on the backing grid.
 
 ### Color
 
@@ -409,6 +409,6 @@ We left every one of these alone on purpose.
 
 - **Animated WebP** is a still on the native route. Sending it to an `<img>` the way Fuji sends a GIF means reading the animation flag out of its header in the probe.
 - **Linux's size gate** covers PNG, GIF and BMP, which our own Rust can size. WebP and AVIF are unsized there, and they are two of the formats that decode whole — a JPEG never needs the gate, because both operating systems decode one scaled and the full raster never exists.
-- **Tile position at a fractional device pixel ratio**, which is what the Windows measurement above turned the old `flowSnap` question into. Sizing a canvas is settled and rounding is the right rule; what is not settled is placing a row on the device grid, and that is a layout problem rather than a canvas one. It needs whoever next takes on how the contact sheet lays its rows out, and nothing about how a thumbnail is sized can substitute for it.
+- **Tile position at a fractional scale**, which is what the Windows measurement above turned the old `flowSnap` question into. Sizing a canvas is settled and rounding is the right rule; what is not settled is placing a row on the backing grid, and that is a layout problem rather than a canvas one. It needs whoever next takes on how the contact sheet lays its rows out, and nothing about how a thumbnail is sized can substitute for it.
 - **A Display P3 file on a wide-gamut Windows panel.** The profile path works, per the measurement above, but *WIC* converts everything to sRGB because it has no wide-gamut context to draw into without a profile file. So a Display P3 photograph loses its out-of-gamut colors before the page ever sees the pixels, and the header honestly reports sRGB. On an ordinary Windows screen nothing is lost; on a wide-gamut one this is the gap, and closing it means giving *WIC* a profile file to make that context from.
-- **A change of monitor.** Fuji never remakes a canvas when a window moves to a different screen, so the device pixel ratio and the gamut both go stale until the contact sheet rebuilds.
+- **A change of monitor.** Fuji never remakes a canvas when a window moves to a different screen, so the `devicePixelRatio` and the gamut it was made for both go stale until the contact sheet rebuilds.

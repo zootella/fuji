@@ -40,7 +40,7 @@ export function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to comp
 	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
 	else { return {x: a, y: o} }
 }
-export function xySnap(a, ratio) { return xy(Math.round(a.x * ratio) / ratio, Math.round(a.y * ratio) / ratio) }//an arrow in css pixels snapped to the backing grid, ratio backing pixels to the css pixel: whole numbers at 1, halves at 2, and always a whole number of backing pixels, for the moment real numbers become pixels
+export function xySnap(a, backingPerCss) { return xy(Math.round(a.x * backingPerCss) / backingPerCss, Math.round(a.y * backingPerCss) / backingPerCss) }//an arrow in css pixels snapped to the backing grid, at backingPerCss backing pixels to the css pixel: whole numbers at 1, halves at 2, and always a whole number of backing pixels, for the moment real numbers become pixels
 
 //paths
 
@@ -157,24 +157,24 @@ export function windowTitle(showing, path, folder) {//what the title bar says: t
 }
 
 const sheetPreset = {width: 0.6, height: 0.85}//how big the sheet's window opens when settings have no size that fits, as portions of the work area's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
-const sheetWidest = 16 / 9//but the preset is never wider than this for its height, so a super wide monitor gets a sheet rather than a banner. The portions above make about 1.2 to 1 on a 16:10 laptop, 1.3 on a 16:9 screen and 1.7 on a 21:9 one, so only the 32:9 screens meet this, which would otherwise open a sheet 2.6 to 1 and over three thousand pixels wide. A size the user gave a sheet is theirs, and is never capped
+const sheetWidest = 16 / 9//but the preset is never wider than this for its height, so a super wide monitor gets a sheet rather than a banner. The portions above make about 1.2 to 1 on a 16:10 laptop, 1.3 on a 16:9 screen and 1.7 on a 21:9 one, so only the 32:9 screens meet this, which would otherwise open a sheet 2.6 to 1 and over three thousand css pixels wide. A size the user gave a sheet is theirs, and is never capped
 
 export async function screenAreas() {//the screen this window is on, whole and less the menu bar, dock or taskbar, each as {x, y, width, height} in css pixels; false when there is no monitor to ask
 	let m = await currentMonitor()
 	if (!m) return false
-	let s = m.scaleFactor//tauri answers in physical pixels, and every rectangle the page handles is css
-	let rect = (at, size) => ({x: at.x / s, y: at.y / s, width: size.width / s, height: size.height / s})
+	let backingPerCss = m.scaleFactor//tauri answers in backing pixels, which it calls physical, and every rectangle the page handles is css
+	let rect = (at, size) => ({x: at.x / backingPerCss, y: at.y / backingPerCss, width: size.width / backingPerCss, height: size.height / backingPerCss})
 	return {screen: rect(m.position, m.size), work: rect(m.workArea.position, m.workArea.size)}
 }
 export function rectSheet(work, saved) {//where the contact sheet's window goes, in css pixels: the size the user last gave a sheet if it fits the work area, or sheetPreset of the work area if not, and a random place inside it either way, so two sheets opened at once almost never land on each other. saved is the size from settings, a width of 0 meaning none
 	let height = Math.round(work.height * sheetPreset.height)
 	let width = Math.min(Math.round(work.width * sheetPreset.width), Math.round(height * sheetWidest))
-	if (saved.width > 0 && saved.width <= Math.round(work.width) && saved.height <= Math.round(work.height)) { width = saved.width; height = saved.height }//a size from a bigger desktop, or from before the dock moved, gives way to the preset. Compared in whole pixels, because settings keep whole pixels and a work area at a fractional scale, 150 percent on windows, is fractional in css pixels, so a maximized sheet saved at 1707 would otherwise fail to fit a work area 1706.67 wide
+	if (saved.width > 0 && saved.width <= Math.round(work.width) && saved.height <= Math.round(work.height)) { width = saved.width; height = saved.height }//a size from a bigger desktop, or from before the dock moved, gives way to the preset. Compared in whole css pixels, because settings keep whole css pixels and a work area at a fractional scale, 150 percent on windows, is fractional in css pixels, so a maximized sheet saved at 1707 would otherwise fail to fit a work area 1706.67 wide
 	return {x: Math.round(work.x + Math.random() * (work.width - width)), y: Math.round(work.y + Math.random() * (work.height - height)), width, height}//the room left over along each axis, rolled evenly
 }
 export async function pointerPosition() {//where the pointer is, in the same css pixels as screenAreas, or false when the platform will not say
 	try {
-		let [p, m] = await Promise.all([cursorPosition(), platform() == 'mac' ? primaryMonitor() : currentMonitor()])//on the mac tao numbers the pointer with the primary display's scale, in util::cursor_position, where every monitor and work area uses that monitor's own, so it comes back to points, the unit screenAreas answers in there, only divided by the primary's. Windows reports the pointer in true physical pixels, and linux on x11 has one scale for every monitor, so the window's own monitor is right for both
+		let [p, m] = await Promise.all([cursorPosition(), platform() == 'mac' ? primaryMonitor() : currentMonitor()])//on the mac tao multiplies the pointer by the primary display's scale factor, in util::cursor_position, where every monitor and work area uses that monitor's own, so it comes back to css pixels, the unit screenAreas answers in there, only divided by the primary's. Windows reports the pointer in backing pixels, and linux on x11 has one scale factor for every monitor, so the window's own monitor is right for both
 		if (!m) return false
 		return {x: p.x / m.scaleFactor, y: p.y / m.scaleFactor}
 	} catch (error) {
@@ -192,7 +192,7 @@ The size is the picture's own shape, as large as the work area allows, so a port
 The place is chosen one axis at a time, by one rule: the pointer splits the work area in two, and the picture centers in the larger side. A pointer over the menu bar, the dock or anywhere else past the work area's edge counts as at that edge, where the larger side is the whole work area and the picture simply centers. A picture too big for the larger side slides toward the far edge until it fits, and no further. Since the pointer is uncovered if the picture clears it on either axis, and the larger side is the only one worth trying on each, this leaves the pointer uncovered whenever any placement inside the work area could.
 */
 export function rectPreview(natural, work, pointer) {//the preview's frame in css pixels: natural is the picture's raster size, work the work area, and pointer where the pointer is, or false to center
-	let scale = Math.min(work.width / natural.x, work.height / natural.y, previewZoomMost)//the tighter side meets the work area's edge, unless the picture would pass the most a preview enlarges first
+	let scale = Math.min(work.width / natural.x, work.height / natural.y, previewZoomMost)//css pixels per image pixel: the tighter side meets the work area's edge, unless the picture would pass the most a preview enlarges first
 	let width = Math.round(natural.x * scale), height = Math.round(natural.y * scale)
 	return {x: _away(work.x, work.width, width, pointer ? pointer.x : false), y: _away(work.y, work.height, height, pointer ? pointer.y : false), width, height}
 }
@@ -211,22 +211,22 @@ export async function revealWindow() {//show the window, which rust built hidden
 	await getCurrentWindow().show()
 }
 
-export async function measureScreen() {//get the screen resolution as {x, y} in all the different real and fake pixel units
+export async function measureScreen() {//get the screen resolution as {x, y} in css, backing and panel pixels
 	const w = getCurrentWindow()
 	const m = await currentMonitor()
 	let q = {
 		windowDevicePixelRatio: window.devicePixelRatio,
 		tauriWindowScaleFactor: await w.scaleFactor(),
-		tauriMonitorScaleFactor: m.scaleFactor,//these tend to all be the same, but go between CSS and backing, never to physical!
+		tauriMonitorScaleFactor: m.scaleFactor,//these tend to all be the same, and each is backing per css, never anything to do with the panel!
 
 		cssScreen: xy(screen.width, screen.height),
 		backingScreen: xy(m.size.width, m.size.height),
-		physicalScreen: await panelResolution(),//custom Rust code we wrote to system APIs to get the real physical pixel counts
+		panelScreen: await panelResolution(),//custom Rust code we wrote to system APIs to get the panel's own pixel count
 	}
 	log(`⭕ library: measured the screen ${JSON.stringify(q)}`)
 	return q
 }
-let _screen//{when, physicalScreen} ttd august, save here if not 0,0; report from here not api call if within 50ms
+let _screen//{when, panelScreen} ttd august, save here if not 0,0; report from here not api call if within 50ms
 
 
 

@@ -1,6 +1,6 @@
 # Fidelity
 
-Whether a picture arrives on the screen with its pixels and its colors intact. Fuji was written on a Mac mini driving a twenty-year-old Dell, where a CSS pixel, the backing store and the hardware were all one grid and the screen was sRGB. Two whole families of code path — everything sensitive to `devicePixelRatio`, and everything behind the Display P3 check — therefore ran for the first time on 2026-09-10, on a Retina, wide-gamut MacBook Air. This file is what that day established.
+Whether a picture arrives on the screen with its pixels and its colors intact. Fuji was written on a Mac mini driving a twenty-year-old Dell, where a CSS pixel, a backing pixel and a panel pixel were all one grid and the screen was sRGB. Two whole families of code path — everything sensitive to `devicePixelRatio`, and everything behind the Display P3 check — therefore ran for the first time on 2026-09-10, on a Retina, wide-gamut MacBook Air. This file is what that day established.
 
 Everything below was measured on hardware. Where a claim comes from reading the code rather than from a measurement, it says so, and where something remains untested it is listed at the end rather than quietly assumed. The audit found one defect, and fixing it is the change that came out of the day.
 
@@ -16,29 +16,29 @@ Every number below came off one machine, and a cross-platform project should alw
 
 Three pixel units are at work, and confusing two of them is the whole risk.
 
-**Points** are what CSS, the user, and the macOS display settings speak — the "looks like" resolution. **Backing pixels** are the bitmap macOS renders into, always exactly 2× points on a Retina panel, because macOS scale factors are only ever 1 or 2 and never fractional. **Native pixels** are the panel's own lights.
+**CSS pixels** are what CSS and the user speak; macOS calls them points and lists them in its display settings as the "looks like" resolution. **Backing pixels** are the bitmap macOS renders into, always exactly 2× the CSS pixels on a Retina panel, because a Mac's `devicePixelRatio` is only ever 1 or 2 and never fractional. **Panel pixels** are the panel's own lights.
 
 On that machine, in the mode this audit ran in:
 
-    points          1710 × 1112     what CSS and the user see
+    css             1710 × 1112     what CSS and the user see
     backing         3420 × 2224     what macOS renders, and what devicePixelRatio reaches
-    native          2560 × 1664     the panel, including the 64-row notch strip
+    panel           2560 × 1664     the lights, including the 64-row notch strip
 
-The ratios are ugly on purpose: 1710 was chosen for comfort, not arithmetic. The smallest square that survives every stage whole is 171 points → 342 backing → 256 native. If a mode with countable arithmetic is ever needed, "looks like" 1024 × 640 is exact in both axes — 2 points → 4 × 4 backing → 5 × 5 native — as a below-notch letterboxed mode.
+The ratios between them are ugly on purpose: 1710 was chosen for comfort, not arithmetic. The smallest square that survives every stage whole is 171 css → 342 backing → 256 panel. If a mode with countable arithmetic is ever needed, "looks like" 1024 × 640 is exact in both axes — 2 × 2 css → 4 × 4 backing → 5 × 5 panel — as a below-notch letterboxed mode.
 
-The backing → native squish is invisible to every web API, and it happens to everything on screen equally. Measured live inside fuji:
+The backing → panel squish is invisible to every web API, and it happens to everything on screen equally. Measured live inside fuji:
 
     devicePixelRatio                     2
-    screen.width × screen.height         1710 × 1112     points
+    screen.width × screen.height         1710 × 1112     css
     tauri monitor.size                   3420 × 2224     backing
     tauri monitor.scaleFactor            2
     matchMedia('(color-gamut: p3)')      true
 
 **Tauri reports the backing store, not the panel.** That single fact is what every conversion between Tauri's sizes and CSS pixels has to get right, and it is the kind of thing only hardware can settle.
 
-The native 2560 × 1664 figure comes from the earlier code-reading audit, which replicated `panel.rs`'s heuristic in C on the MacBook; it was not re-measured in this session. That heuristic — enumerate every display mode and keep the tallest by pixel height — is right *only* because it passes null options to `CGDisplayCopyAllDisplayModes`. With `kCGDisplayShowDuplicateLowResolutionModes` the list gains the scaled modes' backing stores and the winner becomes 3420 × 2224, which is exactly the wrong answer. The null is load-bearing.
+The panel figure, 2560 × 1664, comes from the earlier code-reading audit, which replicated `panel.rs`'s heuristic in C on the MacBook; it was not re-measured in this session. That heuristic — enumerate every display mode and keep the tallest by pixel height — is right *only* because it passes null options to `CGDisplayCopyAllDisplayModes`. With `kCGDisplayShowDuplicateLowResolutionModes` the list gains the scaled modes' backing stores and the winner becomes 3420 × 2224, which is exactly the wrong answer. The null is load-bearing.
 
-`panel.rs` is rightly unused by the thumbnail pipeline. A canvas can only address the backing store, so native-resolution pixels would be resampled twice on the way down. It exists for a different promise — that "100%" on a table can one day mean one image pixel on one light — and its only caller today is diagnostics.
+`panel.rs` is rightly unused by the thumbnail pipeline. A canvas can only address the backing store, so pixels prepared for the panel would be resampled twice on the way down. It exists for a different promise — that "100%" on a table can one day mean one image pixel on one light — and its only caller today is diagnostics.
 
 ## Windows, in two units
 
@@ -48,9 +48,9 @@ Measured on the Windows box, 2026-09-11, and it is the counterpart to the sectio
     one display, 1920 × 1200 at its native resolution
     rustc 1.98.0, stable-x86_64-pc-windows-msvc
 
-**Windows has two pixel units where macOS has three, and the missing one is the backing store.** macOS renders a scaled mode into a bitmap at exactly 2× the points, then the compositor resamples that down to the panel — the 3420 × 2224 → 2560 × 1664 squish above, invisible to every web API. Windows does not do that. At a given scale factor it renders directly at scale × logical, and that framebuffer *is* the panel. So CSS pixels times `devicePixelRatio` are physical pixels, full stop.
+**Windows has two pixel units where macOS has three, because it has no separate backing store.** macOS renders a scaled mode into a bitmap at exactly 2× the CSS pixels, then the compositor resamples that down to the panel — the 3420 × 2224 → 2560 × 1664 squish above, invisible to every web API. Windows does not do that. It draws straight into the display resolution, with the scale setting deciding how many of those pixels make a CSS pixel, so the display resolution is its backing grid, and at the display's native resolution that grid *is* the panel. So CSS pixels times `devicePixelRatio` are backing pixels, and on this box backing pixels are panel pixels, full stop.
 
-That was confirmed by measuring twice, because at 100% every model predicts the same numbers and the measurement cannot tell them apart. The scale factor was changed in Settings between the two runs — which is the whole reason this machine can answer a question the Macs cannot, since macOS has no fractional scale factor to offer:
+That was confirmed by measuring twice, because at 100% every model predicts the same numbers and the measurement cannot tell them apart. The scale setting was changed in Settings between the two runs — which is the whole reason this machine can answer a question the Macs cannot, since macOS never offers a fractional `devicePixelRatio`:
 
     at 100%                          at 150%
     devicePixelRatio   1             devicePixelRatio   1.5
@@ -58,21 +58,21 @@ That was confirmed by measuring twice, because at 100% every model predicts the 
     tauri monitor      1             tauri monitor      1.5
     cssScreen          1920 × 1200   cssScreen          1280 ×  800
     backingScreen      1920 × 1200   backingScreen      1920 × 1200
-    physicalScreen     1920 × 1200   physicalScreen     1920 × 1200
+    panelScreen        1920 × 1200   panelScreen        1920 × 1200
 
-At 150% the CSS screen separates from the other two and `1280 × 1.5 = 1920`, `800 × 1.5 = 1200` exactly, while **`backingScreen` and `physicalScreen` stay equal to each other**. Two units, and `panel.rs` agrees with Tauri rather than departing from it.
+At 150% the CSS screen separates from the other two and `1280 × 1.5 = 1920`, `800 × 1.5 = 1200` exactly, while **`backingScreen` and `panelScreen` stay equal to each other**. Two units, and `panel.rs` agrees with Tauri rather than departing from it. The last row was named `physicalScreen` when it was measured.
 
-**That last agreement is the real difference from the Mac.** There, "Tauri reports the backing store, not the panel" is the load-bearing fact, and `monitor.size` and `panel_resolution()` disagree — 3420 × 2224 against 2560 × 1664. Here they are the same number, and `GetSystemMetrics(SM_CXSCREEN)` is telling the truth because the process is DPI aware. One consequence is that `ctrl+0` — the "100%" promise `panel.rs` exists for — is arithmetically trivial on Windows: one image pixel on one light is just `devicePixelRatio`, with nothing to survive afterwards.
+**That last agreement is the real difference from the Mac.** There, "Tauri reports the backing store, not the panel" is the load-bearing fact, and `monitor.size` and `panel_resolution()` disagree — 3420 × 2224 against 2560 × 1664. Here they are the same number, and `GetSystemMetrics(SM_CXSCREEN)` is telling the truth because the process is DPI aware and the display runs at its native resolution. One consequence is that `ctrl+0` — the "100%" promise `panel.rs` exists for — is arithmetically trivial on Windows: one image pixel on one light is just `devicePixelRatio`, with nothing to survive afterwards.
 
-**The assumption this rests on, stated as an assumption.** All of it holds while the display is set to its native resolution. A user who picks a lower resolution to make things bigger — a common and incorrect fix for "it's too small" — gets the monitor's own scaler stretching the framebuffer onto the panel, which restores a third step. That step happens in the display hardware rather than in the compositor, and it is invisible to every API named above, including `panel.rs`. Fuji assumes it away and cannot detect it.
+**The assumption this rests on, stated as an assumption.** All of it holds while the display is set to its native resolution. A user who picks a lower resolution to make things bigger — a common and incorrect fix for "it's too small", because the resolution is older and better known than "Change the size of text, apps, and other items" — gets the monitor's own scaler, or the graphics card's, stretching the backing grid onto the panel, which restores a third step. That step happens in the display hardware rather than in the compositor, and it is invisible to every API named above, so `panel.rs` then reports the backing grid rather than the panel. Fuji assumes it away, and neither detects it nor adjusts for it.
 
-**But fewer units is not easier, and this is the part that matters for `flowSnap`.** macOS scale factors are only ever 1 or 2, so `css × ratio` is always a whole number and a canvas can always be sized to its box exactly. Windows offers 125%, 150% and 175%, so the ratio is fractional and a whole-CSS box lands on a fraction of a device pixel: at 1.5, a 135-pixel box is 202.5 device pixels and a canvas can only be 202 or 203. Windows trades a unit away and buys worse arithmetic with it.
+**But fewer units is not easier, and this is the part that matters for `flowSnap`.** On macOS `devicePixelRatio` is only ever 1 or 2, so a whole number of CSS pixels is always a whole number of backing pixels and a canvas can always be sized to its box exactly. Windows offers 125%, 150% and 175%, where it is fractional and a whole-CSS box lands on a fraction of a backing pixel: at 150%, a box of 135 CSS pixels is 202.5 backing pixels and a canvas can only be 202 or 203. Windows trades a unit away and buys worse arithmetic with it.
 
-**That audit has now been run here, on 2026-09-13 at all three fractional scales, and it is written up on the site rather than in this file** — the thumbnail pipeline page owns it, because the answer turned out to be about the sheet's layout rather than about pixel units. The short form, so this section is not misleading on its own: `flowSnap` computes correctly at every fractional ratio and rounding is the right rule there, flooring was built and measured and was worse, and roughly a quarter of tiles are resampled regardless. Where a tile sits is involved in that — its place on the device grid depends on every row above it — but exactly which cases fail is not characterized. What is certain is that sizing a canvas cannot reach it. The question this section left open — whether fuji can predict which way Chromium snaps a box — is answered for the canvas and reopened one level up, at the row, where it belongs to whoever next takes on the sheet's layout.
+**That audit has now been run here, on 2026-09-13 at all three fractional scales, and it is written up on the site rather than in this file** — the thumbnail pipeline page owns it, because the answer turned out to be about the sheet's layout rather than about pixel units. The short form, so this section is not misleading on its own: `flowSnap` computes correctly at every fractional scale, and rounding is the right rule there, flooring was built and measured and was worse, and roughly a quarter of tiles are resampled regardless. Where a tile sits is involved in that — its place on the backing grid depends on every row above it — but exactly which cases fail is not characterized. What is certain is that sizing a canvas cannot reach it. The question this section left open — whether fuji can predict which way Chromium snaps a box — is answered for the canvas and reopened one level up, at the row, where it belongs to whoever next takes on the sheet's layout.
 
-**One measuring gotcha, recorded so nobody loses an hour to it.** `HKCU:\Control Panel\Desktop\WindowMetrics\AppliedDPI` still read 96 after the scale factor had been changed to 150% and fuji had already measured 1.5. That registry value is not the live answer. Ask a running DPI-aware process instead.
+**One measuring gotcha, recorded so nobody loses an hour to it.** `HKCU:\Control Panel\Desktop\WindowMetrics\AppliedDPI` still read 96 after the scale setting had been changed to 150% and fuji had already measured 1.5. That registry value is not the live answer. Ask a running DPI-aware process instead.
 
-**And a second, for anyone measuring color off the screen here.** A capture of this machine's screen does not return the values the page painted. Test stripes authored as pure `(0,255,0)` came back `(81,255,0)`, and a patch authored `(200,0,0)` came back `(191,0,0)` — the box has a monitor profile installed, `U2412M.icm` in `C:\Windows\System32\spool\drivers\color`, and Chromium color-manages to it on the way to the panel. Neutral values are unaffected, so the one-device-pixel work read black and white off the screen safely. Anything about color has to be differential — two files that should differ from each other, rather than one file compared against a number typed into a test.
+**And a second, for anyone measuring color off the screen here.** A capture of this machine's screen does not return the values the page painted. Test stripes authored as pure `(0,255,0)` came back `(81,255,0)`, and a patch authored `(200,0,0)` came back `(191,0,0)` — the box has a monitor profile installed, `U2412M.icm` in `C:\Windows\System32\spool\drivers\color`, and Chromium color-manages to it on the way to the panel. Neutral values are unaffected, so the one-backing-pixel work read black and white off the screen safely. Anything about color has to be differential — two files that should differ from each other, rather than one file compared against a number typed into a test.
 
 ## The instrument
 
@@ -80,9 +80,9 @@ Four ways of looking, each answering a different question.
 
 **In-page canvas readback.** `getImageData` with an explicit `colorSpace` says what a canvas actually holds, in whichever space you ask for. Reading the same canvas as both `display-p3` and `srgb` is what separates "the wide value survived" from "the wide value was clamped and happens to look similar".
 
-**Whole-display capture.** `screencapture -x` writes the composited framebuffer at 3420 × 2224, tagged `kCGColorSpaceDisplayP3`. This is the end of the line: what the compositor put on the glass.
+**Whole-display capture.** `screencapture -x` writes the composited framebuffer at 3420 × 2224 backing pixels, tagged `kCGColorSpaceDisplayP3`. This is as far down the line as a capture reaches: everything the compositor made, before the squish onto the panel.
 
-**Single-window capture.** `screencapture -x -o -l <CGWindowID>` grabs one window's own buffer at 1972 × 1716, also tagged Display P3, regardless of what is stacked in front of it. The window id comes from `CGWindowListCopyWindowInfo` filtered by owner name. This is what made the audit scriptable, because fuji could not be brought to the front — Tauri's capability list has no `core:window:allow-set-focus`.
+**Single-window capture.** `screencapture -x -o -l <CGWindowID>` grabs one window's own buffer at 1972 × 1716 backing pixels, also tagged Display P3, regardless of what is stacked in front of it. The window id comes from `CGWindowListCopyWindowInfo` filtered by owner name. This is what made the audit scriptable, because fuji could not be brought to the front — Tauri's capability list has no `core:window:allow-set-focus`.
 
 **Scratch tools in C.** The `swift` CLI is broken on the MacBook (SDK and toolchain version mismatch), but `clang -framework ApplicationServices -framework CoreFoundation` compiles and runs fine, and every generator and inspector below was built that way. Two tools: one that authors test images through `CGBitmapContext` and `CGImageDestination`, and one that reports an image's embedded color space and its stored bytes *without converting them*, plus region statistics.
 
@@ -112,7 +112,7 @@ The control is the other direction, and it is the case the original test plan di
 
 ### Through Rust, and onto a canvas
 
-Sizes first: at the Medium thumbnail box of 240 points and `devicePixelRatio` 2, fuji asks for a longest side of 480 backing pixels, and a 2000 × 1000 source comes back 480 × 240. The header reported `display-p3`.
+Sizes first: at the Medium thumbnail box of 240 CSS pixels and `devicePixelRatio` 2, fuji asks for a longest side of 480 backing pixels, and a 2000 × 1000 source comes back 480 × 240. The header reported `display-p3`.
 
 The bytes Rust returned, and the same canvas read back afterwards:
 
@@ -142,7 +142,7 @@ The contact sheet, from a whole-display capture, clustered over fuji's viewport:
 
      83.63%   rgb(  0,  0,  0)   the sheet's background
       5.30%   rgb(234, 50, 34)   the sRGB-red half, plus the whole sRGB control
-      1.77%   rgb(254,  0,  0)   57,600 px — exactly 480 × 120, the pure-P3 half
+      1.77%   rgb(254,  0,  0)   57,600 backing pixels — exactly 480 × 120, the pure-P3 half
       1.76%   rgb(  0,255,  0)
       1.76%   rgb(117,251, 76)
 
@@ -157,19 +157,19 @@ Two distinct clusters per hue, in equal counts, on both views. **Display P3 surv
 
 ### The ask is right
 
-Established by the earlier code-reading audit and unchanged by anything measured since. `SquareFlow.vue` asks Rust for `flowBox × window.devicePixelRatio` as the longest side in backing pixels, sizes each canvas bitmap to what comes back, and derives the CSS size back down by the same ratio. The page route computes `detail = min(devicePixelRatio, 1 / scale)` and so never allocates more canvas pixels than the file actually has. The worry that fuji asked for point-sized thumbnails on a Retina screen was unfounded.
+Established by the earlier code-reading audit and unchanged by anything measured since. `SquareFlow.vue` asks Rust for `flowBox × window.devicePixelRatio` as the longest side in backing pixels, sizes each canvas bitmap to what comes back, and derives the CSS size back down by the same `devicePixelRatio`. The page route computes `detail = min(devicePixelRatio, 1 / scale)` and so never allocates more canvas pixels than the file actually has. The worry that fuji asked for thumbnails sized in CSS pixels on a Retina screen was unfounded.
 
-### One device pixel
+### One backing pixel
 
 The defect the audit found, and the reason for the code change that came with it.
 
-A canvas is laid out on whole CSS pixels and painted at the device ratio, so its box on screen is a whole number of CSS pixels times that ratio. `flowFit` rounds the CSS size to whole pixels; `flowSize` then sized the canvas *to the thumbnail* rather than to that box. For a landscape thumbnail returned at the full requested maximum:
+A canvas is laid out on whole CSS pixels and painted in backing pixels, so its box on screen is a whole number of CSS pixels times `devicePixelRatio`. `flowFit` rounds the CSS size to whole CSS pixels; `flowSize` then sized the canvas *to the thumbnail* rather than to that box. For a landscape thumbnail returned at the full requested maximum:
 
     scale  = 240/480 = 0.5
     css.x  = round(480 × 0.5) = 240        → 240 × 2 = 480 = bitmap    ✓
     css.y  = round(269 × 0.5) = 135        → 135 × 2 = 270 ≠ 269       ✗
 
-The long axis always survives, because it *is* the box times the ratio by construction — an even number by definition. The short axis is whatever the thumbnailer computed for the aspect, `round(short × 480 / long)`, and that is odd about half the time. So roughly half of all native-route thumbnails were handed a box one device pixel taller or wider than they had pixels for, and the compositor filled the gap by resampling.
+The long axis always survives, because it *is* the box times `devicePixelRatio` by construction — an even number by definition. The short axis is whatever the thumbnailer computed for the aspect, `round(short × 480 / long)`, and that is odd about half the time. So roughly half of all native-route thumbnails were handed a box one backing pixel taller or wider than they had pixels for, and the compositor filled the gap by resampling.
 
 That resample is not a soft edge. The phase between source and destination rows drifts from zero at one end to a full pixel at the other, passing through exactly half a pixel in the middle, where every output row is the mean of two source rows.
 
@@ -185,7 +185,7 @@ Measured over the same-sized region of each tile, counting pixels that are neith
 
 The odd tile decayed from `(0, 254)` at the top to a flat `rgb(128,128,128)` at its midpoint — the pattern erased entirely — and recovered toward the bottom. On a photograph this is the softness the first audit predicted; on any fine repeating detail it is a total collapse of contrast.
 
-Only the native route can produce it. The page route derives its bitmap *from* the CSS size — `backing = round(css × detail)` — so the two cannot disagree. The native route is the only place where the bitmap arrives from outside fuji and the CSS size has to be recovered from it by division, and dividing by the device ratio is where the half lands. At `devicePixelRatio` 1 that division is the identity, which is why no 1:1 machine could ever have shown it.
+Only the native route can produce it. The page route derives its bitmap *from* the CSS size — `backing = round(css × detail)` — so the two cannot disagree. The native route is the only place where the bitmap arrives from outside fuji and the CSS size has to be recovered from it by division, and dividing by `devicePixelRatio` is where the half lands. At `devicePixelRatio` 1 that division is the identity, which is why no 1:1 machine could ever have shown it.
 
 ### The fix that did not work
 
@@ -193,7 +193,7 @@ The first audit proposed setting the canvas's CSS size to `backing / devicePixel
 
     thumb 480×269   style 240px × 134.5px   computed 240px × 134.5px   rect 240×134.5 at y 0
 
-and the tile was **still 90.74% intermediate**, unchanged. **A fractional CSS box does not buy a device-pixel-exact blit in WKWebView.** Confirmed from the other side by padding the bitmap to 270 rows against a whole-pixel CSS height of 135, which dropped straight to 0.00%. Recorded here because it is the kind of plausible fix that would otherwise be tried again.
+and the tile was **still 90.74% intermediate**, unchanged. **A fractional CSS box does not buy a backing-pixel-exact blit in WKWebView.** Confirmed from the other side by padding the bitmap to 270 rows against a whole-pixel CSS height of 135, which dropped straight to 0.00%. Recorded here because it is the kind of plausible fix that would otherwise be tried again.
 
 ### The fix
 
@@ -206,13 +206,13 @@ function flowSize(tile, canvas, backing) {
 	…
 }
 function flowSnap(side, have) {
-	let ratio = window.devicePixelRatio
-	let want = Math.round(side * ratio)
-	return want > have + ratio ? have : want
+	let backingPerCss = window.devicePixelRatio
+	let want = Math.round(side * backingPerCss)
+	return want > have + backingPerCss ? have : want
 }
 ```
 
-The constant separates two cases. A thumbnail shrunk to fit misses its box by at most one device pixel of rounding, and taking that sliver buys a one-to-one blit for every row. A picture *smaller* than the box misses it by far more and is meant to — the fit leaves such a picture at its own size and the engine enlarges it the way an `<img>` tag would — so that one keeps the pixels it has.
+The constant separates two cases. A thumbnail shrunk to fit misses its box by at most one backing pixel of rounding, and taking that sliver buys a one-to-one blit for every row. A picture *smaller* than the box misses it by far more and is meant to — the fit leaves such a picture at its own size and the engine enlarges it the way an `<img>` tag would — so that one keeps the pixels it has.
 
 `flowEdge` then repeats the picture's last row and column into whatever sliver was taken, so the seam is the picture's own color rather than a transparent line. `flowFit` is unchanged.
 
@@ -221,13 +221,13 @@ The constant separates two cases. A thumbnail shrunk to fit misses its box by at
 
 The odd tile's midpoint, which was flat grey, reads `0, 255, 0, 255, …`; every column sampled alternates cleanly down to the last real row, and the pad row after it reports `alpha 255` — filled, not transparent. The even tile's 0.11% before and 0.00% after is not a change in its rendering: its geometry is identical either way, since `flowSnap` returns the size it already had, so the difference belongs to the two kinds of capture.
 
-Three properties are worth recording. There is **no reflow**: `flowApply` reserves each box from the header size and `flowSize` computes the final one from the thumbnail, and for an odd short side both land on the same whole CSS pixel, so `flowApply` needed no change. It is a **no-op at ratio 1**, so the machine fuji was written on behaves exactly as before. And it is a **no-op on the page route**, where the canvas already equals the ask; `flowShrink` was pointed at the canvas's real size rather than at that ask so the route cannot leave an edge under any rounding.
+Three properties are worth recording. There is **no reflow**: `flowApply` reserves each box from the header size and `flowSize` computes the final one from the thumbnail, and for an odd short side both land on the same whole CSS pixel, so `flowApply` needed no change. It is a **no-op where a CSS pixel is one backing pixel**, so the machine fuji was written on behaves exactly as before. And it is a **no-op on the page route**, where the canvas already equals the ask; `flowShrink` was pointed at the canvas's real size rather than at that ask so the route cannot leave an edge under any rounding.
 
 ## The window
 
 ### Tauri's window sizes on the Mac
 
-Tauri reports the backing store here, `2224` for a screen `1112` CSS points tall, so its sizes divide by the scale factor to become CSS pixels. And on a window with a title bar 32 points tall, `outerSize` and `innerSize` both came back `1972 × 1716`. That matters to `window_frame_set` in `window.rs`, which takes the title bar to be the difference between the two: if it still holds, an ordinary window comes out a title bar taller than the preset asks. tao 0.35.3 reads the outer size from the NSWindow's frame and the inner size from its content view, which should differ, so this is worth measuring again rather than trusting either. One likely explanation: tao queues a change of title bar onto the main thread rather than making it, so a size read straight after one sees the window as it was. The shell now places a window before changing its title bar, never after, so nothing is queued when it measures. The function this was measured for, `screenToViewport`, went with the pan it corrected, once the diamond table became fullscreen only.
+Tauri reports the backing store here, `2224` for a screen `1112` CSS pixels tall, so its sizes divide by its scale factor to become CSS pixels. And on a window with a title bar 32 CSS pixels tall, `outerSize` and `innerSize` both came back `1972 × 1716`. That matters to `window_frame_set` in `window.rs`, which takes the title bar to be the difference between the two: if it still holds, an ordinary window comes out a title bar taller than the preset asks. tao 0.35.3 reads the outer size from the NSWindow's frame and the inner size from its content view, which should differ, so this is worth measuring again rather than trusting either. One likely explanation: tao queues a change of title bar onto the main thread rather than making it, so a size read straight after one sees the window as it was. The shell now places a window before changing its title bar, never after, so nothing is queued when it measures. The function this was measured for, `screenToViewport`, went with the pan it corrected, once the diamond table became fullscreen only.
 
 ## Smaller things the audit settled
 
@@ -235,7 +235,7 @@ Tauri reports the backing store here, `2224` for a screen `1112` CSS points tall
 
 **A canvas is never remade when its window changes monitors**, so a `devicePixelRatio` or gamut change goes stale until the sheet rebuilds. Read from the code; not exercised.
 
-**An image whose pixels fall between the box and box × ratio is displayed enlarged in backing terms.** `flowFit` treats bitmap pixels as CSS pixels, which is exactly an `<img>` tag's semantics and is consistent, but "never enlarged" is true only of the bitmap, not of what reaches the glass. This is a design choice, not a defect, and `flowSnap` preserves it deliberately.
+**An image whose pixels fall between the box and the box times `devicePixelRatio` is displayed enlarged in backing terms.** `flowFit` treats bitmap pixels as CSS pixels, which is exactly an `<img>` tag's semantics and is consistent, but "never enlarged" is true only of the bitmap, not of what reaches the glass. This is a design choice, not a defect, and `flowSnap` preserves it deliberately.
 
 Three things that only matter to someone driving fuji from outside, all met while building this audit. Tauri's capability list has no `core:window:allow-set-focus` or `core:window:allow-close`, so a script can move and resize the window but cannot raise or quit it. `DiamondTable` loads an image only in response to a drop, so opening the model is not enough to make it show anything. And `tauri dev`'s rebuild kills the app without reaching `RunEvent::Exit`, so a rebuild writes neither the settings nor the log — as does any run short enough that the page's 1500 ms quiet timer never flushed a line.
 
@@ -243,7 +243,7 @@ Three things that only matter to someone driving fuji from outside, all met whil
 
 - **The `wide: false` path.** When the screen is not P3, `flowGamut` is `srgb` and `thumbnail.rs` converts into sRGB instead. Untestable on the MacBook for want of an sRGB display.
 - **Display P3 on a wide-gamut Windows panel.** WIC reports sRGB whatever is asked and says so in the header, and a file carrying a profile does arrive converted — measured on the Windows box 2026-09-13 and written up on the site. What that leaves is the wide-gamut case: a Display P3 photograph loses its out-of-gamut colors before the page sees the pixels, which costs nothing on an ordinary Windows screen and is a real loss on a wide one. Closing it means giving WIC a profile file to build a context from.
-- **The native panel resolution**, 2560 × 1664, carried from the earlier code-reading audit and not re-measured in this session.
+- **The panel resolution**, 2560 × 1664, carried from the earlier code-reading audit and not re-measured in this session.
 - **Monitor changes**, per the stale-canvas note above.
 
 ## What the MacBook is still needed for
@@ -254,7 +254,7 @@ Three things can only be settled on a Retina, wide-gamut Mac, so they wait for t
 
 **Whether the engine still snaps the way it does now.** The fix in `flowSnap` rests on observed WKWebView behaviour — a canvas box rounded to whole CSS pixels — not on anything a specification guarantees. A macOS or Safari update is a reason to re-run the odd-and-even measurement below; it takes about ten minutes and the answer is a single percentage.
 
-**A second display.** Canvases are never remade when a window changes monitors, so a change of ratio or gamut goes stale until the sheet rebuilds. Read from the code and never exercised, because it needs two screens with different characters — which the MacBook can have and the sRGB machines cannot.
+**A second display.** Canvases are never remade when a window changes monitors, so a change of `devicePixelRatio` or of gamut goes stale until the sheet rebuilds. Read from the code and never exercised, because it needs two screens with different characters — which the MacBook can have and the sRGB machines cannot.
 
 ## Repeating this
 

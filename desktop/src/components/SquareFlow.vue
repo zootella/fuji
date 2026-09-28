@@ -116,7 +116,7 @@ async function flowNative1(tile) {//one thumbnail from the operating system, ont
 		flowSize(tile, canvas, xy(width, height))
 		let context = canvas.getContext('2d', {colorSpace: flowGamut})
 		context.putImageData(new ImageData(pixels, width, height, {colorSpace: gamut}), 0, 0)//tagged with what the pixels are, so windows' srgb pixels are right on a wide-gamut canvas; anything past the canvas is clipped
-		flowEdge(context, canvas, width, height)//the sliver flowSnap may have added, if this thumbnail came back a device pixel short of its box
+		flowEdge(context, canvas, width, height)//the sliver flowSnap may have added, if this thumbnail came back a backing pixel short of its box
 		logThumbnail({hit: 'native', render: Math.round(performance.now() - began), bytes: canvas.width * canvas.height * 4, natural: `${width}x${height}`, path: tile.path})
 	} catch (error) {
 		flowRefuse(tile, String(error))
@@ -134,8 +134,8 @@ async function flowPage1(tile) {//one thumbnail made by the page from the store'
 		let natural = xy(entry.img.naturalWidth, entry.img.naturalHeight)
 		if (!(natural.x > 0 && natural.y > 0)) { flowRefuse(tile, 'the picture has no size'); return }
 
-		let {scale, css} = flowFit(natural)//the size it will show at, and the ratio that got it there
-		let detail = Math.min(window.devicePixelRatio, 1 / scale)//never more backing pixels than the file has; from the scale rather than the sizes, because a sliver rounds up to one css pixel
+		let {scale, css} = flowFit(natural)//the size it will show at, and the css pixels per image pixel that got it there
+		let detail = Math.min(window.devicePixelRatio, 1 / scale)//canvas pixels per css pixel: devicePixelRatio, but never more than the file has; from the scale rather than the sizes, because a sliver rounds up to one css pixel
 		let backing = xy(Math.max(1, Math.round(css.x * detail)), Math.max(1, Math.round(css.y * detail)))
 		flowSize(tile, canvas, backing)
 		flowShrink(canvas.getContext('2d', {colorSpace: flowGamut}), entry.img, natural, xy(canvas.width, canvas.height))//the canvas rather than the ask, so this route fills whatever flowSnap sized it to and never leaves an edge
@@ -160,39 +160,39 @@ function flowImg(tile) {//a gif or an svg: the store's url, no decode; the css f
 }
 
 function flowSize(tile, canvas, backing) {//size a canvas to its pixels; assigning width or height also clears it and resets its context, so it comes before any drawing
-	tile.css = flowFit(backing).css//a returned thumbnail's longer side is the box times the ratio when it was shrunk and its own when it was not, and this rule fits both
+	tile.css = flowFit(backing).css//a returned thumbnail's longer side is the box times devicePixelRatio when it was shrunk and its own when it was not, and this rule fits both
 	canvas.width = flowSnap(tile.css.x, backing.x); canvas.height = flowSnap(tile.css.y, backing.y)
 	canvas.style.width = tile.css.x + 'px'; canvas.style.height = tile.css.y + 'px'//set here as well as by the template, so the element is right in the frame it is painted
 	flowBytes += canvas.width * canvas.height * 4
 }
-function flowSnap(side, have) {//how many pixels a canvas gets for one axis: the css box in device pixels, or the pixels in hand where those cannot reach it
+function flowSnap(side, have) {//how many pixels a canvas gets for one axis: the css box in backing pixels, or the pixels in hand where those cannot reach it
 	/*
-	A canvas is laid out on whole css pixels and painted at the device ratio, so its box is a whole number of css pixels times the ratio however the fit above rounded. A bitmap that is not exactly that many device pixels is not blitted one to one, it is resampled, and the phase of that resample walks a full pixel across the picture: on a retina panel a thumbnail one device row short of its box comes back sharp at both ends and flat grey through the middle. Half of the thumbnails the operating system makes have an odd short side, so half of them land in that state, and none of it was visible on a machine where a css pixel and a device pixel were the same thing.
+	A canvas is laid out on whole css pixels and painted in backing pixels, so its box is a whole number of css pixels times devicePixelRatio however the fit above rounded. A bitmap that is not exactly that many backing pixels is not blitted one to one, it is resampled, and the phase of that resample walks a full pixel across the picture: on a retina panel a thumbnail one backing row short of its box comes back sharp at both ends and flat grey through the middle. Half of the thumbnails the operating system makes have an odd short side, so half of them land in that state, and none of it was visible on a machine where a css pixel and a backing pixel were the same thing.
 
-	So the canvas is sized to the box rather than to the picture, and the picture is put in the corner of it. Two cases, and the constant tells them apart. A thumbnail shrunk to fit misses its box by at most one device pixel of rounding, and that sliver is worth taking, because filling it buys a one to one blit for every row; flowEdge repeats the last row and column into it so the seam is the picture's own color. A picture smaller than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an img tag would, so that one keeps the pixels it has.
+	So the canvas is sized to the box rather than to the picture, and the picture is put in the corner of it. Two cases, and the constant tells them apart. A thumbnail shrunk to fit misses its box by at most one backing pixel of rounding, and that sliver is worth taking, because filling it buys a one to one blit for every row; flowEdge repeats the last row and column into it so the seam is the picture's own color. A picture smaller than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an img tag would, so that one keeps the pixels it has.
 
-	Nearest rather than down, and flooring was tried and measured and is worse. On a mac the choice is invisible: the ratio is 1 or 2, so the box is always a whole number of device pixels and the two agree exactly. Windows scales at 125, 150 and 175 percent, where a box on whole css pixels lands on a quarter, a half or three quarters of a device pixel and no canvas can sit on it either way. There the two differ on half of all sizes, and the reasoning that said flooring should win was this: across three scales, every canvas that came out larger than its box and whose row had drifted off the device grid was resampled, while every canvas smaller than its box was clean. Never overshoot, and the compositor has nothing to resample.
+	Nearest rather than down, and flooring was tried and measured and is worse. On a mac the choice is invisible: devicePixelRatio is 1 or 2, so the box is always a whole number of backing pixels and the two agree exactly. Windows scales at 125, 150 and 175 percent, where a box on whole css pixels lands on a quarter, a half or three quarters of a backing pixel and no canvas can sit on it either way. There the two differ on half of all sizes, and the reasoning that said flooring should win was this: across three scales, every canvas that came out larger than its box and whose row had drifted off the backing grid was resampled, while every canvas smaller than its box was clean. Never overshoot, and the compositor has nothing to resample.
 
-	It does not hold. Every one of those clean undershoots was short by exactly a quarter of a device pixel, which is what rounding happens to produce; flooring makes them short by a half or three quarters, and those resample as readily as an overshoot does — measured at 175 percent, where flooring fixed two tiles and broke three, including two in a row sitting squarely on the grid. A canvas cannot be made to fit a box that is not a whole number of device pixels, and how far it misses by matters more than which side it misses on. So this rounds, the miss is at most half a pixel in either direction, and the tiles that still resample are left to the layout question that owns them.
+	It does not hold. Every one of those clean undershoots was short by exactly a quarter of a backing pixel, which is what rounding happens to produce; flooring makes them short by a half or three quarters, and those resample as readily as an overshoot does — measured at 175 percent, where flooring fixed two tiles and broke three, including two in a row sitting squarely on the grid. A canvas cannot be made to fit a box that is not a whole number of backing pixels, and how far it misses by matters more than which side it misses on. So this rounds, the miss is at most half a backing pixel in either direction, and the tiles that still resample are left to the layout question that owns them.
 
 	The thumbnail pipeline document on fuji's site has the tiles all of this was read from.
 	*/
-	let ratio = window.devicePixelRatio
-	let want = Math.round(side * ratio)//nearest, because the size of the miss matters more than its direction; flooring was measured and was worse
-	return want > have + ratio ? have : want
+	let backingPerCss = window.devicePixelRatio
+	let want = Math.round(side * backingPerCss)//nearest, because the size of the miss matters more than its direction; flooring was measured and was worse
+	return want > have + backingPerCss ? have : want
 }
 function flowEdge(context, canvas, width, height) {//fill whatever flowSnap left over by repeating the picture's last row and column into it; the row goes first, so the column carries it into the corner
 	if (canvas.height > height) context.drawImage(canvas, 0, height - 1, width, 1, 0, height, width, canvas.height - height)
 	if (canvas.width > width) context.drawImage(canvas, width - 1, 0, 1, canvas.height, width, 0, canvas.width - width, canvas.height)
 }
-function flowFit(size) {//the css size a picture of size pixels shows at, and the ratio that got it there: longer side to the box, never enlarged, whole pixels
-	let scale = Math.min(flowBox / size.x, flowBox / size.y, 1)//the 1 keeps a small picture at its own size rather than blowing it up
+function flowFit(size) {//the css size a picture of size pixels shows at, and the css pixels per image pixel that got it there: longer side to the box, never enlarged, whole css pixels
+	let scale = Math.min(flowBox / size.x, flowBox / size.y, 1)//css pixels per image pixel; the 1 keeps a small picture at its own size rather than blowing it up
 	return {scale, css: xy(Math.max(1, Math.round(size.x * scale)), Math.max(1, Math.round(size.y * scale)))}//whole css pixels, because that is the grid the engine lays a box out on however this rounds; flowSize is where the pixels are then made to match it
 }
 function flowStyle(tile) { return tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {} }//a tile with a known size holds its box before its pixels arrive
 
 /*
-Why this halves rather than drawing once. Fuji's first thumbnails aliased on the Mac — the roof tiles of a 26-megapixel photograph turned to jaggies at 240 pixels, while Safari showed the same file smooth as an img — and two things caused it. CoreGraphics' high interpolation reads a fixed footprint of source pixels around each output pixel, so at 26 to 1 most of the picture is never read, and pixels that are never read alias. And WebKit hands drawImage a subsampled frame only when it has to decode one: a frame already decoded at full size counts as good enough for any smaller request, and the store's decode() makes exactly that frame, so drawImage was given all 26 megapixels where Safari's img, which never called decode(), was given a quarter of them. Halving until the last draw is within two to one puts every source pixel into the average. Chromium's high quality is already a chain of halvings under a cubic filter, so on Windows this is work the engine would have done anyway.
+Why this halves rather than drawing once. Fuji's first thumbnails aliased on the Mac — the roof tiles of a 26-megapixel photograph turned to jaggies at 240 css pixels, while Safari showed the same file smooth as an img — and two things caused it. CoreGraphics' high interpolation reads a fixed footprint of source pixels around each output pixel, so at 26 to 1 most of the picture is never read, and pixels that are never read alias. And WebKit hands drawImage a subsampled frame only when it has to decode one: a frame already decoded at full size counts as good enough for any smaller request, and the store's decode() makes exactly that frame, so drawImage was given all 26 megapixels where Safari's img, which never called decode(), was given a quarter of them. Halving until the last draw is within two to one puts every source pixel into the average. Chromium's high quality is already a chain of halvings under a cubic filter, so on Windows this is work the engine would have done anyway.
 
 createImageBitmap looks like the purpose-built tool here, and on Chromium it is: ask it for resizeWidth and resizeQuality and it decodes straight to the size wanted. WebKit has the code and does not ship the options, so on the Mac it handed back a full-size bitmap — a whole second copy of a large photograph, allocated for nothing, then scaled by the same drawImage that could have done the job alone. It was tried and taken back out.
 */

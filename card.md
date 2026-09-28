@@ -51,7 +51,7 @@ A card is a box of thumbnails, and the sheet's one scroll runs over a stack of t
 
 ## What a canvas thumbnail costs
 
-**A canvas is memory the engine can never take back.** An `img`'s decode can be dropped under pressure and rebuilt from the bytes; a canvas has nothing to rebuild from. So a canvas thumbnail costs a fixed, known amount for as long as it exists — its css width times its css height, times the pixel ratio squared, times four bytes — and a ceiling on cards is what turns that from a slower way to run out of memory into a bound. At a pixel ratio of 2, for a 3:2 photograph:
+**A canvas is memory the engine can never take back.** An `img`'s decode can be dropped under pressure and rebuilt from the bytes; a canvas has nothing to rebuild from. So a canvas thumbnail costs a fixed, known amount for as long as it exists — its css width times its css height, times `devicePixelRatio` squared, times four bytes — and a ceiling on cards is what turns that from a slower way to run out of memory into a bound. At a `devicePixelRatio` of 2, for a 3:2 photograph:
 
     size          one thumbnail    500 of them
     Small  120    150 KB            77 MB
@@ -61,7 +61,7 @@ A card is a box of thumbnails, and the sheet's one scroll runs over a stack of t
 
 At Medium, five hundred thumbnails cost about what three full-size 26-megapixel decodes do. That is the win. At Xl, a folder of two thousand is five gigabytes nobody can reclaim, which is why the count of cards has to exist before the walk does.
 
-**Three things an img gets from the engine for nothing, a canvas does by hand.** The css-to-backing pixel ratio, which decides whether a thumbnail is sharp on a retina panel or on Windows at 150%, and which goes stale the moment the window moves to a monitor with a different one. A change of thumbnail size, which css answers over pixels the engine already has, while every canvas has to be made again. And the color space: a canvas is sRGB unless asked otherwise, so every canvas is made in the screen's own gamut, which on an ordinary sRGB screen is the canvas it always was. `canvas.md` has what each platform does with each of these.
+**Three things an img gets from the engine for nothing, a canvas does by hand.** The engine's `devicePixelRatio`, which decides whether a thumbnail is sharp on a retina panel or on Windows at 150%, and which goes stale the moment the window moves to a monitor with a different one. A change of thumbnail size, which css answers over pixels the engine already has, while every canvas has to be made again. And the color space: a canvas is sRGB unless asked otherwise, so every canvas is made in the screen's own gamut, which on an ordinary sRGB screen is the canvas it always was. `canvas.md` has what each platform does with each of these.
 
 **The engines are not the same engine, so a measurement on one is not a measurement on the other.** Both decode a large picture small when they know it will be painted small, Chromium at a half, a quarter or an eighth, WebKit by a five-megapixel rule, and both give an accelerated canvas its own compositing layer, on the Mac by a display-list mode that is on by default and on Windows always. `canvas.md` has the rules and the sources.
 

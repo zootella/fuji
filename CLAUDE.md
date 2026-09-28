@@ -193,9 +193,9 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
   - `disk_copy()` - Efficient file copying using kernel-space operations; overwrites the destination
 
 - `panel.rs` - Hardware display resolution detection:
-  - `panel_resolution()` - Returns physical pixel dimensions via platform-specific APIs
+  - `panel_resolution()` - Returns the display's size in panel pixels via platform-specific APIs
   - Platform implementations for Windows (Win32), macOS (CoreGraphics), and Linux (xrandr)
-  - Answers about the primary display only, and asks every mode the display offers because no API reports the native one
+  - Answers about the primary display only. On the Mac it asks every mode the display offers, because no API reports the panel's own; on Windows it reads the display resolution, which is backing, and the panel only at the display's native resolution
 
 - `desktop.rs` - The one thing only Rust can do, because only Rust sees a quit coming:
   - `desktop_exit_hold()` - Replace the text to write to a path when the application exits
@@ -316,7 +316,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
 - A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `SquareFlow.vue` is the code, and the thumbnail pipeline document on the site is why it is shaped that way
-- A canvas is sized to its box in device pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one device pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `SquareFlow.vue` hold this; `fidelity.md` has the measurement
+- A canvas is sized to its box in backing pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one backing pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `SquareFlow.vue` hold this; `fidelity.md` has the measurement
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 
 ### Styling
@@ -369,7 +369,7 @@ The linux containers do not use that list. They pass `--bundles deb` or `--bundl
 
 `bundle.macOS.signingIdentity` is `-`, the pseudo-identity that seals the app with an ad-hoc signature and no certificate. It changes which Gatekeeper dialog a downloaded copy meets, from "damaged" with no way through to "could not verify" with an Open Anyway button, and nothing else; the essay under the targets table in `scripts.js` says why, and the download page says what a user does. Windows and the linux containers ignore it. Every mac installer build now tries to notarize after signing, finds no credentials, and says so, which is expected: fuji does not sign with a Developer ID by choice, and the download page says why, so do not propose it.
 
-`bundle.macOS.dmg` lays out the window a Mac user sees when the installer opens: 800 points square, the jinbocho street scene from `src-tauri/dmg/jinbocho.jpg` behind it, and Fuji.app and the Applications link on one line a quarter and three quarters of the way across, at 360 rather than the middle because the 800 includes the title bar and the label hangs below each icon. The picture is a 1600-pixel JPEG tagged at 144 dpi, which is how one file serves an sRGB panel and a Retina one alike; its source and every candidate that lost live outside the repository, with the notes on how they were made. **Two rules for building the dmg, both learned on 2026-09-24.** The bundler lays the window out by driving Finder through AppleScript, so Finder must not be showing hidden files, Command Shift period, or every icon is stored 20 to the right and 45 down of where it was asked. And Finder must be left alone for the ten seconds that step runs: it waits for Finder to save the window on close, and a window lost among others stalls the build until somebody closes it, which is also the cure.
+`bundle.macOS.dmg` lays out the window a Mac user sees when the installer opens: 800 CSS pixels square, the jinbocho street scene from `src-tauri/dmg/jinbocho.jpg` behind it, and Fuji.app and the Applications link on one line a quarter and three quarters of the way across, at 360 rather than the middle because the 800 includes the title bar and the label hangs below each icon. The picture is a 1600-pixel JPEG tagged at 144 dpi, which is how one file serves an sRGB panel and a Retina one alike; its source and every candidate that lost live outside the repository, with the notes on how they were made. **Two rules for building the dmg, both learned on 2026-09-24.** The bundler lays the window out by driving Finder through AppleScript, so Finder must not be showing hidden files, Command Shift period, or every icon is stored 20 to the right and 45 down of where it was asked. And Finder must be left alone for the ten seconds that step runs: it waits for Finder to save the window on close, and a window lost among others stalls the build until somebody closes it, which is also the cure.
 
 `pnpm hash` copies the bundle out from under its versioned, architecture-specific name into `release/` under a stable publishing name, and writes the sidecar beside it from the bytes that landed. The rename happens here rather than at upload time, which is what lets the site side copy known filenames from a known path with no rules about versions or architectures. The installers stay out of git; the sidecars are committed, so history keeps a dated record of what hash each release had.
 
@@ -379,6 +379,18 @@ Always use the path normalization functions from `library.js`:
 - Call `forwardize(path)` on all paths entering the system (e.g., from drag-drop events)
 - Use forward slashes internally throughout the codebase
 - Call `backize(path)` only when displaying paths to Windows users in the UI
+
+## Pixel Units
+
+**Three units, and one name each.** The code, its comments, the planning documents and the site all use these three names and no others.
+
+- **CSS** pixels are the page's unit and the user's: what CSS lays out in, what the user sizes things in, and what settings record. macOS calls them points and lists them in its display settings as the "looks like" resolution; Tauri calls them logical.
+- **backing** pixels are the grid fuji paints into. On the Mac that is the backing bitmap. On Windows, which has no separate backing store, it is the display resolution. Tauri calls these physical, in `PhysicalSize` and `PhysicalPosition`, and so is every rectangle Win32 hands fuji, which is DPI aware.
+- **panel** pixels are the display's own lights. On the Mac they are always the physical panel, and macOS resamples backing onto them whenever the two differ. On Windows they are the physical panel only while the display runs at its native resolution. Many users lower the resolution to make things bigger, because that setting is older and better known than "Change the size of text, apps, and other items"; the monitor or the graphics card then stretches backing onto the lights, invisibly to every API, and fuji neither detects that nor adjusts for it.
+
+**A ratio always says which one it is**, because there are several. Backing per CSS is the one `devicePixelRatio` answers in the page, Tauri's `scale_factor` answers in Rust, and Windows calls its scale setting: only ever 1 or 2 on the Mac, and on Windows 1.25 at 125 percent, 1.5 at 150, and so on, so often fractional. Prose calls it by whichever of those names its reader already knows, or says it outright — each CSS pixel two backing pixels across — and never leaves a bare *the ratio* for the reader to resolve. Panel per backing is the Mac's resample. A picture's own pixels are not a screen unit at all, and a picture's size on screen is CSS per image pixel. In code, backing per CSS is held as `backingPerCss` in the page and `backing_per_css` in Rust, never as a bare `ratio` or `scale`, and any other ratio names both of its units where it is declared.
+
+**Five words stay out of the unit names.** *Physical*, because Tauri means backing by it and this codebase used it for panel. *Display*, because the Mac's display settings list CSS resolutions and Windows' list backing ones. *Device pixel*, *native* and *hardware*, which were three more names for units that already have one. `fidelity.md` has the measurements behind this, on a Retina Mac and on the Windows box, and says which parts are assumed rather than measured.
 
 ## Adding New Rust Commands
 

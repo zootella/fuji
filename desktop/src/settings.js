@@ -88,7 +88,7 @@ const settingsSchema = [
 		section: 'zoom',
 		key: 'drag',
 		factory: 200,
-		comment: 'how many pixels a right drag travels up to double the image, or down to halve it; it zooms about the point where the drag began, and dragging back there restores what you had',
+		comment: 'how many css pixels a right drag travels up to double the image, or down to halve it; it zooms about the point where the drag began, and dragging back there restores what you had',
 		check: value => value > 0,
 	}, {
 		section: 'gamma',
