@@ -10,6 +10,8 @@ Written on the Windows box, 2026-09-28, alongside the change to `window_first` i
 
 **None of it is gated by platform, and on the Mac it should do nothing you can see.** The turn is never contended. A flurry needs two fuji processes launched within 200 milliseconds, and macOS runs one. And a release build never exits on the watchdog, because it stays resident. What the Mac does notice is an empty `window-turn.lock` in the app's local data folder, and the first window being asked for from a thread of its own, a few milliseconds later than before.
 
+**Every way out of fullscreen now goes through a new command, `window_fullscreen_leave`.** On Windows, Tauri's own call showed a hidden window again at its old frame, which flashed at Esc; the command keeps it hidden there. Its Mac body is the one line the page used to call, `set_simple_fullscreen(false)`, but it has only ever been compiled for Windows, so if the build complains, or leaving the table for the sheet or pressing Esc behaves differently, look there first.
+
 ## What only the Mac can check
 
 1. **Select five pictures in Finder and open them with fuji.** Expect one window. The essay says the Mac already opens a selection as one window, because the shell expects Finder to hand the whole selection over in one `Opened` event and opens its window on the first picture. That was read from the shell's code rather than seen. Five windows would mean Finder sends an event per file, and the Mac would then behave differently from Windows, where the same selection now opens one window.

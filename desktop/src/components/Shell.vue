@@ -13,7 +13,7 @@ import {associateRegister} from '../associate.js'//and what fuji tells the opera
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
-import {windowFrame, windowFrameSet} from '../window.js'//to place the window before it is revealed, and to read the size the user has given the sheet
+import {windowFrame, windowFrameSet, windowFullscreenLeave} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, and to leave fullscreen without showing a hidden window
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import DiamondTable from './DiamondTable.vue'
@@ -174,7 +174,7 @@ The sheet lives in a window and a table lives fullscreen. That is the whole of f
 
 The shell places every window fuji makes, before it is revealed; Rust builds each one hidden at no particular size, and window.rs says why fuji places them rather than the platform. A launch on a picture opens as a preview, fitted around the picture in the work area, the part of the desktop the menu bar, dock and taskbar leave free, and placed out from under the pointer; library.js has the rule. Every other launch, and the first sheet after a preview, is the contact sheet's window. Its size is the one thing fuji remembers about a window across launches, because it is the only window the user thinks of as one: the size goes into settings as the user resizes it, and comes back at a random place whenever it still fits the work area.
 
-Where the sheet's window is between visits to the table needs no record of fuji's own. Leaving fullscreen puts a window back exactly where it was before, at the size it had, on every platform — tao saves the frame on the mac, and the other two restore it themselves — and every trip to the table starts from the sheet's window. The one exception is a preview's: the frame restored after it is the one fitted to a picture, so the first sheet after a preview gets a title bar and an ordinary frame of its own, and the platform keeps that one from then on. That change happens with the window hidden. On Windows, hidden is not quite hidden while fullscreen is being left: tao restores the placement it saved on the way in, which carries a show command, so the window reappears at its old frame until the next change of style hides it again. Measured on the Windows box on 2026-09-28, that was caught once, for 76 ms, as a window closed from fullscreen, and never noticed in use, so it is accepted as it stands. Hiding the window a second time would not help, because tao keeps its own record of visibility and acts only on a change. A user never takes the preview or the table for a window — neither has a title bar — so fuji's window first exists for them when the sheet appears, and it should simply appear rather than be seen leaving the preview's place.
+Where the sheet's window is between visits to the table needs no record of fuji's own. Leaving fullscreen puts a window back exactly where it was before, at the size it had, on every platform — tao saves the frame on the mac, and the other two restore it themselves — and every trip to the table starts from the sheet's window. The one exception is a preview's: the frame restored after it is the one fitted to a picture, so the first sheet after a preview gets a title bar and an ordinary frame of its own, and the platform keeps that one from then on. That change happens with the window hidden, and every way out of fullscreen goes through windowFullscreenLeave rather than tauri's own call, because on Windows tauri's call shows a hidden window again at its old frame; window.rs says how the command keeps it hidden. A user never takes the preview or the table for a window — neither has a title bar — so fuji's window first exists for them when the sheet appears, and it should simply appear rather than be seen leaving the preview's place.
 
 Every other change of view changes the window's size too, and the two cannot land in the same frame: the native window takes its new frame at once, and the page repaints for it a frame or two later, so for a moment the old view would show stretched to the screen or squeezed into a window. The curtain, a black cover over the whole window, hides those frames. On Windows the change passes through shapes of its own as well, measured on the Windows box on 2026-09-28: going into fullscreen strips the resize border about 10 ms before the window grows to fill the screen, and coming out puts the border back on the screen-sized window for about 14 ms before it returns to its frame. The curtain covers those too. It goes up for the preview becoming the table, where the picture has to hold still across the change, and for the sheet and the table trading places. It lifts as soon as the window has arrived and the new view is showing, and deliberately not later: a table changing to a picture chosen on the sheet shows its dots until that picture is decoded, rather than keep the screen black for the length of a decode, or show the picture the user has moved on from.
 
@@ -238,7 +238,7 @@ async function previewExpand(path) {//the preview was clicked: the diamond table
 async function sheetFromPreview() {//the first sheet after a preview: the window goes away and comes back as an ordinary one, because the user never took the preview or the table for a window, and a window appearing where the preview was would say it had been one all along
 	let w = getCurrentWindow()
 	await w.hide()
-	if (fullscreenOurs) { await w.setSimpleFullscreen(false); fullscreenOurs = false }//without fullscreenSet's wait for the resize, which a hidden window cannot be relied on to deliver; nothing measures until the window is back
+	if (fullscreenOurs) { await windowFullscreenLeave(); fullscreenOurs = false }//without fullscreenSet's wait for the resize, which a hidden window cannot be relied on to deliver; nothing measures until the window is back
 	previewFramed = false
 	let areas = await screenAreas()
 	if (areas) await placeSheet(areas.work)//the frame first and the title bar after, for the reason placeWindow gives
@@ -262,7 +262,8 @@ async function fullscreenSet(on) {//turn fuji's own fullscreen on or off, and wa
 	if (on && platform() == 'mac' && await w.isFullscreen()) return//already in a macos space, which the table can have as it is
 	fullscreenOurs = on
 	let landed = new Promise(resolve => { resizeWaiting.push(resolve); setTimeout(resolve, 1000) })//the resize that says the window got there, or a second, so a change that moves nothing never hangs
-	await w.setSimpleFullscreen(on)//instant, no Space and no animation; on windows and linux, the ordinary fullscreen
+	if (on) await w.setSimpleFullscreen(true)//instant, no Space and no animation; on windows and linux, the ordinary fullscreen
+	else await windowFullscreenLeave()//the one way fuji leaves it, whether the window is showing or not
 	await getCurrentWebview().setFocus()//hand the keyboard back to the page, after the change, for the reason the essay above gives
 	await landed
 }
@@ -274,8 +275,8 @@ async function curtained(work) {//do a change of view behind the curtain the ess
 async function closeWindow() {//close the window as the red button or the × would, hidden and out of fuji's fullscreen first
 	let w = getCurrentWindow()
 	if (fullscreenOurs) {
-		await w.hide()//so the user does not see it come back to its window size on the way out; on windows it can show again for a few frames, which the essay above accepts
-		await w.setSimpleFullscreen(false); fullscreenOurs = false//on the mac, left before closing so the dock and menu bar come back for the whole application
+		await w.hide()//so the user never sees it come back to its window size on the way out
+		await windowFullscreenLeave(); fullscreenOurs = false//on the mac, left before closing so the dock and menu bar come back for the whole application
 	}
 	await w.close()
 }

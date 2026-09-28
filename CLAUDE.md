@@ -206,6 +206,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 - `window.rs` - Making fuji's windows, placing them, and saying where one is:
   - `window_frame()`, `window_frame_set(frame)` - Read or put the visible frame, in CSS pixels, which on Windows is not Tauri's outer rectangle; `window_seen` takes off the invisible resize border there, and its essay has the rule and the measurements
+  - `window_fullscreen_leave()` - Out of fullscreen without changing whether the window is showing, the one way the shell leaves it; on Windows Tauri's own call shows a hidden window again at its old frame, so this cloaks it through the change
   - Its essays carry why the Mac holds every window in one process, where a new window lands, how long fuji outlives its last one, and how copies started together behave: a flurry opens one window, a later launch takes its turn, and a copy whose window never arrives exits rather than lingering
   - Labels windows `window-1` and on, and `capabilities/default.json` grants to `window-*`, so the two change together
 
@@ -293,6 +294,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 - `window.js` - Exposes where the window is and placing it, as the user sees its frame:
   - `windowFrame()`, `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
+  - `windowFullscreenLeave()` - Out of fullscreen, keeping a hidden window hidden
 
 - `panel.js` - Exposes hardware resolution command:
   - `panelResolution()`

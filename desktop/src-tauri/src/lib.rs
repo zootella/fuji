@@ -55,6 +55,7 @@ pub fn run() {
 				touch::touch_block,//and in touch.rs
 				window::window_frame,//and in window.rs
 				window::window_frame_set,
+				window::window_fullscreen_leave,
 			]
 		)
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away

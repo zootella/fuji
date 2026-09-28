@@ -4,3 +4,4 @@ import {invoke} from '@tauri-apps/api/core'
 
 export function windowFrame() { return invoke('window_frame') }//{x, y, width, height} of the visible frame
 export function windowFrameSet(frame) { return invoke('window_frame_set', {frame}) }//put the visible frame exactly there, whatever title bar or borders the window has
+export function windowFullscreenLeave() { return invoke('window_fullscreen_leave') }//out of fullscreen without changing whether the window is showing, which tauri's own way does not promise on windows

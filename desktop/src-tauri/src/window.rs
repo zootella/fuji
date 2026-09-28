@@ -145,6 +145,34 @@ pub fn window_stays_resident() -> bool { true }
 #[cfg(not(all(target_os = "macos", not(debug_assertions))))]
 pub fn window_stays_resident() -> bool { false }//and a debug build answers no on the mac as well. pnpm local runs the binary out of target/debug rather than a bundle, so there is no dock tile a user could click to ask for a window back, and closing the window is how a development run is meant to end
 
+/// Take the window out of fullscreen without changing whether it is showing, which tao's own way does everywhere but windows
+#[command]
+pub fn window_fullscreen_leave(window: WebviewWindow) -> tauri::Result<()> {
+	#[cfg(target_os = "windows")] {
+		let w = window.clone();
+		return window.run_on_main_thread(move || window_fullscreen_leave_hidden(&w))//one task on the main thread, where tauri makes each change at once rather than queuing it, so nothing can come between the restore and the hide
+	}
+	#[cfg(not(target_os = "windows"))]
+	window.set_simple_fullscreen(false)
+}
+
+//tao leaves fullscreen on windows by restoring the placement it saved on the way in, and that placement carries a show command, so a window hidden for a transition would flash up at its old frame; measured on the Windows box on 2026-09-28, 76 ms, pressing Esc on a fullscreen table. So a hidden window is cloaked, which the compositor draws as nothing, while tao restores it, and hidden again before the cloak comes off
+#[cfg(target_os = "windows")]
+fn window_fullscreen_leave_hidden(window: &WebviewWindow) {
+	use windows::Win32::Foundation::HWND;
+	use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_CLOAK};
+	use windows::Win32::UI::WindowsAndMessaging::{IsWindowVisible, ShowWindow, SW_HIDE};
+
+	let Ok(handle) = window.hwnd() else { return };
+	let h = HWND(handle.0);
+	if unsafe { IsWindowVisible(h) }.as_bool() { let _ = window.set_simple_fullscreen(false); return }//a showing window is meant to be seen leaving
+	let cloak = |on: i32| unsafe { let _ = DwmSetWindowAttribute(h, DWMWA_CLOAK, &on as *const i32 as *const _, std::mem::size_of::<i32>() as u32); };//a BOOL, which is four bytes
+	cloak(1);
+	let _ = window.set_simple_fullscreen(false);
+	let _ = unsafe { ShowWindow(h, SW_HIDE) };//windows' own hide, since tao's would do nothing: tao still counts the window hidden
+	cloak(0);
+}
+
 /*
 Where a window is, as the person looking at the screen would say.
 
