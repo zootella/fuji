@@ -1,4 +1,4 @@
-<script setup>//the help panel: every key and mouse action the table and the shell handle, as a new user first sees them
+<script setup>//the help panel: every key and mouse action the views and the shell handle, as a new user first sees them
 
 //the text and its look; the shell decides where it sits and when it is up, over every view. A change to a key or a mouse action is a change here too
 
@@ -11,6 +11,7 @@
 
                                  H    [H]elp
                                  I    [I]nformation
+                                 S    [S]ettings, from the contact sheet
 
 double click                          Back to the contact sheet
 double click a thumbnail              Its picture, full screen

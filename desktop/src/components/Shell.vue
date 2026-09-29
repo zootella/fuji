@@ -9,13 +9,14 @@ import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it; the path and the folder are here for the title bar, which is the shell's because the window is
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
-import {associateRegister} from '../associate.js'//and what fuji tells the operating system it can open in return
+import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenLeave} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, and to leave fullscreen without showing a hidden window
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
+import SettingsPanel from './SettingsPanel.vue'
 import DiamondTable from './DiamondTable.vue'
 import PreviewTable from './PreviewTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -31,7 +32,9 @@ It exists because window events are global and everything else is not. A view's 
 
 There is one sheet and there are several tables, and the two facts are separate: whether the sheet is showing, and which table is behind it. The sheet and the current table swap with v-show and both stay mounted, because that switch is frequent and has to be instant with nothing reloading. Tables swap with each other by :is, which destroys and creates, because a table nobody is using should not be holding decoded images. Adding a table is one entry in the tables object below.
 
-Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, the shell places it, and the viewport does not report its size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it when that view first comes on screen, and the view makes it happen only once.
+The settings panel is the third kind of view, and it belongs to the sheet's window rather than to the table's fullscreen: s on the sheet brings it and s on the panel goes back. Trading those two changes nothing about the window, so it needs none of the curtain the essay further down describes. The panel comes and goes with v-if, made fresh from the settings each time, because a user visits it rarely and it holds nothing worth keeping.
+
+Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, the shell places it, and the viewport does not report its size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it each time that view comes on screen, and the view does only once whatever must happen only once. The sheet leans on the repeat, rereading the setting the settings panel may have changed while it was hidden.
 
 Every handoff below is optional, start included. A view answers only the calls it has a use for, which is what lets a retired experiment be listed among the tables and shown without first being taught the contract. A real table that forgot start() would measure nothing rather than throw, which is the price.
 
@@ -53,8 +56,9 @@ const tables = {//everything the shell can show in place of a table; view.table 
 }
 
 const sheetRef    = ref(null)
+const settingsRef = ref(null)
 const tableRef    = ref(null)
-const showing     = modelShowing//Sheet or Table: which kind of view the user is looking at; the model's ref, written only here
+const showing     = modelShowing//Sheet, Settings or Table: which kind of view the user is looking at; the model's ref, written only here
 const whichTable  = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
 const helpShowing = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
 
@@ -90,13 +94,13 @@ onMounted(async () => {
 	await revealWindow()
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
-	associateRegister().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
+	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
 	unlistenMenu = await w.listen('menu', event => reportTrouble(() => menuChose(event.payload)))//this window's own listener rather than the global one, and that is load-bearing: listen() from the api registers for any target at all, so every window would answer a menu item meant for the one in front — which it did, opening a file picker per window. w.listen registers this window's label, which is what rust aims the event at. menu.rs sends only the items the page owns, and only to the window in front
 	unlistenFileDrop = await w.onDragDropEvent(event => {
-		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => activeView()?.onDrop?.(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji; optional because a view answers only the calls it has a use for
+		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => viewOpen(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji
 	})
 	unlistenResized = await w.onResized(() => reportTrouble(recordSheet))//the sheet's size, into settings as the user changes it
 	unlistenFocus = await w.onFocusChanged(event => reportTrouble(() => activeView()?.onFocus?.(event.payload)))//a window event like the rest, handed to the view showing; the preview closes on losing it
@@ -124,7 +128,7 @@ watch(showing, value => touchBlock(value == 'Table').catch(error => logTrouble('
 async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these two down, because the page already knows how to do both
 	if (id == 'menu-open') {
 		let chosen = await openDialog({multiple: false, directory: false})//every file, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter. Choosing something fuji cannot show is harmless — the model lists the folder and stands on the first picture in it
-		if (chosen) await activeView()?.onDrop?.(forwardize(chosen))//the same call a dropped file takes and a double-clicked one takes, which is the point: three ways in, one road after that
+		if (chosen) await viewOpen(forwardize(chosen))//the same road a dropped file takes, and a double-clicked one ends on the same call: three ways in, one road after that
 	}
 	else if (id == 'menu-fullscreen') await toggleView()//fuji's own fullscreen rather than macOS's, which is the table: the essay above fullscreenSet says why there are two and how they keep out of each other's way
 }
@@ -134,7 +138,12 @@ function helpToggle() {
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
 }
 
-function activeView() { return showing.value == 'Sheet' ? sheetRef.value : tableRef.value }
+function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
+
+async function viewOpen(path) {//a picture dropped on the window or chosen with File, Open, for the view on screen to show; optional, because a view answers only the calls it has a use for
+	if (showing.value == 'Settings') await showView('Sheet')//the settings panel opens nothing, so the sheet comes back to take it
+	await activeView()?.onDrop?.(path)
+}
 
 function onKey(e) {
 	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
@@ -210,11 +219,17 @@ async function toggleView() {//the View menu's Toggle Full Screen: the table ful
 		if (previewPath) return previewExpand(previewPath)
 		whichTable.value = settings.view.table//a preview whose picture would not load has nothing to hand over, so the table behind the sheet is the usual one
 	}
-	return showView(showing.value == 'Sheet' ? 'Table' : 'Sheet')
+	return showView(showing.value == 'Table' ? 'Sheet' : 'Table')//from the settings as from the sheet, since both are the window
 }
-async function showView(name) {//show the sheet in a window or the current table fullscreen; both stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
+async function showView(name) {//show the sheet or the settings in a window, or the current table fullscreen; the sheet and the table stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
 	if (showing.value == name) return
 	if (name == 'Sheet' && previewFramed) return sheetFromPreview()
+	if (name != 'Table' && showing.value != 'Table') {//the sheet and the settings trading places in the one window, which keeps its size, so nothing needs covering
+		showing.value = name
+		await nextTick()//the arriving view is on the page, and the panel has been made
+		activeView()?.start?.()
+		return
+	}
 	await curtained(async () => {
 		await fullscreenSet(name == 'Table')//into fullscreen for the table and out of it for the sheet, before the view is shown, so a table measures the frame it will keep
 		showing.value = name
@@ -255,7 +270,7 @@ async function sheetFromPreview() {//the first sheet after a preview: the window
 async function placeSheet(work) { await windowFrameSet(rectSheet(work, settings.sheet)) }//the size the user last gave a sheet, or the preset, somewhere in the work area
 async function maximizeSheet(w) { if (settings.sheet.maximized) await w.maximize() }//over the frame placeSheet gave it, which is where restoring goes; call it right before the window shows, because on windows maximizing a hidden window shows it
 async function recordSheet() {//the sheet's size into settings as the user resizes it, or that it is maximized; cheap, since settings reach the disk only when fuji exits
-	if (showing.value != 'Sheet' || fullscreenOurs || previewFramed) return//only the sheet in its ordinary window is a window to the user
+	if (showing.value == 'Table' || fullscreenOurs || previewFramed) return//only the sheet's ordinary window is a window to the user, whether the sheet or the settings is in it
 	let w = getCurrentWindow()
 	let [visible, minimized, fullscreen, maximized] = await Promise.all([w.isVisible(), w.isMinimized(), w.isFullscreen(), w.isMaximized()])
 	if (!visible) return//fuji placing a hidden sheet, as sheetFromPreview does, rather than the user sizing one; recording it would clear the maximized flag in the moment before maximizeSheet reads it
@@ -295,7 +310,8 @@ async function closeWindow() {//close the window as the red button or the × wou
 </script>
 <template>
 
-<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" />
+<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" />
+<SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
 <div v-if="curtainShowing" class="fixed inset-0 bg-black"></div><!-- last, so it covers everything while the view and the fullscreen change -->

@@ -111,7 +111,7 @@ Roughly what a release build costs, so a long one does not read as a hang: on th
 
 **A session builds when there is a reason to, and picks the smallest build that gives it.** Not every turn, and not by habit at the end of a change.
 
-**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. **To prove the release profile compiles and links**, `pnpm compile` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm installer`; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
+**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. Neither runs the page, though, so a module that throws while loading passes both and stops fuji before it shows a window — an import cycle that reaches a `const` before its line does exactly that, and did on 2026-09-28. `node -e "import('./src/components/library.js')"` from `desktop` loads the modules the shell does and catches it in a second. **To prove the release profile compiles and links**, `pnpm compile` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm installer`; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
 
 Building the installer every turn is the habit to avoid: it is the slowest thing here, it produces a file nobody asked for, and it says nothing that `cargo check` did not already say.
 
@@ -178,7 +178,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **A command takes one thing, and a list stays in the page.** The page calls down once per item and owns the loop, the order, and how many are in flight; `thumbnail_probe` takes one path and `registry_set` writes one value for that reason. More crossings are the cheap side of that trade, and a command that loops over what the page handed it has pulled a decision down out of the page.
 
-**The payoff is fewer and simpler commands across the boundary,** which is what keeps the whole reliable and easy to reason about. `disk.rs` is five atomic calls, `thumbnail.rs` is two, `registry.rs` three, `panel.rs` and `paths.rs` each answer one question, and `log.rs` and `desktop.rs` each hold some text and write it on the way out. None of them knows what it is part of, and none spells fuji's name: Rust reads the product name from `tauri.conf.json` through `package_info`, and the page reads the same file through `brand.js`. The test for a new command is the one `lib.rs` opens with — describe it without naming a fuji feature. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
+**The payoff is fewer and simpler commands across the boundary,** which is what keeps the whole reliable and easy to reason about. `disk.rs` is five atomic calls, `thumbnail.rs` is two, `registry.rs` five, `panel.rs` and `paths.rs` each answer one question, and `log.rs` and `desktop.rs` each hold some text and write it on the way out. None of them knows what it is part of, and none spells fuji's name: Rust reads the product name from `tauri.conf.json` through `package_info`, and the page reads the same file through `brand.js`. The test for a new command is the one `lib.rs` opens with — describe it without naming a fuji feature. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
 
 ### Rust Backend (desktop/src-tauri/src/)
 
@@ -216,8 +216,10 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `registry.rs` - The Windows registry, offered the way `disk.rs` offers the disk, knowing no key fuji uses; all under `HKEY_CURRENT_USER`:
   - `registry_get(key, name)` - One string value, or blank when the key or the value is not there
   - `registry_set(key, name, value)` - One string value, created if missing and written only if it would change; answers whether it changed
+  - `registry_delete(key, name)` - One value removed; answers whether there was one
   - `registry_notify()` - Tell the shell that file associations changed
-  - All three reject off Windows. `associate.js` is the caller and holds the whole policy
+  - `registry_opens(extension)` - What Windows would open a file type with right now, through the shell's own lookup: a ProgID, a name and a program file, each blank where the shell has none. A Store app like Photos has no program file, and an unregistered type answers all three blank
+  - All five reject off Windows. `associate.js` is the caller and holds the whole policy
 
 - `log.rs` - Fuji's log, the half that holds the text and writes it:
   - `log(text)` - One line from any Rust code, appended to the run's log; a no-op unless the page started a log
@@ -241,13 +243,14 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Frontend (desktop/src/)
 
-**Entry Point**: `main.js` → `App.vue` → `Shell.vue` → `Sheet.vue` or `DiamondTable.vue`
+**Entry Point**: `main.js` → `App.vue` → `Shell.vue` → `Sheet.vue`, `SettingsPanel.vue` or `DiamondTable.vue`
 
 `main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view or a new home for state: it carries the layers, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Key Components**:
 - `Shell.vue` - Owns the window and none of the pixels: reads settings, places and reveals the window, puts it in fullscreen for a table and a window for the sheet, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
 - `HelpPanel.vue` - Every shortcut fuji has, in one text; the shell draws it over every view and owns its `h` key, and `hud.help` remembers whether it was open
+- `SettingsPanel.vue` - What a user changes from inside fuji, shown in the sheet's window in place of the sheet; `s` trades the two. `card.images`, committed through `settingsSet` so the schema's own check decides what is valid, and the file types: each extension's answer beside what opens it now, deliberately plain until its interface is designed
 - `Sheet.vue` - The contact sheet: one folder seen whole, as a top-to-bottom scroll over a stack of cards
 - `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to the flow; names the one flow there is, and a second one brings a register back with it
 - `SquareFlow.vue` - The one flow, and the whole of how a path becomes a tile: probes a card's files together, a call each, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden. `TagFlow.vue` and `CanvasFlow.vue` were the experiment it replaced and are deleted
@@ -279,12 +282,14 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `open.js` - Exposes the files fuji was opened with:
   - `openFiles()`
 
-- `associate.js` - What fuji offers Windows to open, and the whole of the policy: which keys, which values, in what order, and the gate that only an installed copy registers:
-  - `associateRegister()` - Resolves to a line for the log, blank where there was nothing to do
-  - `associations.md` is the whole subject; macOS needs nothing here, since its declaration is `CFBundleDocumentTypes` in `src-tauri/Info.plist`
+- `associate.js` - What fuji offers to open and what the user answered for each extension, and the whole of the policy: which keys, which values, in what order, the fallback claimed for a yes and given back otherwise, following a choice made in the system, and the gate that only an installed copy acts. Its essay opens with the values the design follows from:
+  - `associateStart()` - At startup: repairs the three answer lists and registers; resolves to a line for the log, blank where there was nothing to do
+  - `associateAnswers`, `associateOpens`, `associateActive` - Refs the settings panel shows: each extension's answer, what the system opens it with, and whether this copy can act
+  - `associateChoose(extension, answer)`, `associateLook()`, `associateFinish()` - One answer carried out; ask the system what opens each type, only while the settings are showing; Windows' own Default apps
+  - `associations.md` is the whole subject; the Mac's declaration is `CFBundleDocumentTypes` in `src-tauri/Info.plist`, and its half of the answers is still to build there
 
 - `registry.js` - Exposes the registry commands:
-  - `registryGet(key, name)`, `registrySet(key, name, value)`, `registryNotify()`
+  - `registryGet(key, name)`, `registrySet(key, name, value)`, `registryDelete(key, name)`, `registryNotify()`, `registryOpens(extension)`
 
 - `paths.js` - Exposes where the program is, forwardized:
   - `pathsExecutable()`

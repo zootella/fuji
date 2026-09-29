@@ -10,6 +10,7 @@ App.vue
     ├── Sheet.vue        v-show   one sheet: a scroll of cards over one folder
     │   └── Card.vue              a capped number of images, all from one folder
     │       └── SquareFlow.vue    the flow that sizes and arranges them, and routes each file to a decoder
+    ├── SettingsPanel.vue v-if    what a user changes from inside fuji, in the sheet's window
     └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
         PreviewTable.vue          the picture a double-click opened, alone, before any other table
@@ -43,6 +44,8 @@ App.vue
 **Tables switch between each other with `v-if`.** Choosing a different table is rare, a lost frame is fine, and a table nobody is using should not exist — five mounted tables each holding decoded bitmaps is the memory the cache exists to bound. Destroying one is affordable precisely because everything worth keeping lives below it: the new table reads the same model and asks the same cache, which answers from memory.
 
 **Two orthogonal values, not one mode.** Whether the sheet is showing, and which table is behind it. A double-click flips the first. A menu, a click, or a key picks the second. That they are independent is the whole reason the sheet does not care how many tables exist.
+
+**The settings panel takes the sheet's place, in the sheet's window.** `s` on the sheet brings it and `s` on the panel goes back, a temporary key until fuji has a better way in. It is the third value of which view is showing, beside the sheet and a table, and it comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping. A setting the panel changes reaches a view by being read when that view comes back on screen: the sheet rereads `card.images` each time it is shown, and it is never showing while the panel is.
 
 ## The model
 
@@ -106,7 +109,7 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What is built today
 
-`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js`, `log.js`, and `thumbnail.js` over `thumbnail.rs`. `PreviewTable.vue` is real and short on purpose: no flip, no pan, no zoom. `ComicTable.vue` is a stub.
+`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js`, `log.js`, and `thumbnail.js` over `thumbnail.rs`. `PreviewTable.vue` is real and short on purpose: no flip, no pan, no zoom. `ComicTable.vue` is a stub. `SettingsPanel.vue` is real, with `card.images` as the smoke test of the panel itself, and the file types, a plain section over `associate.js` that `associations.md` plans.
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 

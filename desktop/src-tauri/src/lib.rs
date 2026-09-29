@@ -9,7 +9,7 @@ The boundary. Everything the page may ask Rust to do is named once in this file,
 
 **Rust trusts the page, and guards only what the page cannot.** A check here that repeats a decision the page made is a second copy of it, and second copies go stale. The trust rests on three walls around the page: every path it acts on came from the user or was built by fuji itself, never from outside content; untrusted text reaches it only through Vue's escaping interpolation, so it never becomes script; and the Content-Security-Policy in tauri.conf.json keeps foreign script out even if one of those cracks. The walls Rust does hold are the ones that must stand before the page could look: thumbnail.rs refuses bytes that are not what they claim, and headers claiming more memory than the machine has, before any decoder runs. disk.rs names the next one, for when deleting arrives.
 
-The plugins are the other half of the surface. Registering one here does not decide how much of it the page can reach; capabilities/default.json does, naming individual permissions, so read the two files together. Neither plugin has a caller yet, on purpose: reveal and the file dialogs are the next features, and their grants are already narrowed to what those features need.
+The plugins are the other half of the surface. Registering one here does not decide how much of it the page can reach; capabilities/default.json does, naming individual permissions, so read the two files together. Each grant is narrowed to the feature that needs it: the dialog plugin to the open and save boxes, which File, Open uses, and the opener to revealing a file, which nothing calls yet, and to one url pattern, Windows Settings' Default apps, which the file types in fuji's settings open for the user. A link to anywhere else is refused.
 
 **No window is made here.** Every window comes from the event closure below, under one rule: Ready makes a window if there is none. A double-click on the Mac delivers Opened before Ready, so the picture already has its window; on Windows and Linux Opened never fires, so Ready always makes it. Making a window in setup instead is what once opened two for one double-click, one of them blank.
 */
@@ -32,7 +32,7 @@ mod window;//and window.rs: making windows, placing them, and how long the proce
 pub fn run() {
 	window::window_launch();//first of all, so this copy's launch moment is when it started; window.rs tells a flurry of copies from a deliberate second launch by it
 	tauri::Builder::default()//start building the Tauri application
-		.plugin(tauri_plugin_opener::init())//reveal a file in finder or explorer; capabilities grant only reveal, not url opening
+		.plugin(tauri_plugin_opener::init())//reveal a file in finder or explorer, and open windows' default apps settings; capabilities grant those two and no other url
 		.plugin(tauri_plugin_dialog::init())//the familiar os open and save dialog boxes; capabilities grant only those two, not message boxes
 		.manage(desktop::ExitFiles::default())//shared state any command can reach: text handed down to be written on the way out
 		.manage(open::OpenFiles::default())//and the paths the operating system handed fuji, waiting for the page to be built and ask for them
@@ -53,7 +53,9 @@ pub fn run() {
 				paths::paths_executable,//and in paths.rs
 				registry::registry_get,//and in registry.rs
 				registry::registry_set,
+				registry::registry_delete,
 				registry::registry_notify,
+				registry::registry_opens,
 				touch::touch_block,//and in touch.rs
 				window::window_frame,//and in window.rs
 				window::window_frame_set,

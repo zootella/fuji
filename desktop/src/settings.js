@@ -3,7 +3,7 @@ import {parse as parseToml} from 'smol-toml'//parseToml, so the name parse stays
 import parse from 'path-browserify'
 import {diskRead, diskWrite} from './disk.js'
 import {desktopExitHold} from './desktop.js'
-import {forwardize} from './components/library.js'
+import {forwardize} from './components/library.js'//a function, which a module has from the start; library.js reaches back here through log.js, so a const from it would not exist yet while the schema below is built, and fuji would stop before showing a window
 import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
 import {brandFile} from './brand.js'
 
@@ -11,6 +11,7 @@ const settingsFileName = `${brandFile}.toml`//fuji.toml, in the user's home fold
 const settingsHeader = `# ${settingsFileName} — fuji reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
 
 const settingsThumbnailSizes = ['Small', 'Medium', 'Large', 'Xl']//the four named thumbnail sizes; each names the setting below it, lowercased
+const settingsTextList = value => value.every(item => typeof item == 'string')//a list whose every item is text; what each item means is for the code reading the list to judge, one item at a time, so a typo in one never throws away the rest
 
 //every setting fuji has, and the only place any of them is defined; a check, where the type alone isn't enough, has to accept the factory value or an ordinary file would report a problem against itself
 const settingsSchema = [
@@ -147,6 +148,22 @@ const settingsSchema = [
 		factory: true,
 		comment: 'show the caption beneath the image at startup',
 	}, {
+		section: 'associations',
+		key: 'yes',
+		factory: [],
+		comment: 'which kinds of file fuji opens when you double-click one, as three lists of extensions: yes, no, and ask, which means you have not decided. Fuji is offered for every one of them whatever you answer, and yes is what makes it the program that opens them; the system keeps the final say, and fuji\'s settings show where it disagrees and take you to where it can be changed. Every extension belongs in exactly one list: one left out or listed twice counts as ask, and one fuji does not open is dropped. Easiest changed in fuji\'s settings, where fuji does the rest',
+		check: settingsTextList,
+	}, {
+		section: 'associations',
+		key: 'no',
+		factory: [],
+		check: settingsTextList,
+	}, {
+		section: 'associations',
+		key: 'ask',
+		factory: [],//empty rather than every extension fuji opens, since one no list names already counts as ask; associate.js fills this in at startup, which is also how an extension a later fuji adds arrives here undecided
+		check: settingsTextList,
+	}, {
 		section: 'log',
 		key: 'record',
 		factory: false,
@@ -162,8 +179,13 @@ let settingsHeldText = ''//the text rust's held copy corresponds to, so an uncha
 
 function settingsFactory() {//a settings object with every value at its factory setting
 	let s = {}
-	for (let entry of settingsSchema) (s[entry.section] ??= {})[entry.key] = entry.factory
+	for (let entry of settingsSchema) (s[entry.section] ??= {})[entry.key] = Array.isArray(entry.factory) ? [...entry.factory] : entry.factory//a list of its own, so changing a setting never changes the schema's factory list
 	return s
+}
+
+function settingsSameType(value, factory) {//a value has the shape of its factory value: a list where the factory is a list, and otherwise the same typeof. typeof alone says object for a list and for a toml table alike
+	if (Array.isArray(factory)) return Array.isArray(value)
+	return typeof value == typeof factory && !Array.isArray(value)
 }
 
 function settingsParse(text) {//the settings the given file text describes, plus a list of anything in it fuji had to turn away
@@ -181,12 +203,12 @@ function settingsParse(text) {//the settings the given file text describes, plus
 		let value = parsed[entry.section]?.[entry.key]
 		if (value == undefined) continue//not in the file, which is ordinary; rendering puts the line back
 		let name = `${entry.section}.${entry.key}`//only for the two complaints below
-		if (typeof value != typeof entry.factory) { problems.push(`${name} has to be ${typeof entry.factory}, so ${sayValue(value)} was ignored`); continue }
-		if (entry.check && !entry.check(value))   { problems.push(`${name} cannot be ${sayValue(value)}, so it was ignored`);                     continue }
+		if (!settingsSameType(value, entry.factory)) { problems.push(`${name} has to be ${sayType(entry.factory)}, so ${sayValue(value)} was ignored`); continue }
+		if (entry.check && !entry.check(value))      { problems.push(`${name} cannot be ${sayValue(value)}, so it was ignored`);                        continue }
 		settings[entry.section][entry.key] = value
 	}
 	for (let [section, table] of Object.entries(parsed)) {//the file lists every setting fuji has, so a name fuji doesn't know is a typo rather than a default quietly showing through, and worth saying out loud
-		if (typeof table != 'object') { problems.push(`${section} is not a fuji setting`); continue }
+		if (typeof table != 'object' || Array.isArray(table)) { problems.push(`${section} is not a fuji setting`); continue }
 		for (let key of Object.keys(table)) {
 			if (!settingsSchema.some(entry => entry.section == section && entry.key == key)) problems.push(`${section}.${key} is not a fuji setting`)
 		}
@@ -199,12 +221,14 @@ function settingsRender(settings) {//the complete text of the file for these set
 	for (let section of new Set(settingsSchema.map(entry => entry.section))) {
 		let entries = settingsSchema.filter(entry => entry.section == section)
 		let keyWidth   = Math.max(...entries.map(entry => entry.key.length))//pad within the section, so a long name in one doesn't push the others out
-		let valueWidth = Math.max(...entries.map(entry => sayValue(settings[section][entry.key]).length))
+		let valueWidth = Math.max(0, ...entries.filter(entry => !Array.isArray(entry.factory)).map(entry => sayValue(settings[section][entry.key]).length))//a list is left out and never padded, since one can run to dozens of items and would push every line beside it out to its width
 
 		lines.push('', `[${section}]`)
 		for (let entry of entries) {
 			if (entry.comment) lines.push(`# ${entry.comment}`)//above the setting, not trailing it: these run long, and a soft wrapped comment beside a value would fold across the next line
-			lines.push(`${entry.key.padEnd(keyWidth)} = ${sayValue(settings[section][entry.key]).padEnd(valueWidth)} # factory ${sayValue(entry.factory)}`)
+			let value = sayValue(settings[section][entry.key])
+			if (!Array.isArray(entry.factory)) value = value.padEnd(valueWidth)
+			lines.push(`${entry.key.padEnd(keyWidth)} = ${value} # factory ${sayValue(entry.factory)}`)
 		}
 	}
 	return lines.join('\n')+'\n'
@@ -213,11 +237,25 @@ function settingsRender(settings) {//the complete text of the file for these set
 function sayValue(value) {//a value as the toml text that means it
 	if (typeof value == 'boolean') return value ? 'true' : 'false'
 	if (typeof value == 'number')  return String(value)
+	if (Array.isArray(value))      return `[${value.map(sayValue).join(', ')}]`//a flat list of the values above, the one shape of list the schema uses
 	return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`//a basic string, escaping the backslash that starts an escape and the quote that would end it early
+}
+
+function sayType(value) {//the word for a value's type in a complaint, so a list reads as a list rather than as an object
+	return Array.isArray(value) ? 'a list' : typeof value
 }
 
 export function settingsThumbnailBox() {//the side of the square a thumbnail fits inside, for the size the user chose; the one place the name becomes a number, so a flow asks rather than looks up
 	return settings.thumbnail[settings.thumbnail.size.toLowerCase()]
+}
+
+export function settingsSet(section, key, value) {//change one setting from inside fuji, held to the same type and check as a value read from the file; answers whether it took, and a value turned away leaves the setting as it was
+	let entry = settingsSchema.find(entry => entry.section == section && entry.key == key)
+	if (!entry) throw new Error(`no setting named ${section}.${key}`)//a mistake in the code asking, not something a user typed
+	if (!settingsSameType(value, entry.factory)) return false
+	if (entry.check && !entry.check(value))      return false
+	settings[section][key] = value; settingsChanged()
+	return true
 }
 
 export async function settingsLoad() {//read the settings file and leave it exactly as fuji would write it, which is what creates a missing one, repairs a bad value, and adds a setting fuji has gained since the last launch; call once, before anything reads a setting. Answers with the lines this load wants remembered, for the shell to log the moment it has started one

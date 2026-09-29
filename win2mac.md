@@ -24,4 +24,22 @@ Written later the same day, alongside a change to `recordSheet` and `maximizeShe
 3. **Zoom the sheet, quit, and launch again.** Option-click the green button, or double-click the title bar where that is set to zoom. Expect the sheet to appear already zoomed, with no frame at its old size first. tao zooms asynchronously on the main dispatch queue while the page's `show` reaches the window through the event loop, so which lands first is not guaranteed. Then un-zoom it, and expect the size it had before you zoomed: fuji placed it there before zooming, but macOS keeps its own record of the frame to un-zoom to, and after a zoom done in code that record may not be the one fuji meant.
 4. **Resize the sheet to something you will recognize, then zoom it, or enter a Space with the green button, and quit from there.** Expect `[sheet]` in `fuji.toml` to hold the size you recognize. The size is recorded on every resize event, and both changes animate, so if the animation reports frames before `isZoomed` or `isFullscreen` turns true, an in-between frame is saved instead. That fix would belong in `recordSheet`.
 
+## And the file types in fuji's settings, which the Mac has to finish
+
+Written later the same day, alongside the second pass on file associations, which `associations.md` now plans in full. Read its design section before anything here. Briefly: every extension fuji opens has an answer, yes, no, or ask, kept as three lists under `[associations]` in `fuji.toml`; the settings panel, which `s` brings up in place of the contact sheet, shows each extension with its answer and what opens it now; and fuji asks the system what opens a type only while that panel is showing. On Windows all of it is built, in `associate.js` over two new commands in `registry.rs`. On the Mac the panel shows the answers, disables them, and says the Mac comes later.
+
+**The Mac's half is two general commands and the page code over them**, and the design already says what each answer does there:
+
+- **Which application opens a type.** `NSWorkspace.urlForApplication(toOpen:)` in the form that takes a `UTType`, which arrived in macOS 12 and is believed to answer the old worry that the reading direction needed a file rather than a type. Confirm that first. Fuji needs the application's URL, to compare with its own bundle's, and a name to show.
+- **Make this application the default for a type.** `setDefaultApplication(at:toOpen:completionHandler:)`, the `UTType` form, called once, at the moment the user answers yes, and never at launch: on the Mac the default an application can set is the user's saved choice itself, and setting it again at every launch would take the type back from whatever the user chose in Get Info since. Whether macOS shows a confirmation of its own is unknown, and either is fine.
+- **The type an extension belongs to**, so extensions that share one move together: `.jpg`, `.jpeg` and `.jpe` are all `public.jpeg`, so a yes on one is a yes on all three, while `.jfif` gets a dynamic type of its own.
+
+A no sets nothing on the Mac. Where the Mac still opens the type with fuji, the panel shows the disagreement and points to Get Info, since taking the type back would mean choosing another application for the user. The rest of the page side — following a choice of fuji made in Get Info by turning an ask into a yes, and showing where an answer and the system disagree — is already written for Windows in `associate.js`, and the Mac's version should run through the same functions rather than beside them.
+
+The two bundles a development Mac holds matter here: the one in `/Applications` and the one under `target/release/bundle/macos/` share an identifier, and Launch Services stores a choice by identifier, so compare by bundle URL, the way Windows compares by executable path.
+
+Put what you find in `associations.md`, and the reasoning in the essay at the top of `associate.js`, whose paragraph on the Mac currently says that half is the Mac's to build.
+
+## Where the rest goes
+
 Put what you find about copies in the essay above the `WINDOW_TURN` presets, replacing "still to be confirmed there" with the answer, and anything the sheet needs in the essay above `placeWindow` in `Shell.vue`. Then retire this letter.
