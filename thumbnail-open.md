@@ -1,6 +1,6 @@
 # Thumbnails, still open
 
-What is left to decide, build and measure about the thumbnail pipeline, and nothing else. The pipeline as built is documented on the site, in `site/docs/thumbnail-pipeline.md` — that page is the record of how a path becomes a tile and what was measured to choose each route, and it replaced the planning document that stood in for it while it was being built. This file is the short list of what that page does not get to claim.
+What is left to decide, build and measure about the thumbnail pipeline, and nothing else. The pipeline as built is documented on the site, in `site/docs/thumbnails.md` — that page is the record of how a path becomes a tile and what was measured to choose each route, and it replaced the planning document that stood in for it while it was being built. This file is the short list of what that page does not get to claim.
 
 It is deliberately small. A question here is one we decided not to answer yet, not one nobody thought of.
 
@@ -32,7 +32,7 @@ What is still unread is the rest: what a card costs to fill, how that is spread 
 
 **Animated WebP**, which is a still on the native route today. Sending it to an `<img>` the way a GIF goes means reading the animation flag out of its header in the probe.
 
-**HEIC, and the extension list generally.** ImageIO thumbnails a HEIC in about sixteen milliseconds; Windows without the paid codec cannot show one at all, so listing the extension means placeholders there. TIFF is the mirror case — WIC has it at the factory and Chromium never has. Neither is in `imageTypes` today, and both are a decision about what fuji claims to open rather than a decision about the pipeline.
+**HEIC, and the extension list generally.** ImageIO thumbnails a HEIC in about sixteen milliseconds; Windows without the paid codec cannot show one at all, so listing the extension means placeholders there. TIFF is the mirror case — WIC has it at the factory and Chromium never has. Neither is in `fileTypes` today, and both are a decision about what fuji claims to open rather than a decision about the pipeline.
 
 **A thumbnail cache on disk.** How Finder is instant on a folder it has seen, and what would make the walk through a drive free on the way back. It is a store with an eviction policy, a location, and an invalidation rule, so it belongs to the document above rather than to this list.
 

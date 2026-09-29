@@ -32,7 +32,7 @@ Two are the same image at two architectures. On apple silicon the arm64 one runs
 
 The third consumes what the second produces, which is why `build` runs them in that order: the flatpak wraps the amd64 deb.
 
-There was a fourth, an arch container that ran makepkg over an AUR recipe to prove the recipe worked. It was removed in September 2026. Arch's mirrors carry only today's version of every package, the container installed the recipe's dependencies at run time against a package list docker had frozen into the image, and the two disagreed within a day or two of every image build — a property of a rolling distribution rather than a bug in the recipe, and not worth carrying for a channel fuji never opened. Arch users take the flatpak, and linux-builds.md has the account.
+There was a fourth, an arch container that ran makepkg over an AUR recipe to prove the recipe worked. It was removed in September 2026. Arch's mirrors carry only today's version of every package, the container installed the recipe's dependencies at run time against a package list docker had frozen into the image, and the two disagreed within a day or two of every image build — a property of a rolling distribution rather than a bug in the recipe, and not worth carrying for a channel fuji never opened. Arch users take the flatpak.
 
 ## What this does not do
 

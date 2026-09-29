@@ -221,7 +221,7 @@ Quiver A is real numbers and is never rounded, so nothing drifts. Quiver B is wh
 
 It is safe because it never makes a fraction of a backing pixel, which is the only thing that can leave a sliver, one row half image and half dots. The number keys keep their exact CSS sizes, since a whole number is on both grids. The card f and w fit meets the frame's edge, since the frame's size is a whole number of CSS pixels and so of backing pixels. And a card the shell hands over at a preview's rectangle lands exactly, since that rectangle is whole CSS pixels.
 
-The grids stop nesting at Windows scales like 150 percent, where a CSS pixel is one and a half backing pixels. Nothing is exact there under any rule: whole CSS pixels put edges on half backing pixels, and this rule puts them on backing pixels while a number key reads 33.333 rather than 33 in the inspector. Whether Chromium honors a fractional CSS size or snaps it back to whole is a thing only the Windows box can check, and fidelity.md holds what that machine has measured so far. The table reads devicePixelRatio every time rather than keeping it, because a window can move to a display with a different one; B written for the old display stays on its grid until the next pan or zoom, and that is the whole of the gap.
+The grids stop nesting at Windows scales like 150 percent, where a CSS pixel is one and a half backing pixels. Nothing is exact there under any rule: whole CSS pixels put edges on half backing pixels, and this rule puts them on backing pixels while a number key reads 33.333 rather than 33 in the inspector. Whether Chromium honors a fractional CSS size or snaps it back to whole is a thing only the Windows box can check, and the thumbnails page on fuji's site holds what that machine has measured so far. The table reads devicePixelRatio every time rather than keeping it, because a window can move to a display with a different one; B written for the old display stays on its grid until the next pan or zoom, and that is the whole of the gap.
 */
 function quiver() {
 
@@ -324,7 +324,7 @@ async function _flip(direction) {
 let flipSequence = 0//so the log reads in the order the user flipped
 let flipMs = 0, flipFrames = 0//what the last flip cost end to end
 let storeHit = false//whether the image was already decoded when the flip asked for it
-let storeMs = 0, paintMs = 0, shownAt = 0//the flip split in two, and the two halves have nothing to do with each other: a large storeMs means the window did not reach this image in time, and a large paintMs on a hit means the engine dropped the pixels while the image was hidden and is rebuilding them. performance.md has what that second one has already cost
+let storeMs = 0, paintMs = 0, shownAt = 0//the flip split in two, and the two halves have nothing to do with each other: a large storeMs means the window did not reach this image in time, and a large paintMs on a hit means the engine dropped the pixels while the image was hidden and is rebuilding them
 let frameMs = 1000//narrowed toward this display's real frame time by the flips above
 async function learnFrameMs(painted) {//one more frame boundary after the flip has let go of the queue, because an interval needs two timestamps and the flip itself can only afford one
 	let next = await raf()

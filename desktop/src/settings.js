@@ -5,10 +5,10 @@ import {diskRead, diskWrite} from './disk.js'
 import {desktopExitHold} from './desktop.js'
 import {forwardize} from './components/library.js'
 import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
-import {brandFile} from './brand.js'
+import {brandName, brandFile} from './brand.js'
 
 const settingsFileName = `${brandFile}.toml`//fuji.toml, in the user's home folder for now; the per-platform config folders are a later decision, and a portable copy carrying its own is not one, since fuji is always installed
-const settingsHeader = `# ${settingsFileName} — fuji reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
+const settingsHeader = `# ${settingsFileName} — ${brandName} reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
 
 const settingsThumbnailSizes = ['Small', 'Medium', 'Large', 'Xl']//the four named thumbnail sizes; each names the setting below it, lowercased
 const settingsTextList = value => value.every(item => typeof item == 'string')//a list whose every item is text; what each item means is for the code reading the list to judge, one item at a time, so a typo in one never throws away the rest
@@ -19,12 +19,12 @@ const settingsSchema = [
 		section: 'view',
 		key: 'table',
 		factory: 'Diamond',
-		comment: 'which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables fuji has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead',
+		comment: `which table was showing: Diamond sizes an image into an invisible diamond on an infinite plane, Comic runs it full width down a scroll; the tables ${brandName} has are known to the shell rather than here, so a name it does not recognize is reported there and Diamond shown instead`,
 	}, {
 		section: 'sheet',
 		key: 'width',
 		factory: 0,
-		comment: 'the size of the contact sheet window as you last left it, in css pixels, recorded as you resize it; fuji opens the next one at this size, somewhere at random, whenever it fits the desktop less its menu bar, dock or taskbar, and at a portion of that desktop when it does not. A width of 0 means nothing has been recorded yet',
+		comment: `the size of the contact sheet window as you last left it, in css pixels, recorded as you resize it; ${brandName} opens the next one at this size, somewhere at random, whenever it fits the desktop less its menu bar, dock or taskbar, and at a portion of that desktop when it does not. A width of 0 means nothing has been recorded yet`,
 	}, {
 		section: 'sheet',
 		key: 'height',
@@ -38,12 +38,12 @@ const settingsSchema = [
 		section: 'sort',
 		key: 'order',
 		factory: 'Alphabet',
-		comment: 'which order fuji puts a folder in: Alphabet is the order javascript itself puts an array of names in, capitals before lowercase and page10 before page9, with no locale and no opinion; the sorts fuji has are known to the model rather than here, so a name it does not recognize is reported there and Alphabet used instead',
+		comment: `which order ${brandName} puts a folder in: Alphabet is the order javascript itself puts an array of names in, capitals before lowercase and page10 before page9, with no locale and no opinion; the sorts ${brandName} has are known to the model rather than here, so a name it does not recognize is reported there and Alphabet used instead`,
 	}, {
 		section: 'card',
 		key: 'images',
 		factory: 50,
-		comment: 'how many images one card holds; for now the sheet shows a single card, so this is also how many of a folder it shows, from the first in the current order. A card never mixes two folders. card.md says why the sheet scrolls over cards rather than over the thumbnails themselves, and is honest that this is scaffolding',
+		comment: 'how many images one card holds; for now the sheet shows a single card, so this is also how many of a folder it shows, from the first in the current order. A card never mixes two folders. The sheet scrolls over cards rather than over the thumbnails themselves so that one day it can walk a whole drive in constant memory, and a single card is the scaffolding for that',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'thumbnail',
@@ -76,7 +76,7 @@ const settingsSchema = [
 		section: 'flip',
 		key: 'back',
 		factory: 5,
-		comment: 'how many images before the one on screen a table keeps decoded, so flipping back to them is instant instead of a fresh read and decode; one is the smallest that works, because a table always holds the image on either side of the one it is showing, and one here with one forward is the behaviour fuji had before it kept a window',
+		comment: `how many images before the one on screen a table keeps decoded, so flipping back to them is instant instead of a fresh read and decode; one is the smallest that works, because a table always holds the image on either side of the one it is showing, and one here with one forward is the behaviour ${brandName} had before it kept a window`,
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'flip',
@@ -99,8 +99,8 @@ const settingsSchema = [
 	}, {
 		section: 'gamma',
 		key: 'key',
-		factory: 1.25,
-		comment: 'how far one press of g lifts the shadows, in the convention picture viewers use: 1 changes nothing, 1.25 is a gentle lift that suits most pictures, and 2 floods the shadows so nothing dark stays hidden; black stays black and white stays white either way. A second press returns to normal, and so does g from any gamma the keys, the wheel or the drag below have set. Fuji always starts at normal',
+		factory: 1.22,//the ratio of a modern screen's 2.2 to the classic Mac's 1.8, so one press shows a 1990s Mac picture as its maker saw it; the gamma page on fuji's site has the arithmetic. A first 1.2 and then 1.25 were picked by feel before the number had a reason
+		comment: `how far one press of g lifts the shadows, in the convention picture viewers use: 1 changes nothing, 1.22 shows a picture made on a Mac before 2009 as its maker saw it, since a screen today is sRGB at about 2.2 and the Mac of that era was 1.8, and 2.2 divided by 1.8 is 1.22; it is also a gentle lift for any other picture. 2 floods the shadows so nothing dark stays hidden; black stays black and white stays white either way. A second press returns to normal, and so does g from any gamma the keys, the wheel or the drag below have set. ${brandName} always starts at normal`,
 		check: value => value > 0,
 	}, {
 		section: 'gamma',
@@ -136,7 +136,7 @@ const settingsSchema = [
 		section: 'hud',
 		key: 'help',
 		factory: true,
-		comment: 'show the help panel in the middle of the window, the one [h] toggles in every view; on at the factory so it greets a new user, and fuji writes this back as you turn it on and off, so it comes back the way you left it',
+		comment: `show the help panel in the middle of the window, the one [h] toggles in every view; on at the factory so it greets a new user, and ${brandName} writes this back as you turn it on and off, so it comes back the way you left it`,
 	}, {
 		section: 'hud',
 		key: 'information',
@@ -151,7 +151,7 @@ const settingsSchema = [
 		section: 'associations',
 		key: 'yes',
 		factory: [],
-		comment: 'which kinds of file fuji opens when you double-click one, as three lists of extensions: yes, no, and ask, which means you have not decided. Fuji is offered for every one of them whatever you answer, and yes is what makes it the program that opens them; the system keeps the final say, and fuji\'s settings show where it disagrees and take you to where it can be changed. Every extension belongs in exactly one list: one left out or listed twice counts as ask, and one fuji does not open is dropped. Easiest changed in fuji\'s settings, where fuji does the rest',
+		comment: `which kinds of file ${brandName} opens when you double-click one, as three lists of extensions: yes, no, and ask, which means you have not decided. ${brandName} is offered for every one of them whatever you answer, and yes is what makes it the program that opens them; the system keeps the final say, and ${brandName}\'s settings show where it disagrees and take you to where it can be changed. Every extension belongs in exactly one list: one left out or listed twice counts as ask, and one ${brandName} does not open is dropped. Easiest changed in ${brandName}\'s settings, where ${brandName} does the rest`,
 		check: settingsTextList,
 	}, {
 		section: 'associations',
@@ -167,7 +167,7 @@ const settingsSchema = [
 		section: 'log',
 		key: 'record',
 		factory: false,
-		comment: 'write the log: every image load, every flip and every thumbnail with what each cost, and any line the code chose to keep, from the page or from rust, saved when fuji closes into fuji-temp under your home folder, which fuji makes if it is missing; off by default because it is for answering a question rather than for running the app, and performance.md says what the numbers mean and what they have already shown',
+		comment: `write the log: every image load, every flip and every thumbnail with what each cost, and any line the code chose to keep, from the page or from rust, saved when ${brandName} closes into ${brandFile}-temp under your home folder, which ${brandName} makes if it is missing; off by default because it is for answering a question rather than for running the app, and the file's own header says what each column means`,
 	},
 ]
 
@@ -208,9 +208,9 @@ function settingsParse(text) {//the settings the given file text describes, plus
 		settings[entry.section][entry.key] = value
 	}
 	for (let [section, table] of Object.entries(parsed)) {//the file lists every setting fuji has, so a name fuji doesn't know is a typo rather than a default quietly showing through, and worth saying out loud
-		if (typeof table != 'object' || Array.isArray(table)) { problems.push(`${section} is not a fuji setting`); continue }
+		if (typeof table != 'object' || Array.isArray(table)) { problems.push(`${section} is not a ${brandName} setting`); continue }
 		for (let key of Object.keys(table)) {
-			if (!settingsSchema.some(entry => entry.section == section && entry.key == key)) problems.push(`${section}.${key} is not a fuji setting`)
+			if (!settingsSchema.some(entry => entry.section == section && entry.key == key)) problems.push(`${section}.${key} is not a ${brandName} setting`)
 		}
 	}
 	return {settings, problems}

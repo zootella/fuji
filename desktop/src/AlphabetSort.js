@@ -1,4 +1,4 @@
-//the first sort, and the plainest fuji will have: javascript's own sort(), capitals before lowercase and page10 before page9, with no locale and no opinion. sort.md carries the seven planned beside it
+//the first sort, and the plainest fuji will have: javascript's own sort(), capitals before lowercase and page10 before page9, with no locale and no opinion
 
 export default function alphabetSort(files) {//these image files as an ordered array of paths; a sort returns the order rather than a comparator, so a shuffle can be one too
 	return files

@@ -10,7 +10,7 @@ How fuji safely decodes pictures it did not make, when an extension may be missi
 
 **Fuji answers "what is this file" twice, in two places, by two different means, and they never compare notes except at one seam.**
 
-*By name.* `imageTypes` in `library.js` maps ten extensions to formats. It decides what `listFolder` keeps out of a folder, how `SquareFlow` routes a tile, what the store types its blobs as, and what fuji declares to each operating system.
+*By name.* `fileTypes` in `fileTypes.js` maps ten extensions to formats. It decides what `listFolder` keeps out of a folder, how `SquareFlow` routes a tile, what the store types its blobs as, and what fuji declares to each operating system.
 
 *By bytes.* `thumbnail_probe` reads a file's first bytes and says what it actually is, without decoding it, and `thumbnail_render` refuses a file whose bytes are not the format it was told to expect.
 
@@ -20,7 +20,7 @@ How fuji safely decodes pictures it did not make, when an extension may be missi
 
 1. **The name is right.** Everything works, which is almost always.
 2. **The name is wrong.** The probe catches it and the tile is refused. Safe — and a picture fuji could have shown perfectly is not shown. That trade is deliberate and, for now, correct.
-3. **There is no name to go on.** `listFolder` keeps only files whose extension is in `imageTypes`, so a file with no extension is dropped before anything asks what it is. Fuji never reaches the machinery that would have identified it correctly in a millisecond. **This is the open case**, and it is not exotic: pictures arrive without extensions from downloads, exports and messaging apps all the time.
+3. **There is no name to go on.** `listFolder` keeps only files whose extension is in `fileTypes`, so a file with no extension is dropped before anything asks what it is. Fuji never reaches the machinery that would have identified it correctly in a millisecond. **This is the open case**, and it is not exotic: pictures arrive without extensions from downloads, exports and messaging apps all the time.
 
 **A fourth case is about robustness rather than safety.** A file that genuinely is a JPEG but is truncated or damaged: the decoder fails, the tile shows the error placeholder, and the log says why. That works and needs nothing. What nobody has decided is whether a partial decode should show the part that arrived, the way a browser does, or keep refusing whole.
 

@@ -9,7 +9,7 @@ Routing is a browser thing, and a browser is two things: a rendering engine, and
 
 The test for a route is that a destination should be destroyed when the user leaves it. Fuji's images are the opposite: flipping changes what is inside a view that survives it, and a wheel flick would push fifty entries onto a history stack in a second. Its folders are closer, being deliberate and worth retracing — but back has to move through folders and images as one sequence, so that stack lives in the model where it can hold both.
 
-There are shapes fuji could grow into where a router would earn its place; architecture.md lists them, and keeps that list in one file so the two cannot drift apart.
+There are shapes fuji could grow into where a router would earn its place, and none of them has arrived.
 */
 
 </script>

@@ -55,7 +55,7 @@ pub fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 }
 
 /// POSIX-like `stat(2)` metadata
-//no caller in the page yet: a date sort needs one of these per file, which sort.md says is the shape the listing will have to grow to carry
+//no caller in the page yet: a date sort needs one of these per file, which is the shape the listing will have to grow to carry
 #[command(async)]
 pub fn disk_stat(path: String) -> Result<FileStat, String> {
 	let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;

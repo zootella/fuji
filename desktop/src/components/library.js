@@ -14,6 +14,7 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
 import {brandName} from '../brand.js'
+import {fileTypesEnabled} from '../fileTypes.js'
 
 //promises
 
@@ -53,25 +54,6 @@ export function backize(path) {
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
 }
 
-//every kind of picture fuji can show: the folder listing filters by it, the flow routes by it, the store types its blobs from it, and associate.js hands it to the operating system on windows as what fuji is offering to open
-//**this list exists twice, and the other copy is CFBundleDocumentTypes in src-tauri/Info.plist.** Add or remove an extension here and change that file to match, in the same commit. macOS reads the plist out of the bundle before any of fuji's code has run, so nothing here can reach it; generating one from the other was considered and declined, because the cost lands on the build and this list changes about never
-//the name is what windows prints in explorer's type column, and it carries the extension rather than the format on purpose. All four jpeg spellings are honestly one format, and Finder's kind column calls them all JPEG image, but that column is also the only way to sort a folder by extension, and a shared name scatters the three .jpe files through the sort instead of grouping them. WebP keeps its own capitalization, being the one extension whose real name is not simply its letters in capitals
-//the kind titles the extension's card in fuji's settings: the sort of file it commonly holds, naming what the format can do and never what it cannot, in one order, lossless or vector, then transparency, then animation, and leaving out a capability the format has but people rarely use, like animation in png, svg and avif
-//the about is what fuji's settings show over a chip for the extension: where it came from and when, what it is good and bad at, and when and for what it was common, in a few sentences a person reads in passing
-export const imageTypes = {
-	'.bmp':  {mime: 'image/bmp',     name: 'BMP Image',  kind: 'Lossless image',                        about: `Windows' own bitmap, from its first versions in the 1980s, in the form most files have used since Windows 3.0 in 1990. It stores every pixel as it is, usually with no compression at all, which makes it simple for any program to read and very large on disk. It was everywhere in the 1990s, as wallpaper, Paint pictures and screenshots, and never took hold on the web. Today it mostly comes from old software and scanners.`},
-	'.gif':  {mime: 'image/gif',     name: 'GIF Image',  kind: 'Image with transparency and animation', about: `CompuServe's Graphics Interchange Format, 1987, with animation added in 1989. Every browser has shown it ever since, which made it the web's first logos and "under construction" signs, and later its reaction loops. Its limits show: 256 colors per frame, transparency that is all or nothing, and large files for anything like video. A patent on its compression is why PNG was invented, in 1996.`},
-
-	'.jpg':  {mime: 'image/jpeg',    name: 'JPG Image',  kind: 'Image',                                 about: `JPEG, the Joint Photographic Experts Group's standard of 1992, in its most common spelling: three letters, to fit the file names of DOS and early Windows. It made photographs small enough for the disks, modems and web of the 1990s by discarding detail the eye barely notices, and cameras still write it today. The discarding shows around sharp edges and text, and again each time a picture is edited and saved, and it holds no transparency.`},
-	'.jpeg': {mime: 'image/jpeg',    name: 'JPEG Image', kind: 'Image',                                 about: `The full four-letter spelling of JPEG, the 1992 standard for photographs. Systems without DOS's three-letter limit, like the Mac and Unix, often used it, and some web tools and phones still do. Inside it is the same as a .jpg in every way: a small photograph, made by discarding detail the eye barely notices, which shows around sharp edges and text.`},
-	'.jpe':  {mime: 'image/jpeg',    name: 'JPE Image',  kind: 'Image',                                 about: `An uncommon three-letter spelling of JPEG, the 1992 standard for photographs, which some older programs wrote. Inside it is an ordinary JPEG, the same as a .jpg: a small photograph, made by discarding detail the eye barely notices. Few programs write it now, though most still open it.`},
-	'.jfif': {mime: 'image/jpeg',    name: 'JFIF Image', kind: 'Image',                                 about: `The JPEG File Interchange Format, the 1992 layout that almost every JPEG follows inside, whatever it is called. As an extension it was rare until around 2019, when a setting in Windows began pointing web browsers at .jfif as the extension for a JPEG, and pictures saved from the web started arriving with it. Inside it is an ordinary JPEG, though a program that does not know the name may not offer to open it.`},
-
-	'.png':  {mime: 'image/png',     name: 'PNG Image',  kind: 'Lossless image with transparency',      about: `Portable Network Graphics, 1996, made by volunteers as a free replacement for GIF once GIF's compression patent began to be enforced. It is lossless, so every pixel comes back exactly as it was saved, and it holds millions of colors and smooth transparency. That makes it the format of screenshots, logos, icons and interface graphics, though a photograph saved as PNG comes out many times larger than as JPEG.`},
-	'.svg':  {mime: 'image/svg+xml', name: 'SVG Image',  kind: 'Vector image with transparency',        about: `Scalable Vector Graphics, a W3C standard from 2001. Rather than pixels it holds shapes, lines and text, written out as XML, so it stays sharp at any size and is often tiny. Browsers were slow to take it up, and it became common for icons, logos, charts and diagrams once Internet Explorer 9 joined the others in 2011. It suits nothing photographic.`},
-	'.avif': {mime: 'image/avif',    name: 'AVIF Image', kind: 'Image with transparency',               about: `The AV1 Image File Format, 2019, from the Alliance for Open Media, the group of Google, Netflix, Mozilla and others behind the AV1 video codec. A picture is a single frame of AV1, far smaller than a JPEG of the same quality, with room for high dynamic range, wide color and transparency. Browsers added it between 2020 and 2022, and image services on the web now send it widely. It is slow to make, and older software still cannot open it.`},
-	'.webp': {mime: 'image/webp',    name: 'WebP Image', kind: 'Image with transparency and animation', about: `Google's image format of 2010, built from the VP8 video codec it had bought, and later given lossless pictures, transparency and animation. Its pictures are about a quarter to a third smaller than JPEG or PNG, and Google pushed it across the web. For years few programs besides Chrome could show it, so a picture saved from a web page often would not open anywhere else; every major browser has had it since Safari added it in 2020.`},
-}
 export async function listFolder(folder) {//the image files in one folder, in whatever order the disk handed them over; a sort is what puts them in one
 	let contents = await diskReadDir(folder)
 	let files = contents.filter(f => f.is_file && !f.is_dir && !f.is_symlink)//only include files
@@ -81,10 +63,10 @@ export async function listFolder(folder) {//the image files in one folder, in wh
 	}))
 	return files
 		.filter(f => !f.name.startsWith('.'))//skip the .name.ext files macos makes for every file on a removable drive
-		.filter(f => imageTypes[f.extension])//only include known extensions
+		.filter(f => fileTypesEnabled[f.extension])//only include known extensions
 		.map(f => ({
 		...f,
-		mime: imageTypes[f.extension].mime,//include the mime type that goes with that extension; the filter above has already dropped anything the table does not name
+		mime: fileTypesEnabled[f.extension].mime,//include the mime type that goes with that extension; the filter above has already dropped anything the table does not name
 	}))
 }
 export async function listSiblings(path) {//the same listing, ordered and with the given path found in it; the retired experiments are the only callers left, because the model lists and sorts for itself

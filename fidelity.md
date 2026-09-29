@@ -132,7 +132,7 @@ The control converts correctly in both directions. **An sRGB file is not mistake
 
 ### Through the page
 
-The page route — the store decodes the file into an `<img>` and the page halves it down into the canvas — is unreachable on the Mac in normal use (see *Smaller things*, below), so it was exercised by temporarily emptying the Mac entry in `flowNative`. It produced **values identical to the native route on all three images**, to the last unit.
+The page route — the store decodes the file into an `<img>` and the page halves it down into the canvas — is unreachable on the Mac in normal use (see *Smaller things*, below), so it was exercised by temporarily emptying the Mac entry in `flowNative`, the list that is now the `imageNative` field of each extension in `fileTypes.js`. It produced **values identical to the native route on all three images**, to the last unit.
 
 That result carries further than the page route itself, because it means two things at once: WebKit's `<img>` decode preserves the wide gamut, and `drawImage` into a P3 canvas preserves it too. The diamond table shows the store's own decoded `<img>`, so this is also the evidence for the table.
 
@@ -231,7 +231,7 @@ Tauri reports the backing store here, `2224` for a screen `1112` CSS pixels tall
 
 ## Smaller things the audit settled
 
-**The page canvas route is dead code on the Mac.** `imageTypes` in `library.js` contains no canvas-kind extension that is off the Mac's native allow list — GIF and SVG go to `<img>`, and everything else (`jpeg`, `png`, `webp`, `avif`, `bmp`) is on the list. There is no `.heic` entry at all. The route is live on Linux and reachable on Windows, and it was exercised in this audit only by emptying the list.
+**The page canvas route is dead code on the Mac.** Every extension in `fileTypes.js` reaches the Mac some other way — GIF and SVG have a `contactSheet` of `img`, drawn as imgs, and everything else (`jpeg`, `png`, `webp`, `avif`, `bmp`) lists the Mac under `imageNative`. There is no `.heic` entry at all. The route is live on Linux and reachable on Windows, and it was exercised in this audit only by emptying the Mac's native list, as it then was.
 
 **A canvas is never remade when its window changes monitors**, so a `devicePixelRatio` or gamut change goes stale until the sheet rebuilds. Read from the code; not exercised.
 

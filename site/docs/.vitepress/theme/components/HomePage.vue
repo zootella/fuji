@@ -77,7 +77,7 @@ async function copyHash(row) {
 				GitHub points at the application's own repository, not this one.
 				-->
 				<p class="links">
-					<a href="/fuji.dmg" download @click="show('mac')">Mac</a> <a href="/fuji.exe" download @click="show('win')">Win</a> <a href="/download-fuji.html">Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/getting-started.html">Docs</a>
+					<a href="/fuji.dmg" download @click="show('mac')">Mac</a> <a href="/fuji.exe" download @click="show('win')">Win</a> <a href="/download-fuji.html">Linux</a> - <a tabindex="0" @click="toggleHashes" @keyup.enter="toggleHashes">Hashes</a> <a href="https://github.com/zootella/fuji">GitHub</a> <a href="/download-fuji.html">Docs</a>
 				</p>
 
 				<!-- what the first launch asks for, in a few sentences, with the words on the screen in italics; the download page has the long version and More Information points at it -->

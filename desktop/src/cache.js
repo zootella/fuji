@@ -1,10 +1,10 @@
 import parse from 'path-browserify'
 import {diskRead} from './disk.js'
-import {imageTypes} from './components/library.js'
+import {fileTypes} from './fileTypes.js'
 import {logLoad} from './log.js'//the log already records what a load cost; this is only reporting it, and a load nothing ever flipped to counts too
 
 /*
-A store, not a strategy. It holds what the views tell it to hold and lets go when they say to let go. It does not decide, schedule, prioritise, or expire, and it knows nothing about folders, order, or who is asking. Every clever decision fuji makes about images lives in the view that is showing them; cache.md carries the long version of why.
+A store, not a strategy. It holds what the views tell it to hold and lets go when they say to let go. It does not decide, schedule, prioritise, or expire, and it knows nothing about folders, order, or who is asking. Every clever decision fuji makes about images lives in the view that is showing them: three earlier stores that decided for themselves each failed, and this one does not decide.
 
 Three shapes came before this one and each failed the same way: intelligence in the middle needs knowledge only the edges have. A shared queue has to be told whose request matters, which is the view's knowledge moved somewhere it does not belong — so there is no queue here, and every load races every other load, exactly as if the view had called the disk itself. A shared eviction policy has to know what the user is looking at — so there is no policy, and nothing is ever freed except on command.
 
@@ -70,7 +70,7 @@ async function cacheRead(entry) {//read the file into a blob and make its url, r
 		let bytes = new Uint8Array(await diskRead(entry.path))
 		entry.loaded = performance.now()
 
-		let type = imageTypes[parse.extname(entry.path).toLowerCase()]//blank for an extension fuji does not know, which the folder listing never offers but a caller with a path of its own could
+		let type = fileTypes[parse.extname(entry.path).toLowerCase()]//blank for an extension fuji does not know, which the folder listing never offers but a caller with a path of its own could
 		entry.blob = new Blob([bytes.buffer], {type: type ? type.mime : 'application/octet-stream'})//the array is not kept: making a blob copies, so holding both would be two copies of every file
 		entry.blobBytes = entry.blob.size; cacheBlobBytes += entry.blobBytes
 

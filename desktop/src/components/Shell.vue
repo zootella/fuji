@@ -12,6 +12,7 @@ import {openFiles} from '../open.js'//the pictures the operating system handed f
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
+import {brandName} from '../brand.js'//the product's name, for the log lines that say what it did
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenLeave} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, and to leave fullscreen without showing a hidden window
 import HelpPanel from './HelpPanel.vue'
@@ -74,7 +75,7 @@ onMounted(async () => {
 	try {
 		opened = (await openFiles()).map(forwardize)//forwardized here, at the same boundary a dropped path crosses; windows hands these over with backslashes and everything below assumes forward ones
 	} catch (error) {
-		notices.push(sayTrouble('shell: asking what fuji was opened with', error))//the same reasoning as above: nothing here is worth leaving the window hidden for
+		notices.push(sayTrouble(`shell: asking what ${brandName} was opened with`, error))//the same reasoning as above: nothing here is worth leaving the window hidden for
 	}
 	showing.value = opened.length ? 'Table' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, and every other launch on the contact sheet, since the sheet is the view that lives in a window
 	whichTable.value = settings.view.table
@@ -94,7 +95,7 @@ onMounted(async () => {
 	await revealWindow()
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
-	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble('shell: registering what fuji can open', error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
+	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble(`shell: registering what ${brandName} can open`, error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)

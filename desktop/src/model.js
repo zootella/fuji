@@ -6,7 +6,7 @@ import AlphabetSort from './AlphabetSort.js'
 import {log} from './log.js'//the shell starts the log before it starts the model, so a line from here always has somewhere to land
 
 /*
-The model holds what the user is looking at, and no view owns it: the folder, the order it is in, the images in that order, and which one the user is on. It sits here because the sheet and the tables are interchangeable views of the same thing — a user who presses c, or switches tables, expects the same folder in the same order. If the listing lived inside a table, the sheet would have to duplicate it or reach in for it, and reaching in is how two components stop being separable. architecture.md carries the longer argument.
+The model holds what the user is looking at, and no view owns it: the folder, the order it is in, the images in that order, and which one the user is on. It sits here because the sheet and the tables are interchangeable views of the same thing — a user who presses c, or switches tables, expects the same folder in the same order. If the listing lived inside a table, the sheet would have to duplicate it or reach in for it, and reaching in is how two components stop being separable.
 
 Two things shape the rest. The position is a path rather than an index, so changing the sort leaves the user on the picture they were looking at instead of on whatever is now forty-seventh; flipping is find where I am, step one, take that path. And the listing is kept unsorted, because it is what every sort reads from — which is what makes changing the order cost no disk.
 */

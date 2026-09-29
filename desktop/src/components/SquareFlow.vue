@@ -7,10 +7,11 @@ import {modelShowing} from '../model.js'
 import {settingsThumbnailBox} from '../settings.js'
 import {thumbnailProbe, thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logCard} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every card is a row in it
-import {xy, imageTypes, errorImageData, platform} from './library.js'
+import {xy, errorImageData, platform} from './library.js'
+import {fileTypesEnabled} from '../fileTypes.js'
 
 /*
-The one flow, and the whole of how a path becomes a tile. A card hands this its paths. The extension says what kind of tile each gets: a GIF or an SVG is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count. A canvas gets its pixels one of two ways. A format on this platform's native list goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
+The one flow, and the whole of how a path becomes a tile. A card hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw gets the placeholder. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
 First, a probe for every file on the card, all at once: Rust reads each file's first bytes and its header and says what it is and how big, without decoding. A file whose bytes are not what its name claims, or not any format fuji knows, or whose header claims a raster that would not fit in memory, gets the placeholder and nothing is tried. Every other tile is laid out at its final size at once, so the flow does not reflow as it fills.
 
@@ -22,12 +23,7 @@ Two flows came before this one and are gone, and both of their lessons are in th
 const flowHolder = 'SquareFlow'//on every reference this flow takes, so a leak has a name
 const flowBox = settingsThumbnailBox()//read once: every tile is sized to it, and a change means making them all again
 const flowGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space every canvas is made in, read once like the box. A canvas is sRGB unless asked, and drawing a Display P3 photograph into an sRGB canvas clamps its most saturated colors away for good, so the thumbnail would come out duller than a table shows the same file. Asking the screen what it can show, rather than asking the engine whether it knows the name, is what keeps this from being a feature check: webkitgtk has no display-p3 value and throws when handed one, and is never handed one, because the query is always false there. Stale on a change of monitor, exactly as devicePixelRatio is
-const flowPlatform = platform()//mac, windows or linux, read once
-const flowNative = {//what each platform's operating system makes thumbnails of, and nothing off a list is tried there. Short and conservative on purpose, and not a guess at what the machine could manage: windows gets the two decoders that have shipped in every version of windows since XP, and the mac gets the formats fuji has run ImageIO against and watched decode
-	mac:     ['jpeg', 'png', 'webp', 'avif', 'bmp'],
-	windows: ['jpeg', 'png'],
-	linux:   [],
-}
+const flowPlatform = platform()//mac, windows or linux, read once, which is how this flow reads each type's imageNative and imageWeb lists in fileTypes.js
 const flowInFlight = 4//native thumbnails at once; a guess for the log to correct
 
 const props = defineProps({
@@ -42,16 +38,18 @@ let flowBytes = 0//what this card's canvases cost; the imgs are the engine's and
 let flowRefused = 0
 
 function tileFor(path) {//what the extension says a path will be, before its bytes are read
-	let format = formatOf(path)
-	let tile = {path, format, kind: 'canvas', route: 'page', css: null, url: ''}//kind: canvas, img or placeholder. route: native or page, meaningful for a canvas. css: the size once known; null lays out nothing until then
-	if (format == 'gif' || format == 'svg') tile.kind = 'img'
-	else if (flowNative[flowPlatform].includes(format)) tile.route = 'native'
+	let entry = fileTypesEnabled[parse.extname(path).toLowerCase()]
+	let tile = {path, format: formatOf(entry), kind: 'canvas', route: '', css: null, url: ''}//kind: canvas, img or placeholder. route: native or page for a canvas, blank where nothing on this platform can draw it. css: the size once known; null lays out nothing until then
+	let native = entry?.imageNative.includes(flowPlatform)
+	let web = entry?.imageWeb.includes(flowPlatform)
+	if (web && entry.contactSheet == 'img') tile.kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
+	else if (native) tile.route = 'native'//the operating system's thumbnail, preferred wherever it can make one
+	else if (web) tile.route = 'page'
 	return tile
 }
-function formatOf(path) {//jpeg from image/jpeg, svg from image/svg+xml: the names the probe answers with, so the two compare
-	let type = imageTypes[parse.extname(path).toLowerCase()]
-	if (!type) return ''
-	return type.mime.split('/')[1].replace('+xml', '')
+function formatOf(entry) {//jpeg from image/jpeg, svg from image/svg+xml: the names the probe answers with, so the two compare
+	if (!entry) return ''
+	return entry.mime.split('/')[1].replace('+xml', '')
 }
 
 onMounted(() => { flowFill().catch(error => logTrouble('SquareFlow: filling a card', error)) })//the top gate for this card: anything that escapes the loops lands here, loudly
@@ -78,6 +76,7 @@ async function flowFill() {//probe, lay out, then fill by path
 function flowApply(tile, probe) {//what the probe said about one file: a reason to refuse it, or its size, which reserves its box
 	if (probe.problem) { flowRefuse(tile, probe.problem); return }
 	if (probe.format != tile.format) { flowRefuse(tile, `the bytes say ${probe.format} and the name says ${tile.format}`); return }
+	if (tile.kind == 'canvas' && !tile.route) { flowRefuse(tile, 'nothing on this platform can draw it'); return }
 	if (probe.width > 0) tile.css = flowFit(xy(probe.width, probe.height)).css
 }
 function flowRefuse(tile, why) {//the placeholder, and a row saying which file and why; nothing is tried twice

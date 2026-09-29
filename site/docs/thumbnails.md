@@ -1,4 +1,4 @@
-# The thumbnail pipeline
+# Thumbnails
 
 Fuji shows a folder as a contact sheet: hundreds of images at once, and it can assume nothing about any of them. One may be a sixteen-pixel icon of a few hundred bytes. The next may be 6240 by 4160, six megabytes on disk and a hundred and four megabytes once it is decoded. This is how one of those files becomes one small picture on that contact sheet: what decides the route it takes, what each route costs, and what Fuji does to keep the picture that arrives sharp, correctly colored, and undistorted.
 

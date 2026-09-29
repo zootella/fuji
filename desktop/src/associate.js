@@ -6,7 +6,8 @@ import {pathsExecutable} from './paths.js'
 import {brandName, brandDescription} from './brand.js'
 import {settings, settingsChanged} from './settings.js'
 import {log} from './log.js'
-import {imageTypes, backize, forwardize, platform} from './components/library.js'
+import {backize, forwardize, platform} from './components/library.js'
+import {fileTypesEnabled} from './fileTypes.js'
 
 /*
 Fuji offers itself to macOS and Windows as a program that can open pictures, and it sets out to be simple, modern, polite, and assertive about it, and to keep the user in control. Point for point, that differs from how most programs have handled file types for twenty-five years, and from image viewers most of all, which have more formats to claim than almost anything else on a machine. The usual way made sense when it began: before Windows 8 the default for a file type was a registry value any program could write, so a program that wanted its files took them at install and checked them again at every launch. Windows 8 sealed the default with a hash that only the system's own screens write, and much association code in the wild is that old habit, carried past the system it was built for.
@@ -17,7 +18,7 @@ Polite, assertive, and the user in control are how it behaves. Polite means fuji
 
 One thing makes fuji's case its own: it opens many kinds of file rather than one or two, and a person may well want it for some and another program for the rest, fuji for .webp and the editor they already use for .jpg. So everything here is per extension. Each one gets its own ProgID and its own name, which Explorer prints in its Type column, so a folder sorted by type keeps its .jpe files apart from its .jpg ones, and Info.plist keeps the same shape, an entry per extension. A ProgID per extension also means a different icon per format costs nothing later, and never strands a choice a user made against a ProgID fuji stopped writing. And the answer is per extension, one of yes, no, or ask, which means undecided and is where every extension starts; fuji.toml keeps them as three lists of extensions, three lines however many kinds of file fuji learns, and an extension a later fuji adds starts as ask rather than inheriting anyone's yes.
 
-The mechanics, in brief. The formats are imageTypes in components/library.js, and Info.plist lists the same extensions by hand, since the bundle is made before any of fuji's code runs; Linux, where a desktop file would declare them, declares none yet. A Windows program an installer places has no such file, so it registers itself, and three layers decide what opens a type. The offer, which fuji writes whatever the answer, all under HKEY_CURRENT_USER: a ProgID per extension naming the type, its icon, and the command that opens it; that ProgID in the extension's OpenWithProgids list; the executable's own key under Applications, with the extensions it supports; and a Capabilities block named in RegisteredApplications, which lists fuji in Settings. The fallback, the extension's own default value, which Windows uses where the user has saved no choice: the single line that says .webp means fuji from now on, which an installer from 1999 writes at install, Tauri's NSIS macro still writes, and ActivationRegistrationManager deliberately does not. Fuji writes it for a yes, rewrites it at every launch whoever wrote it last, and takes it back for any other answer, but only while it still names fuji. And above both, the user's saved choice, UserChoice, sealed by the hash, which fuji never writes and only reads, by asking the shell what it would open each type with, the same lookup Explorer makes. On the Mac there is no fallback: the default a program can set there is the user's saved choice itself, so a yes will set it once, at the moment of the yes, and a no will set nothing, since taking it back would mean choosing another program for the user. That half is the Mac's to build.
+The mechanics, in brief. The formats are the enabled entries of fileTypes.js, and Info.plist lists the same extensions by hand, since the bundle is made before any of fuji's code runs; Linux, where a desktop file would declare them, declares none yet. A Windows program an installer places has no such file, so it registers itself, and three layers decide what opens a type. The offer, which fuji writes whatever the answer, all under HKEY_CURRENT_USER: a ProgID per extension naming the type, its icon, and the command that opens it; that ProgID in the extension's OpenWithProgids list; the executable's own key under Applications, with the extensions it supports; and a Capabilities block named in RegisteredApplications, which lists fuji in Settings. The fallback, the extension's own default value, which Windows uses where the user has saved no choice: the single line that says .webp means fuji from now on, which an installer from 1999 writes at install, Tauri's NSIS macro still writes, and ActivationRegistrationManager deliberately does not. Fuji writes it for a yes, rewrites it at every launch whoever wrote it last, and takes it back for any other answer, but only while it still names fuji. And above both, the user's saved choice, UserChoice, sealed by the hash, which fuji never writes and only reads, by asking the shell what it would open each type with, the same lookup Explorer makes. On the Mac there is no fallback: the default a program can set there is the user's saved choice itself, so a yes will set it once, at the moment of the yes, and a no will set nothing, since taking it back would mean choosing another program for the user. That half is the Mac's to build.
 
 Only the copy the installer put there registers or acts on an answer. Everything registered names the running executable's path, so a build in target/ or a copy on the Desktop would point Windows at a file that may move or vanish; the test is that the executable sits in the folder InstallLocation names under Software\Microsoft\Windows\CurrentVersion\Uninstall\Fuji, which the installer writes, an update keeps, and the uninstaller removes. That key is under HKEY_CURRENT_USER because nsis.installMode is currentUser in tauri.conf.json. Every copy shares fuji.toml in the home folder, which is why a copy that fails the test cannot change an answer either: it would be changing the installed copy's answers without being able to carry them out.
 
@@ -27,7 +28,7 @@ Two things elsewhere have to stay in step with this. bundle.fileAssociations sta
 const documentIcon = 'document-image.ico'//what a picture wears in Explorer once fuji opens its type: a file of its own, beside the executable where bundle.resources puts it, rather than fuji's own icon, which is full bleed and made to stand out in a taskbar, the wrong thing for a document to do, since a folder of pictures would become a folder of identical mint discs. One icon for every type, for now
 const answerNames = ['yes', 'no', 'ask']//the three answers, which are also the three lists in fuji.toml, in the order the file shows them
 
-export const associateAnswers = ref({})//extension to yes, no, or ask, for every extension fuji opens, in imageTypes order; filled at startup, and changed only by associateChoose and by following the system
+export const associateAnswers = ref({})//extension to yes, no, or ask, for every extension fuji opens, in the table's order; filled at startup, and changed only by associateChoose and by following the system
 export const associateOpens   = ref({})//extension to what windows would open it with, {program, name, executable} as registry_opens answers, name blank when nothing is registered; empty until the settings look, since fuji asks only while the user is looking at the answer
 export const associateActive  = ref(false)//this copy acts on the answers: the copy the installer put there, and on windows alone until the mac has its half
 
@@ -47,7 +48,7 @@ export async function associateStart() {//at startup, in every copy: read the an
 }
 
 export function associateChoose(extension, answer) {//the user's answer for one extension, from the settings: recorded, carried out, and looked at again, so the settings show where windows stands afterwards
-	if (!associateActive.value || !imageTypes[extension] || !answerNames.includes(answer)) throw new Error(`cannot answer ${answer} for ${extension} here`)//the settings offer neither choice, so reaching this is a mistake in the code asking
+	if (!associateActive.value || !fileTypesEnabled[extension] || !answerNames.includes(answer)) throw new Error(`cannot answer ${answer} for ${extension} here`)//the settings offer neither choice, so reaching this is a mistake in the code asking
 	associateAnswers.value = {...associateAnswers.value, [extension]: answer}//a new object rather than an edit, so the settings see the change
 	answersWrite()
 	return queue(async () => { await register(); await look() })
@@ -89,12 +90,12 @@ function answersRead() {//each extension's answer from the three lists, with a l
 		for (let item of settings.associations[answer]) {
 			let extension = item.trim().toLowerCase()
 			if (!extension.startsWith('.')) extension = `.${extension}`
-			if (!imageTypes[extension]) { problems.push(`${item} is not a kind of file fuji opens, so it was dropped from ${answer}`); continue }
+			if (!fileTypesEnabled[extension]) { problems.push(`${item} is not a kind of file ${brandName} opens, so it was dropped from ${answer}`); continue }
 			(lists[extension] ??= new Set()).add(answer)//a set, so an extension listed twice in the same list is only there once
 		}
 	}
 	let answers = {}
-	for (let extension of Object.keys(imageTypes)) {
+	for (let extension of Object.keys(fileTypesEnabled)) {
 		let found = [...(lists[extension] ?? [])]
 		answers[extension] = found.length == 1 ? found[0] : 'ask'//in none of the lists is ask, which is how a new extension arrives
 		if (found.length > 1) problems.push(`${extension} is in ${found.join(' and ')}, so it counts as ask`)
@@ -102,7 +103,7 @@ function answersRead() {//each extension's answer from the three lists, with a l
 	return {answers, problems}
 }
 
-function answersWrite() {//the three lists as the answers say: every extension in exactly one, in imageTypes order, so the file reads the same way every time. Written to fuji.toml when fuji closes, like every setting
+function answersWrite() {//the three lists as the answers say: every extension in exactly one, in the table's order, so the file reads the same way every time. Written to fuji.toml when fuji closes, like every setting
 	for (let answer of answerNames) settings.associations[answer] = Object.keys(associateAnswers.value).filter(extension => associateAnswers.value[extension] == answer)
 	settingsChanged()
 }
@@ -128,9 +129,9 @@ async function register() {//tell windows what this copy can open, claim the fal
 	let set   = async (key, name, value) => { if (await registrySet(key, name, value)) changed++ }//each value read first and written only if it would change, so a pass that changed nothing knows it
 	let unset = async (key, name)        => { if (await registryDelete(key, name))    changed++ }//and taking back something already gone is no change either
 
-	for (let [extension, type] of Object.entries(imageTypes)) {
+	for (let [extension, entry] of Object.entries(fileTypesEnabled)) {
 		let program = `${brandName}${extension}`//the progid, so .webp becomes Fuji.webp; the uninstall hook takes back only a progid of exactly this shape, so a change here is a change there
-		await set(`Software\\Classes\\${program}`, '', type.name)//the progid: what this kind of file is called, which explorer prints in its type column
+		await set(`Software\\Classes\\${program}`, '', entry.type)//the progid: what this kind of file is called, which explorer prints in its type column
 		await set(`Software\\Classes\\${program}\\DefaultIcon`, '', icon)//what explorer draws on one
 		await set(`Software\\Classes\\${program}\\shell\\open\\command`, '', command)//and what opens it
 		await set(`Software\\Classes\\${extension}\\OpenWithProgids`, program, '')//fuji joins the list of what could open this extension, which is the offer; the value is empty and only the name matters
@@ -154,7 +155,7 @@ async function register() {//tell windows what this copy can open, claim the fal
 async function look() {//what windows would open every extension with, and a choice of fuji already saved there, followed: an extension still at ask that windows opens with this copy becomes yes
 	if (platform() != 'windows') return//the mac's half, a command asking launch services, is still to build
 	let opens = {}
-	for (let extension of Object.keys(imageTypes)) opens[extension] = await registryOpens(extension)//one call each, since a command takes one thing
+	for (let extension of Object.keys(fileTypesEnabled)) opens[extension] = await registryOpens(extension)//one call each, since a command takes one thing
 	associateOpens.value = opens
 	if (!associateActive.value) return//a copy that cannot act on an answer shows what windows says and follows nothing
 	let followed = Object.keys(opens).filter(extension => associateAnswers.value[extension] == 'ask' && associateOurs(extension))//never a no, which the user said on purpose, and never a yes, which already agrees

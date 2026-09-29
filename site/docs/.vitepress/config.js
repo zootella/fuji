@@ -143,9 +143,12 @@ export default defineConfig({
 			{ text: 'Home', link: '/' },
 		],
 
-		// Three sections. User Guide is how to use fuji, Craftsmanship is how one part of it is built
-		// and why, with what was measured to decide it, and About is everything else. Two of the
-		// pages are stubs carrying only their titles.
+		// Three sections. User Guide is how to use fuji and the inventions in its design. Craftsmanship
+		// holds the papers: each runs from the history of pictures, sound and personal computing into
+		// how fuji builds the thing and what was measured to decide it, ordered from the most engineering
+		// to the most historical, and the heading names the attention to detail they share rather than
+		// the form. About is the vibe. fujis-voice.md at the root says what each section
+		// is for and how it grows. One of the pages is a stub carrying only its title.
 		//
 		// A fourth section, Examples, held VitePress's two starter pages and a Code Examples page of
 		// real fuji source that the site's type and colors were judged against. All three are deleted
@@ -157,14 +160,15 @@ export default defineConfig({
 				text: 'User Guide',
 				items: [
 					{ text: 'Download Fuji', link: '/download-fuji' },
-					{ text: 'Getting Started', link: '/getting-started' },
+					{ text: 'Diamond Table', link: '/diamond-table' },
 				],
 			},
 			{
 				text: 'Craftsmanship',
 				items: [
-					{ text: 'The thumbnail pipeline', link: '/thumbnail-pipeline' },
+					{ text: 'Thumbnails', link: '/thumbnails' },
 					{ text: 'Gamma', link: '/gamma' },
+					{ text: 'File Types', link: '/file-types' },
 				],
 			},
 			{

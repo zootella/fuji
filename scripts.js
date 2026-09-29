@@ -333,7 +333,7 @@ function reportTransport() {
 	}
 }
 
-//the three tauri icon runs stay in package.json, where pnpm is what puts the tauri cli on the path; this is the part after them. each run writes a folder of its own, and these are the files that have to come out from under a generated name and sit where tauri.conf.json and the windows manifest expect them. icon.md is the whole subject, including why these are committed artifacts
+//the three tauri icon runs stay in package.json, where pnpm is what puts the tauri cli on the path; this is the part after them. each run writes a folder of its own, and these are the files that have to come out from under a generated name and sit where tauri.conf.json and the windows manifest expect them. they are committed artifacts, because a tauri cli upgrade does not refresh them and only a run of this does
 function iconsCollect() {
 	let copies = [
 		['.mac/icon.icns',              'mac/icon.icns'],        //the dock icon, inset to apple's grid, kept where the shared run cannot overwrite it
