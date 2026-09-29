@@ -49,9 +49,9 @@ export async function associateStart() {//at startup, in every copy: read the an
 	return `associate: ${Object.keys(answers).length} types registered, ${changed} values written`
 }
 
-export function associateChoose(extension, answer) {//the user's answer for one extension, from the settings: recorded, carried out, and looked at again, so the settings show where windows stands afterwards
-	if (!associateActive.value || !fileTypesEnabled[extension] || !answerNames.includes(answer)) throw new Error(`cannot answer ${answer} for ${extension} here`)//the settings offer neither choice, so reaching this is a mistake in the code asking
-	associateAnswers.value = {...associateAnswers.value, [extension]: answer}//a new object rather than an edit, so the settings see the change
+export function associateChoose(extensions, answer) {//the user's answer for a list of extensions, from the settings: a card's one, or every one a line at the top of the section names; recorded, carried out in a single pass, and looked at again, so the settings show where windows stands afterwards
+	if (!associateActive.value || !answerNames.includes(answer) || !extensions.every(extension => fileTypesEnabled[extension])) throw new Error(`cannot answer ${answer} for ${extensions.join(' ')} here`)//the settings offer no such choice, so reaching this is a mistake in the code asking
+	associateAnswers.value = {...associateAnswers.value, ...Object.fromEntries(extensions.map(extension => [extension, answer]))}//a new object rather than an edit, so the settings see the change
 	answersWrite()
 	return queue(async () => { await register(); await look() })
 }

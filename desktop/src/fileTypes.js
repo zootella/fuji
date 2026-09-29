@@ -5,13 +5,13 @@ The table is the complete list fuji grows into rather than a list that grows. An
 
 An entry never says what category it is in. Its properties are parts of fuji, each listing the platforms where that part can handle the format, since a short video can be as much a thumbnail as a GIF is, and what can draw a file differs from one operating system to the next. The first entry's comments say what each property is, and the first video and the first audio entry introduce theirs. imageNative is short on purpose rather than a guess at what a machine could manage: Windows for JPEG and PNG alone, though WIC at the factory reads BMP, GIF and a few more; the Mac for the formats fuji has run ImageIO against and watched decode; and never Linux, which has no native route. Every picture that is on lists all three platforms under imageWeb, which is what fuji has always assumed, written down now where a later entry can say otherwise. Where both can make a thumbnail the flow prefers imageNative, a contactSheet of img wins over both so a GIF animates even where the operating system could make a still of it, and a file nothing on this platform can draw gets the placeholder, and a chip once there is one. Some of the oldest pictures have no route on any platform, and the decoder that reads them is FFmpeg, which arrives with libmpv, so that question waits for video.
 
-A type names the extension rather than the format on purpose, since a shared type would scatter a folder's .jpe files through the only sort by extension Explorer has. A title names what the format can do and never what it cannot, in one order, lossless or vector, then transparency, then animation, leaving out what the format allows but people rarely use, like animation in PNG, SVG and AVIF. Audio is the medium, beside image and video, so a title and a property say audio; sound is what a video has and what an audio file holds, so the prose says a video is with sound and a WAV holds Windows' sounds.
+A type names the extension rather than the format on purpose, since a shared type would scatter a folder's .jpe files through the only sort by extension Explorer has. A title names what the format can do and never what it cannot, in one order, lossless or vector, then transparency, then animation, leaving out what the format allows but people rarely use, like animation in PNG, SVG and AVIF. Audio is the medium, beside image and video, so a title and a property say audio; sound is what a video has and what an audio file holds, and the prose says sound. A video's title is Video alone, since every video format here can carry sound and none needs to, so sound sets none of them apart.
 
 This file imports nothing, so it sits beneath everything that reads it. Two lists live outside it and change with it in the same commit, because each is read where this file cannot reach. CFBundleDocumentTypes in src-tauri/Info.plist declares the enabled extensions to the Mac, which reads it out of the bundle before any of fuji's code has run; generating it from this table was declined while the table changed about once a year, which is worth deciding again as it grows. And sniff in src-tauri/src/thumbnail.rs knows each format by its first bytes, the wall a file passes before any decoder sees it, so a format given a thumbnail route needs a signature there.
 
 The table runs far past what fuji plays because it is a manifest of what is out there. Fuji is a love letter to the years personal computers learned to show color and then to play video, and to the collections people made once they could: pictures pulled down from a BBS at 2400 baud, clips off a CD-ROM, songs from Napster, and on through the forums, imageboards, Reddit and Discord that keep the same habit today. Picture the homebrew computer club of that first multimedia decade meeting again, with every hard drive its members have ever owned. What sits on those drives, from then to now, is what this table names, and no more: a format a collector would have to look up is the long tail, and it stays out.
 
-So each entry's about names where a format started and reads that forward to today: the year it arrived, who made it and for which machine, what people used it for and traded it as, and where it stands now. That is what tells a reader why their folder looks the way it does and what to expect of a file in it, in a few sentences that never repeat what the title already says the format can do.
+So each entry's about names where a format started and reads that forward to today: the year it arrived, who made it and for which machine, what people used it for and traded it as, and where it stands now. It describes the format and its place in the world, never the reader, so no about calls its format a collector's. That is what tells a reader why their folder looks the way it does and what to expect of a file in it, in a few sentences that never repeat what the title already says the format can do.
 */
 
 export const fileTypes = {
@@ -299,7 +299,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mp4',
 		type: 'MP4 Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['mac', 'windows'],//a frame the operating system picks, through AVFoundation on the Mac and the shell's own thumbnailer on Windows, which thumbnail.rs does not ask for yet
 		imageWeb: [],//empty, since an img cannot show a video
 		contactSheet: 'canvas',
@@ -311,7 +311,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/quicktime',
 		type: 'MOV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['mac', 'windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -323,7 +323,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-msvideo',
 		type: 'AVI Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],//the shell makes a frame of what Media Foundation can decode, which the codecs of the 1990s are not; libmpv would make one of any AVI
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -335,7 +335,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mpeg',
 		type: 'MPG Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],//Media Foundation decodes MPEG-1; the Mac's AVFoundation plays it with the sound missing, and is left out
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -347,7 +347,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mpeg',
 		type: 'MPEG Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -359,7 +359,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-ms-asf',
 		type: 'ASF Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -371,7 +371,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-ms-wmv',
 		type: 'WMV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -383,7 +383,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/vnd.rn-realvideo',
 		type: 'RM Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],//nothing native decodes RealVideo; FFmpeg does
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -395,7 +395,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/vnd.rn-realvideo',
 		type: 'RMVB Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -407,7 +407,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-flv',
 		type: 'FLV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -419,7 +419,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-m4v',
 		type: 'M4V Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['mac', 'windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -431,7 +431,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/3gpp',
 		type: '3GP Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['mac', 'windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -443,19 +443,19 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-matroska',
 		type: 'MKV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],//Windows 10 plays Matroska at the factory; AVFoundation does not
 		imageWeb: [],
 		contactSheet: 'canvas',
 		videoNative: ['mac', 'windows', 'linux'],
 		videoWeb: ['windows'],//Chromium plays it when the codecs inside are ones it has; WebKit never
-		about: `Matroska, 2002, an open container that holds any video and sound at all, with several audio tracks, subtitles and chapters in the same file. That made it the format of anime fansubs and of the high-quality rips traded since, and it is the parent WebM was cut from. No video site sends it and Apple's players do not open it, but Windows has since 2015, and it is often the container of a collector's best copy of a film or a series.`,
+		about: `Matroska, 2002, an open container that holds any video and sound at all, with several audio tracks, subtitles and chapters in the same file. That made it the format of anime fansubs and of the high-quality rips traded since, and it is the parent WebM was cut from. No video site sends it and Apple's players do not open it, but Windows has since 2015, and MakeMKV, the common tool for copying a DVD or Blu-ray with every track intact, writes nothing else.`,
 	},
 	'.webm': {
 		enabled: false,
 		mime: 'video/webm',
 		type: 'WebM Video',//WebM keeps its own capitals, like WebP
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],//Windows 10 decodes VP8 and VP9 at the factory; AVFoundation does not
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -467,7 +467,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/ogg',
 		type: 'OGV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -479,7 +479,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mpeg',
 		type: 'VOB Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],//Windows 10 decodes MPEG-2 only with an extension from the Store, free but not there by default, and the Mac does not
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -491,7 +491,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mp2t',
 		type: 'M2TS Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],//Media Foundation reads the transport stream; AVFoundation does not
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -503,7 +503,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-msvideo',
 		type: 'DivX Video',//DivX keeps its own capitals, being a brand
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],//an AVI under another name, and Media Foundation decodes MPEG-4 Part 2
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -515,7 +515,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/quicktime',
 		type: 'QT Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['mac'],//AVFoundation, as for .mov; Windows does not know the name
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -527,7 +527,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mpeg',
 		type: 'MPE Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -539,7 +539,7 @@ export const fileTypes = {
 		enabled: false,//the same three letters name a TypeScript program, which is a reason to think before registering this one, on the day
 		mime: 'video/mp2t',
 		type: 'TS Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],//Media Foundation reads the transport stream; AVFoundation does not
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -551,7 +551,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mp2t',
 		type: 'MTS Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -563,7 +563,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-dv',
 		type: 'DV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['mac'],//AVFoundation reads a DV stream; Media Foundation has a DV decoder too, to be checked
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -575,7 +575,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/3gpp2',
 		type: '3G2 Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['mac', 'windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -587,7 +587,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/mp4',
 		type: 'F4V Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],//an MP4 inside, but neither shell knows the name
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -599,7 +599,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/ogg',
 		type: 'OGM Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -611,7 +611,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-nsv',
 		type: 'NSV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -623,7 +623,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/vnd.radgamettools.bink',
 		type: 'BIK Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -635,7 +635,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-ms-wtv',
 		type: 'WTV Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -647,7 +647,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'video/x-ms-dvr',
 		type: 'DVR-MS Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: ['windows'],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -659,7 +659,7 @@ export const fileTypes = {
 		enabled: false,//and it stays out of registration even when video is on: countless programs call their own files .dat, so claiming the extension would claim files that are not video
 		mime: 'video/mpeg',
 		type: 'DAT Video',
-		title: 'Video with sound',
+		title: 'Video',
 		imageNative: [],
 		imageWeb: [],
 		contactSheet: 'canvas',
@@ -671,7 +671,7 @@ export const fileTypes = {
 		enabled: false,
 		mime: 'application/x-shockwave-flash',
 		type: 'SWF Animation',
-		title: 'Animation with sound',
+		title: 'Interactive animation',
 		imageNative: [],//nothing draws it: a Flash file is a program, not a picture or a video
 		imageWeb: [],
 		contactSheet: 'chip',//here so a folder of them names itself
@@ -867,7 +867,7 @@ export const fileTypes = {
 		contactSheet: 'chip',
 		audioNative: ['mac', 'windows', 'linux'],
 		audioWeb: ['mac', 'windows'],
-		about: `The Free Lossless Audio Codec, 2001, which packs a CD's sound to about half its size with every bit intact. It is the collector's format: the exact rip, the Bandcamp download, the concert recording traded among fans. For years only the dedicated players opened it; now nearly everything does, and the browsers and Apple's software have since 2017.`,
+		about: `The Free Lossless Audio Codec, 2001, which packs a CD's sound to about half its size with every bit intact. It is the format of the exact CD rip, the Bandcamp download, and the concert recording traded among fans. For years only the dedicated players opened it; now nearly everything does, and the browsers and Apple's software have since 2017.`,
 	},
 	'.opus': {
 		enabled: false,
@@ -1023,7 +1023,7 @@ export const fileTypes = {
 		contactSheet: 'chip',
 		audioNative: ['mac', 'windows', 'linux'],
 		audioWeb: ['windows'],//Chromium reads Matroska when the codec inside is one it has
-		about: `Matroska audio, the same 2002 container as .mkv holding sound alone: a whole album in one file with chapters for tracks, or a film's soundtrack in several languages. It is a collector's format rather than a common one, and the players that open .mkv open it.`,
+		about: `Matroska audio, the same 2002 container as .mkv holding sound alone: a whole album in one file with chapters for tracks, or a film's soundtrack in several languages. It is much rarer than .mkv, and the players that open .mkv open it.`,
 	},
 	'.rmi': {
 		enabled: false,

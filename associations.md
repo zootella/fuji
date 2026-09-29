@@ -4,7 +4,7 @@ Fuji being a program the operating system will hand a file to. **On Windows it i
 
 ## The Mac's half, to build there
 
-The Mac declares fuji's types in `Info.plist` and has since the first pass, so fuji is in Finder's Open With already; the panel there shows the extensions in one list, disables the buttons, and says the Mac is coming. `win2mac.md` carries the same list to the Mac as a letter; this is the record.
+The Mac declares fuji's types in `Info.plist` and has since the first pass, so fuji is in Finder's Open With already; the panel there shows the extensions in one list, offers no buttons, and says the Mac is coming. `win2mac.md` carries the same list to the Mac as a letter; this is the record.
 
 - **Two commands:** which application opens a type, and making this application the default for one, `NSWorkspace.urlForApplication(toOpen:)` and `setDefaultApplication(at:toOpen:completionHandler:)`, in the forms that take a `UTType`, which arrived in macOS 12. Confirm first that the reading form takes a type rather than a file.
 - **A yes sets the default once, at the moment of the yes, and never again.** On the Mac the default an application can set is the user's saved choice itself, so setting it at every launch would take the type back from whatever the user picked in Get Info since. A no sets nothing: where the Mac still opens the type with fuji, the panel shows the disagreement and points to Get Info.
@@ -13,9 +13,7 @@ The Mac declares fuji's types in `Info.plist` and has since the first pass, so f
 
 ## Open on Windows
 
-- **Re-register after following a choice.** `look` turns an ask into a yes when Windows already opens the type with fuji, and stops; the fallback for that extension is not claimed until the next launch. ftorrent registers again after the same flip. One line, `await register()` after the follow.
 - **A program with no friendly name is filed under nothing.** `associateProgram` returns the shell's friendly name, and a blank one groups the extension under Currently opens with nothing, though a ProgID registered without `FriendlyAppName` opens the file. Fall back to the ProgID, then the executable's file name.
-- **The no case has no link to Windows Settings.** The card and the section's link cover a yes Windows does not share; a no Windows does not share shows the caution and an amber Choose Fuji, by the essay's rule that every disagreement leads toward fuji. A user who answered no and finds Windows still opening pictures with Fuji can only undo that in Windows Settings, and fuji does not point there. ftorrent offers the link for both directions. A decision.
 - **Switching a type off would leave it registered.** Registration walks only the enabled entries, so an extension switched off keeps its ProgID, its place in Open with and any fallback a yes wrote, until an uninstall; meanwhile the answers drop it from `fuji.toml`, so switching it back on starts it at ask. The uninstaller already enumerates `Capabilities\FileAssociations` to learn what fuji wrote, and registration could do the same to take back what is no longer enabled; that needs one Rust command that lists a key's value names. Nothing has been switched off yet, and this should land before anything is.
 - **A type with no saved choice was never exercised.** There the fallback alone decides, so a yes should make fuji the default at once with no trip to Windows Settings. Every type on the Windows box already carried a saved choice, so this needs a fresh Windows profile.
 - **Windows 11 is documented, not measured.** Its Default apps link should open fuji's own page listing every type fuji offers; only Windows 10's behavior, the general page, has been seen.
