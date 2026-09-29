@@ -47,7 +47,7 @@ function tileFor(path) {//what the extension says a path will be, before its byt
 	else if (web) tile.route = 'page'
 	return tile
 }
-function formatOf(entry) {//jpeg from image/jpeg, svg from image/svg+xml: the names the probe answers with, so the two compare
+function formatOf(entry) {//jpeg from image/jpeg, svg from image/svg+xml: the names the probe answers with, so the two compare. The waiting entries in fileTypes.js carry mimes like image/x-pcx, and the x- is not stripped here, so the day one of those gets a native route this and the sniff have to agree on a name
 	if (!entry) return ''
 	return entry.mime.split('/')[1].replace('+xml', '')
 }

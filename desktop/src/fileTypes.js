@@ -111,7 +111,7 @@ export const fileTypes = {
 		type: 'AVIF Image',
 		title: 'Image with transparency',
 		imageNative: ['mac'],//not Windows: WIC reads AVIF only with an extension from the Microsoft Store, which a machine may not have, and the web renderer always can
-		imageWeb: ['mac', 'windows', 'linux'],
+		imageWeb: ['mac', 'windows', 'linux'],//the one entry where the every-picture-everywhere assumption is known to bend: WebKit gained AVIF in 2022, so a Mac on an older system shows the placeholder
 		contactSheet: 'canvas',
 		about: `The AV1 Image File Format, 2019, from the Alliance for Open Media, the group of Google, Netflix, Mozilla and others behind the AV1 video codec. A picture is a single frame of AV1, far smaller than a JPEG of the same quality, with room for high dynamic range, wide color and transparency. Browsers added it between 2020 and 2022, and image services on the web now send it widely. It is slow to make, and older software still cannot open it.`,
 	},
@@ -250,7 +250,7 @@ export const fileTypes = {
 		mime: 'image/heif',
 		type: 'HEIF Image',
 		title: 'Image',
-		imageNative: ['mac'],//as for .heic
+		imageNative: ['mac'],//as for .heic; the sniff in thumbnail.rs answers heic for every brand of this container, so on the day this is switched on the flow's format name and the sniff's have to be made to agree
 		imageWeb: ['mac'],
 		contactSheet: 'canvas',
 		about: `The High Efficiency Image Format under its container's own name, which some Android phones and converters write instead of .heic. Inside it is usually the same HEVC still a .heic holds, though the container can also carry AV1 or JPEG, and it opens wherever .heic does, which on a PC means the same two extensions from the Store.`,
