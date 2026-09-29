@@ -13,7 +13,6 @@ The Mac declares fuji's types in `Info.plist` and has since the first pass, so f
 
 ## Open on Windows
 
-- **A program with no friendly name is filed under nothing.** `associateProgram` returns the shell's friendly name, and a blank one groups the extension under Currently opens with nothing, though a ProgID registered without `FriendlyAppName` opens the file. Fall back to the ProgID, then the executable's file name.
 - **Switching a type off would leave it registered.** Registration walks only the enabled entries, so an extension switched off keeps its ProgID, its place in Open with and any fallback a yes wrote, until an uninstall; meanwhile the answers drop it from `fuji.toml`, so switching it back on starts it at ask. The uninstaller already enumerates `Capabilities\FileAssociations` to learn what fuji wrote, and registration could do the same to take back what is no longer enabled; that needs one Rust command that lists a key's value names. Nothing has been switched off yet, and this should land before anything is.
 - **A type with no saved choice was never exercised.** There the fallback alone decides, so a yes should make fuji the default at once with no trip to Windows Settings. Every type on the Windows box already carried a saved choice, so this needs a fresh Windows profile.
 - **Windows 11 is documented, not measured.** Its Default apps link should open fuji's own page listing every type fuji offers; only Windows 10's behavior, the general page, has been seen.
