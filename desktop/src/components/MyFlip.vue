@@ -35,10 +35,10 @@ async function onKey(e) {
 }
 
 function onStart() {
-	console.log('⭕ on start - once on startup, component loaded')
+	console.log('on start - once on startup, component loaded')
 }
 async function onDrop(path) {
-	console.log(`⭕ on dropped path "${path}" - load and show right away`)
+	console.log(`on dropped path "${path}" - load and show right away`)
 	triad.here.imgRef.value.style.display = 'none'//hide the image we're on
 
 	folder = await listSiblings(path)//list all the images in the same folder as path
@@ -74,8 +74,8 @@ async function _onFlip(direction) {
 
 	let indexAhead1 = folder.index + direction//index where the user wants us to flip to
 	let indexAhead2 = folder.index + direction + direction//the next next one, the one beyond that
-	if (indexAhead1 < 0 || indexAhead1 >= folder.list.length) { console.log('❌ cannot flip off edge, ignoring command to flip'); return }
-	console.log(`⭕ on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
+	if (indexAhead1 < 0 || indexAhead1 >= folder.list.length) { console.log('at the edge, no flip'); return }
+	console.log(`on command to flip ${direction > 0 ? 'forward' : 'back'} - flip immediately if ready, or upon loaded`)
 
 	let behind, upon, ahead//from direction, pick the image functions which are ahead, we'll flip to, and behind, we'll discard and reuse
 	if (direction > 0) {behind = 'prev', upon = 'here', ahead = 'next'}//flip forward, so next is ahead

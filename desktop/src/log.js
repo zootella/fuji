@@ -3,7 +3,6 @@ import {invoke} from '@tauri-apps/api/core'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import parse from 'path-browserify'
 import {forwardize} from './components/library.js'
-import {settings} from './settings.js'
 import {brandFile} from './brand.js'
 
 /*
@@ -22,16 +21,17 @@ const logFolder = `${brandFile}-temp`//fuji-temp, under the user's home folder, 
 const logQuiet = 1500//milliseconds of nothing happening before pending lines go down to rust; long enough that a burst of flipping sends once rather than once a flip
 const logCeiling = 5000//lines, after which recording stops rather than growing without end; the beginning of a session is the most diagnostic part of it, so this keeps the start and drops the rest
 
-let logRecording = false//the one thing every entry point below checks, set from settings at the start of a run
+let logRecording = false//the one thing every entry point below checks, set at the start of a run from what the shell passes in
 let logStarted = false//rust has the path, so lines can go down
 let logPending = []//lines recorded but not yet handed down; rust holds everything already sent, so this stays small
 let logTotal = 0//lines ever recorded, which is what the ceiling counts
 let logFull = false//the ceiling was reached, which the file says plainly so a short log is never mistaken for a quiet session
 let logQuietTimer = null
+let logNotes = []//lines the caller wants at the top of the file, beneath the run's name
 let logWindow = ''//this window's label, window-1 and on, which starts every line it records; read at the start of a run rather than at import, so the module loads outside tauri too
 
-export function logStart(label) {//name this run and hand rust the file; the shell calls this once, after settings are read
-	logRecording = settings.log.record
+export function logStart({label, record, notes = []}) {//name this run and hand rust the file; the shell calls this once, after settings are read, and passes in what the log needs from them, so the log knows nothing about settings and sits beneath them
+	logRecording = record; logNotes = notes
 	logPending = []; logTotal = 0; logFull = false; logStarted = false
 	if (!logRecording) return
 	logWindow = getCurrentWindow().label
@@ -67,7 +67,7 @@ export function logLoad(entry, note) {//one completed load, however it turned ou
 	}))
 }
 export function sayTrouble(where, error) {//one line for something that reached a top gate: where it landed, what it said, and the stack, which is the part that says where it came from. Rust rejects with a plain string and the page throws real errors, so a stack is there or it is not
-	return `❌ ${where}: ${error?.stack || error}`
+	return `${where}: ${error?.stack || error}`
 }
 export function logTrouble(where, error) { log(sayTrouble(where, error)) }//the same line straight into the log, which is what a top gate wants; sayTrouble is for the one caller that has no log yet
 
@@ -89,7 +89,7 @@ function logSend() {
 function logHeader(label, stamp) {//once, ahead of the first lines
 	logPending.unshift(
 		`# ${brandFile} log, ${logWindow}, ${label}, run began ${stamp} utc`,//on the mac a second window's header lands partway down, and says where it joined the run the first one started
-		`# flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`,
+		...logNotes.map(note => `# ${note}`),
 		`# every line the page and rust chose to keep, roughly in the order they happened, each beginning with the window that recorded it, or rust----, and the utc time; other times in milliseconds`,
 		`# a load row: disk is the read, render the decode. A flip row: store is the wait on the cache, zero for an image it already had, and paint is the swap reaching the screen`,
 		`# a thumb row is one thumbnail the sheet made: hit is its path, native, page or img, or refused with the reason in the note; render is the milliseconds to make it; bytes its canvas; natural its pixels`,

@@ -47,7 +47,7 @@ pub fn dock_install(app: &AppHandle) {
 	let class = builder.register();
 
 	let previous = unsafe { AnyObject::set_class(object, class) };//objc2's own wrapper rather than the raw call, and it hands back the class it replaced
-	if !std::ptr::eq(previous, original) { log::log("⭕ dock: the delegate's class changed under us, so the dock menu may not be installed") }//objc2 asks callers to check this, because somebody else re-classing the same object concurrently is the one way it goes wrong
+	if !std::ptr::eq(previous, original) { log::log("dock: the delegate's class changed under us, so the dock menu may not be installed") }//objc2 asks callers to check this, because somebody else re-classing the same object concurrently is the one way it goes wrong
 }
 
 //AppKit asks for the menu every time the user opens it, and takes it autoreleased

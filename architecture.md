@@ -108,6 +108,7 @@ A module is already a singleton that outlives every component, `ref` already mak
 ## Rules that hold it together
 
 - **Views never import each other.** The only thing they share is the layer beneath them.
+- **Imports point one way.** No chain of imports, however long, leads back to the module it started from, so every module has finished running before anything that imports it starts, and startup is one explicit sequence in the shell rather than an order modules happen to load in. The build enforces it: `vite.config.js` fails on a loop among fuji's own files.
 - **The cache never learns about folders, order, or views.** A path in, pixels out.
 - **A hidden view measures nothing.** `v-show` is `display: none`, which destroys the layout box, so `clientWidth` reads 0. A view that measures its container does it when it becomes active, never at mount.
 - **Window events have one listener, in the shell**, and go to the active view. A part of a view that needs a key or a click elsewhere to itself gets it by holding the focus on its own element, never by a second window listener.

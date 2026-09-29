@@ -34,7 +34,7 @@ let started = false//start() comes every time this view is shown, and the setup 
 function start() {//the shell calls this every time this view comes on screen, already fullscreen, so the frame measured here is the one the table keeps
 	if (!started) {
 		started = true
-		log('⭕ table: the shell has revealed the window and handed this view the screen')
+		log('table: started')
 		dimensionStart()
 		hudStart()
 		frameRef.value.addEventListener('wheel', onWheel, {passive: false})//on the frame, not the window, so a hidden table is handed nothing; and last, so no wheel can reach the quiver before dimensionStart has filled it
@@ -52,9 +52,9 @@ async function onKey(e) {
 	let key = e.key
 
 	//q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
-	if      (key == 'q') { log('⭕ table: key q, a branch with nothing behind it yet') }
+	if      (key == 'q') { log('table: q does nothing yet') }
 	else if (key == 'i') { toggleInformation() }
-	else if (Ctrl && key == 's') { log('⭕ table: key ctrl+s, a branch with nothing behind it yet')
+	else if (Ctrl && key == 's') { log('table: ctrl+s does nothing yet')
 		e.preventDefault()//tell the browser not to show the file save dialog box
 	}
 	else if (Ctrl && (key == 'ArrowRight' || key == 'ArrowDown')) { flip(1)  }//control with any arrow flips, right or down for the next picture and left or up for the one before: a control of its own beside the page keys, and on a mac laptop, which has no page keys, the keyboard's only flip; ahead of the plain arrows below, which never ask about control. On the mac, control with an arrow is the system's own shortcut for moving between spaces and never arrives, so there it is command, which Ctrl above already reads
@@ -102,7 +102,7 @@ function onPointerDown(e) {
 	if (e.button == 0 && e.detail == 2 && e.buttons == 1) {//primary button 0, 2nd quick click, first bit value 1 only button down right now
 		//ignoring this because listening for browser double click event
 	} else if (e.button == 2 && e.detail == 2 && e.buttons == 2) {//secondary button 2, 2nd quick click, second bit value 2 only button down right now
-		log('⭕ table: pointer down, right double click')
+		log('table: pointer down, right double click')
 	} else {
 		dragStart(e)
 	}
@@ -262,13 +262,13 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 
 async function onDrop(path) { return queue(() => _drop(path)) }//queued with the flips, because a drop replaces the very folder a flip in flight is holding an index into
 async function _drop(path) {
-	log(`⭕ table: dropped ${path}, loading and showing it right away`)
+	log(`table: dropped ${path}`)
 
 	await modelOpen(path)//the model lists the folder and puts it in the current order, and every other view is reading that list already
 	await _showModel()
 }
 async function _showModel() {//show the picture the model is standing on, wherever it came from: a drop here, or a folder opened or a thumbnail chosen while the sheet was showing
-	if (modelIndex() < 0) { log('❌ table: no images in that folder, ignoring the drop'); return }
+	if (modelIndex() < 0) { log('table: no images in that folder'); return }
 	flipCacheWindow(modelList.value, modelIndex())//ask for this image and its neighbours before showing anything, because showIndex wants what the window is holding
 	//the card empties here rather than by a display none: sliding the window releases the old folder, and the store takes its element back out; this is blinkey but ok for a drop, ttd august
 	await showIndex(modelIndex())
@@ -304,7 +304,7 @@ async function _flip(direction) {
 	if (!modelList.value.length) return//nothing loaded yet
 
 	let ahead = modelIndex() + direction//index where the user wants us to flip to
-	if (ahead < 0 || ahead >= modelList.value.length) { log('❌ table: cannot flip off the edge, ignoring the command'); return }
+	if (ahead < 0 || ahead >= modelList.value.length) { log('table: at the edge, no flip'); return }
 
 	let began = performance.now()//the wall clock from the command to pixels on the screen
 	await showIndex(ahead)//no need to ask the store for anything first: a flip moves one step and the window already reaches one step, so the image ahead is held before the command arrives

@@ -35,7 +35,7 @@ let executable = ''//this copy's program file, forwardized, found at startup on 
 
 export async function associateStart() {//at startup, in every copy: read the answers and repair the three lists, then on the installed copy tell windows what fuji can open and claim what the user said yes to. Answers a line for the log, blank where there was nothing to say
 	let {answers, problems} = answersRead()
-	for (let problem of problems) log(`⭕ settings: associations, ${problem}`)
+	for (let problem of problems) log(`settings: associations, ${problem}`)
 	associateAnswers.value = answers
 	answersWrite()//every extension in exactly one list, which repairs a file with a mistake in it and adds an extension this fuji has and the last did not
 	if (platform() != 'windows') return ''//no registry: macos declares its types in Info.plist, and linux declares none yet

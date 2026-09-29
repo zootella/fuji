@@ -11,6 +11,17 @@ export default defineConfig({
 		tailwindcss(),
 	],
 
+	// imports among fuji's own files point one way, so every module has run by the time anything that imports it runs; a loop fails the build rather than shipping. Loops inside node_modules are those libraries' own business
+	build: {
+		rolldownOptions: {
+			checks: {circularDependency: true},
+			onLog(level, log, handler) {
+				if (log.code == 'CIRCULAR_DEPENDENCY' && !log.message.includes('node_modules')) throw new Error(log.message)
+				handler(level, log)
+			},
+		},
+	},
+
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
 	//
 	// 1. prevent vite from obscuring rust errors

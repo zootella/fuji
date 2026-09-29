@@ -42,7 +42,7 @@ export function modelStand(path) { modelPath.value = path }//what a flip and a c
 
 export function modelSortSet(name) {//choose an order; the list is rebuilt from the listing already in hand, and every view is reading that list
 	if (!modelSorts[name]) {//a name settings cannot check, because the sorts fuji has are known here and not there
-		log(`⭕ settings: no sort named ${name}, using Alphabet instead`)
+		log(`settings: no sort named ${name}, using Alphabet instead`)
 		name = 'Alphabet'
 	}
 	modelSort.value = name

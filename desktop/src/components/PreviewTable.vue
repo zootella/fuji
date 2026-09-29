@@ -25,7 +25,7 @@ async function onDrop(p) {//show this picture; the shell calls this before the w
 	path = p
 	entry = await cacheNeed(path, previewHolder)
 	if (previous) cacheRelease(previous, previewHolder)//after the new one is held, so a drop of the same picture never frees it in between
-	if (entry.error) { log(`❌ preview: could not show ${path}, ${entry.error}`); frameRef.value.replaceChildren(); return }
+	if (entry.error) { log(`preview: could not show ${path}, ${entry.error}`); frameRef.value.replaceChildren(); return }
 	entry.img.className = 'myImage'
 	entry.img.style.display = 'block'//the diamond table hides the store's elements it is not showing, and this may be one it hid
 	frameRef.value.replaceChildren(entry.img)

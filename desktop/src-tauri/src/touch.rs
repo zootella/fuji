@@ -47,7 +47,7 @@ mod platform {
 		let block = RcBlock::new(|event: NonNull<NSEvent>| -> *mut NSEvent {//appkit calls this on the main thread for every scroll wheel event, before the window sees it; answer the event to pass it on, or null to drop it
 			let e = unsafe { event.as_ref() };//appkit promises a live event for the length of the call
 			let precise = e.hasPreciseScrollingDeltas();//true for a trackpad or a magic mouse, false for a notched wheel
-			if !SEEN.swap(true, Ordering::Relaxed) { log::log(&format!("⭕ touch: the monitor saw its first scroll event, precise {precise}")) }//once, so a log from any machine says whether the hook is live and what its first device was
+			if !SEEN.swap(true, Ordering::Relaxed) { log::log(&format!("touch: the monitor saw its first scroll event, precise {precise}")) }//once, so a log from any machine says whether the hook is live and what its first device was
 			if precise {
 				if let Some(window) = MainThreadMarker::new().and_then(|marker| e.window(marker)) {//the window the event is aimed at; the marker is a formality, since the monitor only ever runs on the main thread
 					let address = Retained::as_ptr(&window) as usize;

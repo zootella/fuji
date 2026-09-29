@@ -111,7 +111,7 @@ Roughly what a release build costs, so a long one does not read as a hang: on th
 
 **A session builds when there is a reason to, and picks the smallest build that gives it.** Not every turn, and not by habit at the end of a change.
 
-**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. Neither runs the page, though, so a module that throws while loading passes both and stops fuji before it shows a window — an import cycle that reaches a `const` before its line does exactly that, and did on 2026-09-28. `node -e "import('./src/components/library.js')"` from `desktop` loads the modules the shell does and catches it in a second. **To prove the release profile compiles and links**, `pnpm compile` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm installer`; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
+**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. The build also fails on an import loop among fuji's own files, the rule `architecture.md` states. **To prove the release profile compiles and links**, `pnpm compile` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm installer`; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
 
 Building the installer every turn is the habit to avoid: it is the slowest thing here, it produces a file nobody asked for, and it says nothing that `cargo check` did not already say.
 

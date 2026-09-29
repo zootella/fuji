@@ -3,7 +3,7 @@ import {parse as parseToml} from 'smol-toml'//parseToml, so the name parse stays
 import parse from 'path-browserify'
 import {diskRead, diskWrite} from './disk.js'
 import {desktopExitHold} from './desktop.js'
-import {forwardize} from './components/library.js'//a function, which a module has from the start; library.js reaches back here through log.js, so a const from it would not exist yet while the schema below is built, and fuji would stop before showing a window
+import {forwardize} from './components/library.js'
 import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
 import {brandFile} from './brand.js'
 
@@ -268,13 +268,13 @@ export async function settingsLoad() {//read the settings file and leave it exac
 		text = new TextDecoder().decode(new Uint8Array(await diskRead(settingsFilePath)))
 	} catch (error) {
 		unreadable = !String(error).includes('os error 2')//both platforms number a missing file 2; anything else is a lock, a permission, or a disk saying no
-		notices.push(`⭕ settings: ${unreadable ? 'leaving alone' : 'starting a new file at'} ${settingsFilePath}, because reading one said: ${error}`)
+		notices.push(`settings: ${unreadable ? 'leaving alone' : 'starting a new file at'} ${settingsFilePath}, because reading one said: ${error}`)
 	}
 	settingsFileText = text
 
 	let {settings: found, problems} = settingsParse(text)
 	for (let entry of settingsSchema) settings[entry.section][entry.key] = found[entry.section][entry.key]//fill the live object rather than replacing it, so importers keep theirs
-	for (let problem of problems) notices.push(`⭕ settings: ${problem}`)
+	for (let problem of problems) notices.push(`settings: ${problem}`)
 
 	let rendered = settingsRender(settings)
 	if (unreadable) return notices//a file fuji could not read is one it must not overwrite: the settings in it are the user's and are still there, and writing factory values over them would be losing data to a lock

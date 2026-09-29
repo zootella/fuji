@@ -14,7 +14,6 @@ import parse from 'path-browserify'//naming this parse instead of path so we can
 import {diskRead, diskReadDir} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
 import {brandName} from '../brand.js'
-import {log} from '../log.js'//log.js imports forwardize from here in return, which is fine: neither file calls the other while the modules are loading, only later from inside a function
 
 //promises
 
@@ -227,7 +226,6 @@ export async function measureScreen() {//get the screen resolution as {x, y} in 
 		backingScreen: xy(m.size.width, m.size.height),
 		panelScreen: await panelResolution(),//custom Rust code we wrote to system APIs to get the panel's own pixel count
 	}
-	log(`⭕ library: measured the screen ${JSON.stringify(q)}`)
 	return q
 }
 let _screen//{when, panelScreen} ttd august, save here if not 0,0; report from here not api call if within 50ms

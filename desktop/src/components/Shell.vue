@@ -80,12 +80,12 @@ onMounted(async () => {
 	whichTable.value = settings.view.table
 	helpShowing.value = settings.hud.help//on at the factory, so a new user is greeted by it
 	if (!tables[whichTable.value]) {//a name settings cannot check, because the tables fuji has are known here and not there
-		notices.push(`⭕ settings: no table named ${whichTable.value}, showing Diamond instead`)
+		notices.push(`settings: no table named ${whichTable.value}, showing Diamond instead`)
 		whichTable.value = 'Diamond'
 		settings.view.table = whichTable.value; settingsChanged()//written back, so a name fuji cannot use is repaired in the file the same way a bad value anywhere else in it is
 	}
 	if (opened.length) whichTable.value = 'Preview'//a double-clicked picture opens alone, fitted to the desktop, before any table the user has to learn; not written back, because opening one picture is not a choice of table
-	logStart(`${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`)//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
+	logStart({label: `${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`, record: settings.log.record, notes: [`flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`]})//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
