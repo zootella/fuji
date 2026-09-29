@@ -1,6 +1,6 @@
 # Fuji Architecture
 
-Fuji is four layers: a **shell** that owns the window, one **sheet** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
+Fuji is four layers: a **shell** that owns the window, one **sheet**, a **settings panel** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
 
 It says what fuji does, not what it might. It is the only architecture document: `structure.md` names the parts and says how many there are of each, `style.md` governs how code is written, `scaffold.md` how the project is set up, `cache.md` and `performance.md` cover images and what they cost, and where all of them are silent, decide and write it down here.
 
@@ -25,7 +25,7 @@ App.vue
 
 ## The shell
 
-**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, places and reveals the window, decides which view is showing and writes that to the model so a flow can wait on it, and puts the window in fuji's fullscreen for a table and in an ordinary window for the sheet. It draws no background and no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
+**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, places and reveals the window, decides which view is showing and writes that to the model so a flow can wait on it, and puts the window in fuji's fullscreen for a table and in an ordinary window for the sheet and the settings panel. It draws no background and no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
 
 **It draws one thing, the help panel, and owns its `h` key.** Help has to work in every view, always, for a user who has forgotten a shortcut or gotten lost, so it belongs to the layer every view sits inside — the same reason the shell owns `g` and draws the gamma filters. `HelpPanel.vue` floats over whichever view is showing, lists every key and mouse action fuji has, and takes no clicks, so the view beneath is still the thing being used. A new table adds its keys to the panel's text and inherits the rest.
 
@@ -45,11 +45,17 @@ App.vue
 
 **Two orthogonal values, not one mode.** Whether the sheet is showing, and which table is behind it. A double-click flips the first. A menu, a click, or a key picks the second. That they are independent is the whole reason the sheet does not care how many tables exist.
 
-**The settings panel takes the sheet's place, in the sheet's window.** `s` on the sheet brings it and `s` on the panel goes back, a temporary key until fuji has a better way in. It is the third value of which view is showing, beside the sheet and a table, and it comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping. A setting the panel changes reaches a view by being read when that view comes back on screen: the sheet rereads `card.images` each time it is shown, and it is never showing while the panel is.
+## The settings panel
+
+**The settings panel is the third kind of view, and it lives in the sheet's window.** Which view is showing has three values: the sheet, the settings panel, or a table. The sheet and the panel share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. The panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches it until fuji has a better way in.
+
+**A setting reaches a view by being read when that view comes on screen.** The shell hands every view `start()` each time it appears, and the sheet is never showing while the panel is, so a view reads what it depends on as it arrives and nothing has to watch a setting change. That is what lets the settings object stay plain, as the section on settings below says.
+
+**The panel is a container of sections, and what a section decides lives below it.** A setting that is one box is a line of the panel's own template, committed through `settings.js`, so the schema that reads the file also judges the box. A section with a life of its own — state of its own, data from the operating system, timing — is a component of its own, and its policy lives in a plain module the way the model's does, so the component shows that module's state and hands the user's clicks down.
 
 ## The model
 
-**The model holds what the user is looking at, and no view owns it.** The current folder, the sort order, the ordered list of images in it, the current path, which of the sheet and a table is on screen, and the history of where the user has been.
+**The model holds what the user is looking at, and no view owns it.** The current folder, the sort order, the ordered list of images in it, the current path, which view is on screen, and the history of where the user has been.
 
 **Tables are interchangeable views of the same thing, and that is what forces the model down here.** A user on image 47 who switches from one table to another expects to still be on image 47. If the folder listing and the index lived inside a table, the second table would either duplicate them or reach into the first, and reaching in is how two components stop being separable. The same argument settles sort order: the user sets it in the sheet, then double-clicks a thumbnail and flips — and expects to flip in the order they set. So sort order is not the sheet's, even though the sheet is where it is chosen.
 
@@ -104,12 +110,13 @@ A module is already a singleton that outlives every component, `ref` already mak
 - **Views never import each other.** The only thing they share is the layer beneath them.
 - **The cache never learns about folders, order, or views.** A path in, pixels out.
 - **A hidden view measures nothing.** `v-show` is `display: none`, which destroys the layout box, so `clientWidth` reads 0. A view that measures its container does it when it becomes active, never at mount.
-- **Window events have one listener, in the shell**, and go to the active view.
+- **Window events have one listener, in the shell**, and go to the active view. A part of a view that needs a key or a click elsewhere to itself gets it by holding the focus on its own element, never by a second window listener.
+- **A part of a view is a component when it has a life of its own**, and plain markup when it does not. Neither one long file nor a component for every button: the test is whether the part has state, data or timing that the rest of the view would otherwise have to carry.
 - **Nothing large goes in a reactive proxy.** The quiver bypasses Vue on purpose, and a decoded bitmap inside `reactive()` is the same mistake with more zeros.
 
 ## What is built today
 
-`Shell.vue`, `DiamondTable.vue`, `Sheet.vue` and `model.js` are real, along with `settings.js`, `cache.js`, `flipCache.js`, `log.js`, and `thumbnail.js` over `thumbnail.rs`. `PreviewTable.vue` is real and short on purpose: no flip, no pan, no zoom. `ComicTable.vue` is a stub. `SettingsPanel.vue` is real, with `card.images` as the smoke test of the panel itself, and the file types, a plain section over `associate.js` that `associations.md` plans.
+The shell and its views are real: the sheet, the settings panel, the diamond table, and the preview, which is short on purpose, with no flip, no pan and no zoom. The comic table is a stub. Beneath them the model, the settings file, the cache and its flip policy, the log, and the operating system's thumbnailer are real too. `CLAUDE.md` lists the files and what each holds, and changes with them; this section changes only when a layer or a kind of view does.
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 

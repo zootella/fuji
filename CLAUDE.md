@@ -178,144 +178,33 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **A command takes one thing, and a list stays in the page.** The page calls down once per item and owns the loop, the order, and how many are in flight; `thumbnail_probe` takes one path and `registry_set` writes one value for that reason. More crossings are the cheap side of that trade, and a command that loops over what the page handed it has pulled a decision down out of the page.
 
-**The payoff is fewer and simpler commands across the boundary,** which is what keeps the whole reliable and easy to reason about. `disk.rs` is five atomic calls, `thumbnail.rs` is two, `registry.rs` five, `panel.rs` and `paths.rs` each answer one question, and `log.rs` and `desktop.rs` each hold some text and write it on the way out. None of them knows what it is part of, and none spells fuji's name: Rust reads the product name from `tauri.conf.json` through `package_info`, and the page reads the same file through `brand.js`. The test for a new command is the one `lib.rs` opens with — describe it without naming a fuji feature. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
+**The payoff is fewer and simpler commands across the boundary,** which is what keeps the whole reliable and easy to reason about. Each Rust module is a handful of atomic calls, or answers a single question, or holds some text and writes it on the way out. None of them knows what it is part of, and none spells fuji's name: Rust reads the product name from `tauri.conf.json` through `package_info`, and the page reads the same file through `brand.js`. The test for a new command is the one `lib.rs` opens with — describe it without naming a fuji feature. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
 
 ### Rust Backend (desktop/src-tauri/src/)
 
-**Entry Point**: `main.rs` → `lib.rs::run()`
+**Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what the page can ask Rust to do. Each module opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
 
-**Key Modules**:
-- `disk.rs` - File I/O commands for JavaScript to invoke:
-  - `disk_readdir()` - List directory contents (POSIX-like readdir), shallow, skipping entries it cannot stat
-  - `disk_stat()` - Get file metadata (POSIX-like stat), describing a symlink rather than following it
-  - `disk_read()` - Read an entire file, returning `tauri::ipc::Response` so the bytes cross as an ArrayBuffer rather than a JSON array of numbers
-  - `disk_write()` - Create or truncate a file and write bytes
-  - `disk_copy()` - Efficient file copying using kernel-space operations; overwrites the destination
-
-- `panel.rs` - Hardware display resolution detection:
-  - `panel_resolution()` - Returns the display's size in panel pixels via platform-specific APIs
-  - Platform implementations for Windows (Win32), macOS (CoreGraphics), and Linux (xrandr)
-  - Answers about the primary display only. On the Mac it asks every mode the display offers, because no API reports the panel's own; on Windows it reads the display resolution, which is backing, and the panel only at the display's native resolution
-
-- `desktop.rs` - The one thing only Rust can do, because only Rust sees a quit coming:
-  - `desktop_exit_hold()` - Replace the text to write to a path when the application exits
-
-- `open.rs` - A file the operating system handed fuji, because the user double-clicked a picture:
-  - `open_files()` - The paths handed over since the page last asked, emptying the list as it answers
-  - Filled from `RunEvent::Opened` on macOS and from the command line on Windows and Linux, and held rather than delivered because at launch both arrive before the page exists
-
-- `window.rs` - Making fuji's windows, placing them, and saying where one is:
-  - `window_frame()`, `window_frame_set(frame)` - Read or put the visible frame, in CSS pixels, which on Windows is not Tauri's outer rectangle; `window_seen` takes off the invisible resize border there, and its essay has the rule and the measurements
-  - `window_fullscreen_leave()` - Out of fullscreen without changing whether the window is showing, the one way the shell leaves it; on Windows Tauri's own call shows a hidden window again at its old frame, so this cloaks it through the change
-  - Its essays carry why the Mac holds every window in one process, where a new window lands, how long fuji outlives its last one, and how copies started together behave: a flurry opens one window, a later launch takes its turn, and a copy whose window never arrives exits rather than lingering
-  - Labels windows `window-1` and on, and `capabilities/default.json` grants to `window-*`, so the two change together
-
-- `paths.rs` - Where this copy of the program is, which only Rust can learn:
-  - `paths_executable()` - The running program file. Fuji is always installed, so this is the one fact the page needs, and `associate.js` compares its folder with the one the installer recorded
-
-- `registry.rs` - The Windows registry, offered the way `disk.rs` offers the disk, knowing no key fuji uses; all under `HKEY_CURRENT_USER`:
-  - `registry_get(key, name)` - One string value, or blank when the key or the value is not there
-  - `registry_set(key, name, value)` - One string value, created if missing and written only if it would change; answers whether it changed
-  - `registry_delete(key, name)` - One value removed; answers whether there was one
-  - `registry_notify()` - Tell the shell that file associations changed
-  - `registry_opens(extension)` - What Windows would open a file type with right now, through the shell's own lookup: a ProgID, a name and a program file, each blank where the shell has none. A Store app like Photos has no program file, and an unregistered type answers all three blank
-  - All five reject off Windows. `associate.js` is the caller and holds the whole policy
-
-- `log.rs` - Fuji's log, the half that holds the text and writes it:
-  - `log(text)` - One line from any Rust code, appended to the run's log; a no-op unless the page started a log
-  - `log_start(path)` - The page names the file, once, only when `log.record` is on
-  - `log_append(text)` - The page's lines, a batch at a time
-  - `log_write()` - Called from `RunEvent::Exit`, making the folder if needed; `src/log.js` is the page's half and carries the essay on why a file and not a console
-  - Written from `RunEvent::Exit`, the one event every way of quitting reaches, making the file's folder first if it is missing
-
-- `thumbnail.rs` - The operating system's thumbnailer, ImageIO on macOS and WIC on Windows, behind two commands:
-  - `thumbnail_probe(path)` - What a file's first bytes say it is and what its header says its size is, without decoding; the page calls it for every file on a card at once. Refuses bytes fuji does not know and a header claiming a raster over half the machine's memory
-  - `thumbnail_render(path, format, maximum, gamut)` - Decode the file scaled so its longer side is at most `maximum` pixels, oriented and color-converted, returning one buffer: a 12-byte header of width, height and whether the pixels are Display P3, then straight-alpha RGBA. Refuses a file whose bytes are not `format`. Runs on Tauri's thread pool. Rejects on Linux
-  - `SquareFlow.vue` is the caller; the thumbnail pipeline document on the site says which files go here and which the page makes for itself
-
-**Command Registration**: All Rust functions exposed to JavaScript must be registered in `lib.rs::run()` using `tauri::generate_handler![]`
+The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`window.rs`), the files the operating system handed fuji (`open.rs`), the display (`panel.rs`), where this copy of the program is (`paths.rs`), the Windows registry (`registry.rs`), the operating system's thumbnailer (`thumbnail.rs`), the log and the text written at exit (`log.rs`, `desktop.rs`), and the Mac's menu bar, dock and trackpad (`menu.rs`, `dock.rs`, `touch.rs`).
 
 **Important Architecture Notes**:
 - File I/O uses synchronous `std::fs` calls inside `#[command(async)]`, so they run on Tauri's thread pool rather than the thread that runs the window; `disk_read()` loads entire files into memory (suitable for images, not large files). `lib.rs` has the rule for which commands are async
 - `disk.rs` holds no guard on paths, deliberately: its opening essay is the contract, and the walls are outside the file, argued once in `lib.rs`
-- Comments in `disk.rs` extensively document memory efficiency tradeoffs between direct reads vs. streaming
 - Platform-specific code uses `#[cfg(target_os = "...")]` attributes for Windows/macOS/Linux
 
 ### Frontend (desktop/src/)
 
-**Entry Point**: `main.js` → `App.vue` → `Shell.vue` → `Sheet.vue`, `SettingsPanel.vue` or `DiamondTable.vue`
+**Entry point**: `main.js` → `App.vue` → `Shell.vue`, which shows one view at a time.
 
-`main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view or a new home for state: it carries the layers, why each thing sits where it does, and the tests for when a router would earn its place.
+`main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
 
-**Key Components**:
-- `Shell.vue` - Owns the window and none of the pixels: reads settings, places and reveals the window, puts it in fullscreen for a table and a window for the sheet, holds the one listener for each window event and hands it to the view that is showing, and starts the performance log. Adding a table is one entry in its `tables` object
-- `HelpPanel.vue` - Every shortcut fuji has, in one text; the shell draws it over every view and owns its `h` key, and `hud.help` remembers whether it was open
-- `SettingsPanel.vue` - What a user changes from inside fuji, shown in the sheet's window in place of the sheet; `s` trades the two. `card.images`, committed through `settingsSet` so the schema's own check decides what is valid, and the file types: each extension's answer beside what opens it now, deliberately plain until its interface is designed
-- `Sheet.vue` - The contact sheet: one folder seen whole, as a top-to-bottom scroll over a stack of cards
-- `Card.vue` - A box of up to `card.images` thumbnails, all from one folder, handed to the flow; names the one flow there is, and a second one brings a register back with it
-- `SquareFlow.vue` - The one flow, and the whole of how a path becomes a tile: probes a card's files together, a call each, lays every box out at its final size, then fills canvases from the operating system where the platform's list allows and from the page where it does not, with GIF and SVG as img tiles; waits while the sheet is hidden. `TagFlow.vue` and `CanvasFlow.vue` were the experiment it replaced and are deleted
-- `DiamondTable.vue` - One of fuji's tables, showing one image sized to an invisible diamond on an infinite pannable plane:
-  - Handles the events the shell hands it, plus wheel, pointer, and double-click on its own element
-  - Quiver system: maintains positioning/sizing state in three phases (A: desired, B: calculated styles, C: applied to DOM)
-  - Shows the cache's own `<img>` element, adopted into its card — never one of its own pointed at the same picture
-  - HUD overlays for information display; help is the shell's
-- `ComicTable.vue` - Another table, a stub. One image full width, read down a vertical scroll
-- `PreviewTable.vue` - What a double-clicked picture opens as: the window without its title bar, fitted around the picture in the work area; a click hands it to the diamond table fullscreen, and a lost focus closes it. The shell does the window's part
+**Where to read before changing something.** Every component in `src/components/` and every module in `src/` opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
+- `Shell.vue` — the window, which view is showing, and fuji's two fullscreens
+- `SquareFlow.vue` — how a path becomes a thumbnail
+- `DiamondTable.vue` — the quiver, and why a flip shows first and loads last
+- `model.js`, `settings.js`, `cache.js` — what the user is looking at, the one schema for `fuji.toml`, and the store of pictures
+- `associate.js` — file associations, starting from the values the design follows
 
-**Model**:
-- `model.js` - What the user is looking at, and no view owns it: the folder, the sort, the ordered list, the current path, and which of the sheet and a table is showing. The position is a path rather than an index, so changing the sort leaves the user on the same picture
-- `AlphabetSort.js` - The first sort, and the plainest: javascript's own `sort()`. A sort returns the order rather than a comparator, so a shuffle can be one too
-
-**Image layer**:
-- `cache.js` - A store, not a strategy: `cacheNeed(path, holder)` and `cacheRelease(path, holder)` with labelled reference counts, and `cacheNeed(path, holder, {decode: false})` for a caller that wants the bytes and the url without an element. Holds a blob, one object url, and a decoded `<img>` per path. No queue, no eviction policy, nothing freed except on command
-- `flipCache.js` - The diamond table's policy over that store: hold a window of `flip.back` and `flip.forward` images around the current one, release what falls out
-- `log.js` - The performance log, off unless `log.record` says otherwise. Records every load and every flip, touches no disk during the session, and hands rows to Rust to write at exit
-- `settings.js` - `fuji.toml`: one schema is the only place a setting is defined, and the file repairs itself on every launch
-
-**JavaScript Modules**:
-- `disk.js` - Thin wrapper exposing Rust commands to JavaScript:
-  - `diskRead(path)`, `diskWrite(path, data)`, `diskReadDir(path)`, `diskStat(path)`, `diskCopy(source, destination)`
-
-- `desktop.js` - Exposes the exit-write commands:
-  - `desktopExitHold(path, text)`
-
-- `open.js` - Exposes the files fuji was opened with:
-  - `openFiles()`
-
-- `associate.js` - What fuji offers to open and what the user answered for each extension, and the whole of the policy: which keys, which values, in what order, the fallback claimed for a yes and given back otherwise, following a choice made in the system, and the gate that only an installed copy acts. Its essay opens with the values the design follows from:
-  - `associateStart()` - At startup: repairs the three answer lists and registers; resolves to a line for the log, blank where there was nothing to do
-  - `associateAnswers`, `associateOpens`, `associateActive` - Refs the settings panel shows: each extension's answer, what the system opens it with, and whether this copy can act
-  - `associateChoose(extension, answer)`, `associateLook()`, `associateFinish()` - One answer carried out; ask the system what opens each type, only while the settings are showing; Windows' own Default apps
-  - `associations.md` is the whole subject; the Mac's declaration is `CFBundleDocumentTypes` in `src-tauri/Info.plist`, and its half of the answers is still to build there
-
-- `registry.js` - Exposes the registry commands:
-  - `registryGet(key, name)`, `registrySet(key, name, value)`, `registryDelete(key, name)`, `registryNotify()`, `registryOpens(extension)`
-
-- `paths.js` - Exposes where the program is, forwardized:
-  - `pathsExecutable()`
-
-- `brand.js` - The product's name and description, imported from `tauri.conf.json` at build time:
-  - `brandName`, `brandFile` (lowercase, for file and folder names), `brandDescription`
-
-- `window.js` - Exposes where the window is and placing it, as the user sees its frame:
-  - `windowFrame()`, `windowFrameSet(frame)` - `{x, y, width, height}` in CSS pixels on every platform; `window.rs` says why Tauri's outer rectangle is not that on Windows
-  - `windowFullscreenLeave()` - Out of fullscreen, keeping a hidden window hidden
-
-- `panel.js` - Exposes hardware resolution command:
-  - `panelResolution()`
-
-- `thumbnail.js` - Exposes the operating system thumbnailer:
-  - `thumbnailProbe(path)` - `{format, width, height, problem}` for one file
-  - `thumbnailRender(path, format, maximum, gamut)` - One ArrayBuffer, header then pixels
-  - `thumbnailUnpack(buffer)` - `{width, height, pixels}` shaped for `new ImageData()`
-
-- `library.js` - Pure utility functions:
-  - `xy(a, o, b)` - Vector math for {x, y} arrows (add, subtract, multiply, divide, compare)
-  - `forwardize(path)` / `backize(path)` - Path normalization for cross-platform compatibility
-  - `listSiblings(path)` - List all image files in same directory
-  - `revealWindow(rect)` - Size the hidden window and show it; the window is created invisible so it never appears at one size and jumps
-  - `readAndRenderImage(img, path)` - Load a file into an img element as a data url; the retired experiment components are its only callers
-  - `sayGroupDigits(n)`, `saySize4(n)` - Format numbers for display
+**Each Rust module with commands has a JavaScript file of the same name in `src/`** that wraps them for the page, one function per command, forwardizing a path where it crosses. `components/library.js` holds the small pure helpers, `forwardize`, `backize` and `xy` among them, and `imageTypes`, the one table of what fuji opens.
 
 **Key Patterns**:
 - All paths are "forwardized" on entry (backslashes → forward slashes) and "backized" for Windows display

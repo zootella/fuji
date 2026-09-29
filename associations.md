@@ -73,6 +73,33 @@ Built on the Windows box, 2026-09-28, and waiting for the user's smoke test of a
 
 **Linux is left out for now.** Its packages declare no `MimeType`, so fuji cannot be handed a picture there; `fuji.desktop.hbs` is where that starts, as a static list the way `Info.plist` is one.
 
+## Every file, and what fuji can do with each
+
+A whiteboard, started 2026-09-29 on the Windows box as the list of extensions is about to grow to everything VLC opens — video, audio and playlists — while fuji itself still shows only pictures. More asked than settled.
+
+**Where the contact sheet is headed.** Today it shows only the pictures in a folder. Soon it may list every file, so the user has the context of where they are, with a file fuji cannot draw as an icon, a row, or a small square rather than a thumbnail. A double-click on a file fuji cannot show becomes a launch: the operating system opens it with its own default, exactly as a double-click in Explorer or Finder would, so a `.txt` on the sheet opens in Notepad the same way it does from Explorer. Fuji never has to understand a file to be the place a user finds it.
+
+**The middle ground.** Between the pictures fuji shows today and the files it will never open sit the formats it will handle soon: an `.mp3` playlist, a video to watch. They belong in the table now, so the settings can list them and the rest of the design has to account for them, but fuji offers itself for them only once it can actually open them. Offering to open what fuji cannot show would break the promise the associations essay makes.
+
+**Categories are the wrong key.** "Image", "video" and "playlist" read as natural and turn out arbitrary and brittle: a short `.mp4` saved from social media is the same experience as a `.gif`, so there is no good reason it should not be a thumbnail on the sheet, and yet sending every kind of file through the thumbnail pipeline would be absurd. So the code should not ask what category an extension is in. It should ask **which parts of fuji can deal with it, on this platform**:
+
+- **How the sheet draws it.** The operating system's thumbnailer, the page's own decoder painting a canvas, a live `<img>` for something that animates or is vector, or an icon.
+- **What opens it inside fuji.** A table today; a player, a listener, or a playlist later; or nothing, which means a double-click hands it to the operating system.
+- **Whether fuji offers itself to the operating system for it.** Not a third fact but the second one seen from outside: fuji offers exactly the extensions something inside it can open, on that platform.
+
+**Every one of those answers can differ by platform**, which is the part that makes this a manifest rather than a list. The Mac's thumbnailer draws WebP, AVIF and BMP and Windows' does not; WebKit reads HEIC and Chromium does not; the Mac's thumbnailer would likely draw a frame of an `.mp4`, and so might Windows', while Linux has no thumbnailer route at all. The rule from `CLAUDE.md` applies: ask the platform question once, where the answer is made, and never where it is used.
+
+**Where that knowledge lives today, scattered.** `imageTypes` in `library.js` is what fuji knows at all, as picture types, and is read by the folder listing, the flow, the store, the registration and the settings. `flowNative` in `SquareFlow.vue` is the per-platform thumbnailer list, and `tileFor` beside it hard-codes GIF and SVG as live imgs. `sniff` in `thumbnail.rs` is the list of byte signatures Rust will let a decoder near. `Info.plist` is the Mac's hand-kept copy of the extensions. And one fact is written nowhere: that the page's engine can decode everything in `imageTypes` on every platform, which is already not quite true of older macOS and AVIF.
+
+**A first shape, to argue with.** One table, keyed by extension, holding what does not change by platform — the MIME type, the name Windows prints, the kind, the history — and, per platform, how the sheet draws it and what opens it. A small function resolves it once at startup into this platform's answers, and everything else asks that: the listing, the flow, the store, the registration, the settings. `imageTypes` becomes the part of it that is pictures today, and `flowNative` and the GIF and SVG rule move into it.
+
+**Questions.**
+- What does the sheet show for a file fuji cannot draw: the operating system's own icon for the type, which is one more small Rust command per platform, or a plain tile of fuji's own?
+- Does the settings section list the formats fuji cannot open yet, as something coming, or leave them out until they can be answered? Listing them unanswerable is honest and a little noisy.
+- The launch for a file fuji cannot show needs the opener plugin's open-path permission, scoped with thought, since it is a way to start any program the user's system associates with any file fuji lists.
+- `thumbnail.rs` refuses bytes it does not recognize before any decoder runs. Every format given a native thumbnail route needs a signature there, and video containers are more varied than image headers.
+- `Info.plist` would grow by dozens of hand-kept entries. The decision not to generate it from the table was made when the table changed about once a year, and is worth making again.
+
 ## Settled, and recorded so nobody researches it twice
 
 **The installed-copy gate works on Windows**, checked on the Windows box on 2026-09-28. `associate.js` registers only when the running executable's folder equals `InstallLocation` under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\Fuji`, which Tauri's NSIS template writes on every install, in quotes, into whatever folder the user chose on its folder page, and which the uninstaller removes. The installed copy passed the gate and logged `associate: 10 types registered, 0 values written` on every launch, and copies run from `target/release` and `target/debug` registered nothing. The template also keeps the folder as the default value of `Software\<manufacturer>\Fuji`, and that one is the wrong thing to test: the uninstaller deletes it only when *delete the application data* is ticked.

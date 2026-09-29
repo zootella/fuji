@@ -60,6 +60,13 @@ export function associateOurs(extension) {//windows would open this extension wi
 	return !!opener?.executable && forwardize(opener.executable).toLowerCase() == executable.toLowerCase()
 }
 
+export function associateProgram(extension) {//the program windows would open this extension with, by the name a person knows it by: this copy's own name when it is fuji, whatever windows calls it, and blank when nothing opens it or the settings have not looked
+	let opener = associateOpens.value[extension]
+	if (!opener) return ''
+	if (associateOurs(extension)) return brandName
+	return opener.name
+}
+
 export function associateDiffers(extension) {//the answer and windows tell different stories, which only the user can settle, in windows' own settings: a yes windows opens with another program, or a no it opens with fuji. Ask never differs, being no answer at all
 	if (!associateActive.value || !associateOpens.value[extension]) return false//nothing to compare until the settings have looked
 	let answer = associateAnswers.value[extension]
