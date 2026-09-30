@@ -1,14 +1,12 @@
-# From the Windows box to the Mac: a sheet's title bar, and file types
+# Between the Windows box and the Mac: a sheet placed twice, and file types
 
 Written on the Windows box, 2026-09-28. Read this, then talk to the user before changing anything; a letter starts a conversation rather than settling one.
 
-## And a sheet left zoomed: passed, and one failure found beside it
+## A sheet placed twice, for the Windows box to look at once
 
-Zooming, quitting, relaunching and un-zooming, and quitting from a Space, all kept the size the user gave the sheet, on the Mac mini on 2026-09-30. Beside that check, one failure, to fix once the rest of the checks are done.
+Found on the Mac mini on 2026-09-30 and fixed there: coming from a preview, the sheet grew 28 CSS pixels taller than its saved size, because the Mac keeps the content when a title bar arrives and grows the frame around it. `sheetFromPreview` now places the sheet before adding the title bar and again after, at the same rectangle, and the comments at both `windowFrameSet` calls in `Shell.vue` say why.
 
-**The sheet grows by a title bar on every trip from a preview.** Measured on the Mac mini on 2026-09-30: `[sheet]` at 1269 × 372, then a picture opened from Finder, into the diamond table, into the sheet, and quit, saved 1269 × 400. `sheetFromPreview` places the sheet while the window has no title bar, so `window_frame_set` measures no chrome and gives the whole height to content; then `setDecorations(true)` adds the title bar, and the Mac keeps the content and grows the frame around it, where Windows keeps the frame. The comment at `placeWindow`'s `windowFrameSet` states the Windows behavior as a general rule. The saved size compounds until it no longer fits the work area and `rectSheet` falls back to the preset. The planned fix is to place, add the title bar, wait until the window reports one, and place again at the same rectangle, so both platforms run the same code whichever way the title bar lands.
-
-**The preview may be a title bar short on the Mac, for the same reason run backwards.** `placeWindow` sets the fitted frame with the title bar still on and then removes it; if the Mac keeps the content there too, the frame comes out 28 short of what `rectPreview` fitted. Reasoned from the sheet, not yet seen. A fix there touches the preview code Windows smoke tested, so the Windows box should look at the preview and the sheet once after it lands.
+On Windows the second placement should ask for the frame the window already has and change nothing. It is reasoned rather than seen. The title bar should land first, since tauri posts it to the main thread, tao applies it there in one step, and the next command arrives through the same queue; on the Mac the log showed it landed within 11 ms. But if `window_frame_set` ever measured before it and resized after, the sheet would come out a title bar taller on Windows instead, which is the one thing to look for. Open a picture from Explorer, click through the table to the sheet, quit, and expect `[sheet]` in `fuji.toml` unchanged.
 
 ## And the file types in fuji's settings, which the Mac has to finish
 

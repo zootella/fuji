@@ -237,7 +237,7 @@ async function placeWindow(w, path) {//put the hidden window where it will first
 	let frame = rectPreview(natural, areas.work, await pointerPosition())//where the user double-clicked, very likely, or wherever the pointer has just gone
 	previewPath = path
 	previewCard = {x: frame.x - areas.screen.x, y: frame.y - areas.screen.y, width: frame.width, height: frame.height}//fullscreen fills the screen, so its frame's corner is the screen's
-	await windowFrameSet(frame)//the frame first and the title bar after, never the other way: tao queues a change of title bar onto the main thread rather than making it, and window_frame_set measures the title bar the moment it is called, so placing a window straight after a change would measure the window as it was. A window keeps its frame when its title bar comes or goes, and the content grows or shrinks inside it
+	await windowFrameSet(frame)//the frame first and the title bar after, never the other way: tao queues a change of title bar onto the main thread rather than making it, and window_frame_set measures the title bar the moment it is called, so placing a window straight after a change would measure the window as it was. A window keeps its frame when its title bar goes, and the content grows inside it; one arriving keeps the frame on windows but the content on the mac, which is why sheetFromPreview places the sheet twice
 	await w.setDecorations(false); previewFramed = true
 }
 
@@ -285,8 +285,10 @@ async function sheetFromPreview() {//the first sheet after a preview: the window
 	if (fullscreenOurs) { await windowFullscreenLeave(); fullscreenOurs = false }//without fullscreenSet's wait for the resize, which a hidden window cannot be relied on to deliver; nothing measures until the window is back
 	previewFramed = false
 	let areas = await screenAreas()
-	if (areas) await placeSheet(areas.work)//the frame first and the title bar after, for the reason placeWindow gives
+	let frame = areas && rectSheet(areas.work, settings.sheet)//worked out once, because rectSheet rolls a new place every time it is asked
+	if (frame) await windowFrameSet(frame)//the frame first and the title bar after, for the reason placeWindow gives
 	await w.setDecorations(true)
+	if (frame) await windowFrameSet(frame)//and the frame again, now that the title bar is there to measure: the mac keeps the content when a title bar arrives and grows the frame up around it, 28 css pixels taller than asked, measured on the Mac mini 2026-09-30, while windows keeps the frame and is asked here for the one it already has
 	showing.value = 'Sheet'
 	await nextTick()
 	activeView()?.start?.()
