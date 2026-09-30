@@ -2,6 +2,10 @@
 
 //the text and its look; the shell decides where it sits and when it is up, over every view. A change to a key or a mouse action is a change here too
 
+import {backspaceCloses} from './library.js'
+
+const closeKeys = backspaceCloses ? 'Esc|Backspace' : 'Esc'//backspace only where its key says Backspace, which library.js explains
+
 </script>
 <template>
 
@@ -15,7 +19,7 @@
 
 double click                          Back to the contact sheet
 double click a thumbnail              Its picture, full screen
-                     Esc|Backspace    Close the window
+{{closeKeys.padStart(34)}}    Close the window
 mouse wheel    PgDn|Up|Ctrl+arrows    Flip through images in order
 
 drag                        arrows    Pan

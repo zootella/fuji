@@ -128,6 +128,11 @@ export function platform() {//mac, windows or linux
 	return 'linux'
 }
 
+/*
+Whether backspace closes a table's window beside escape, which is a question about the keyboard, answered by the platform. The key at the top right that erases backward reports itself as Backspace on every keyboard, and a PC keyboard prints Backspace on it, but a Mac keyboard prints delete, and the page cannot tell which is plugged in. A key that says delete should never close anything, so that a delete fuji one day offers is never mistaken for a close, nor a close for a delete; so on the Mac, where nearly every keyboard says delete, backspace does nothing, and escape closes. The key a PC prints Del, and a Mac makes with fn and delete, reports itself as Delete, which is a different key again and closes nothing anywhere. An Apple keyboard on a PC still closes with its delete key, which is the one mix this cannot see, and it closes a window rather than deleting anything.
+*/
+export const backspaceCloses = platform() != 'mac'
+
 export function windowTitle(showing, path, folder) {//what the title bar says: the picture a table is showing, the folder the sheet is showing, Settings on the settings panel, and fuji's own name when there is none of those
 	/*
 	The name alone, never a path: a title bar is narrow and a taskbar button narrower, and the leading half of a path is the half nobody needs.

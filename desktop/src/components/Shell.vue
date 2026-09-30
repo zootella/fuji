@@ -4,7 +4,7 @@ import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {open as openDialog} from '@tauri-apps/plugin-dialog'//the picker behind File, Open; the plugin is registered in lib.rs and granted in capabilities/default.json
-import {raf, forwardize, platform, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
+import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it; the path and the folder are here for the title bar, which is the shell's because the window is
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
@@ -166,7 +166,7 @@ function onKey(e) {
 	}
 	if (e.altKey) return//fuji has no alt chords, and on windows alt belongs to the system, for its menus and its window keys, so no view ever sees one
 	let bare = !e.ctrlKey && !e.metaKey//the shell's own keys act only with control and command up, so a chord meant for the system or for a table, like command h on the mac or control plus on a table, passes them by
-	if ((e.key == 'Escape' || (bare && e.key == 'Backspace')) && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own keys, never passed down: escape or backspace on any table, preview included, closes the window, as the red button or the × would, with a key at each top corner of the keyboard. Backspace only bare, since control or command makes it a delete of another kind
+	if ((e.key == 'Escape' || (bare && backspaceCloses && e.key == 'Backspace')) && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own keys, never passed down: escape on any table, preview included, closes the window, as the red button or the × would, and so does backspace where its key says Backspace, so there is a key at each top corner of the keyboard; library.js says why not on the Mac. Backspace only bare, since control makes it a delete of another kind
 	if (bare && e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
 	if (bare && e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	if (bare && e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in, and control with it too, as browsers zoom
