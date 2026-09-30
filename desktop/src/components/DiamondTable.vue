@@ -435,7 +435,7 @@ let here = null//the store's entry for the image on the card, which is where the
 		<img ref="errorRef" class="myImage" :src="errorImageData" />
 
 		<!-- caption lives inside the card, but sits below its border -->
-		<div v-if="showCaptionRef" class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap font-mono myEmbossed">{{captionRef}}</div>
+		<div v-if="showCaptionRef" class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap myMono myEmbossed">{{captionRef}}</div>
 
 	</div>
 
@@ -449,7 +449,6 @@ let here = null//the store's entry for the image on the card, which is where the
 <style scoped>
 
 .myHud { /* the table's huds, over the look index.css gives every hud */
-	font-family: monospace;
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {} /* not using this yet, but it's here */

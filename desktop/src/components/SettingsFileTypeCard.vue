@@ -54,7 +54,7 @@ watch(() => props.pinned, hold)//a hovered card, clicked and now held
 </script>
 <template>
 
-<div ref="box" tabindex="-1" class="myCard absolute w-md p-3 outline-none" :style="place" @focusout="onFocusOut" @keydown.esc="emit('close')" @mousedown.prevent>
+<div ref="box" tabindex="-1" class="myCard absolute w-112 p-3 outline-none" :style="place" @focusout="onFocusOut" @keydown.esc="emit('close')" @mousedown.prevent>
 	<p><span class="text-white">{{extension}}</span> - <i>{{fileTypes[extension].title}}</i></p><!-- the title, not the type windows prints in explorer's type column, which says less -->
 	<p class="mt-2">{{fileTypes[extension].about}}</p>
 	<div v-if="!coming && (associateActive || list.heading)" class="mt-3 flex flex-wrap items-center gap-2"><!-- no row for a kind coming soon, nor on a copy that cannot act before the system has been asked -->

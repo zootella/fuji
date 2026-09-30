@@ -88,6 +88,7 @@ onMounted(async () => {
 	if (opened.length) whichTable.value = 'Preview'//a double-clicked picture opens alone, fitted to the desktop, before any table the user has to learn; not written back, because opening one picture is not a choice of table
 	logStart({label: `${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`, record: settings.log.record, notes: [`flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`]})//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
+	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
 	await reportTrouble(() => placeWindow(w, opened[0]))//before the reveal, so the window first appears where it will stay. Only the first picture, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
@@ -99,6 +100,7 @@ onMounted(async () => {
 
 	window.addEventListener('keydown', onKey)
 	window.addEventListener('resize', onResize)
+	window.addEventListener('contextmenu', onContextMenu)
 	unlistenMenu = await w.listen('menu', event => reportTrouble(() => menuChose(event.payload)))//this window's own listener rather than the global one, and that is load-bearing: listen() from the api registers for any target at all, so every window would answer a menu item meant for the one in front — which it did, opening a file picker per window. w.listen registers this window's label, which is what rust aims the event at. menu.rs sends only the items the page owns, and only to the window in front
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => viewOpen(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji
@@ -111,6 +113,7 @@ let unlistenFileDrop, unlistenMenu, unlistenResized, unlistenFocus//will hold th
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
+	window.removeEventListener('contextmenu', onContextMenu)
 	if (unlistenFileDrop) unlistenFileDrop()
 	if (unlistenMenu) unlistenMenu()
 	if (unlistenResized) unlistenResized()
@@ -139,6 +142,11 @@ function helpToggle() {
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
 }
 
+async function facesShow() {//put the page's text in the set of faces the settings name, which index.css reads off the root; at startup, and again when the settings panel changes it. The bundled faces are loaded before the switch, so nothing on screen is drawn in the platform's and then snaps to these: only the regular ones, which is all a window shows at first, and at any size, since only the face is being fetched. A file that will not load is logged, and its text is drawn in the platform's face, which index.css names behind it
+	if (settings.font.faces == 'bundled') await Promise.all([document.fonts.load('16px Inter'), document.fonts.load('16px "IBM Plex Mono"')]).catch(error => logTrouble('shell: loading the bundled fonts', error))
+	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted
+}
+
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
 async function viewOpen(path) {//a picture dropped on the window or chosen with File, Open, for the view on screen to show; optional, because a view answers only the calls it has a use for
@@ -147,13 +155,19 @@ async function viewOpen(path) {//a picture dropped on the window or chosen with 
 }
 
 function onKey(e) {
-	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
+	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.tagName == 'SELECT' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field, a letter into a list choosing from it; this is the only keydown listener in fuji, so this is the only place the guard is needed
 	if (e.key == 'Escape' && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own key, never passed down: escape on any table, preview included, closes the window, as the red button or the × would
 	if (e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
 	if (e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	if (e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in
 	if (e.key == '_' || (e.key == '-' && e.shiftKey)) { gammaStep(-settings.gamma.step); return }//shift and minus, which the main row types as an underscore and the number pad as a minus with shift held
 	reportTrouble(() => activeView()?.onKey?.(e))
+}
+
+function onContextMenu(e) {//the web view's own right-click menu is a browser's on every platform, with items like reload and print, so a release build turns it away everywhere but a form field, which keeps cut, copy, and paste. A development build keeps it, for inspecting the page; window.rs turns off the browser's keys the same way. The tables turn it away for themselves in every build, the diamond table because a right drag there zooms
+	if (import.meta.env.DEV) return
+	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return
+	e.preventDefault()
 }
 
 /*
@@ -312,7 +326,7 @@ async function closeWindow() {//close the window as the red button or the × wou
 <template>
 
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" />
-<SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" />
+<SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @faces="reportTrouble(facesShow)" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
 <div v-if="curtainShowing" class="fixed inset-0 bg-black"></div><!-- last, so it covers everything while the view and the fullscreen change -->

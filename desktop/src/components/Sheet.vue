@@ -38,7 +38,7 @@ defineExpose({start, onKey, onResize, onDrop})//the same calls every view answer
 
 <!-- display none destroys the layout box and the scroll position with it, so leaving and returning starts at the top; that is the behaviour wanted for now -->
 <div class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick">
-	<div v-if="!sheetCards.length" class="myEmpty w-full h-full flex items-center justify-center">contact sheet - drop a picture here to open its folder</div>
+	<div v-if="!sheetCards.length" class="myEmpty myMono w-full h-full flex items-center justify-center">contact sheet - drop a picture here to open its folder</div>
 	<!-- keyed on contents, so a card whose images changed is rebuilt rather than reused: a reused card keeps canvases painted from images it no longer holds and never paints the new ones -->
 	<Card v-for="card in sheetCards" :key="card.join()" :paths="card" />
 </div>
@@ -51,8 +51,6 @@ defineExpose({start, onKey, onResize, onDrop})//the same calls every view answer
 }
 .myEmpty {
 	color: #737373;
-	font-family: monospace;
-	font-size: 0.875rem;
 }
 
 </style>

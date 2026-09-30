@@ -217,7 +217,6 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 <style scoped>
 
 .myHud { /* over the look index.css gives every hud */
-	font-family: monospace;
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {

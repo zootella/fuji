@@ -19,7 +19,7 @@ defineExpose({start, onKey, onResize})
 </script>
 <template>
 
-<div class="myComic w-full h-full flex items-center justify-center select-none">comic table stub</div>
+<div class="myComic myMono w-full h-full flex items-center justify-center select-none">comic table stub</div>
 
 </template>
 <style scoped>
@@ -27,8 +27,6 @@ defineExpose({start, onKey, onResize})
 .myComic {
 	background-color: #171717;
 	color: #737373;
-	font-family: monospace;
-	font-size: 0.875rem;
 }
 
 </style>

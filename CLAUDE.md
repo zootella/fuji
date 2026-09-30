@@ -40,6 +40,8 @@ Two habits lower the bar rather than clear it, and both come before writing anyt
 
 **These four must be short, correct, and well placed.** Everything below is scaffolding for getting there.
 
+**The overviews stay at the level of the whole.** This file, `architecture.md` and `structure.md` give a complete and correct picture of the project, and never an inventory of its parts: not every custom class, not a module's functions, not a command's arguments. A list like that is either updated by hand with every local change or left to drift out of date, and both waste attention. What a part is and does belongs in the code beside it, and one example is enough to show a pattern.
+
 ## Planning documents
 
 **They live at the repository root, in markdown, and `contents.md` says what each one owns.** They are where a subject gets decided, and they are written for a reader on another machine who cannot ask the session that wrote them. They are scaffolding, not fixtures: their acreage is meant to be spent.
@@ -218,13 +220,9 @@ The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`wi
 ### Styling
 
 - Tailwind CSS 4.x with Vite plugin, kept for its reset, which evens out three engines' defaults, and for layout that reads in the template
-- **Tailwind classes in the template** for layout and one-off values; **a named class in CSS** when other code finds the element by it — `myTile` for the gamma filter, `myImage` reached with `:deep()` because the template did not make that element — or when the style is one utilities say badly, like a gradient pattern or a layered shadow
+- **Tailwind classes in the template** for layout and one-off values; **a named class in CSS** when other code finds the element by it — `myTile` for the gamma filter, `myImage` reached with `:deep()` because the template did not make that element — or when the style is one utilities say badly, like a gradient pattern or a layered shadow. A named class starts with `my`, so none can ever be mistaken for a utility, and lives in its component's `<style scoped>` unless several components share it, when it goes in `index.css`
 - **Nothing resizes a picture unless fuji says so.** `index.css` cancels the reset's `img { max-width: 100% }`, which shrinks and resamples any picture wider than its container without asking, so every img sizes itself
-- Custom classes, in `<style scoped>` sections unless named otherwise:
-  - `.myDots` - Repeating dot background pattern
-  - `.myHud` - Semi-transparent overlay styling, global in `index.css` because the shell's help panel and a table's huds share it
-  - `.myDry` - Disables pointer events and text selection
-  - `.myWillChangeTransform` - Performance hint for animations
+- **Two kinds of text, and whole pixels between them.** The root is set in the platform's own menu font, which is what rem measures from and what fuji's future toolbars and menus inherit; fuji's own character-mode type, every hud and panel today, is one rule in `index.css` in CSS pixels. One setting chooses the faces for both, the platform's own or the two fuji carries, Inter and IBM Plex Mono, which look the same everywhere. Tailwind's spacing is pinned to whole CSS pixels, so no platform's text size moves a box
 
 ## Build Output Locations
 
