@@ -62,7 +62,7 @@ watch(() => props.pinned, hold)//a hovered card, clicked and now held
 		<a v-if="pending == 'yes'" href="#" class="mr-2 text-warn underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose {{brandName}}</a>
 		<a v-else-if="pending == 'no'" href="#" class="text-warn underline" @click.prevent="finish"><b>»</b> Choose another program</a><!-- fewer words than the yes, since the kind sits under Opens with Fuji and the card is about it alone -->
 		<span v-else-if="list.heading" class="mr-2 text-strong">{{list.heading}}<template v-if="list.named">'<i>{{list.named}}</i>'</template></span>
-		<template v-if="associateActive"><!-- a copy that cannot act offers no buttons, since a grayed one reads as broken, and the section's amber note says why -->
+		<template v-if="associateActive"><!-- a copy that cannot act offers no buttons, since a grayed one reads as broken, and the section's warning note says why -->
 			<span v-if="pending == 'no'">or</span><!-- the link finishes the no and Choose Fuji takes it back, since the card cannot know which the user means -->
 			<button v-if="associateAnswers[extension] != 'yes'" type="button" class="myChoice px-3" @click="choose('yes')">Choose {{brandName}}</button>
 			<button v-else-if="!changing" type="button" class="myChoice px-3" @click="changing = true">Change</button>

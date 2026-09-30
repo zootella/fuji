@@ -41,7 +41,7 @@ Light and dark, and the one switch between them.
 
 The window's theme is the switch. The shell sets it from appearance.mode in fuji.toml, which the settings panel sets too, through Tauri's setTheme on its own window: null to follow the system, or light or dark to hold one, while the window is still hidden at startup and again when the user picks. That one call turns the title bar, and Tauri hands it to the web engine, which reports it to the page as prefers-color-scheme; given null, the window follows the system as it changes, with no code of fuji's listening. color-scheme on the root has every light-dark() pair below follow it, and the engine's own scrollbars and form controls with them. Tailwind's compiler writes each pair out again as a pair of --lightningcss variables keyed to the same prefers-color-scheme, so an engine older than light-dark() follows it too.
 
-Every color fuji paints is named here, for the job it does, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-strong or bg-paper, and the scoped styles read the same variable, like var(--color-paper). Dark is fuji as it has always looked. Light mirrors it across Tailwind's neutral scale, each gray trading places with its partner the same distance from the middle, so every contrast is what it was: black paper becomes white, 900 becomes 100, 400 becomes 600, and 500, the middle, stays. The amber goes a step further, to 700, because its mirror is too faint to read on white. Shadows stay dark in both, only lighter in light, since a light shadow is not one.
+Every color fuji paints is named here, for the job it does, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-strong or bg-paper, and the scoped styles read the same variable, like var(--color-paper). Dark is fuji as it has always looked. Light mirrors it across Tailwind's neutral scale, each gray trading places with its partner the same distance from the middle, so every contrast is what it was: black paper becomes white, 900 becomes 100, 400 becomes 600, and 500, the middle, stays. The warning is the one color that does not mirror: international orange in light, the aerospace shade, which stands apart from every gray on white where a darker amber read as brown, and in dark the amber fuji has always had. Shadows stay dark in both, only lighter in light, since a light shadow is not one.
 */
 @theme {
 	--color-paper:     light-dark(#ffffff, #000000);/* the window behind a view: the sheet, the settings panel, the preview, and the curtain across a change of fullscreen */
@@ -49,7 +49,7 @@ Every color fuji paints is named here, for the job it does, and the templates an
 	--color-strong:    light-dark(#000000, #ffffff);/* text that stands out from ink: a heading, a label, what a box holds */
 	--color-faint:     #737373;                     /* text that steps back: the empty sheet's line, a way back; the middle gray, the same in both */
 	--color-fainter:   light-dark(#a3a3a3, #525252);/* text further back still: an empty list's none yet, and the caption under a picture */
-	--color-warn:      light-dark(#b45309, #fbbf24);/* amber, for something to know or to do */
+	--color-warn:      light-dark(#ff4f00, #fbbf24);/* for something to know or to do: international orange on white, and on black the amber fuji has always had */
 	--color-surface:   light-dark(#f5f5f5, #171717);/* the face of a box or a card, and the table's ground */
 	--color-dot:       light-dark(#e5e5e5, #262626);/* the dots in the table's ground, one step from the surface */
 	--color-well:      light-dark(#fafafa, #0a0a0a);/* the card on the table, behind a picture while it loads or where it is transparent */
@@ -61,6 +61,11 @@ Every color fuji paints is named here, for the job it does, and the templates an
 }
 @layer base {
 	html { color-scheme: light dark } /* the page is drawn in both, so every light-dark() above, and the engine's own scrollbars and form controls, follow the window's theme */
+}
+@media (prefers-color-scheme: light) { /* the same signal the theme sets, for the one thing that is not a color */
+	@layer components {
+		.text-warn { font-weight: 600 } /* the warning heavier on white, where the orange has the least contrast. 600 is a real face in every font fuji can be set in: semibold in Plex and SF Mono, and bold in Consolas, which has nothing between regular and bold */
+	}
 }
 
 /*
@@ -90,8 +95,25 @@ The shell loads the regular faces before it sets the attribute, at startup and w
 @font-face { font-display: swap; font-weight: 700; font-style: italic; font-family: "IBM Plex Mono"; src: url('/fonts/plex/IBMPlexMono-BoldItalic.woff2')       format('woff2'); }
 @font-face { font-display: swap; font-weight: 100 900; font-style: normal; font-family: Inter; src: url('/fonts/inter/InterVariable.woff2')        format('woff2'); }
 @font-face { font-display: swap; font-weight: 100 900; font-style: italic; font-family: Inter; src: url('/fonts/inter/InterVariable-Italic.woff2') format('woff2'); }
+
+/*
+Fuji's only two font lists, one proportional and one fixed-width, each short and each ending at a generic family, so a font that is missing falls to the platform's default of the same kind rather than to the browser's, which on Windows is Times New Roman.
+
+They are Tailwind's own font variables, so every place a family can come from names them: fuji's rules here, Tailwind's reset for a bare pre, code, kbd or samp, and the font-sans and font-mono classes. Tailwind's lists, a dozen named fonts each, are cleared first: left in, any of those places would ignore the setting, and on Linux would pick whichever named font happened to be installed over the one the desktop chose. Its reset still carries a copy as the fallback inside a var(), which is never reached, since the variable is always set. There is no serif, since fuji sets nothing in one.
+
+The system's lists are keywords, which each platform answers for itself, rather than the names of its fonts, which change from version to version. system-ui is the family of the menu font the root is set in: Segoe UI on Windows, where Chromium answers it with that same menu font, San Francisco on the Mac, and the desktop's own on Linux. ui-monospace is SF Mono on the Mac, and elsewhere the engine skips it for monospace, which is Consolas on Windows and the desktop's own on Linux. Fuji's own lists put its two faces first, and a family named by @font-face shadows any installed font of the same name, so a copy of Inter someone has installed never stands in for fuji's.
+*/
+@theme {
+	--font-*: initial; /* tailwind's own lists, cleared */
+	--font-sans: system-ui, sans-serif;
+	--font-mono: ui-monospace, monospace;
+}
 @layer base {
-	html[data-faces="own"], [data-faces="own"] .mySans { font-family: Inter, system-ui, sans-serif; font-size: 13px } /* the face fuji carries, with the platform's behind it for a character Inter lacks */
+	html[data-faces="own"] {
+		--font-sans: Inter, system-ui, sans-serif;
+		--font-mono: "IBM Plex Mono", ui-monospace, monospace;
+	}
+	html[data-faces="own"], [data-faces="own"] .mySans { font-family: var(--font-sans); font-size: 13px } /* Inter at fuji's own size, in place of the menu font */
 }
 
 /*
@@ -99,14 +121,11 @@ Fuji's own type: the character-mode text of every hud, the help panel, the setti
 */
 @layer components {
 	.myMono, .myHud {
-		font-family: ui-monospace, monospace; /* the platform's: SF Mono on the Mac; Consolas on Windows, where the engine has no ui-monospace and that is its monospace */
+		font-family: var(--font-mono); /* the fixed-width list above: SF Mono or Consolas, or Plex */
 		font-size: 14px;
 		line-height: 1.5;
 		font-weight: 400; /* and no letter spacing, both at their defaults and written down so each is one edit. Plex has every weight from 100 to 700; Consolas has only regular and bold, so it draws any other weight as the nearer of those */
 		letter-spacing: 0;
-	}
-	[data-faces="own"] :is(.myMono, .myHud) {
-		font-family: "IBM Plex Mono", ui-monospace, monospace; /* the face fuji carries, and the platform's behind it for any character Plex lacks */
 	}
 }
 
