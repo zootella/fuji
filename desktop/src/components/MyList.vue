@@ -54,7 +54,7 @@ function log(s) {
 </script>
 <template>
 
-<div class="h-full overflow-y-auto bg-white p-4 font-mono text-xs leading-tight">
+<div class="h-full overflow-y-auto bg-paper p-4 myMono">
 	<div v-for="(line, idx) in refLines" :key="idx"><pre>{{line}}</pre></div>
 </div>
 

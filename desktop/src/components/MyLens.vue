@@ -58,7 +58,7 @@ async function loadImage(p) {
 	</feComponentTransfer></filter></defs>
 </svg>
 
-<div class="w-full h-full flex items-center justify-center bg-black overflow-hidden">
+<div class="w-full h-full flex items-center justify-center bg-paper overflow-hidden">
 	<img
 		ref="imageRef"
 		v-if="sourceRef"
@@ -67,7 +67,7 @@ async function loadImage(p) {
 		:class="{'my-rough': roughRef}"
 		:style="{filter: gammaRef == 1 ? 'none' : 'url(#my-gamma)'}"
 	/>
-	<div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 italic select-none pointer-events-none">
+	<div v-else class="absolute inset-0 flex items-center justify-center text-ink italic select-none pointer-events-none">
 		Viewer5 - io module, FileReader, Blob, img tag, SVG gamma filter option, CSS pixelated option
 	</div>
 </div>

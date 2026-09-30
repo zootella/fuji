@@ -33,13 +33,14 @@ Nothing here says how text is smoothed, and nothing should: no `-webkit-font-smo
 	html, .mySans { font: menu } /* mySans puts an element back in the root's text from inside fuji's character-mode type, the way myMono takes one out of it */
 }
 @theme {
+	--*: initial; /* none of tailwind's own theme: no palette, no font lists, no sizes fuji did not pick. A class reaches only what fuji's theme blocks here name, and a class for anything else, a bg-neutral-500 or a text-sm, makes nothing, which gets noticed, rather than working in dark and never turning in light. First, before any of fuji's own */
 	--spacing: 4px; /* tailwind's step, which every padding, gap, inset and width counts in, in css pixels rather than a quarter of the platform's rem */
 }
 
 /*
 Light and dark, and the one switch between them.
 
-The window's theme is the switch. The shell sets it from appearance.mode in fuji.toml, which the settings panel sets too, through Tauri's setTheme on its own window: null to follow the system, or light or dark to hold one, while the window is still hidden at startup and again when the user picks. That one call turns the title bar, and Tauri hands it to the web engine, which reports it to the page as prefers-color-scheme; given null, the window follows the system as it changes, with no code of fuji's listening. color-scheme on the root has every light-dark() pair below follow it, and the engine's own scrollbars and form controls with them. Tailwind's compiler writes each pair out again as a pair of --lightningcss variables keyed to the same prefers-color-scheme, so an engine older than light-dark() follows it too.
+The window's theme is the switch. The shell sets it from appearance.mode in fuji.toml, which the settings panel sets too, through Tauri's setTheme on its own window: light or dark to hold one, or null to follow the system, while the window is still hidden at startup and again when the user picks. That one call turns the title bar, and Tauri hands it to the web engine, which reports it to the page as prefers-color-scheme; given null, the window follows the system as it changes, with no code of fuji's listening. color-scheme on the root has every light-dark() pair below follow it, and the engine's own scrollbars and form controls with them. Tailwind's compiler writes each pair out again as a pair of --lightningcss variables keyed to the same prefers-color-scheme, so an engine older than light-dark() follows it too.
 
 Every color fuji paints is named here, for the job it does, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-strong or bg-paper, and the scoped styles read the same variable, like var(--color-paper). Dark is fuji as it has always looked. Light mirrors it across Tailwind's neutral scale, each gray trading places with its partner the same distance from the middle, so every contrast is what it was: black paper becomes white, 900 becomes 100, 400 becomes 600, and 500, the middle, stays. The warning is the one color that does not mirror: international orange in light, the aerospace shade, which stands apart from every gray on white where a darker amber read as brown, and in dark the amber fuji has always had. Shadows stay dark in both, only lighter in light, since a light shadow is not one.
 */
@@ -61,6 +62,7 @@ Every color fuji paints is named here, for the job it does, and the templates an
 }
 @layer base {
 	html { color-scheme: light dark } /* the page is drawn in both, so every light-dark() above, and the engine's own scrollbars and form controls, follow the window's theme */
+	input[type=radio], input[type=checkbox] { accent-color: var(--color-strong) } /* the engine draws these itself, light or dark with the page, and would fill a checked one with its own blue, the one color on the page not from this palette */
 }
 @media (prefers-color-scheme: light) { /* the same signal the theme sets, for the one thing that is not a color */
 	@layer components {
@@ -99,14 +101,15 @@ The shell loads the regular faces before it sets the attribute, at startup and w
 /*
 Fuji's only two font lists, one proportional and one fixed-width, each short and each ending at a generic family, so a font that is missing falls to the platform's default of the same kind rather than to the browser's, which on Windows is Times New Roman.
 
-They are Tailwind's own font variables, so every place a family can come from names them: fuji's rules here, Tailwind's reset for a bare pre, code, kbd or samp, and the font-sans and font-mono classes. Tailwind's lists, a dozen named fonts each, are cleared first: left in, any of those places would ignore the setting, and on Linux would pick whichever named font happened to be installed over the one the desktop chose. Its reset still carries a copy as the fallback inside a var(), which is never reached, since the variable is always set. There is no serif, since fuji sets nothing in one.
+They are Tailwind's own font variables, so every place a family can come from names them: fuji's rules here, Tailwind's reset for a bare pre, code, kbd or samp, and the font-sans and font-mono classes. Tailwind's lists, a dozen named fonts each, went with the rest of its theme, above: left in, any of those places would ignore the setting, and on Linux would pick whichever named font happened to be installed over the one the desktop chose. Its reset still carries a copy as the fallback inside a var(), which is never reached, since the variable is always set. There is no serif, since fuji sets nothing in one.
 
 The system's lists are keywords, which each platform answers for itself, rather than the names of its fonts, which change from version to version. system-ui is the family of the menu font the root is set in: Segoe UI on Windows, where Chromium answers it with that same menu font, San Francisco on the Mac, and the desktop's own on Linux. ui-monospace is SF Mono on the Mac, and elsewhere the engine skips it for monospace, which is Consolas on Windows and the desktop's own on Linux. Fuji's own lists put its two faces first, and a family named by @font-face shadows any installed font of the same name, so a copy of Inter someone has installed never stands in for fuji's.
 */
 @theme {
-	--font-*: initial; /* tailwind's own lists, cleared */
 	--font-sans: system-ui, sans-serif;
 	--font-mono: ui-monospace, monospace;
+	--default-font-family: var(--font-sans); /* the two names tailwind's reset reads, for the root and for a bare pre, code, kbd or samp; clearing the theme clears them too, and without them the reset falls back to its own long lists */
+	--default-mono-font-family: var(--font-mono);
 }
 @layer base {
 	html[data-faces="own"] {

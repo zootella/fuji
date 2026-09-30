@@ -195,13 +195,13 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 	<!-- Card: rectangular image; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div
 		ref="cardRef"
-		class="myCard myShadow myDry myWillChangeTransform bg-gray-200 border border-cyan-500"
+		class="myCard myShadow myDry myWillChangeTransform bg-surface border border-edge"
 	>
 
 		<!-- we could also put stuff inside the card box, like this orange box -->
-		<div class="border border-orange-500 m-4 h-32"></div>
+		<div class="border border-warn m-4 h-32"></div>
 		<!-- caption lives inside the card, but sits below its border -->
-		<div class="absolute bottom-0 translate-y-full text-gray-600 py-2 whitespace-nowrap myEmbossed">{{captionRef}}</div>
+		<div class="absolute bottom-0 translate-y-full text-ink py-2 whitespace-nowrap myEmbossed">{{captionRef}}</div>
 
 	</div>
 

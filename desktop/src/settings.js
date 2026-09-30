@@ -157,8 +157,8 @@ const settingsSchema = [
 		section: 'appearance',
 		key: 'mode',
 		factory: 'system',
-		comment: `light or dark: system matches the computer's own light or dark setting, and changes when it does; light or dark keeps ${brandName} that way whatever the computer is set to. The settings panel changes this too`,
-		check: value => ['system', 'light', 'dark'].includes(value),
+		comment: `light, dark, or system: light or dark keeps ${brandName} that way whatever the computer is set to, and system matches the computer's own light or dark setting, and changes when it does. The settings panel changes this too`,
+		check: value => ['light', 'dark', 'system'].includes(value),
 	}, {
 		section: 'associations',
 		key: 'yes',

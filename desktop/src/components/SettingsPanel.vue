@@ -57,8 +57,8 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 	<div class="mt-4 flex gap-4">
 		<span class="w-48">Appearance</span>
 		<div role="radiogroup" aria-label="Appearance">
-			<label class="flex items-center gap-2"><input type="radio" name="mode" value="dark" v-model="mode" @change="modeCommit" />Dark</label>
-			<label class="mt-1 flex items-center gap-2"><input type="radio" name="mode" value="light" v-model="mode" @change="modeCommit" />Light</label>
+			<label class="flex items-center gap-2"><input type="radio" name="mode" value="light" v-model="mode" @change="modeCommit" />Light</label>
+			<label class="mt-1 flex items-center gap-2"><input type="radio" name="mode" value="dark" v-model="mode" @change="modeCommit" />Dark</label>
 			<label class="mt-1 flex items-center gap-2"><input type="radio" name="mode" value="system" v-model="mode" @change="modeCommit" />System</label>
 		</div>
 	</div>
