@@ -155,12 +155,17 @@ async function viewOpen(path) {//a picture dropped on the window or chosen with 
 }
 
 function onKey(e) {
-	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.tagName == 'SELECT' || e.target.isContentEditable) return//a keystroke into a form field belongs to the field, a letter into a list choosing from it; this is the only keydown listener in fuji, so this is the only place the guard is needed
+	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.tagName == 'SELECT' || e.target.isContentEditable) {//a keystroke into a form field belongs to the field, a letter into a list choosing from it; this is the only keydown listener in fuji, so this is the only place the guard is needed
+		if (e.key == 'Escape') e.target.blur()//but escape hands the keyboard back to fuji from any field, keeping what was typed there, as clicking away would
+		return
+	}
+	if (e.altKey) return//fuji has no alt chords, and on windows alt belongs to the system, for its menus and its window keys, so no view ever sees one
+	let bare = !e.ctrlKey && !e.metaKey//the shell's own keys act only with control and command up, so a chord meant for the system or for a table, like command h on the mac or control plus on a table, passes them by
 	if (e.key == 'Escape' && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own key, never passed down: escape on any table, preview included, closes the window, as the red button or the × would
-	if (e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
-	if (e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
-	if (e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in
-	if (e.key == '_' || (e.key == '-' && e.shiftKey)) { gammaStep(-settings.gamma.step); return }//shift and minus, which the main row types as an underscore and the number pad as a minus with shift held
+	if (bare && e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
+	if (bare && e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
+	if (bare && e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in, and control with it too, as browsers zoom
+	if (bare && (e.key == '_' || (e.key == '-' && e.shiftKey))) { gammaStep(-settings.gamma.step); return }//shift and minus, which the main row types as an underscore and the number pad as a minus with shift held
 	reportTrouble(() => activeView()?.onKey?.(e))
 }
 

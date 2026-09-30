@@ -52,8 +52,9 @@ async function onKey(e) {
 	let key = e.key
 
 	//q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
-	if      (key == 'q') { log('table: q does nothing yet') }
-	else if (key == 'i') { toggleInformation() }
+	//a letter, a digit or space acts only with control and command up, so a chord like command w or command q on the mac, on its way to the menu, does not act on the picture first; the shell has already dropped anything with alt
+	if      (!Ctrl && key == 'q') { log('table: q does nothing yet') }
+	else if (!Ctrl && key == 'i') { toggleInformation() }
 	else if (Ctrl && key == 's') { log('table: ctrl+s does nothing yet')
 		e.preventDefault()//tell the browser not to show the file save dialog box
 	}
@@ -67,10 +68,10 @@ async function onKey(e) {
 	else if (key == 'PageUp')     { flip(-1) }
 	else if (key == '+' || key == '=')                      { zoomStep(true)  }//the [=+] key zooms in, unshifted or with control as in browsers, and so does the number pad's plus; shift with it is gamma, which the shell takes before this sees it
 	else if (key == '-')                                    { zoomStep(false) }
-	else if (key == ' ')                                    { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
-	else if (key == 'f')                                    { dimensionFit() }//the whole image inside the frame, one side meeting it exactly
-	else if (key == 'w')                                    { dimensionWidth() }//the image's width meeting the frame's exactly, its height overflowing or falling short
-	else if (/^[1-6]$/.test(key)) { zoomNatural(Number(key)) }//the number keys 1 to 6, main row or number pad, which arrive as the same key: exactly that many css pixels per natural pixel. 7, 8 and 9 are left unused, since past 6x the other zooms serve
+	else if (!Ctrl && key == ' ')                           { dimensionFrame() }//spacebar sizes the diamond to the frame and centers the card in it
+	else if (!Ctrl && key == 'f')                           { dimensionFit() }//the whole image inside the frame, one side meeting it exactly
+	else if (!Ctrl && key == 'w')                           { dimensionWidth() }//the image's width meeting the frame's exactly, its height overflowing or falling short
+	else if (!Ctrl && /^[1-6]$/.test(key)) { zoomNatural(Number(key)) }//the number keys 1 to 6, main row or number pad, which arrive as the same key: exactly that many css pixels per natural pixel. 7, 8 and 9 are left unused, since past 6x the other zooms serve
 	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 function onWheel(e) {

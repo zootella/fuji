@@ -41,7 +41,7 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 
 	<label class="mt-4 flex items-center gap-4">
 		<span class="w-48">Fonts</span>
-		<select v-model="faces" @change="facesCommit(); $event.target.blur()" class="myBox px-2 py-1"><!-- let go once chosen, so s, h and g are the page's again -->
+		<select v-model="faces" @change="facesCommit" class="myBox px-2 py-1"><!-- the focus stays once chosen, as any list's does, so a keyboard can keep choosing; escape, or a click away, gives s, h and g back to fuji -->
 			<option value="platform">This computer's</option>
 			<option value="bundled">{{brandName}}'s own, the same everywhere</option>
 		</select>
@@ -51,8 +51,11 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 
 	<p class="mt-12 text-neutral-500">Press S to return to the contact sheet</p>
 
-	<!-- a sample of the root's text, apart from the panel's fixed-width type, so the fonts choice above can be seen changing it; the words of File Explorer's ribbon, to set beside it on Windows. Here until fuji has text of its own in that face -->
-	<p class="mySans mt-12 flex gap-4"><span>File</span><span>Home</span><span>Share</span><span>View</span><span>Picture Tools</span></p>
+	<!-- a sample of the root's text, apart from the panel's fixed-width type, so the fonts choice above can be seen changing it: first a line whose letters give a typeface away, the pangram for every shape, AVATAR and Wavy Tofu for the spacing between pairs, QGRSJ for the letters faces differ on most, and Il1| O0 rn m for the ones easiest to confuse; then the words of File Explorer's ribbon, to set beside it on Windows. Here until fuji has text of its own in that face -->
+	<div class="mySans mt-12">
+		<p>Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1| O0 rn m</p>
+		<p class="mt-2 flex gap-4"><span>File</span><span>Home</span><span>Share</span><span>View</span><span>Picture Tools</span></p>
+	</div>
 </div>
 
 </template>
