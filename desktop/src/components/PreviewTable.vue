@@ -7,7 +7,7 @@ import {log} from '../log.js'
 /*
 The first thing fuji shows when a picture is double-clicked in the file manager. The shell takes the title bar off and fits the window around this picture, in the part of the desktop the menu bar, dock and taskbar leave free and away from the pointer, so the window is the picture and nothing else. There is no flipping, no panning and no zoom, which is why this is a table of its own rather than a mode of DiamondTable: nothing here can reach the diamond table's code, and nothing done there can break this.
 
-A click is the way in. It asks the shell for the diamond table, built around this picture where it stands and then taken fullscreen. A lost focus is the way out, and so is escape, which the shell takes on every table: the user looked, and went back to what they were doing, so the window closes exactly as the red button or the × would. On the mac fuji stays in the dock after, as a mac application does.
+A click is the way in. It asks the shell for the diamond table, built around this picture where it stands and then taken fullscreen. A lost focus is the way out, and so is escape, or backspace, which the shell takes on every table: the user looked, and went back to what they were doing, so the window closes exactly as the red button or the × would. On the mac fuji stays in the dock after, as a mac application does.
 
 The picture is the store's own element, as it is on the diamond table, so the table that follows adopts the same decoded pixels rather than reading and decoding the file again.
 */

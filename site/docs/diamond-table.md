@@ -16,7 +16,7 @@ Fuji shows one picture at a time on a light table: full screen, on a plane you p
 | `+` and `-`, or `Ctrl` and the wheel | zoom in and out about the center |
 | **right drag** up or down | zoom in and out about the point you grabbed |
 | `1` to `6` | exactly that many screen pixels per picture pixel |
-| `Esc` | close |
+| `Esc` or `Backspace` | close |
 
 ## Pan anywhere
 

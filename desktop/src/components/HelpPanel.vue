@@ -15,7 +15,7 @@
 
 double click                          Back to the contact sheet
 double click a thumbnail              Its picture, full screen
-                               Esc    Close the window
+                     Esc|Backspace    Close the window
 mouse wheel    PgDn|Up|Ctrl+arrows    Flip through images in order
 
 drag                        arrows    Pan

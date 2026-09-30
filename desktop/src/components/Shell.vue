@@ -166,7 +166,7 @@ function onKey(e) {
 	}
 	if (e.altKey) return//fuji has no alt chords, and on windows alt belongs to the system, for its menus and its window keys, so no view ever sees one
 	let bare = !e.ctrlKey && !e.metaKey//the shell's own keys act only with control and command up, so a chord meant for the system or for a table, like command h on the mac or control plus on a table, passes them by
-	if (e.key == 'Escape' && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own key, never passed down: escape on any table, preview included, closes the window, as the red button or the × would
+	if ((e.key == 'Escape' || (bare && e.key == 'Backspace')) && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own keys, never passed down: escape or backspace on any table, preview included, closes the window, as the red button or the × would, with a key at each top corner of the keyboard. Backspace only bare, since control or command makes it a delete of another kind
 	if (bare && e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
 	if (bare && e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	if (bare && e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in, and control with it too, as browsers zoom
