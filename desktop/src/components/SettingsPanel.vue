@@ -19,10 +19,15 @@ function facesCommit() {
 	if (settingsSet('font', 'faces', faces.value)) emit('faces')//the root is the shell's, so it puts the new faces there
 }
 
+const mode = ref(settings.appearance.mode)//light, dark, or the system's, whichever that is
+function modeCommit() {
+	if (settingsSet('appearance', 'mode', mode.value)) emit('theme')//the window is the shell's, so it sets the theme on it
+}
+
 const fileTypes = ref(null)//the file types section, which asks the system again when told
 function onFocus(focused) { if (focused) fileTypes.value?.look() }//the shell hands this view the window's focus events while it is showing; coming back from the system's own settings is when a default is most likely to have changed
 
-const emit = defineEmits(['sheet', 'faces'])//s, for the contact sheet back; which view is showing is the shell's, so this only asks. And faces, when the fonts change
+const emit = defineEmits(['sheet', 'faces', 'theme'])//s, for the contact sheet back; which view is showing is the shell's, so this only asks. And faces and theme, when the fonts or the appearance change
 function onKey(e) {
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('sheet')//a keystroke in the box never gets here, since the shell leaves a form field its own keys
 }
@@ -33,7 +38,7 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 <template>
 
 <div class="mySettings myMono w-full h-full overflow-y-auto p-8">
-	<h1 class="mb-8 text-white">Settings</h1>
+	<h1 class="mb-8 text-strong">Settings</h1>
 
 	<label class="flex items-center gap-4">
 		<span class="w-48">Images on a card</span>
@@ -49,9 +54,18 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 		</div>
 	</div>
 
+	<div class="mt-4 flex gap-4">
+		<span class="w-48">Appearance</span>
+		<div role="radiogroup" aria-label="Appearance">
+			<label class="flex items-center gap-2"><input type="radio" name="mode" value="system" v-model="mode" @change="modeCommit" />System: light or dark as this computer is set, and following it when it changes</label>
+			<label class="mt-1 flex items-center gap-2"><input type="radio" name="mode" value="light" v-model="mode" @change="modeCommit" />Light</label>
+			<label class="mt-1 flex items-center gap-2"><input type="radio" name="mode" value="dark" v-model="mode" @change="modeCommit" />Dark</label>
+		</div>
+	</div>
+
 	<SettingsFileTypes ref="fileTypes" class="mt-12" />
 
-	<p class="mt-12 text-neutral-500">Press S to return to the contact sheet</p>
+	<p class="mt-12 text-faint">Press S to return to the contact sheet</p>
 
 	<!-- a sample of the root's text, apart from the panel's fixed-width type, so the fonts choice above can be seen changing it: first a line whose letters give a typeface away, the pangram for every shape, AVATAR and Wavy Tofu for the spacing between pairs, QGRSJ for the letters faces differ on most, and Il1| O0 rn m for the ones easiest to confuse; then the words of File Explorer's ribbon, to set beside it on Windows. Here until fuji has text of its own in that face -->
 	<div class="mySans mt-12">
@@ -64,14 +78,13 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 <style scoped>
 
 .mySettings {
-	background-color: black; /* the sheet's, since this takes the sheet's place in the same window */
-	color: #a3a3a3; /* which every section and popup inside inherits, along with the type myMono gives it */
-	color-scheme: dark; /* so the controls' own parts, the number box's spinner and caret and the radio buttons, are drawn for a dark page */
+	background-color: var(--color-paper); /* the sheet's, since this takes the sheet's place in the same window */
+	color: var(--color-ink); /* which every section and popup inside inherits, along with the type myMono gives it */
 }
 .myBox {
-	color: white;
-	background-color: #171717;
-	border: 1px solid #404040;
+	color: var(--color-strong);
+	background-color: var(--color-surface);
+	border: 1px solid var(--color-line);
 }
 
 </style>

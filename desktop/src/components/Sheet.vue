@@ -47,10 +47,10 @@ defineExpose({start, onKey, onResize, onDrop})//the same calls every view answer
 <style scoped>
 
 .mySheet {
-	background-color: black;
+	background-color: var(--color-paper);
 }
 .myEmpty {
-	color: #737373;
+	color: var(--color-faint);
 }
 
 </style>

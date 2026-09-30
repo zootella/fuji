@@ -37,6 +37,33 @@ Nothing here says how text is smoothed, and nothing should: no `-webkit-font-smo
 }
 
 /*
+Light and dark, and the one switch between them.
+
+The window's theme is the switch. The shell sets it from appearance.mode in fuji.toml, which the settings panel sets too, through Tauri's setTheme on its own window: null to follow the system, or light or dark to hold one, while the window is still hidden at startup and again when the user picks. That one call turns the title bar, and Tauri hands it to the web engine, which reports it to the page as prefers-color-scheme; given null, the window follows the system as it changes, with no code of fuji's listening. color-scheme on the root has every light-dark() pair below follow it, and the engine's own scrollbars and form controls with them. Tailwind's compiler writes each pair out again as a pair of --lightningcss variables keyed to the same prefers-color-scheme, so an engine older than light-dark() follows it too.
+
+Every color fuji paints is named here, for the job it does, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-strong or bg-paper, and the scoped styles read the same variable, like var(--color-paper). Dark is fuji as it has always looked. Light mirrors it across Tailwind's neutral scale, each gray trading places with its partner the same distance from the middle, so every contrast is what it was: black paper becomes white, 900 becomes 100, 400 becomes 600, and 500, the middle, stays. The amber goes a step further, to 700, because its mirror is too faint to read on white. Shadows stay dark in both, only lighter in light, since a light shadow is not one.
+*/
+@theme {
+	--color-paper:     light-dark(#ffffff, #000000);/* the window behind a view: the sheet, the settings panel, the preview, and the curtain across a change of fullscreen */
+	--color-ink:       light-dark(#525252, #a3a3a3);/* text: the settings panel's */
+	--color-strong:    light-dark(#000000, #ffffff);/* text that stands out from ink: a heading, a label, what a box holds */
+	--color-faint:     #737373;                     /* text that steps back: the empty sheet's line, a way back; the middle gray, the same in both */
+	--color-fainter:   light-dark(#a3a3a3, #525252);/* text further back still: an empty list's none yet, and the caption under a picture */
+	--color-warn:      light-dark(#b45309, #fbbf24);/* amber, for something to know or to do */
+	--color-surface:   light-dark(#f5f5f5, #171717);/* the face of a box or a card, and the table's ground */
+	--color-dot:       light-dark(#e5e5e5, #262626);/* the dots in the table's ground, one step from the surface */
+	--color-well:      light-dark(#fafafa, #0a0a0a);/* the card on the table, behind a picture while it loads or where it is transparent */
+	--color-line:      light-dark(#d4d4d4, #404040);/* a border */
+	--color-edge:      light-dark(#a3a3a3, #525252);/* a stronger border, around a card that floats */
+	--color-shade:     light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));/* a shadow */
+	--color-hud-ink:   light-dark(rgba(0, 0, 0, 0.8), rgba(255, 255, 255, 0.8));/* a hud's text, see-through */
+	--color-hud-smoke: light-dark(rgba(255, 255, 255, 0.4), rgba(0, 0, 0, 0.4));/* a hud's plastic, frosted in light and smoky in dark */
+}
+@layer base {
+	html { color-scheme: light dark } /* the page is drawn in both, so every light-dark() above, and the engine's own scrollbars and form controls, follow the window's theme */
+}
+
+/*
 Two sets of fonts, and the user picks one: font.faces in fuji.toml, which the settings panel sets too with a pair of radio buttons, fuji or system. The shell reads it and puts own or system on the root as data-faces for the rules here to read, since a stylesheet has no way to spell the product's name.
 
 The system's, the factory setting, are every face from the computer fuji is running on, so fuji looks at home there: the menu font above for the root, and the platform's own monospace for fuji's character-mode type, SF Mono on the Mac and Consolas on Windows.
@@ -86,8 +113,8 @@ Fuji's own type: the character-mode text of every hud, the help panel, the setti
 /* the smoky plastic every hud and the help panel are made of; global rather than scoped, because the shell draws the help panel and a table draws its huds, and one component's scoped styles never reach the other's. The wrapping stays with each view, which sets it differently */
 @layer components {
 	.myHud {
-		color: rgba(255, 255, 255, 0.8); /* transparent text */
-		background-color: rgba(0, 0, 0, 0.4); /* smokey plastic from 1980 */
+		color: var(--color-hud-ink); /* transparent text */
+		background-color: var(--color-hud-smoke); /* smokey plastic from 1980 */
 		padding: 2px 6px; /* square corners */
 	}
 }

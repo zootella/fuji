@@ -51,7 +51,7 @@ defineExpose({onDrop, natural, onFocus})//the same calls the shell makes of ever
 <style scoped>
 
 .myPreview {
-	background-color: black; /* only ever seen for the fraction of a pixel the window's rounding leaves, or behind a picture that would not load */
+	background-color: var(--color-paper); /* only ever seen for the fraction of a pixel the window's rounding leaves, or behind a picture that would not load */
 }
 /* the store's element, adopted rather than templated, so reached with :deep() for the reason the essay above .myImage in DiamondTable.vue gives */
 .myPreview :deep(.myImage) {

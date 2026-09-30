@@ -429,7 +429,7 @@ let here = null//the store's entry for the image on the card, which is where the
 	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div
 		ref="cardRef"
-		class="myCard myShadow myDry myWillChangeTransform bg-neutral-950"
+		class="myCard myShadow myDry myWillChangeTransform bg-well"
 	>
 
 		<!-- the images the card shows are the store's own elements, put here by cardShow; this one is only for a file fuji could not read -->
@@ -453,7 +453,7 @@ let here = null//the store's entry for the image on the card, which is where the
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {} /* not using this yet, but it's here */
-.myCard { outline: 1px solid black } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n */
+.myCard { outline: 1px solid var(--color-paper) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n */
 
 /*
 The image on the card is the store's own element: cache.js makes it with new Image() and cardShow adopts it into the card. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
@@ -474,22 +474,22 @@ Without this the only rule landing on an adopted image was tailwind's own img{ma
 .myWillChangeTransform          { will-change: transform;           }
 .myWillChangeBackgroundPosition { will-change: background-position; } /* with the styles, you get 2 layers in dev tools Layers */
 
-.myDots {
-	background-color: #171717;
-	background-image: radial-gradient(circle at center, #262626 6px, transparent 6px);
+.myDots { /* the ground the card pans over, its dots a step lighter than it in dark and a step darker in light, from the palette in index.css */
+	background-color: var(--color-surface);
+	background-image: radial-gradient(circle at center, var(--color-dot) 6px, transparent 6px);
 	background-size: 60px 60px;
 	background-position: 0 0, 30px 30px;
 }
 .myShadow {
-	box-shadow: 6px 6px 12px rgba(0,0,0,0.5);
+	box-shadow: 6px 6px 12px var(--color-shade);
 }
 .myEmbossed {
 	white-space: pre; /* honor \n and overflow the container */
-	color: #525252;
-	text-shadow:
-		-1px -1px 2px black,
-		1px 1px 2px black,
-		0 0 8px black;
+	color: var(--color-fainter);
+	text-shadow: /* a glow in the paper's color, black in dark and white in light, which lifts the text off the dots */
+		-1px -1px 2px var(--color-paper),
+		1px 1px 2px var(--color-paper),
+		0 0 8px var(--color-paper);
 }
 
 </style>

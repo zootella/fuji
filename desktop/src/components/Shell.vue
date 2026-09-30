@@ -89,6 +89,7 @@ onMounted(async () => {
 	logStart({label: `${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`, record: settings.log.record, notes: [`flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`]})//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
+	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
 	await reportTrouble(() => placeWindow(w, opened[0]))//before the reveal, so the window first appears where it will stay. Only the first picture, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
@@ -140,6 +141,10 @@ async function menuChose(id) {//the page's half of the menu bar: rust makes a wi
 function helpToggle() {
 	helpShowing.value = !helpShowing.value
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
+}
+
+async function themeShow() {//light or dark, for the window's title bar and the page inside, from the appearance setting; at startup, and again when the settings panel changes it. The theme on the window is the one switch, as the essay above the palette in index.css says: null follows the system, and keeps following it as it changes
+	await getCurrentWindow().setTheme(settings.appearance.mode == 'system' ? null : settings.appearance.mode)
 }
 
 async function facesShow() {//put the page's text in the fonts the settings name, which index.css reads off the root; at startup, and again when the settings panel changes them. The fonts fuji carries are loaded before the switch, so nothing on screen is drawn in the system's and then snaps to these: only the regular faces, which is all a window shows at first, and at any size, since only the face is being fetched. A file that will not load is logged, and its text is drawn in the system's face, which index.css names behind it
@@ -333,10 +338,10 @@ async function closeWindow() {//close the window as the red button or the × wou
 <template>
 
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" />
-<SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @faces="reportTrouble(facesShow)" />
+<SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
-<div v-if="curtainShowing" class="fixed inset-0 bg-black"></div><!-- last, so it covers everything while the view and the fullscreen change -->
+<div v-if="curtainShowing" class="fixed inset-0 bg-paper"></div><!-- last, so it covers everything while the view and the fullscreen change -->
 
 <!-- the two gamma filters, taking turns and drawing nothing themselves; the exponents are written by the watch above rather than bound here, because the order of the write and the switch is the whole point. The region is the element's own box, where the default reaches a tenth past each edge for nothing -->
 <svg aria-hidden="true" width="0" height="0" class="absolute w-0 h-0">

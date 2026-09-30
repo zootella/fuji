@@ -154,6 +154,12 @@ const settingsSchema = [
 		comment: `which fonts ${brandName} sets its text in. ${brandFile} uses the two ${brandName} carries, Inter with IBM Plex Mono for the fixed-width text, so it looks the same on every computer. system uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas on Windows, and San Francisco with SF Mono on a mac. The fixed-width text is every hud and panel, and the caption beneath a picture; the settings panel changes this too`,
 		check: value => ['system', brandFile].includes(value),
 	}, {
+		section: 'appearance',
+		key: 'mode',
+		factory: 'system',
+		comment: `light or dark: system matches the computer's own light or dark setting, and changes when it does; light or dark keeps ${brandName} that way whatever the computer is set to. The settings panel changes this too`,
+		check: value => ['system', 'light', 'dark'].includes(value),
+	}, {
 		section: 'associations',
 		key: 'yes',
 		factory: [],

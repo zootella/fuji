@@ -88,18 +88,18 @@ defineExpose({look})//for the panel, which hears when the window comes back into
 <template>
 
 <section class="relative"><!-- relative, so the card below is placed within this section and scrolls with its chip -->
-	<h2 class="mb-2 text-white">File types</h2>
-	<p v-if="!associateActive" class="text-amber-400 italic">{{inactiveNote}}</p><!-- amber, in italics and without the underline, being something to know rather than somewhere to go -->
+	<h2 class="mb-2 text-strong">File types</h2>
+	<p v-if="!associateActive" class="text-warn italic">{{inactiveNote}}</p><!-- amber, in italics and without the underline, being something to know rather than somewhere to go -->
 	<!-- each an amber link, led by the chevron that flags something to do; the no's line adds a plain button that agrees with the system -->
-	<p v-if="pendingYes.length > 0" class="mt-2"><a href="#" class="text-amber-400 underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose {{brandName}} for {{sayList(pendingYes)}}</a></p>
-	<p v-if="pendingNo.length > 0" class="mt-2 flex flex-wrap items-center gap-2"><a href="#" class="text-amber-400 underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose another program for {{sayList(pendingNo)}}</a> <span>or</span> <button type="button" class="myChoice px-3" @click="settle(pendingNo, 'yes')">Choose {{brandName}}</button></p>
+	<p v-if="pendingYes.length > 0" class="mt-2"><a href="#" class="text-warn underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose {{brandName}} for {{sayList(pendingYes)}}</a></p>
+	<p v-if="pendingNo.length > 0" class="mt-2 flex flex-wrap items-center gap-2"><a href="#" class="text-warn underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose another program for {{sayList(pendingNo)}}</a> <span>or</span> <button type="button" class="myChoice px-3" @click="settle(pendingNo, 'yes')">Choose {{brandName}}</button></p>
 
 	<div v-for="list in fileLists" :key="list.heading + list.named" class="mt-6"><!-- the whole heading, which no two lists share -->
-		<h3 v-if="list.heading" class="text-white">{{list.heading}}<template v-if="list.named">'<i>{{list.named}}</i>'</template></h3>
-		<p v-if="list.extensions.length == 0" class="mt-1 text-neutral-600">none yet</p>
+		<h3 v-if="list.heading" class="text-strong">{{list.heading}}<template v-if="list.named">'<i>{{list.named}}</i>'</template></h3>
+		<p v-if="list.extensions.length == 0" class="mt-1 text-fainter">none yet</p>
 		<div class="flex flex-wrap gap-2 mt-1">
 			<!-- mousedown.prevent keeps the focus where it is, so a click on a chip, which moves or puts away the card itself, does not also tell a pinned card it lost the focus -->
-			<button v-for="extension in list.extensions" :key="extension" type="button" :class="{'text-amber-400': associateDiffers(extension)}" class="myChip px-2" @mouseenter="chipEnter(extension, $event)" @mouseleave="hoverLeave" @mousedown.prevent @click="chipClick(extension, $event)">{{extension}}</button>
+			<button v-for="extension in list.extensions" :key="extension" type="button" :class="{'text-warn': associateDiffers(extension)}" class="myChip px-2" @mouseenter="chipEnter(extension, $event)" @mouseleave="hoverLeave" @mousedown.prevent @click="chipClick(extension, $event)">{{extension}}</button>
 		</div>
 	</div>
 
@@ -110,10 +110,10 @@ defineExpose({look})//for the panel, which hears when the window comes back into
 <style scoped>
 
 .myChip {
-	border: 1px solid #404040;
+	border: 1px solid var(--color-line);
 }
 .myChoice {
-	border: 1px solid #404040; /* the card's buttons, which the no's line at the top offers as well */
+	border: 1px solid var(--color-line); /* the card's buttons, which the no's line at the top offers as well */
 }
 
 </style>
