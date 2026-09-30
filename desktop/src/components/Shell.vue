@@ -12,7 +12,7 @@ import {openFiles} from '../open.js'//the pictures the operating system handed f
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
-import {brandName} from '../brand.js'//the product's name, for the log lines that say what it did
+import {brandName, brandFile} from '../brand.js'//the product's name, for the log lines that say what it did, and as the fonts setting spells it
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenLeave} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, and to leave fullscreen without showing a hidden window
 import HelpPanel from './HelpPanel.vue'
@@ -142,9 +142,9 @@ function helpToggle() {
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
 }
 
-async function facesShow() {//put the page's text in the set of faces the settings name, which index.css reads off the root; at startup, and again when the settings panel changes it. The bundled faces are loaded before the switch, so nothing on screen is drawn in the platform's and then snaps to these: only the regular ones, which is all a window shows at first, and at any size, since only the face is being fetched. A file that will not load is logged, and its text is drawn in the platform's face, which index.css names behind it
-	if (settings.font.faces == 'bundled') await Promise.all([document.fonts.load('16px Inter'), document.fonts.load('16px "IBM Plex Mono"')]).catch(error => logTrouble('shell: loading the bundled fonts', error))
-	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted
+async function facesShow() {//put the page's text in the fonts the settings name, which index.css reads off the root; at startup, and again when the settings panel changes them. The fonts fuji carries are loaded before the switch, so nothing on screen is drawn in the system's and then snaps to these: only the regular faces, which is all a window shows at first, and at any size, since only the face is being fetched. A file that will not load is logged, and its text is drawn in the system's face, which index.css names behind it
+	if (settings.font.faces == brandFile) await Promise.all([document.fonts.load('16px Inter'), document.fonts.load('16px "IBM Plex Mono"')]).catch(error => logTrouble(`shell: loading ${brandName}'s fonts`, error))
+	document.documentElement.dataset.faces = settings.font.faces == brandFile ? 'own' : 'system'//read again after the wait, so a quick change back is never overwritten by the load it interrupted; own rather than the product's name, which index.css has no way to spell
 }
 
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
@@ -155,8 +155,8 @@ async function viewOpen(path) {//a picture dropped on the window or chosen with 
 }
 
 function onKey(e) {
-	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.tagName == 'SELECT' || e.target.isContentEditable) {//a keystroke into a form field belongs to the field, a letter into a list choosing from it; this is the only keydown listener in fuji, so this is the only place the guard is needed
-		if (e.key == 'Escape') e.target.blur()//but escape hands the keyboard back to fuji from any field, keeping what was typed there, as clicking away would
+	if (typedInto(e.target)) {//a keystroke into a field that takes typing belongs to the field; this is the only keydown listener in fuji, so this is the only place the guard is needed
+		if (e.key == 'Escape') e.target.blur()//but escape hands the keyboard back to fuji from any such field, keeping what was typed there, as clicking away would
 		return
 	}
 	if (e.altKey) return//fuji has no alt chords, and on windows alt belongs to the system, for its menus and its window keys, so no view ever sees one
@@ -169,11 +169,13 @@ function onKey(e) {
 	reportTrouble(() => activeView()?.onKey?.(e))
 }
 
-function onContextMenu(e) {//the web view's own right-click menu is a browser's on every platform, with items like reload and print, so a release build turns it away everywhere but a form field, which keeps cut, copy, and paste. A development build keeps it, for inspecting the page; window.rs turns off the browser's keys the same way. The tables turn it away for themselves in every build, the diamond table because a right drag there zooms
+function onContextMenu(e) {//the web view's own right-click menu is a browser's on every platform, with items like reload and print, so a release build turns it away everywhere but a field that takes typing, which keeps cut, copy, and paste. A development build keeps it, for inspecting the page; window.rs turns off the browser's keys the same way. The tables turn it away for themselves in every build, the diamond table because a right drag there zooms
 	if (import.meta.env.DEV) return
-	if (e.target.tagName == 'INPUT' || e.target.tagName == 'TEXTAREA' || e.target.isContentEditable) return
+	if (typedInto(e.target)) return
 	e.preventDefault()
 }
+
+function typedInto(target) { return target.matches('input:not([type=radio], [type=checkbox]), textarea') || target.isContentEditable }//a field that takes typing, which keeps its keys and its cut, copy and paste; a radio button or a checkbox takes neither, so after a click on one fuji's own keys still work
 
 /*
 Gamma is a lens over every picture fuji shows, and it touches none of their pixels. The filter below is one SVG primitive, feComponentTransfer, whose gamma type computes out = in to the power of the exponent on each channel scaled 0 to 1, so black stays black and white stays white while the shadows lift. CSS points the sheet's tiles and the table's image at it through one custom property on the root element, so a change of gamma is a single style change the engine applies to canvases and imgs alike: the canvases keep what the operating system handed them, the store keeps its decode, and nothing is read, drawn or decoded again. gamma.js holds the number and says what changes it.

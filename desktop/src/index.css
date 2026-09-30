@@ -37,11 +37,11 @@ Nothing here says how text is smoothed, and nothing should: no `-webkit-font-smo
 }
 
 /*
-Two sets of faces, and the user picks one: font.faces in fuji.toml, which the settings panel sets too, and which the shell puts on the root as data-faces for the rules here to read.
+Two sets of fonts, and the user picks one: font.faces in fuji.toml, which the settings panel sets too with a pair of radio buttons, fuji or system. The shell reads it and puts own or system on the root as data-faces for the rules here to read, since a stylesheet has no way to spell the product's name.
 
-platform, the factory setting, is every face from the computer fuji is running on, so fuji looks at home there: the menu font above for the root, and the platform's own monospace for fuji's character-mode type, SF Mono on the Mac and Consolas on Windows.
+The system's, the factory setting, are every face from the computer fuji is running on, so fuji looks at home there: the menu font above for the root, and the platform's own monospace for fuji's character-mode type, SF Mono on the Mac and Consolas on Windows.
 
-bundled is two faces fuji carries, so fuji looks the same on every computer: Inter for the root, at 13 css pixels everywhere, the size the Mac sets its menus in, and IBM Plex Mono for the character-mode type, the two the website sets its prose and its code in. Each is a folder in public/fonts copied exactly from its maker's release on GitHub, files, names and license alike, so updating one is replacing its folder with the next release's, and both are under the Open Font License, which lets any program carry them. The plex folder is IBM Plex Mono 2.5.0, from IBM/plex, the whole of its complete woff2 folder: sixteen files, eight weights from thin to bold with an italic for each, hinted, and all of Plex's characters, which are Latin with its extensions, Vietnamese, Cyrillic, and the box drawing and block elements a terminal draws with, but no Greek and none of Chinese, Japanese or Korean. IBM also publishes a variable Plex Mono, two files where these are sixteen, but it is from July 2026 and four characters short of these. The inter folder is Inter 4.1, from rsms/inter, its two variable files, upright and italic, each holding every weight from 100 to 900 and 2,852 characters, Greek among them; Inter ships unhinted in every form. A character neither has falls back to the platform's own face one character at a time, as the platform's faces do for what they lack.
+Fuji's own are the two faces it carries, so fuji looks the same on every computer: Inter for the root, at 13 css pixels everywhere, the size the Mac sets its menus in, and IBM Plex Mono for the character-mode type, the two the website sets its prose and its code in. Each is a folder in public/fonts copied exactly from its maker's release on GitHub, files, names and license alike, so updating one is replacing its folder with the next release's, and both are under the Open Font License, which lets any program carry them. The plex folder is IBM Plex Mono 2.5.0, from IBM/plex, the whole of its complete woff2 folder: sixteen files, eight weights from thin to bold with an italic for each, hinted, and all of Plex's characters, which are Latin with its extensions, Vietnamese, Cyrillic, and the box drawing and block elements a terminal draws with, but no Greek and none of Chinese, Japanese or Korean. IBM also publishes a variable Plex Mono, two files where these are sixteen, but it is from July 2026 and four characters short of these. The inter folder is Inter 4.1, from rsms/inter, its two variable files, upright and italic, each holding every weight from 100 to 900 and 2,852 characters, Greek among them; Inter ships unhinted in every form. A character neither has falls back to the platform's own face one character at a time, as the platform's faces do for what they lack.
 
 The shell loads the regular faces before it sets the attribute, at startup and whenever the setting changes, so no text is drawn in one set and then snaps to the other. Inter's upright file is every weight at once; an italic, or a weight of Plex other than regular, loads the first time something shows it.
 */
@@ -64,7 +64,7 @@ The shell loads the regular faces before it sets the attribute, at startup and w
 @font-face { font-display: swap; font-weight: 100 900; font-style: normal; font-family: Inter; src: url('/fonts/inter/InterVariable.woff2')        format('woff2'); }
 @font-face { font-display: swap; font-weight: 100 900; font-style: italic; font-family: Inter; src: url('/fonts/inter/InterVariable-Italic.woff2') format('woff2'); }
 @layer base {
-	html[data-faces="bundled"], [data-faces="bundled"] .mySans { font-family: Inter, system-ui, sans-serif; font-size: 13px } /* the face fuji carries, with the platform's behind it for a character Inter lacks */
+	html[data-faces="own"], [data-faces="own"] .mySans { font-family: Inter, system-ui, sans-serif; font-size: 13px } /* the face fuji carries, with the platform's behind it for a character Inter lacks */
 }
 
 /*
@@ -78,7 +78,7 @@ Fuji's own type: the character-mode text of every hud, the help panel, the setti
 		font-weight: 400; /* and no letter spacing, both at their defaults and written down so each is one edit. Plex has every weight from 100 to 700; Consolas has only regular and bold, so it draws any other weight as the nearer of those */
 		letter-spacing: 0;
 	}
-	[data-faces="bundled"] :is(.myMono, .myHud) {
+	[data-faces="own"] :is(.myMono, .myHud) {
 		font-family: "IBM Plex Mono", ui-monospace, monospace; /* the face fuji carries, and the platform's behind it for any character Plex lacks */
 	}
 }

@@ -150,9 +150,9 @@ const settingsSchema = [
 	}, {
 		section: 'font',
 		key: 'faces',
-		factory: 'platform',
-		comment: `which fonts ${brandName} sets its text in. platform uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas for the fixed-width text on Windows, and San Francisco with SF Mono on a mac. bundled uses the two ${brandName} carries, Inter with IBM Plex Mono, so it looks the same on every computer. The fixed-width text is every hud and panel, and the caption beneath a picture; the settings panel changes this too`,
-		check: value => ['platform', 'bundled'].includes(value),
+		factory: 'system',
+		comment: `which fonts ${brandName} sets its text in. ${brandFile} uses the two ${brandName} carries, Inter with IBM Plex Mono for the fixed-width text, so it looks the same on every computer. system uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas on Windows, and San Francisco with SF Mono on a mac. The fixed-width text is every hud and panel, and the caption beneath a picture; the settings panel changes this too`,
+		check: value => ['system', brandFile].includes(value),
 	}, {
 		section: 'associations',
 		key: 'yes',

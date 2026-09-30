@@ -2,7 +2,8 @@
 
 import {ref} from 'vue'
 import {settings, settingsSet} from '../settings.js'
-import {brandName} from '../brand.js'
+import {brandName, brandFile} from '../brand.js'
+import {platform} from './library.js'
 import SettingsFileTypes from './SettingsFileTypes.vue'
 
 //the shell trades this with the sheet when either asks with s, and makes it fresh each time, so every box starts from the settings as they are now. A change reaches the settings object the moment the user commits it, and the file when fuji closes, as every setting does; settings.js checks it against the one schema, so nothing here repeats what a valid value is. A section with a life of its own, like the file types, is a component of its own, and a setting that is one box stays here
@@ -12,7 +13,8 @@ function cardImagesCommit() {//enter, or leaving the box
 	if (!settingsSet('card', 'images', cardImages.value)) cardImages.value = settings.card.images//a value the setting turns away, like 0, 2.5 or nothing at all, puts the box back to the setting as it stands
 }
 
-const faces = ref(settings.font.faces)//which set of fonts, the computer's or the ones fuji carries; the list offers only what the setting takes, so it never needs putting back
+const faces = ref(settings.font.faces)//which fonts, the ones fuji carries or the system's; the buttons offer only what the setting takes, so it never needs putting back
+const systemFaces = {windows: 'Segoe UI and Consolas', mac: 'San Francisco and SF Mono'}[platform()]//what the system's fonts are, named where every computer of that kind has the same ones; a linux desktop chooses its own, so there the choice names none
 function facesCommit() {
 	if (settingsSet('font', 'faces', faces.value)) emit('faces')//the root is the shell's, so it puts the new faces there
 }
@@ -39,13 +41,13 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 	</label>
 	<!-- no hint beneath: for now the sheet shows one card, so this is also how many of a folder's pictures it shows, which is scaffolding to know rather than something to tell a user -->
 
-	<label class="mt-4 flex items-center gap-4">
+	<div class="mt-4 flex gap-4">
 		<span class="w-48">Fonts</span>
-		<select v-model="faces" @change="facesCommit" class="myBox px-2 py-1"><!-- the focus stays once chosen, as any list's does, so a keyboard can keep choosing; escape, or a click away, gives s, h and g back to fuji -->
-			<option value="platform">This computer's</option>
-			<option value="bundled">{{brandName}}'s own, the same everywhere</option>
-		</select>
-	</label>
+		<div role="radiogroup" aria-label="Fonts"><!-- radio buttons rather than a list, so every choice and what it gives are in view without a click; the panel scrolls when it grows -->
+			<label class="flex items-center gap-2"><input type="radio" name="faces" :value="brandFile" v-model="faces" @change="facesCommit" />{{brandName}} fonts: Inter and IBM Plex Mono</label>
+			<label class="mt-1 flex items-center gap-2"><input type="radio" name="faces" value="system" v-model="faces" @change="facesCommit" />System fonts<template v-if="systemFaces">: {{systemFaces}}</template></label>
+		</div>
+	</div>
 
 	<SettingsFileTypes ref="fileTypes" class="mt-12" />
 
@@ -64,7 +66,7 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 .mySettings {
 	background-color: black; /* the sheet's, since this takes the sheet's place in the same window */
 	color: #a3a3a3; /* which every section and popup inside inherits, along with the type myMono gives it */
-	color-scheme: dark; /* so the boxes' own parts, the number box's spinner and caret and the list's drop-down, are drawn for a dark page */
+	color-scheme: dark; /* so the controls' own parts, the number box's spinner and caret and the radio buttons, are drawn for a dark page */
 }
 .myBox {
 	color: white;
