@@ -16,6 +16,7 @@ The plugins are the other half of the surface. Registering one here does not dec
 
 mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
 mod disk;//and disk.rs: file commands, thin wrappers over std::fs
+mod launch;//and launch.rs: launch services, the mac's record of which application opens which kind of file
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
 mod dock;//and dock.rs: the dock icon's own menu, and its one New Window item
 mod log;//and log.rs: the log's text, held from both sides and written on the way out
@@ -46,6 +47,8 @@ pub fn run() {
 				desktop::desktop_exit_hold,//and in desktop.rs
 				log::log_start,//and in log.rs
 				log::log_append,
+				launch::launch_opens,//and in launch.rs
+				launch::launch_set,
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				thumbnail::thumbnail_probe,

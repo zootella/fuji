@@ -3,6 +3,7 @@ import parse from 'path-browserify'
 import {openUrl} from '@tauri-apps/plugin-opener'//granted for ms-settings:defaultapps and nothing else, in capabilities/default.json
 import {diskStat} from './disk.js'
 import {registryGet, registrySet, registryDelete, registryNotify, registryOpens} from './registry.js'
+import {launchOpens, launchSet} from './launch.js'
 import {pathsExecutable} from './paths.js'
 import {brandName, brandDescription} from './brand.js'
 import {settings, settingsChanged} from './settings.js'
@@ -19,9 +20,11 @@ Assertive means an offer that is complete and keeps itself whole, every type fuj
 
 Everything is per extension, since a person may want fuji for .webp and the editor they already use for .jpg. Each extension has its own ProgID and name, which Explorer prints in its Type column, so a folder sorted by type keeps its .jpe files apart from its .jpg; a different icon per format would cost nothing, and fuji never strands a choice saved against a ProgID by dropping it. Each has its own answer too, kept in fuji.toml as three lists, and a type a later fuji adds starts at ask.
 
-The types are the enabled entries of fileTypes.js, and Info.plist lists them again by hand, since the bundle exists before any of fuji's code runs; Linux declares none yet. On Windows three layers decide what opens a type, and everything fuji writes is under HKEY_CURRENT_USER. The offer, written whatever the answer: a ProgID per extension, with its name, icon and command; that ProgID in the extension's OpenWithProgids; the executable's key under Applications, with the types it supports; and a Capabilities block named in RegisteredApplications, which lists fuji in Settings. The fallback, the extension's own default value, which decides where no choice is saved: the line an installer from 1999 writes at install, Tauri's NSIS macro still writes, and ActivationRegistrationManager leaves alone. Fuji writes it for a yes and takes it back for any other answer, but only while it still names fuji. Above both, the user's saved choice, UserChoice, which fuji only reads, by asking the shell what it would open, the lookup Explorer makes. The Mac has no fallback, since the only default a program can set there is the saved choice itself, so a yes there will set it once, at the moment of the yes, and a no will set nothing. That half is the Mac's to build.
+The types are the enabled entries of fileTypes.js, and Info.plist lists them again by hand, since the bundle exists before any of fuji's code runs; Linux declares none yet. On Windows three layers decide what opens a type, and everything fuji writes is under HKEY_CURRENT_USER. The offer, written whatever the answer: a ProgID per extension, with its name, icon and command; that ProgID in the extension's OpenWithProgids; the executable's key under Applications, with the types it supports; and a Capabilities block named in RegisteredApplications, which lists fuji in Settings. The fallback, the extension's own default value, which decides where no choice is saved: the line an installer from 1999 writes at install, Tauri's NSIS macro still writes, and ActivationRegistrationManager leaves alone. Fuji writes it for a yes and takes it back for any other answer, but only while it still names fuji. Above both, the user's saved choice, UserChoice, which fuji only reads, by asking the shell what it would open, the lookup Explorer makes. The Mac has no fallback, since the only default a program can set there is the saved choice itself.
 
-Only the installed copy registers or acts on an answer, since everything registered names the running executable, and a build in target/ or a copy on the Desktop may move or vanish. The test is that the executable sits in the folder InstallLocation names under Software\Microsoft\Windows\CurrentVersion\Uninstall\Fuji, which the installer writes, an update keeps and the uninstaller removes, under HKEY_CURRENT_USER because nsis.installMode is currentUser. Every copy shares fuji.toml, so a copy that fails the test cannot change an answer either. Software\<manufacturer>\Fuji holds the install folder too, and is the wrong key to test: the uninstaller removes it only when the user ticks delete the application data.
+The Mac is simpler, because there any application can set the user's saved choice itself, through Launch Services and with no dialog, which launch.rs has. Fuji can, so a choice made in fuji's settings is carried out at the click that makes it, once, and never again. Every other application can too, so what the Mac opens a type with is the whole answer, and fuji keeps none: the three lists in fuji.toml go unused there, the settings sort each type under whatever the Mac opens it with now, and Choose Fuji takes it. Taking a type away again is Get Info's, since fuji never chooses another application for the user. With no answer kept, none can disagree with the system, so nothing in the settings that helps the user finish a choice in the system's own screens is ever reached on the Mac. The code is the same on both; the table named system below is the one place that asks which platform it is on. And the Mac files its record by kind of file rather than by extension, so .jpg, .jpeg and .jpe, all public.jpeg, move together.
+
+Only the installed copy registers or acts on an answer, since everything registered names the running executable, and a build in target/ or a copy on the Desktop may move or vanish. On the Mac the installed copy is one in an Applications folder; on Windows it is the copy the installer recorded. The test is that the executable sits in the folder InstallLocation names under Software\Microsoft\Windows\CurrentVersion\Uninstall\Fuji, which the installer writes, an update keeps and the uninstaller removes, under HKEY_CURRENT_USER because nsis.installMode is currentUser. Every copy shares fuji.toml, so a copy that fails the test cannot change an answer either. Software\<manufacturer>\Fuji holds the install folder too, and is the wrong key to test: the uninstaller removes it only when the user ticks delete the application data.
 
 What the platforms do, seen rather than read. Windows shows a one-time chooser on the first double-click of a type after a new program registers for it, whatever the fallback says, and Set defaults by app can label a type Choose a default while it holds a saved choice; neither is fuji's doing. Explorer keeps drawing thumbnails for a type fuji owns, since fuji writes no ShellEx key and the thumbnail lookup never consults UserChoice. On macOS bare CFBundleTypeExtensions are enough, since Launch Services makes the system's own types from them, public.jpeg and public.svg-image, except for .jfif, which gets a dynamic type of its own, so Change All on a .jpg in Get Info misses it. And the Mac needs no document icon, since Quick Look's preview wins over a handler's icon, checked on the Mac mini 2026-09-14.
 
@@ -32,34 +35,40 @@ const documentIcon = 'document-image.ico'//what a picture of every type fuji ope
 const answerNames = ['yes', 'no', 'ask']//the three answers, which are also the three lists in fuji.toml, in the order the file shows them
 
 export const associateAnswers = ref({})//extension to yes, no, or ask; changed only by associateChoose and by following windows
-export const associateOpens   = ref({})//extension to {name, executable}, what windows would open it with; empty until the settings look
-export const associateActive  = ref(false)//this copy acts on the answers: the installed copy, on windows, until the mac has its half
+export const associateOpens   = ref({})//extension to {name, executable}, what the system would open it with; empty until the settings look
+export const associateActive  = ref(false)//this copy acts on the answers: the installed copy, on windows and the mac
 
-let executable = ''//this copy's program file, forwardized, found at startup on windows
+let executable = ''//this copy's program file, forwardized, found at startup
+
+const system = {//the one place this asks which platform it is on: how each looks, offers, takes and tells the installed copy, and whether fuji keeps answers there at all. Everything below runs the same on both, and linux, with none of these yet, gets undefined
+	windows: {keeps: true,  look: registryOpens, offer: offerWindows, take: () => register(), installed: installedWindows},//keeps, because windows may be waiting on a step only the user can finish; take writes the fallback for every yes, so it needs no list
+	mac:     {keeps: false, look: launchOpens,   offer: async () => '', take: takeMac,        installed: installedMac},//keeps nothing, because what the mac opens a type with is the whole answer; Info.plist makes the offer before any of fuji's code runs
+}[platform()]
 
 export async function associateStart() {//at startup, in every copy: read and repair the three lists, then on the installed copy offer every type and claim each yes; answers a line for the log, or blank
 	let {answers, problems} = answersRead()
 	for (let problem of problems) log(`settings: associations, ${problem}`)
 	associateAnswers.value = answers
 	answersWrite()//every extension in exactly one list, which repairs a hand edit and adds a type this fuji has and the last did not
-	if (platform() != 'windows') return ''//no registry: macos declares its types in Info.plist, and linux declares none yet
+	if (!system) return ''//linux declares no types yet
 	executable = await pathsExecutable()
-	associateActive.value = await installed()
+	associateActive.value = await system.installed()
 	if (!associateActive.value) return ''//not the installed copy, which is nothing worth a log line
-	let changed = await queue(register)
-	return `associate: ${Object.keys(answers).length} types registered, ${changed} values written`
+	return queue(system.offer)//the offer, made again at every launch where fuji has to make it
 }
 
-export function associateChoose(extensions, answer) {//the user's answer for one extension or several: recorded, carried out in one pass, and looked at again, so the settings show where windows lands
+export function associateChoose(extensions, answer) {//the user's answer for one extension or several: recorded where fuji keeps answers, carried out in one pass, and looked at again, so the settings show where the system lands
 	if (!associateActive.value || !answerNames.includes(answer) || !extensions.every(extension => fileTypesEnabled[extension])) throw new Error(`cannot answer ${answer} for ${extensions.join(' ')} here`)//the settings offer no such choice, so reaching this is a mistake in the code asking
-	associateAnswers.value = {...associateAnswers.value, ...Object.fromEntries(extensions.map(extension => [extension, answer]))}
-	answersWrite()
-	return queue(async () => { await register(); await look() })
+	if (system.keeps) {
+		associateAnswers.value = {...associateAnswers.value, ...Object.fromEntries(extensions.map(extension => [extension, answer]))}
+		answersWrite()
+	}
+	return queue(async () => { await system.take(extensions, answer); await look() })//try to take, then see whether it took: always on the mac, and on windows only where the user has saved no choice
 }
 
-export function associateLook() { return queue(look) }//see what windows opens every extension with, and follow it as look does; the settings call this on appearing and at every return of focus
+export function associateLook() { return queue(look) }//see what the system opens every extension with, and follow it as look does; the settings call this on appearing and at every return of focus
 
-export function associateProgram(extension) {//the program windows would open this extension with, by the name a person knows: Fuji for any copy of fuji, a nameless one by its file's, blank for nothing or not yet looked
+export function associateProgram(extension) {//the program the system would open this extension with, by the name a person knows: Fuji for any copy of fuji, a nameless one by its file's, blank for nothing or not yet looked
 	let opener = associateOpens.value[extension]
 	if (!opener) return ''
 	if (ours(extension)) return brandName
@@ -74,7 +83,7 @@ export function associateDiffers(extension) {//a yes windows opens with another 
 	return false
 }
 
-function ours(extension) {//windows would open this extension with this very copy of fuji, as last looked
+function ours(extension) {//the system would open this extension with this very copy of fuji, as last looked
 	let opener = associateOpens.value[extension]
 	return !!opener?.executable && forwardize(opener.executable).toLowerCase() == executable.toLowerCase()
 }
@@ -111,11 +120,26 @@ function answersWrite() {//the three lists from the answers, in the table's orde
 	settingsChanged()
 }
 
-async function installed() {//whether this is the copy the installer put there, the one gate on everything this writes
+async function installedWindows() {//whether this is the copy the installer put there, the one gate on everything this writes
 	let folder = parse.dirname(executable)//the folder the program sits in, forwardized like everything the page holds
 	let recorded = await registryGet(`Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${brandName}`, 'InstallLocation')//where the installer put fuji, in quotes, or blank when fuji is not installed
 	recorded = forwardize(recorded.replace(/^"|"$/g, ''))//the quotes off, and the path spelled the way the page spells every other
 	return !!recorded && folder.toLowerCase() == recorded.toLowerCase()
+}
+
+async function installedMac() {//whether this is a copy in an Applications folder, the system's or the user's, which is where a mac user puts an application to keep it; a build in target/ or a copy on the Desktop may move or vanish, and the system would go on opening pictures with whatever took its place
+	let bundle = parse.dirname(parse.dirname(parse.dirname(executable)))//Fuji.app, from Fuji.app/Contents/MacOS/fuji
+	return bundle.endsWith('.app') && parse.basename(parse.dirname(bundle)) == 'Applications'
+}
+
+async function offerWindows() {//tell windows what this copy can open, at every launch, and answer a line for the log
+	let changed = await register()
+	return `associate: ${Object.keys(associateAnswers.value).length} types registered, ${changed} values written`
+}
+
+async function takeMac(extensions, answer) {//make this copy the application for each extension answered yes, which the mac carries out at once; a no takes nothing, since fuji never chooses another application for the user
+	if (answer != 'yes') return
+	for (let extension of extensions) await launchSet(extension)//one call each, since a command takes one thing
 }
 
 async function register() {//tell windows what this copy can open, claim the fallback for each yes, and take back each other fallback while it still names fuji; answers how many values changed
@@ -155,16 +179,16 @@ async function register() {//tell windows what this copy can open, claim the fal
 	return changed
 }
 
-async function look() {//what windows would open every extension with, and every ask it opens with this copy turned to yes, whether the user chose fuji there or fuji is the only program offered
-	if (platform() != 'windows') return//the mac's half, a command asking launch services, is still to build
+async function look() {//what the system would open every extension with, and, where fuji keeps answers, every ask it opens with this copy turned to yes, whether the user chose fuji there or fuji is the only program offered
+	if (!system) return//linux has nothing to ask yet
 	let opens = {}
-	for (let extension of Object.keys(fileTypesEnabled)) opens[extension] = await registryOpens(extension)//one call each, since a command takes one thing
+	for (let extension of Object.keys(fileTypesEnabled)) opens[extension] = await system.look(extension)//one call each, since a command takes one thing
 	associateOpens.value = opens
-	if (!associateActive.value) return//a copy that cannot act on an answer shows what windows says and follows nothing
+	if (!associateActive.value || !system.keeps) return//a copy that cannot act on an answer shows what the system says and follows nothing, and nor does a system whose own record is the whole answer
 	let followed = Object.keys(opens).filter(extension => associateAnswers.value[extension] == 'ask' && ours(extension))//never a no, which the user said on purpose, and never a yes, which already agrees
 	if (followed.length == 0) return
 	associateAnswers.value = {...associateAnswers.value, ...Object.fromEntries(followed.map(extension => [extension, 'yes']))}
 	answersWrite()
 	log(`associate: windows opens ${followed.join(' ')} with fuji, so each is now yes`)
-	await register()//and the fallbacks that go with a yes
+	await register()//and the fallbacks that go with a yes, which only windows has, being the only system where fuji keeps answers
 }

@@ -15,6 +15,8 @@ Resting the pointer on a chip shows its card, after a moment so that sweeping ac
 
 The warning color means something to attend to, and it appears in two places only. One is the note that says this copy cannot change anything, whose cards then offer no buttons at all, since a grayed one reads as broken. The other is a disagreement, an answer the system has not carried out, which only its own settings can do, since fuji never writes a saved choice. Its chip turns the warning color, and the section opens with a link in that color for each direction, » In 'Set defaults by app' choose Fuji for .png, and » In 'Set defaults by app' choose another program for .jpg, which each such card carries too. A link rather than a button, by the rule this section keeps: a button changes something inside fuji, and a link goes somewhere outside it. One for each direction rather than one per chip, because Windows' link to Default apps can name an application and nothing finer: Windows 11 opens it at fuji's page, and Windows 10 ignores the name and opens Default apps itself. The no's link has or and a plain Choose Fuji after it, because a square does not remember the path to it: a no just given and about to be finished, one given a day ago and forgotten, and one from long ago with fuji chosen in the system since all look the same. The link finishes the no and the button takes it back, and the user knows which they meant. The button answers every kind its line names in one click, which is safe, since the system already opens them with fuji. A yes gets the link alone, since No longer open with Fuji beside it would read as though fuji opened those kinds now.
 
+Most of this section is Windows'. On the Mac an application can make itself the one that opens a kind of file, with no dialog and nothing for the user to finish, and so can every other application, so fuji keeps no answers there and the Mac's own record is the whole story. Every kind is then ask, which never disagrees with the system, so the warning color, the links at the top and the cards' links are never reached on the Mac: the chips sort under whatever the Mac opens them with, and a card offers Choose Fuji or nothing. The code is the same on both, and associate.js is the one place that knows which platform it is on.
+
 associate.js is the policy and carries the essay; this only shows it and hands the user's clicks down. Fuji asks the system what opens each kind only while this is showing, so it looks when the section appears, and the panel calls look again whenever the window comes back into focus, which is how it notices the user returning from the system's settings. Until the system has answered, and on a platform where fuji cannot ask it yet, every kind appears in one list with no heading.
 */
 
@@ -25,7 +27,7 @@ const hoverHide = 200//and after it leaves the chip and the card, long enough to
 
 const inactiveNote = {//why the answers here cannot be changed, on a copy that cannot act on them
 	windows: `Only the installed copy of ${brandName} can change these.`,
-	mac: `Coming to the Mac. For now, use Get Info in the Finder.`,
+	mac: `Only the installed copy of ${brandName} can change these.`,//the copy in an Applications folder, which associate.js says why
 	linux: `Not available on Linux yet.`,
 }[platform()]
 

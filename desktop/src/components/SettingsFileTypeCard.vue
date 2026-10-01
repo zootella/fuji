@@ -1,7 +1,7 @@
 <script setup>//the card for one kind of file in fuji's settings, beside its chip: what it is and where it came from, where it stands, and the button that changes it
 
 import {ref, computed, watch, onMounted, nextTick} from 'vue'
-import {associateAnswers, associateActive, associateChoose, associateDiffers, associateFinish} from '../associate.js'
+import {associateAnswers, associateActive, associateChoose, associateDiffers, associateFinish, associateProgram} from '../associate.js'
 import {logTrouble} from '../log.js'
 import {brandName} from '../brand.js'
 import {fileTypes} from '../fileTypes.js'
@@ -9,7 +9,7 @@ import {fileTypes} from '../fileTypes.js'
 /*
 The section decides which card is up and whether it is pinned; the card is everything about one kind of file, and how it sits on the page.
 
-It is headed with the extension and its title, then a few sentences of history, both from fileTypes.js, then one line holding where the kind stands and the button that changes it, worded so neither reads as the other. A kind coming soon has no such line. The status is the heading of the list the chip sits in, handed down so the words are the section's own. Where the system has not carried out an answer, the status becomes the link to its settings: » In 'Set defaults by app' choose Fuji after a yes, and after a no only » Choose another program, since the kind already sits under Opens with Fuji; a no's link has or and a plain Choose Fuji after it, for the reasons the section gives. Otherwise the button follows the answer. A yes offers Change, and only that click offers No longer open with Fuji beside Cancel, so taking a kind from fuji is a deliberate second step; anything else offers Choose Fuji. Ask is never a button, since it would only be a softer no that turns into yes wherever the system already opens the kind with fuji.
+It is headed with the extension and its title, then a few sentences of history, both from fileTypes.js, then one line holding where the kind stands and the button that changes it, worded so neither reads as the other. A kind coming soon has no such line. The status is the heading of the list the chip sits in, handed down so the words are the section's own. Where the system has not carried out an answer, the status becomes the link to its settings: » In 'Set defaults by app' choose Fuji after a yes, and after a no only » Choose another program, since the kind already sits under Opens with Fuji; a no's link has or and a plain Choose Fuji after it, for the reasons the section gives. Otherwise the button follows the answer. A yes offers Change, and only that click offers No longer open with Fuji beside Cancel, so taking a kind from fuji is a deliberate second step; anything else offers Choose Fuji, unless the system already opens the kind with fuji. Ask is never a button, since it would only be a softer no that turns into yes wherever the system already opens the kind with fuji. On the Mac, where fuji keeps no answers, every kind is ask, so a card offers Choose Fuji or nothing: the kind is fuji's already, or one click makes it so, and taking it away is Get Info's.
 
 The card sits inside the page rather than over the window, absolute within the section, so it scrolls with its chip, and nothing has to cover the window to catch a click elsewhere, which would take the first click on another chip for itself. It goes under its chip where the window has room and above where it does not, never past the right edge; it measures itself once it is on the page, and vue redraws it in place before the browser paints. Pinned, it takes the focus, which is how it hears esc with fuji's one window listener left in the shell, and how it knows about a click anywhere else: focus leaves, and it asks to close. A press inside keeps the focus where it is, since the Mac's engine gives a clicked button no focus of its own, and a press on one would otherwise read as leaving.
 */
@@ -24,6 +24,7 @@ const emit = defineEmits(['close'])
 
 const coming = computed(() => !fileTypes[props.extension].enabled)//a kind fuji does not open yet, whose card is its heading and history and nothing more
 const pending = computed(() => associateDiffers(props.extension) ? associateAnswers.value[props.extension] : '')//yes or no where the system has not carried the answer out, which turns the status into a link to its settings; blank where they agree
+const offered = computed(() => associateAnswers.value[props.extension] == 'no' || associateProgram(props.extension) != brandName)//Choose Fuji, everywhere but a kind the system already opens with fuji and fuji has no answer for, which is every such kind on the mac, where fuji keeps no answers, and none on windows, where looking turns it into a yes
 
 const changing = ref(false)//the user clicked Change, which offers the no and a way back
 watch(() => props.extension, () => { changing.value = false })//moved to another chip, so it starts over
@@ -64,7 +65,9 @@ watch(() => props.pinned, hold)//a hovered card, clicked and now held
 		<span v-else-if="list.heading" class="mr-2 text-strong">{{list.heading}}<template v-if="list.named">'<i>{{list.named}}</i>'</template></span>
 		<template v-if="associateActive"><!-- a copy that cannot act offers no buttons, since a grayed one reads as broken, and the section's warning note says why -->
 			<span v-if="pending == 'no'">or</span><!-- the link finishes the no and Choose Fuji takes it back, since the card cannot know which the user means -->
-			<button v-if="associateAnswers[extension] != 'yes'" type="button" class="myChoice px-3" @click="choose('yes')">Choose {{brandName}}</button>
+			<template v-if="associateAnswers[extension] != 'yes'">
+				<button v-if="offered" type="button" class="myChoice px-3" @click="choose('yes')">Choose {{brandName}}</button>
+			</template>
 			<button v-else-if="!changing" type="button" class="myChoice px-3" @click="changing = true">Change</button>
 			<template v-else>
 				<button type="button" class="myChoice px-3" @click="choose('no')">No longer open with {{brandName}}</button>

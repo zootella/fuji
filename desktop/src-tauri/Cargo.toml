@@ -34,6 +34,7 @@ core-graphics = "0.25.0"
 core-foundation = "0.10" # already beneath core-graphics; named so thumbnail.rs can build ImageIO's option dictionary
 foreign-types-shared = "0.3"
 objc2 = "0.6" # menu.rs turns AppKit's menu validation back on for the View submenu; all three are already in the tree beneath tao
-objc2-app-kit = "0.3"
+objc2-app-kit = { version = "0.3", features = ["objc2-uniform-type-identifiers"] } # and the feature that lets NSWorkspace take a UTType, for launch.rs
 objc2-foundation = "0.3"
+objc2-uniform-type-identifiers = "0.3" # UTType, the kind of file launch.rs asks NSWorkspace about; new to the tree, from the same family and release as the three above
 block2 = "0.6" # touch.rs hands AppKit the block its scroll monitor calls; already in the tree beneath objc2-app-kit

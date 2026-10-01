@@ -163,7 +163,7 @@ const settingsSchema = [
 		section: 'associations',
 		key: 'yes',
 		factory: [],
-		comment: `which kinds of file ${brandName} opens when you double-click one, as three lists of extensions: yes, no, and ask, which means you have not decided. ${brandName} is offered for every one of them whatever you answer, and yes is what makes it the program that opens them; the system keeps the final say, and ${brandName}\'s settings show where it disagrees and take you to where it can be changed. Every extension belongs in exactly one list: one left out or listed twice counts as ask, and one ${brandName} does not open is dropped. Easiest changed in ${brandName}\'s settings, where ${brandName} does the rest`,
+		comment: `which kinds of file ${brandName} opens when you double-click one, as three lists of extensions: yes, no, and ask, which means you have not decided. ${brandName} is offered for every one of them whatever you answer, and yes is what makes it the program that opens them; the system keeps the final say, and ${brandName}\'s settings show where it disagrees and take you to where it can be changed. Every extension belongs in exactly one list: one left out or listed twice counts as ask, and one ${brandName} does not open is dropped. Easiest changed in ${brandName}\'s settings, where ${brandName} does the rest. On a Mac these lists go unused, since the Mac keeps the whole answer itself, which ${brandName}\'s settings and Get Info in the Finder both change`,
 		check: settingsTextList,
 	}, {
 		section: 'associations',
