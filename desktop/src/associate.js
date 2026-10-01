@@ -83,6 +83,14 @@ export function associateDiffers(extension) {//a yes windows opens with another 
 	return false
 }
 
+export function associateSiblings(extension) {//the extensions fuji opens that the system files under the same kind as this one, this one included and alphabetical, which therefore open with the same program; empty where it files none together, which is every extension on windows, since the registry answers no kind
+	let kind = associateOpens.value[extension]?.kind
+	if (!kind) return []//windows, or nothing looked at yet
+	let siblings = Object.keys(associateOpens.value).filter(other => associateOpens.value[other].kind == kind).sort()
+	if (siblings.length < 2) return []//a kind of its own, like .png's
+	return siblings
+}
+
 function ours(extension) {//the system would open this extension with this very copy of fuji, as last looked
 	let opener = associateOpens.value[extension]
 	return !!opener?.executable && forwardize(opener.executable).toLowerCase() == executable.toLowerCase()

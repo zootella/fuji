@@ -5,7 +5,7 @@ Launch Services, the Mac's record of which application opens which kind of file,
 
 The Mac files that record by kind of file rather than by extension, so both commands turn the extension into its UTType first, with typeWithFilenameExtension. Extensions that share a kind share an answer: .jpg, .jpeg and .jpe are all public.jpeg, so setting one sets all three. An extension the system has no kind for still gets one, a dynamic type made up from the extension, like .jfif's dyn.ah62d4rv4ge80y3xmq2, and the system keeps a choice for that like any other: seen on the Mac mini 2026-10-01, where Get Info had already given .jfif's to an application and launch_opens named it.
 
-launch_opens answers in the shape registry_opens does on Windows, the application's name and its program file, so the page compares the two platforms' answers the same way: the program file inside the bundle, like /Applications/Preview.app/Contents/MacOS/Preview, rather than the bundle itself, because that is what the page already knows about the copy it is running in.
+launch_opens answers in the shape registry_opens does on Windows, the application's name and its program file, so the page compares the two platforms' answers the same way: the program file inside the bundle, like /Applications/Preview.app/Contents/MacOS/Preview, rather than the bundle itself, because that is what the page already knows about the copy it is running in. It also answers the kind, the UTType's identifier, which Windows has no answer for: an extension's kind alone says nothing of which others share it, but the page asks about every extension it opens, and those whose kinds match are the ones that move together.
 
 launch_set makes the running application the one that opens a kind, through NSWorkspace's setDefaultApplicationAtURL, which arrived in macOS 12. It changes the user's own saved choice, the same one Get Info's Change All writes, and the system asks nobody: seen on the Mac mini 2026-10-01, it answered at once with no dialog, and Finder and Get Info both followed. That is the difference from Windows, where only the system's own screens can write a saved choice, and it is why associate.js can carry out a choice on the Mac at the click that makes it.
 
@@ -17,6 +17,7 @@ Both are async, since each waits on another program, the Launch Services daemon.
 pub struct Opener {
 	name: String,//what a person calls it, like Preview, as the Finder shows it
 	executable: String,//the program file inside its bundle, as a full path
+	kind: String,//the kind of file the mac files the extension under, like public.jpeg for .jpg, .jpeg and .jpe alike
 }
 
 /// Which application the Mac would open a file type with, the type written with its dot, like .png
@@ -49,10 +50,11 @@ mod platform {
 
 	pub fn opens(extension: &str) -> Result<Opener, String> {
 		let kind = kind(extension)?;
-		let Some(application) = NSWorkspace::sharedWorkspace().URLForApplicationToOpenContentType(&kind) else { return Ok(Opener { name: String::new(), executable: String::new() }) };//nothing opens this kind
+		let identifier = kind.identifier().to_string();
+		let Some(application) = NSWorkspace::sharedWorkspace().URLForApplicationToOpenContentType(&kind) else { return Ok(Opener { name: String::new(), executable: String::new(), kind: identifier }) };//nothing opens this kind
 		let name = application.path().map(|path| NSFileManager::defaultManager().displayNameAtPath(&path).to_string()).unwrap_or_default();//the name the Finder shows, without .app
 		let executable = NSBundle::bundleWithURL(&application).and_then(|bundle| bundle.executableURL()).and_then(|file| file.path()).map(|path| path.to_string()).unwrap_or_default();
-		Ok(Opener { name, executable })
+		Ok(Opener { name, executable, kind: identifier })
 	}
 
 	pub fn set(extension: &str) -> Result<(), String> {

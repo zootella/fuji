@@ -4,7 +4,7 @@ import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
 import {associateAnswers, associateOpens, associateActive, associateChoose, associateLook, associateDiffers, associateProgram, associateFinish} from '../associate.js'
 import {logTrouble} from '../log.js'
 import {brandName} from '../brand.js'
-import {platform} from './library.js'
+import {platform, sayList} from './library.js'
 import {fileTypes, fileTypesEnabled} from '../fileTypes.js'
 import SettingsFileTypeCard from './SettingsFileTypeCard.vue'
 
@@ -48,11 +48,6 @@ function listFor(program) {//where a program's list goes and the words above it:
 const pendingYes = computed(() => pending('yes'))//the kinds answered yes that the system opens with something else
 const pendingNo  = computed(() => pending('no'))//and the kinds answered no that it still opens with fuji
 function pending(answer) { return fileExtensions.filter(extension => associateDiffers(extension) && associateAnswers.value[extension] == answer) }//an answer the system has not carried out, which only its own settings can
-
-function sayList(items) {//items in a sentence: .png, then .gif and .png, then .bmp, .gif, and .png
-	if (items.length <= 2) return items.join(' and ')
-	return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`
-}
 
 const shown = ref(null)//the chip whose card is up, {extension, anchor, pinned}, or null when none is
 const shownList = computed(() => shown.value && fileLists.value.find(list => list.extensions.includes(shown.value.extension)))//the list that chip sits in, whose heading is also its card's status

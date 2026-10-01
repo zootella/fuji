@@ -2,10 +2,6 @@
 
 Fuji being a program the operating system will hand a file to. **On Windows it is built and smoke tested**, on the Windows 10 box on 2026-09-28 and 29, **and on the Mac it is built and smoke tested**, on the Mac mini on 2026-10-01. The reasoning lives with the code: the design and the platform facts in the essay atop `associate.js`, the panel in `SettingsFileTypes.vue` and `SettingsFileTypeCard.vue`, the lookups in `registry.rs` and `launch.rs`, the hook in `src-tauri/windows/hooks.nsh`, and every extension fuji knows in `fileTypes.js`. This file is only what is still open.
 
-## Open on the Mac
-
-- **Extensions that share a kind move together, and the panel doesn't say so.** `.jpg`, `.jpeg` and `.jpe` are all `public.jpeg`, so Choose Fuji on one moves all three chips under Opens with Fuji at once, which is right and may surprise. `launch.rs` could answer the kind beside the application, and the card could name the siblings: "Moves with .jpeg and .jpe". Windows would never show it, since there every extension stands alone. An enhancement after the first draft, by the user's call on 2026-10-01.
-
 ## Open on Windows
 
 - **Switching a type off would leave it registered.** Registration walks only the enabled entries, so an extension switched off keeps its ProgID, its place in Open with and any fallback a yes wrote, until an uninstall; meanwhile the answers drop it from `fuji.toml`, so switching it back on starts it at ask. The uninstaller already enumerates `Capabilities\FileAssociations` to learn what fuji wrote, and registration could do the same to take back what is no longer enabled; that needs one Rust command that lists a key's value names. Nothing has been switched off yet, and this should land before anything is.

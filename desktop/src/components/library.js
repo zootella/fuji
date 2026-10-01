@@ -53,6 +53,10 @@ export function backize(path) {
 	//but will look weird on windows, so use this in template code before showing to a Windows user
 	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
 }
+export function sayList(items) {//items in a sentence: .png, then .gif and .png, then .bmp, .gif, and .png
+	if (items.length <= 2) return items.join(' and ')
+	return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`
+}
 
 export async function listFolder(folder) {//the image files in one folder, in whatever order the disk handed them over; a sort is what puts them in one
 	let contents = await diskReadDir(folder)

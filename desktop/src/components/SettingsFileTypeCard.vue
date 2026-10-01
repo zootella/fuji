@@ -1,7 +1,8 @@
 <script setup>//the card for one kind of file in fuji's settings, beside its chip: what it is and where it came from, where it stands, and the button that changes it
 
 import {ref, computed, watch, onMounted, nextTick} from 'vue'
-import {associateAnswers, associateActive, associateChoose, associateDiffers, associateFinish, associateProgram} from '../associate.js'
+import {associateAnswers, associateActive, associateChoose, associateDiffers, associateFinish, associateProgram, associateSiblings} from '../associate.js'
+import {sayList} from './library.js'
 import {logTrouble} from '../log.js'
 import {brandName} from '../brand.js'
 import {fileTypes} from '../fileTypes.js'
@@ -9,7 +10,7 @@ import {fileTypes} from '../fileTypes.js'
 /*
 The section decides which card is up and whether it is pinned; the card is everything about one kind of file, and how it sits on the page.
 
-It is headed with the extension and its title, then a few sentences of history, both from fileTypes.js, then one line holding where the kind stands and the button that changes it, worded so neither reads as the other. A kind coming soon has no such line. The status is the heading of the list the chip sits in, handed down so the words are the section's own. Where the system has not carried out an answer, the status becomes the link to its settings: » In 'Set defaults by app' choose Fuji after a yes, and after a no only » Choose another program, since the kind already sits under Opens with Fuji; a no's link has or and a plain Choose Fuji after it, for the reasons the section gives. Otherwise the button follows the answer. A yes offers Change, and only that click offers No longer open with Fuji beside Cancel, so taking a kind from fuji is a deliberate second step; anything else offers Choose Fuji, unless the system already opens the kind with fuji. Ask is never a button, since it would only be a softer no that turns into yes wherever the system already opens the kind with fuji. On the Mac, where fuji keeps no answers, every kind is ask, so a card offers Choose Fuji or nothing: the kind is fuji's already, or one click makes it so, and taking it away is Get Info's.
+It is headed with the extension and its title, then a few sentences of history, both from fileTypes.js, then, where the system files this extension under one kind with others, a line naming them all as opening with the same app, then one line holding where the kind stands and the button that changes it, worded so neither reads as the other. A kind coming soon has no such line. Only the Mac files extensions together, .jpe, .jpeg and .jpg as public.jpeg, so only there does choosing one move several chips, and the line is there so that is no surprise. The status is the heading of the list the chip sits in, handed down so the words are the section's own. Where the system has not carried out an answer, the status becomes the link to its settings: » In 'Set defaults by app' choose Fuji after a yes, and after a no only » Choose another program, since the kind already sits under Opens with Fuji; a no's link has or and a plain Choose Fuji after it, for the reasons the section gives. Otherwise the button follows the answer. A yes offers Change, and only that click offers No longer open with Fuji beside Cancel, so taking a kind from fuji is a deliberate second step; anything else offers Choose Fuji, unless the system already opens the kind with fuji. Ask is never a button, since it would only be a softer no that turns into yes wherever the system already opens the kind with fuji. On the Mac, where fuji keeps no answers, every kind is ask, so a card offers Choose Fuji or nothing: the kind is fuji's already, or one click makes it so, and taking it away is Get Info's.
 
 The card sits inside the page rather than over the window, absolute within the section, so it scrolls with its chip, and nothing has to cover the window to catch a click elsewhere, which would take the first click on another chip for itself. It goes under its chip where the window has room and above where it does not, never past the right edge; it measures itself once it is on the page, and vue redraws it in place before the browser paints. Pinned, it takes the focus, which is how it hears esc with fuji's one window listener left in the shell, and how it knows about a click anywhere else: focus leaves, and it asks to close. A press inside keeps the focus where it is, since the Mac's engine gives a clicked button no focus of its own, and a press on one would otherwise read as leaving.
 */
@@ -25,6 +26,8 @@ const emit = defineEmits(['close'])
 const coming = computed(() => !fileTypes[props.extension].enabled)//a kind fuji does not open yet, whose card is its heading and history and nothing more
 const pending = computed(() => associateDiffers(props.extension) ? associateAnswers.value[props.extension] : '')//yes or no where the system has not carried the answer out, which turns the status into a link to its settings; blank where they agree
 const offered = computed(() => associateAnswers.value[props.extension] == 'no' || associateProgram(props.extension) != brandName)//Choose Fuji, everywhere but a kind the system already opens with fuji and fuji has no answer for, which is every such kind on the mac, where fuji keeps no answers, and none on windows, where looking turns it into a yes
+
+const siblings = computed(() => associateSiblings(props.extension))//this extension and the others the system files under the same kind, or none; only the mac files any together
 
 const changing = ref(false)//the user clicked Change, which offers the no and a way back
 watch(() => props.extension, () => { changing.value = false })//moved to another chip, so it starts over
@@ -58,6 +61,7 @@ watch(() => props.pinned, hold)//a hovered card, clicked and now held
 <div ref="box" tabindex="-1" class="myCard absolute w-112 p-3 outline-none" :style="place" @focusout="onFocusOut" @keydown.esc="emit('close')" @mousedown.prevent>
 	<p><span class="text-strong">{{extension}}</span> - <i>{{fileTypes[extension].title}}</i></p><!-- the title, not the type windows prints in explorer's type column, which says less -->
 	<p class="mt-2">{{fileTypes[extension].about}}</p>
+	<p v-if="siblings.length > 0" class="mt-2">{{sayList(siblings)}} open with the same app</p><!-- status, so choosing one and seeing several move is no surprise; the mac's words, since only the mac has these -->
 	<div v-if="!coming && (associateActive || list.heading)" class="mt-3 flex flex-wrap items-center gap-2"><!-- no row for a kind coming soon, nor on a copy that cannot act before the system has been asked -->
 		<!-- the status is the link where only the system can carry the answer out, led by the chevron that leads it at the top of the section -->
 		<a v-if="pending == 'yes'" href="#" class="mr-2 text-warn underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose {{brandName}}</a>
