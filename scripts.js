@@ -7,11 +7,11 @@ import {fileURLToPath} from 'node:url'
 /*
 The publishing pipeline for all three workspaces, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri, vitepress or docker is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect.
 
-**This file publishes; it does not build.** The desktop workspace builds with tauri, the linux workspace builds in containers, and both then call in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
+**This file publishes; it does not build.** The desktop workspace builds with tauri and, for the mac's dmg, its own dmg.js; the linux workspace builds in containers, and both then call in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
 
 Two machines publish fuji. Windows sends the exe. The mac sends the dmg it built natively and the four linux packages it built in docker. So a command means the same thing everywhere while doing different work underneath: `pnpm hash` is one package in desktop on windows and four in linux on the mac, and nobody has to remember which computer they are sitting at. What differs is passed as --source by the workspace that asked.
 
-One file rather than one per workspace, because the facts worth keeping in one place cross the workspace boundary. The published name is the clearest case: tauri writes Fuji_0.1.0_aarch64.dmg, which is right for a build directory and wrong for a download link, so hash stages it as fuji.dmg and a link in a page survives the next version. That name is written by the build side and shipped by the site side, and when these were separate scripts each spelled it out for itself. The targets table below is now the only place any of it is said.
+One file rather than one per workspace, because the facts worth keeping in one place cross the workspace boundary. The published name is the clearest case: the build writes Fuji_0.1.0_aarch64.dmg, which is right for a build directory and wrong for a download link, so hash stages it as fuji.dmg and a link in a page survives the next version. That name is written by the build side and shipped by the site side, and when these were separate scripts each spelled it out for itself. The targets table below is now the only place any of it is said.
 
 Living at the root also settles the working-directory question by force rather than by discipline. Both workspaces call this file, each from its own folder, so nothing here can be relative to wherever node started; every path is built from this file's own location. The scripts this replaced each had their own answer to that, every one of them correct only because pnpm happened to run it from the right place.
 
@@ -23,7 +23,7 @@ Every artifact fuji publishes, and the one place any of it is said.
 
 This was a table of three platforms keyed by process.platform until the linux workspace arrived, and the change is worth understanding rather than skimming. A platform table quietly assumed that the machine running a command is the machine that made the file — true when each operating system built its own installer, and false the moment a mac started building linux packages in docker. So the key is now the artifact rather than the computer, and which machine can make a thing is a separate question asked by whatMachineMakes below.
 
-source says where the built file is found: 'bundle' is tauri's own output under the desktop workspace, 'linux' is what the containers left in linux/release.
+source says where the built file is found: 'bundle' is the desktop workspace's build output, under tauri's bundle folder, 'linux' is what the containers left in linux/release.
 
 publish is the name the file takes on the server, and sidecar is the name of the json beside it. They are the same string throughout, deliberately.
 
