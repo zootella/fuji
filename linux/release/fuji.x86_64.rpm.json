@@ -2,7 +2,7 @@
 	"file": "fuji.x86_64.rpm",
 	"version": "0.1.0",
 	"arch": "x86_64",
-	"bytes": 4475366,
-	"sha256": "b533c9efa920295f5385f1fa8a0200e3e13bd69d2a62e613e5b8d0f234ea3661",
-	"date": "2026-09-23"
+	"bytes": 5974807,
+	"sha256": "430f37b118c0dfc841da3f735316a7fd1afcb30acda683554f98a3cacc1d4fe9",
+	"date": "2026-10-02"
 }
