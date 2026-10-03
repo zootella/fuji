@@ -10,7 +10,9 @@ Before this, the build scripts typed both names out: `scripts.js` spelled `Fuji_
 
 It is meant to be a pure refactor: every file a build makes keeps the name and the contents it had.
 
-**To see all of it**, diff from `3b1b8b1`, the linux release, which is the last commit before the change. The change is the commit after it, whose subject begins "brandStem reads the crate's name". It had not been made when this was written, so `git log --oneline 3b1b8b1..` finds its hash, and `git diff 3b1b8b1 <that hash>` shows all of it.
+**To see all of it**, `git diff 3b1b8b1 1a9706c`: `3b1b8b1` is the linux release, the last commit before the change, and `1a9706c` is the change.
+
+The commit after it, `6e0b7c0`, replaced NSIS with a Windows installer of fuji's own, in `desktop/win-setup/`, and reaches the Mac in two places: `pnpm installer` now ends with `node win-setup/win-setup.js`, and the download page on the site describes that installer. Step 1 and the section after the three steps cover them.
 
 ## What was checked on Windows
 
@@ -23,7 +25,7 @@ It is meant to be a pure refactor: every file a build makes keeps the name and t
 
 Three of the changed pieces run only on the Mac, so none of them has done a real build yet.
 
-1. **`dmg.js`.** Run `pnpm installer` in `desktop`. Expect `bundle/dmg/Fuji_0.1.0_aarch64.dmg` and a volume titled Fuji, holding Fuji.app and the Applications link, as at `dded8fd`. If the dmg is missing or named otherwise, look at `brandName` in `dmg.js`. Leave `pnpm hash` for a real release: it would test the prefix `scripts.js` now builds from `brandName`, but it also rewrites the committed `fuji.dmg.json` with this build's hash, and that same prefix was already tested on Windows, where it found the NSIS installer.
+1. **`dmg.js`.** Run `pnpm installer` in `desktop`. Expect `bundle/dmg/Fuji_0.1.0_aarch64.dmg` and a volume titled Fuji, holding Fuji.app and the Applications link, as at `dded8fd`. If the dmg is missing or named otherwise, look at `brandName` in `dmg.js`. The last step, `win-setup.js`, should end the run without a word, since it returns at once off Windows; it loads `registry.js` and reads `Cargo.toml` before it checks the platform, so an error there would be one of those two. Leave `pnpm hash` for a real release: it would test the prefix `scripts.js` now builds from `brandName`, but it also rewrites the committed `fuji.dmg.json` with this build's hash, and that same prefix was already tested on Windows, where it found the NSIS installer.
 
 2. **The two Docker steps.** Run `pnpm build` in `linux`. The image tags are now spelled from `brandStem` and should come out as before, `fuji-tauri:arm64`, `fuji-tauri:amd64` and `fuji-flatpak:amd64`. Docker's cache would hide a changed tag, since it reuses layers by their contents whatever they are called, so afterwards `docker images` should list those three and no new ones. Expect the same four files the linux release made: `Fuji_0.1.0_arm64.deb`, `Fuji_0.1.0_amd64.deb`, `Fuji-0.1.0-1.x86_64.rpm` and `Fuji_0.1.0_x86_64.flatpak`. The flatpak step's log should show `usr/bin/fuji`, `Fuji.desktop` and the icons laid out under `app.fujidesktop.Fuji`, exactly as before. If it stops with "say the …", an argument from `build.js` did not arrive.
 
@@ -31,4 +33,8 @@ Three of the changed pieces run only on the Mac, so none of them has done a real
 
 These are test builds. Whether any of them becomes a release is the user's decision.
 
-If all three come out the same, there is nothing to write down: delete this letter and its line in `contents.md`. If one differs, the place to look is named in its step, and what you find belongs in the comment beside that code.
+## The site, once the new Windows installer is live
+
+`site/docs/download-fuji.md` now says the Windows installer asks nothing and starts Fuji in about a second, where it used to describe NSIS's wizard. The `fuji.exe` on the server is still the NSIS one until the Windows box runs its smoke test on the new installer and then hashes and uploads it, so upload the site after that rather than before, when the user says the new installer is live. Until then the live page and the live installer agree.
+
+If all three steps come out the same and the site has gone up, there is nothing to write down: delete this letter and its line in `contents.md`. If one differs, the place to look is named in its step, and what you find belongs in the comment beside that code.
