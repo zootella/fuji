@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url'
 /*
 The publishing pipeline for all three workspaces, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri, vitepress or docker is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect.
 
-**This file publishes; it does not build.** The desktop workspace builds with tauri and, for the mac's dmg, its own dmg.js; the linux workspace builds in containers, and both then call in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
+**This file publishes; it does not build.** The desktop workspace builds with tauri and, for the installers, its own dmg.js on the mac and win-setup.js on windows; the linux workspace builds in containers, and both then call in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
 
 Two machines publish fuji. Windows sends the exe. The mac sends the dmg it built natively and the four linux packages it built in docker. So a command means the same thing everywhere while doing different work underneath: `pnpm hash` is one package in desktop on windows and four in linux on the mac, and nobody has to remember which computer they are sitting at. What differs is passed as --source by the workspace that asked.
 
@@ -55,8 +55,8 @@ That is a decision worth not relitigating. A versioned filename says what it is 
 */
 const targets = {
 	//the two an operating system builds for itself
-	'dmg':     {source: 'bundle', folder: 'dmg',  suffix: '.dmg',       publish: `${brandStem}.dmg`, sidecar: `${brandStem}.dmg`},
-	'exe':     {source: 'bundle', folder: 'nsis', suffix: '-setup.exe', publish: `${brandStem}.exe`, sidecar: `${brandStem}.exe`},
+	'dmg':     {source: 'bundle', folder: 'dmg',       suffix: '.dmg',       publish: `${brandStem}.dmg`, sidecar: `${brandStem}.dmg`},
+	'exe':     {source: 'bundle', folder: 'win-setup', suffix: '-setup.exe', publish: `${brandStem}.exe`, sidecar: `${brandStem}.exe`},
 
 	//the four the linux workspace builds in containers, and every one names its architecture. giving the ARM deb the bare name fuji.deb is the tempting mistake here, since it is the raspberry pi link: beside fuji.amd64.deb an unadorned name reads like the ordinary choice while being the rarer one, which is a trap laid for the majority. no bare linux name also means none has to be renamed, and no link broken, when a second architecture of some format turns up
 	'deb-arm64':   {source: 'linux', match: /_(arm64)\.deb$/,      publish: `${brandStem}.arm64.deb`,      sidecar: `${brandStem}.arm64.deb`},
@@ -120,7 +120,7 @@ const openers = {darwin: 'open', win32: 'explorer', linux: 'xdg-open'}
 
 let server//the destination, filled by readServer before either upload runs
 
-//open the graphical file manager on this platform's finished installer, so it can be double-clicked the way a person who downloaded it would. that is a different and stronger test than starting a built binary in place: an installer has a first-run experience — the publisher warning, the wizard, where the application ends up — and none of that happens otherwise
+//open the graphical file manager on this platform's finished installer, so it can be double-clicked the way a person who downloaded it would. that is a different and stronger test than starting a built binary in place: an installer has a first-run experience — the publisher warning, where the application ends up, the shortcut it leaves — and none of that happens otherwise
 function reveal() {
 	let name = process.argv[3] || whatMachineMakes()[0]
 	let target = readTarget(name)

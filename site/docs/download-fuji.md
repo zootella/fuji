@@ -15,7 +15,7 @@ Arch Linux and its relatives have no package of their own. The Flatpak runs on a
 
 **macOS.** `fuji.dmg` is built for Apple silicon — the M-series machines. There is no Intel build. Open the disk image and drag Fuji into your Applications folder.
 
-**Windows.** `fuji.exe` is the *installer*, for 64-bit Intel and AMD processors, and running it walks through a short wizard. It is not the application itself, which the installer unpacks and puts where Windows expects it.
+**Windows.** `fuji.exe` is the *installer*, for 64-bit Intel and AMD processors, and running it installs Fuji with no questions and then starts it. It is not the application itself, which the installer unpacks and puts where Windows expects it.
 
 **Debian, Ubuntu and their relatives.** There are two, and the difference is the processor, which each filename states. `fuji.amd64.deb` is for a 64-bit Intel or AMD desktop, which is almost certainly what you have. `fuji.arm64.deb` is the **Raspberry Pi** one, and suits other ARM machines too; it will not run on an ordinary desktop. If you pick wrong, your package manager refuses the file rather than installing something that cannot run. Both install with your package manager or a double-click, and both work on Debian 12 and later, Ubuntu 24.04 LTS and later, and Linux Mint 22 and later.
 
@@ -54,7 +54,7 @@ sudo spctl --global-disable   # Sequoia and later; --master-disable on earlier v
 
 1. Download `fuji.exe` and run it.
 2. [Microsoft Defender SmartScreen](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) displays a blue screen with the message **Windows protected your PC. Microsoft Defender SmartScreen prevented an unrecognized app from starting.** Click **More info**, then click **Run anyway**.
-3. The installer's wizard follows. Once Fuji is installed, it runs without further prompts.
+3. Nothing else appears: the installer puts Fuji in place, adds it to the Start menu, and starts it, in about a second. Running a newer installer later updates Fuji the same way, and keeps the file types you chose to open with it.
 
 If a Windows 11 computer instead displays a message from Smart App Control, with no **Run anyway** button, that feature has to be turned off before the installer can run.
 

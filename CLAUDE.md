@@ -102,14 +102,14 @@ cd desktop        # every command below runs from the workspace, not the root
 ```bash
 pnpm local        # run Fuji here, in development mode with hot reload
 pnpm compile      # build the binary in release mode, and stop there
-pnpm installer    # build the installer, all the way through the app to the dmg
+pnpm installer    # build the installer, all the way through the app to the dmg or the exe
 pnpm reveal       # open the file manager on that installer, to run it as a person would
 pnpm hash         # stage and hash what is already built, building nothing
 pnpm upload       # send what is already staged to the production server
 ```
 **Each command stops where its name says**, which is the whole point of naming them this way: `compile` never makes an installer, `installer` never hashes, `hash` never builds, `upload` never builds. Publishing is `installer`, `hash`, `upload`, then a commit, since the sidecars are tracked. A name means the same thing on every machine while doing different work underneath, so nothing has to be remembered per platform.
 
-Roughly what a release build costs, so a long one does not read as a hang: on the Mac mini about 20 seconds when only the frontend changed and a minute or so when Rust has to compile again; on the Windows 10 box 2m52s cold and about 45 seconds warm. The release profile shares nothing with the debug profile `pnpm local` uses, so the first release build after a stretch of dev work compiles everything over again.
+Roughly what a release build costs, so a long one does not read as a hang: on the Mac mini about 20 seconds when only the frontend changed and a minute or so when Rust has to compile again; on the Windows 10 box 2m52s cold and about 45 seconds warm, and `pnpm installer` adds about six seconds there for the setup program. The release profile shares nothing with the debug profile `pnpm local` uses, so the first release build after a stretch of dev work compiles everything over again.
 
 **A session builds when there is a reason to, and picks the smallest build that gives it.** Not every turn, and not by habit at the end of a change.
 
@@ -236,7 +236,7 @@ The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`wi
 **Windows**:
 ```
 ./desktop/src-tauri/target/release/fuji.exe
-./desktop/src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
+./desktop/src-tauri/target/release/bundle/win-setup/Fuji_0.1.0_x64-setup.exe
 ```
 
 **Linux**:
@@ -258,15 +258,17 @@ The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`wi
 ./linux/release/fuji.x86_64.flatpak     ./linux/release/fuji.x86_64.flatpak.json
 ```
 
-**Two different files are named `fuji.exe`, and their sizes tell them apart at a glance.** `src-tauri/target/release/fuji.exe` is the application itself — the binary the NSIS installer wraps, and the one that runs in place without installing. `release/fuji.exe` is the staged **installer**, a copy of `Fuji_0.1.0_x64-setup.exe` under its publishing name, and it is what the website offers for download. Measured on the Windows box 2026-09-11: the binary is 9,512,448 bytes and the installer 2,042,921, because NSIS compresses what it wraps.
+**Two different files are named `fuji.exe`, and their sizes tell them apart at a glance.** `src-tauri/target/release/fuji.exe` is the application itself — the binary the installer carries, and the one that runs in place without installing. `release/fuji.exe` is the staged **installer**, a copy of `Fuji_0.1.0_x64-setup.exe` under its publishing name, and it is what the website offers for download. Measured on the Windows box 2026-10-03: the binary is 11,437,568 bytes and the installer 3,858,061, because the installer compresses what it carries.
 
-`bundle.targets` names what a `tauri build` makes, rather than Tauri's default `"all"` — which also builds an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package, neither of which anything links to. One list serves every platform: a target that does not apply to the machine doing the build is skipped, and **the skipping is silent**, so a build producing one file is not evidence that anything went wrong.
+`bundle.targets` names what a `tauri build` makes, rather than Tauri's default `"all"` — which also builds an NSIS installer and an `.msi` on Windows and an `.AppImage` beside the Debian package, none of which anything links to. One list serves every platform: a target that does not apply to the machine doing the build is skipped, and **the skipping is silent**, so a build producing one file is not evidence that anything went wrong.
 
 The linux containers do not use that list. They pass `--bundles deb` or `--bundles deb,rpm` on the command line instead, which overrides it for that run only — so the linux specifics stay in the `linux` workspace and what the mac and windows builds are told to make never changed.
 
 `bundle.macOS.signingIdentity` is `-`, the pseudo-identity that seals the app with an ad-hoc signature and no certificate. It changes which Gatekeeper dialog a downloaded copy meets, from "damaged" with no way through to "could not verify" with an Open Anyway button, and nothing else; the essay under the targets table in `scripts.js` says why, and the download page says what a user does. Windows and the linux containers ignore it. Every mac installer build now tries to notarize after signing, finds no credentials, and says so, which is expected: fuji does not sign with a Developer ID by choice, and the download page says why, so do not propose it.
 
 **Fuji makes its own dmg, and Tauri makes only the app inside it.** `bundle.targets` leaves `dmg` out, and `pnpm installer` runs `desktop/dmg.js` after `tauri build`, which hands the layout to dmgbuild through `uvx` at a pinned version — so the Mac that builds the installer needs uv, and no other machine does. dmgbuild writes Finder's `.DS_Store` directly into an image Finder never sees, so a build steals no focus, takes about five seconds, and comes out the same whatever Finder is showing; the essay atop `dmg.js` says what this replaced. The window a Mac user meets is the jinbocho street scene from `src-tauri/dmg/jinbocho.jpg`, 800 CSS pixels square and shown whole, with Fuji.app and the Applications link centered in its two halves; the picture is a 1600-pixel JPEG tagged at 144 dpi, which is how one file serves an sRGB panel and a Retina one alike, and its source and every candidate that lost live outside the repository. The numbers in `dmg.js` were measured on the Sequoia Mac mini against a checkerboard in the picture's place.
+
+**Fuji makes its own Windows installer too, and Tauri makes only the executable.** `bundle.targets` leaves NSIS out, and `pnpm installer` runs `desktop/win-setup/win-setup.js` last: it stages the executable and everything in `bundle.resources`, packs them with Windows' own `makecab`, compiles `setup.c` with the product's names stamped in, and appends the cabinet, in about six seconds on the Windows box, using the C compiler from the Visual Studio Build Tools that Rust already needs. The setup program installs per user with no interface, is its own uninstaller, and never uninstalls first, so an install over an existing copy keeps every file type fuji registered and every choice the user saved in Windows' own screens. Every file in `win-setup/` but `registry.js` names no product and reads every name from `tauri.conf.json` and `Cargo.toml`, so no change to fuji needs a change there; the README's section The Windows installer says the rest.
 
 `pnpm hash` copies the bundle out from under its versioned, architecture-specific name into `release/` under a stable publishing name, and writes the sidecar beside it from the bytes that landed. The rename happens here rather than at upload time, which is what lets the site side copy known filenames from a known path with no rules about versions or architectures. The installers stay out of git; the sidecars are committed, so history keeps a dated record of what hash each release had.
 

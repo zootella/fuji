@@ -125,6 +125,7 @@ hide.*
 
 .vscode/*
 !.vscode/extensions.json
+.vs/
 .idea/
 .fleet/
 *.iml

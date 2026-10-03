@@ -17,7 +17,7 @@
 	},
 	"bundle": {
 		"active": true,
-		"targets": ["app", "nsis", "deb"],
+		"targets": ["app", "deb"],
 		"publisher": "Fuji",
 		"homepage": "https://fujidesktop.app/",
 		"copyright": "Copyright © 2026 Fuji",
@@ -37,14 +37,6 @@
 		"linux": {
 			"deb": {"desktopTemplate": "desktop-entry.hbs"},
 			"rpm": {"desktopTemplate": "desktop-entry.hbs"}
-		},
-		"windows": {
-			"nsis": {
-				"installMode": "currentUser",
-				"installerIcon": "icons/icon.ico",
-				"uninstallerIcon": "icons/icon.ico",
-				"installerHooks": "windows/hooks.nsh"
-			}
 		},
 		"resources": {
 			"icons/tile/VisualElementsManifest.xml": "fuji.VisualElementsManifest.xml",

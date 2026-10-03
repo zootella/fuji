@@ -32,7 +32,7 @@ $ pnpm install
 $ cd desktop
 $ pnpm local        run Fuji here, in development mode with hot reload
 $ pnpm compile      build the binary in release mode, and stop there
-$ pnpm installer    build the installer, all the way through the app to the dmg
+$ pnpm installer    build the installer, all the way through the app to the dmg or the exe
 $ pnpm reveal       open the file manager on that installer, to run it as a user would
 $ pnpm hash         stage and hash what is already built, building nothing
 $ pnpm upload       send what is already staged to the production server
@@ -60,7 +60,7 @@ And through the site commands, there is really only one:
 
 We've picked unconventional script names to be clear about the smaller steps these commands perform. `compile` never makes an installer, `installer` never hashes, `hash` never builds, and `upload` never builds. The site's `upload` is the one exception, and builds before it sends.
 
-A name does the same job on every machine. In `desktop`, `installer` makes a `.dmg` on macOS and a `.exe` on Windows, and `upload` sends whichever one the machine you're on can build — so you don't have to remember a different command per platform. On a Mac the dmg is made by [dmgbuild](https://github.com/dmgbuild/dmgbuild) through `uvx`, so the Mac that builds the installer needs [uv](https://docs.astral.sh/uv/) installed. `linux` says `build` rather than `installer` because it makes four packages rather than an installer, but `hash` and `upload` mean exactly what they mean everywhere else.
+A name does the same job on every machine. In `desktop`, `installer` makes a `.dmg` on macOS and a `.exe` on Windows, and `upload` sends whichever one the machine you're on can build — so you don't have to remember a different command per platform. On a Mac the dmg is made by [dmgbuild](https://github.com/dmgbuild/dmgbuild) through `uvx`, so the Mac that builds the installer needs [uv](https://docs.astral.sh/uv/) installed. On Windows the exe is Fuji's own setup program, compiled with the Visual Studio C compiler that Rust already needs; the section The Windows installer says how. `linux` says `build` rather than `installer` because it makes four packages rather than an installer, but `hash` and `upload` mean exactly what they mean everywhere else.
 
 And through the Linux commands:
 
@@ -131,7 +131,7 @@ Executable and installer on mac
 Executable and installer on windows
 ```
 ./desktop/src-tauri/target/release/fuji.exe
-./desktop/src-tauri/target/release/bundle/nsis/Fuji_0.1.0_x64-setup.exe
+./desktop/src-tauri/target/release/bundle/win-setup/Fuji_0.1.0_x64-setup.exe
 ```
 
 Linux packages, built in containers from the `linux` workspace
@@ -154,7 +154,7 @@ version, and every Linux package states its architecture
 ./linux/release/fuji.x86_64.flatpak     ./linux/release/fuji.x86_64.flatpak.json
 ```
 
-Fuji ships those four packages and no more, so `bundle.targets` names them instead of Tauri's default `"all"`, which would also build an `.msi` beside the NSIS installer and an `.AppImage` beside the Debian package. The installers themselves stay out of git; their sidecars are committed, so the repository keeps a dated record of what hash each release had.
+Fuji ships those four packages and no more, so `bundle.targets` names them instead of Tauri's default `"all"`, which would also build an NSIS installer and an `.msi` on Windows and an `.AppImage` beside the Debian package. The installers themselves stay out of git; their sidecars are committed, so the repository keeps a dated record of what hash each release had.
 
 `pnpm reveal` opens whichever of those bundle folders this platform builds into, so there is no need to walk the path by hand.
 
@@ -167,9 +167,21 @@ To rename the app, or to make a fork of it your own, set them in two files:
 - **`desktop/src-tauri/tauri.conf.json`** — `productName` is `brandName`. Beside it are the other fields a fork changes. `identifier`, `app.fujidesktop.Fuji`, is a third name with jobs of its own: it's what the Mac knows the app by, the folder WebView2 keeps its data in on Windows, and the Flatpak's name. Then `bundle.publisher`, `copyright`, `homepage`, and the two descriptions. And in `bundle.resources`, the Start tile's manifest is copied out as `fuji.VisualElementsManifest.xml`. That's `brandStem` written out, because Windows only finds the file under the executable's name, and a JSON file can't read it.
 - **`desktop/src-tauri/Cargo.toml`** — the package `name` is `brandStem`, since Cargo names the executable from it. Beside it are `description`, and `authors`, which becomes the maintainer listed in the Linux packages. The library's name, `fuji_lib`, is `brandStem` written out again, and `src/main.rs` calls it, so change the two together.
 
-Everything else reads those two files. Tauri names every build from them, and the Windows installer's hooks get both as `PRODUCTNAME` and `MAINBINARYNAME`. The Rust code has both in its package info, as `name` and `crate_name`. The page reads both in `desktop/src/brand.js`, which has the long version. The build scripts, `desktop/dmg.js`, `scripts.js` and `linux/build.js`, read them for themselves, and `linux/build.js` hands them to the Flatpak container, which can't see either file. `Cargo.lock` follows on the next build.
+Everything else reads those two files. Tauri names every build from them. The Rust code has both in its package info, as `name` and `crate_name`. The page reads both in `desktop/src/brand.js`, which has the long version. The build scripts, `desktop/dmg.js`, `desktop/win-setup/win-setup.js`, `scripts.js` and `linux/build.js`, read them for themselves; `win-setup.js` compiles both into the Windows setup program, and `linux/build.js` hands them to the Flatpak container, which can't see either file. `Cargo.lock` follows on the next build.
 
 After a rename, search `desktop`, `linux` and `scripts.js` for the old name, leaving out `node_modules`, `target` and `dist`. What turns up should be comments, the prose of `linux/README.md`, and the sidecars of past releases in the two `release` folders, which a fork deletes rather than renames. The website is separate: it says Fuji in its own words, and spells the published installer names out in its own code.
+
+### The Windows installer
+
+On Windows, Fuji's installer is a small program of its own, in `desktop/win-setup/`, rather than the NSIS installer Tauri makes. A user double-clicks `fuji.exe`, and about a second later Fuji is running, with nothing shown in between. It installs for the current user alone, into `%LOCALAPPDATA%\Fuji`, writes one Start menu shortcut and the entry Settings lists under Apps, and starts Fuji. The same program, saved beside Fuji as `uninstall.exe`, is the uninstaller.
+
+It exists for the upgrade. Fuji registers itself with Windows while it runs, offering to open its file types, and a user who chooses Fuji for a type in Windows' Default apps saves a choice that only Windows' own screens can write. NSIS uninstalled the old copy before installing the new one, which took Fuji's registrations away for a moment, and Windows threw the user's choice away with them. This installer writes the new files over the old ones and touches no registration, so an install over an existing copy keeps every choice. An uninstall does take Fuji's registrations back, so a reinstall after it starts clean.
+
+**Building it.** `pnpm installer` runs `win-setup.js` after `tauri build`. It reads the two names, the version, the identifier and the icon from `tauri.conf.json` and `Cargo.toml`; stages `fuji.exe` and the files `bundle.resources` names into one folder; packs them into a cabinet with Windows' own `makecab`; writes `build/stamp.h`, the header holding everything the setup program knows; compiles `setup.c` with `build.cmd`, which finds the Visual Studio C compiler; and appends the cabinet and a 24-byte trailer to the compiled program. The result lands in `src-tauri/target/release/bundle/win-setup/`, where `pnpm hash` finds it.
+
+**Running it.** The setup program reads its own trailer to find the cabinet, ends any Fuji running from the install folder, unpacks the cabinet over whatever is there, writes `uninstall.exe`, the uninstall entry and the shortcut, and starts Fuji. Uninstalling ends a running Fuji, takes back what Fuji wrote to the registry, its listing in Settings and its offer for each extension listed in `registry.js`, removes the shortcut, the entry and the folder, and leaves the user's settings in `fuji.toml` and the web view's data, in the folder named for the identifier, alone.
+
+Every file in `win-setup/` except `registry.js` is written for any Tauri app and names no product: each reads the names it needs from `tauri.conf.json` and `Cargo.toml`, so nothing there changes when Fuji does. A few of `setup.c`'s comments describe an app with more parts than Fuji, a helper process it starts, a lock file, and a named pipe through which a running copy can be asked to exit. Fuji has none of them, and the code needs none: asking through the pipe fails at once, and the setup program ends a running Fuji instead, as NSIS did, which loses only the settings changed since that Fuji started. `registry.js` is the one file with Fuji's own content, its list of extensions, which repeats the enabled types in `fileTypes.js` the way `Info.plist` does.
 
 ## Setup macOS
 

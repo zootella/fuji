@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- The setup program's manifest, compiled into setup.exe by setup.rc and read by Windows before the program's first instruction: how the program asks to be treated. It governs setup.exe in both of its lives, the downloaded installer while it installs and uninstall.exe while it uninstalls, and nothing else: the installed application has a manifest of its own, which Tauri writes into its executable when Cargo builds it. -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+
+	<!-- Run as whoever started it, and never ask to elevate; everything the program touches is the user's own -->
+	<trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+		<security>
+			<requestedPrivileges>
+				<requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+			</requestedPrivileges>
+		</security>
+	</trustInfo>
+
+	<!-- Windows 10 and 11, by the identifier the two share; without it, Windows runs a program in a compatibility mode that reports an older version and changes some behavior to match -->
+	<compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+		<application>
+			<supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+		</application>
+	</compatibility>
+
+	<application xmlns="urn:schemas-microsoft-com:asm.v3">
+		<windowsSettings>
+			<!-- Draw sharp on a high-resolution display, rather than at 96 dots per inch scaled up; the one dialog this program can show is the only thing it draws -->
+			<dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+			<!-- Accept paths longer than 260 characters, so a deep install path does not fail an extraction -->
+			<longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+		</windowsSettings>
+	</application>
+</assembly>

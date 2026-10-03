@@ -1,0 +1,35 @@
+// The resources compiled into setup.exe: its icon, its manifest, and the version block that Properties, Add or Remove Programs, and antivirus reputation systems read. Every name and number comes from build/stamp.h, which win-setup.js writes for each release and build.cmd writes with placeholders for a build by hand; setup.c includes the same header, so the program and its resources never disagree.
+#pragma code_page(65001) // this file and the stamp header are UTF-8, which the copyright sign in the version block needs; the resource compiler assumes the system code page without this
+#include <winres.h>
+#include "build/stamp.h"
+
+// The icon Explorer draws on the downloaded file, resource 1 so it is the first and the one the shell picks
+1 ICON SETUP_ICON
+
+// The manifest, resource type 24 with identifier 1, which is where the loader looks for an executable's manifest
+1 24 "setup.manifest"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION SETUP_VERSION
+PRODUCTVERSION SETUP_VERSION
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904B0" // US English, Unicode
+		BEGIN
+			VALUE "CompanyName", SETUP_PUBLISHER
+			VALUE "FileDescription", SETUP_BRAND_NAME " Setup"
+			VALUE "FileVersion", SETUP_VERSION_TEXT
+			VALUE "LegalCopyright", SETUP_COPYRIGHT
+			VALUE "OriginalFilename", SETUP_BRAND_STEM ".exe" // the name the installer is published under, brandStem with .exe
+			VALUE "ProductName", SETUP_BRAND_NAME
+			VALUE "ProductVersion", SETUP_VERSION_TEXT
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1200
+	END
+END

@@ -7,7 +7,7 @@
 	"scripts": {
 		"local": "tauri dev",
 		"compile": "tauri build --no-bundle",
-		"installer": "tauri build && node dmg.js",
+		"installer": "tauri build && node dmg.js && node win-setup/win-setup.js",
 		"reveal": "node ../scripts.js reveal",
 		"hash": "node ../scripts.js hash --source=bundle",
 		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=bundle",
