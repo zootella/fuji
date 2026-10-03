@@ -123,7 +123,7 @@ The model holds the folder, the sort, the ordered list and the current path. Bac
 
 `AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. There is one flow, `SquareFlow`, named by `Card.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of the experiment `card.md` records, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
 
-There is no router and no store library. `App.vue` renders the one view directly and `main.js` mounts the app and does nothing else.
+There is no router and no store library. `App.vue` renders the one view directly and `main.js` titles the page and mounts the app, and does nothing else.
 
 ## The cache, in one paragraph
 

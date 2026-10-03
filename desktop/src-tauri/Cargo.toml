@@ -1,5 +1,5 @@
 [package]
-name = "fuji"
+name = "fuji" # brandStem, the name files carry: cargo names the executable from it, the page and the build scripts read it here, and rust has it as crate_name in its package info; the README's section The two names says where else the names are set
 version = "0.1.0"
 description = "A multimedia file manager designed with privacy and precision in mind"
 # becomes the deb's Maintainer and the rpm's packager, both of which are public in every installed copy — so a project address rather than a person's
@@ -10,6 +10,7 @@ edition = "2021"
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary to make the lib name unique and wouldn't conflict with the bin name. This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+# brandStem and that suffix, written out because a manifest cannot read its own package's name; main.rs calls the library by it, so the two change together
 name = "fuji_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 

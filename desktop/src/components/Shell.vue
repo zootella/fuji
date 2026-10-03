@@ -12,7 +12,7 @@ import {openFiles} from '../open.js'//the pictures the operating system handed f
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
-import {brandName, brandFile} from '../brand.js'//the product's name, for the log lines that say what it did, and as the fonts setting spells it
+import {brandName, brandStem} from '../brand.js'//the product's two names, one for the log lines that say what it did, and the other as the fonts setting spells it
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenLeave} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, and to leave fullscreen without showing a hidden window
 import HelpPanel from './HelpPanel.vue'
@@ -148,8 +148,8 @@ async function themeShow() {//light or dark, for the window's title bar and the 
 }
 
 async function facesShow() {//put the page's text in the fonts the settings name, which index.css reads off the root; at startup, and again when the settings panel changes them. The fonts fuji carries are loaded before the switch, so nothing on screen is drawn in the system's and then snaps to these: only the regular faces, which is all a window shows at first, and at any size, since only the face is being fetched. A file that will not load is logged, and its text is drawn in the system's face, which index.css names behind it
-	if (settings.font.faces == brandFile) await Promise.all([document.fonts.load('16px Inter'), document.fonts.load('16px "IBM Plex Mono"')]).catch(error => logTrouble(`shell: loading ${brandName}'s fonts`, error))
-	document.documentElement.dataset.faces = settings.font.faces == brandFile ? 'own' : 'system'//read again after the wait, so a quick change back is never overwritten by the load it interrupted; own rather than the product's name, which index.css has no way to spell
+	if (settings.font.faces == brandStem) await Promise.all([document.fonts.load('16px Inter'), document.fonts.load('16px "IBM Plex Mono"')]).catch(error => logTrouble(`shell: loading ${brandName}'s fonts`, error))
+	document.documentElement.dataset.faces = settings.font.faces == brandStem ? 'own' : 'system'//read again after the wait, so a quick change back is never overwritten by the load it interrupted; own rather than the product's name, which index.css has no way to spell
 }
 
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to

@@ -675,7 +675,7 @@ export const fileTypes = {
 		imageNative: [],//nothing draws it: a Flash file is a program, not a picture or a video
 		imageWeb: [],
 		contactSheet: 'chip',//here so a folder of them names itself
-		about: `Macromedia's Shockwave Flash, 1996, the animation and game format of the web from the late 1990s until the 2010s: Newgrounds, the cartoons and games passed around by email, and the intro pages of the era's corporate sites. A file is a program with drawings and sound in it, not a video, so only a Flash player runs it, and Adobe ended Flash in 2020. Emulators such as Ruffle run most of them now; fuji names them and does no more.`,
+		about: `Macromedia's Shockwave Flash, 1996, the animation and game format of the web from the late 1990s until the 2010s: Newgrounds, the cartoons and games passed around by email, and the intro pages of the era's corporate sites. A file is a program with drawings and sound in it, not a video, so only a Flash player runs it, and Adobe ended Flash in 2020. Emulators such as Ruffle run most of them now; the contact sheet names them and does no more.`,
 	},
 	'.wav': {
 		enabled: false,

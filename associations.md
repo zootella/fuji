@@ -9,7 +9,7 @@ The Windows flows seen passing on 2026-10-01, each read in the registry and in `
 - **Switching a type off leaves it registered.** Registration walks only the enabled entries, so an extension switched off keeps its ProgID, its offer in Open with, its Capabilities entry and any fallback a yes wrote, until an uninstall; meanwhile the answers drop it from `fuji.toml`, so switching it back on starts it at ask. The Windows box shows it as of 2026-10-01: `.iff` was on for a day in September and off since, and a double-click on an `.iff` file there still launches fuji, which does not list the type. The uninstaller already enumerates `Capabilities\FileAssociations` to learn what fuji wrote, and registration could do the same to take back what is no longer enabled; that needs one Rust command that lists a key's value names. Land this before the next type is switched off.
 - **A type with no saved choice was never exercised.** There the fallback alone decides, so a yes should make fuji the default at once with no trip to Windows Settings. Every type on the Windows box carried a saved choice before fuji arrived, so this needs a fresh Windows profile.
 - **Windows 11 is documented, not measured.** Its Default apps link should open fuji's own page listing every type fuji offers; only Windows 10's behavior, the general page, has been seen.
-- **Linux is left out.** Its packages declare no `MimeType`, so fuji cannot be handed a file there; `fuji.desktop.hbs` is where that starts, as a static list the way `Info.plist` is one.
+- **Linux is left out.** Its packages declare no `MimeType`, so fuji cannot be handed a file there; `desktop-entry.hbs` in `src-tauri` is where that starts, as a static list the way `Info.plist` is one.
 
 ## Open on the Mac
 

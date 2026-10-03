@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Windows finds this file only beside the executable and named for it, fuji.VisualElementsManifest.xml
+     beside fuji.exe, so the resources in tauri.conf.json copy it there under that name: brandStem written
+     out, since a json file cannot read it. A rename that misses it leaves the Start tile plain, and says nothing. -->
 <!-- Black stays black in a light Start menu, and that is accepted. Windows 10 paints its own tile,
      light or dark with the theme, behind Chrome, Edge and Firefox whatever color they name here, but
      not behind fuji: gray, then Chrome's manifest copied line for line, were each drawn as written. -->

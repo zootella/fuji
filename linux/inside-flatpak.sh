@@ -1,5 +1,5 @@
 #!/bin/sh
-# Wrap a .deb into a .flatpak bundle. Handed the deb's filename, which carries the version and the architecture, so nothing here has to be told either.
+# Wrap a .deb into a .flatpak bundle. Handed the deb's filename, which carries the version and the architecture, so nothing here has to be told either, and the three names it was built under, which nothing here could learn.
 #
 # ## Why this does not use flatpak-builder
 #
@@ -12,18 +12,20 @@
 # Submitting to flathub would want a manifest, because that is what their build farm reads. It does not exist yet and is not needed to make the bundle; this script is the specification for it when the day comes — the permissions below are exactly what a manifest's finish-args would say.
 set -eu
 
+# The deb, then the names it was built under. build.js reads all three from tauri.conf.json and Cargo.toml, since this container never sees either file, and the README's section The two names says where each is set. brand_name is productName, which named the deb and its desktop entry; brand_stem is the crate's name, which named the executable and its icons; and identifier is the name everything in a flatpak is filed under. Handing the identifier in rather than writing it here a second time is what keeps a flatpak and its desktop entry from ever naming two different ones, which is a bundle that installs and does not appear. Its form is what flathub wants: three components, a domain we control reversed, and the application's own name last
 deb="${1:?say which deb to wrap}"
-# fuji's application identifier, and the second place it is written: tauri.conf.json holds the first and this container never sees that file. Nothing checks that the two agree, so change them together — a flatpak built under one id and a desktop entry naming another is a bundle that installs and does not appear. The form is what flathub wants: three components, a domain we control reversed, and the application's own name last
-id=app.fujidesktop.Fuji
+brand_name="${2:?say the product name the deb was built under}"
+brand_stem="${3:?say the stem of the executable inside it}"
+identifier="${4:?say the application identifier}"
 
 # Ask the image which runtime it has rather than naming one here. Both numbers have to agree — the image installs a runtime and build-init builds against one — and two places holding the same version is a drift waiting to happen: bump the Dockerfile alone and this fails at build-init with a runtime that is not installed. So the Dockerfile's ARG is the single say, and this reads what it did.
 runtime_version=$(flatpak list --columns=application,branch | awk '$1 == "org.gnome.Platform" {print $2; exit}')
 runtime_version="${runtime_version:?no org.gnome.Platform installed in this image — rebuild it with pnpm image}"
 echo "==> building against the GNOME ${runtime_version} runtime"
 
-# tauri writes Fuji_<version>_<arch>.deb, and flatpak names architectures differently from debian
-version=$(echo "$deb" | sed -n 's/^Fuji_\([0-9][0-9.]*\)_.*/\1/p')
-debian_arch=$(echo "$deb" | sed -n 's/^Fuji_[0-9][0-9.]*_\(.*\)\.deb$/\1/p')
+# tauri writes brand_name, then _<version>_<arch>.deb, and flatpak names architectures differently from debian
+version=$(echo "$deb" | sed -n "s/^${brand_name}_\([0-9][0-9.]*\)_.*/\1/p")
+debian_arch=$(echo "$deb" | sed -n "s/^${brand_name}_[0-9][0-9.]*_\(.*\)\.deb\$/\1/p")
 case "$debian_arch" in
 	amd64) flatpak_arch=x86_64 ;;
 	arm64) flatpak_arch=aarch64 ;;
@@ -32,25 +34,25 @@ esac
 
 rm -rf /work
 mkdir -p /work
-cp "/out/${deb}" /work/fuji.deb
+cp "/out/${deb}" /work/
 cd /work
 
 echo "==> unpacking the deb"
-ar x fuji.deb
+ar x "$deb"
 tar -xf data.tar.gz
 
 echo "==> build-init"
-flatpak build-init build "$id" org.gnome.Sdk org.gnome.Platform "$runtime_version"
+flatpak build-init build "$identifier" org.gnome.Sdk org.gnome.Platform "$runtime_version"
 
-# Everything a flatpak ships is named for the application id rather than for the binary, so the renames below are not tidying: a .desktop file or an icon under any other name is simply not found.
+# Everything a flatpak ships is named for the identifier rather than for the binary, so the renames below are not tidying: a .desktop file or an icon under any other name is simply not found.
 echo "==> laying out /app"
-install -Dm755 usr/bin/fuji build/files/bin/fuji
-install -Dm644 usr/share/applications/Fuji.desktop "build/files/share/applications/${id}.desktop"
-sed -i "s/^Icon=.*/Icon=${id}/" "build/files/share/applications/${id}.desktop"
+install -Dm755 "usr/bin/${brand_stem}" "build/files/bin/${brand_stem}"
+install -Dm644 "usr/share/applications/${brand_name}.desktop" "build/files/share/applications/${identifier}.desktop"
+sed -i "s/^Icon=.*/Icon=${identifier}/" "build/files/share/applications/${identifier}.desktop"
 # tauri writes a 256x256@2 folder, which is not a size freedesktop recognises, so that one is installed as the 512x512 it actually is
-install -Dm644 usr/share/icons/hicolor/32x32/apps/fuji.png   "build/files/share/icons/hicolor/32x32/apps/${id}.png"
-install -Dm644 usr/share/icons/hicolor/128x128/apps/fuji.png "build/files/share/icons/hicolor/128x128/apps/${id}.png"
-install -Dm644 "usr/share/icons/hicolor/256x256@2/apps/fuji.png" "build/files/share/icons/hicolor/512x512/apps/${id}.png"
+install -Dm644 "usr/share/icons/hicolor/32x32/apps/${brand_stem}.png"     "build/files/share/icons/hicolor/32x32/apps/${identifier}.png"
+install -Dm644 "usr/share/icons/hicolor/128x128/apps/${brand_stem}.png"   "build/files/share/icons/hicolor/128x128/apps/${identifier}.png"
+install -Dm644 "usr/share/icons/hicolor/256x256@2/apps/${brand_stem}.png" "build/files/share/icons/hicolor/512x512/apps/${identifier}.png"
 
 # A sandboxed application starts with no way to draw and no way to reach a file. The first four are what any GUI needs — wayland with an x11 fallback covers both kinds of session, dri is what makes the web engine's compositing hardware accelerated rather than software.
 #
@@ -62,15 +64,15 @@ flatpak build-finish build \
 	--device=dri \
 	--share=ipc \
 	--filesystem=host \
-	--command=fuji
+	"--command=${brand_stem}"
 
 echo "==> build-export"
 # this repository is also, exactly, what a flatpak remote of our own would serve — so a single-file bundle and a self-hosted repo are the same build with a different last step
 flatpak build-export repo build
 
 echo "==> build-bundle"
-out="/out/Fuji_${version}_${flatpak_arch}.flatpak"
-flatpak build-bundle repo "$out" "$id"
+out="/out/${brand_name}_${version}_${flatpak_arch}.flatpak"
+flatpak build-bundle repo "$out" "$identifier"
 
 ls -la "$out"
 echo "==> bundled $out"

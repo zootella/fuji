@@ -158,6 +158,19 @@ Fuji ships those four packages and no more, so `bundle.targets` names them inste
 
 `pnpm reveal` opens whichever of those bundle folders this platform builds into, so there is no need to walk the path by hand.
 
+### The two names
+
+Fuji has two names, and the code keeps them apart with two words. **`brandName`** is the name people read, `Fuji`. It's on the window, the Mac's menu bar and `Fuji.app`, the Windows Start menu and installed apps list, and in every sentence the app shows. **`brandStem`** is the stem of the executable's name, `fuji` of `fuji.exe`. It names the executable, the settings file `fuji.toml`, the log folder, and the published installers like `fuji.dmg`. Neither is made from the other, since a product called Candy Crush might be `candycrush` or `candy-crush` inside.
+
+To rename the app, or to make a fork of it your own, set them in two files:
+
+- **`desktop/src-tauri/tauri.conf.json`** — `productName` is `brandName`. Beside it are the other fields a fork changes. `identifier`, `app.fujidesktop.Fuji`, is a third name with jobs of its own: it's what the Mac knows the app by, the folder WebView2 keeps its data in on Windows, and the Flatpak's name. Then `bundle.publisher`, `copyright`, `homepage`, and the two descriptions. And in `bundle.resources`, the Start tile's manifest is copied out as `fuji.VisualElementsManifest.xml`. That's `brandStem` written out, because Windows only finds the file under the executable's name, and a JSON file can't read it.
+- **`desktop/src-tauri/Cargo.toml`** — the package `name` is `brandStem`, since Cargo names the executable from it. Beside it are `description`, and `authors`, which becomes the maintainer listed in the Linux packages. The library's name, `fuji_lib`, is `brandStem` written out again, and `src/main.rs` calls it, so change the two together.
+
+Everything else reads those two files. Tauri names every build from them, and the Windows installer's hooks get both as `PRODUCTNAME` and `MAINBINARYNAME`. The Rust code has both in its package info, as `name` and `crate_name`. The page reads both in `desktop/src/brand.js`, which has the long version. The build scripts, `desktop/dmg.js`, `scripts.js` and `linux/build.js`, read them for themselves, and `linux/build.js` hands them to the Flatpak container, which can't see either file. `Cargo.lock` follows on the next build.
+
+After a rename, search `desktop`, `linux` and `scripts.js` for the old name, leaving out `node_modules`, `target` and `dist`. What turns up should be comments, the prose of `linux/README.md`, and the sidecars of past releases in the two `release` folders, which a fork deletes rather than renames. The website is separate: it says Fuji in its own words, and spells the published installer names out in its own code.
+
 ## Setup macOS
 
 Verify or Install Xcode Command Line Tools

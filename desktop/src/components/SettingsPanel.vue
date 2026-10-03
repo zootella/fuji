@@ -2,7 +2,7 @@
 
 import {ref} from 'vue'
 import {settings, settingsSet} from '../settings.js'
-import {brandName, brandFile} from '../brand.js'
+import {brandName, brandStem} from '../brand.js'
 import {platform} from './library.js'
 import SettingsFileTypes from './SettingsFileTypes.vue'
 
@@ -50,7 +50,7 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 		<span class="w-48">Typography</span>
 		<div role="radiogroup" aria-label="Typography"><!-- radio buttons rather than a list, so every choice and what it gives are in view without a click; the panel scrolls when it grows -->
 			<label class="flex items-center gap-2"><input type="radio" name="faces" value="system" v-model="faces" @change="facesCommit" /><span>System fonts<template v-if="systemFaces">: <i>{{systemFaces[0]}}</i>, with <i>{{systemFaces[1]}}</i></template></span></label><!-- the words in one span, so the flex row holds the button and them as two items, rather than putting its gap around every name -->
-			<label class="mt-1 flex items-center gap-2"><input type="radio" name="faces" :value="brandFile" v-model="faces" @change="facesCommit" /><span>{{brandName}} fonts: <i>Inter</i>, with <i>IBM Plex Mono</i></span></label>
+			<label class="mt-1 flex items-center gap-2"><input type="radio" name="faces" :value="brandStem" v-model="faces" @change="facesCommit" /><span>{{brandName}} fonts: <i>Inter</i>, with <i>IBM Plex Mono</i></span></label>
 		</div>
 	</div>
 

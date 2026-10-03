@@ -197,6 +197,6 @@ async function look() {//what the system would open every extension with, and, w
 	if (followed.length == 0) return
 	associateAnswers.value = {...associateAnswers.value, ...Object.fromEntries(followed.map(extension => [extension, 'yes']))}
 	answersWrite()
-	log(`associate: windows opens ${followed.join(' ')} with fuji, so each is now yes`)
+	log(`associate: windows opens ${followed.join(' ')} with ${brandName}, so each is now yes`)
 	await register()//and the fallbacks that go with a yes, which only windows has, being the only system where fuji keeps answers
 }

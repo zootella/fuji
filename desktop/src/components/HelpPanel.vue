@@ -3,6 +3,7 @@
 //the text and its look; the shell decides where it sits and when it is up, over every view. A change to a key or a mouse action is a change here too
 
 import {backspaceCloses} from './library.js'
+import {brandName} from '../brand.js'
 
 const closeKeys = backspaceCloses ? 'Esc|Backspace' : 'Esc'//backspace only where its key says Backspace, which library.js explains
 
@@ -11,7 +12,7 @@ const closeKeys = backspaceCloses ? 'Esc|Backspace' : 'Esc'//backspace only wher
 
 <!-- a pre because it is the one element whose text vue's compiler leaves alone: in any other, the runs of spaces that line up the two columns would condense to one. The huds' smoky plastic from index.css, and no clicks or selection, so a click, a drag or the wheel goes through to the view beneath, which is still the thing the user is using -->
 <pre class="myHud pointer-events-none select-none">
-                                      Fuji
+                                      {{brandName}}
 
                                  H    [H]elp
                                  I    [I]nformation

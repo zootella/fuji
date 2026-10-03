@@ -35,8 +35,8 @@
 			"signingIdentity": "-"
 		},
 		"linux": {
-			"deb": {"desktopTemplate": "fuji.desktop.hbs"},
-			"rpm": {"desktopTemplate": "fuji.desktop.hbs"}
+			"deb": {"desktopTemplate": "desktop-entry.hbs"},
+			"rpm": {"desktopTemplate": "desktop-entry.hbs"}
 		},
 		"windows": {
 			"nsis": {
@@ -47,7 +47,7 @@
 			}
 		},
 		"resources": {
-			"icons/tile/fuji.VisualElementsManifest.xml": "fuji.VisualElementsManifest.xml",
+			"icons/tile/VisualElementsManifest.xml": "fuji.VisualElementsManifest.xml",
 			"icons/tile/tile-medium.png": "tile-medium.png",
 			"icons/tile/tile-small.png": "tile-small.png",
 			"icons/document/document-sheet.ico": "document-sheet.ico",

@@ -3,7 +3,7 @@ import {invoke} from '@tauri-apps/api/core'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import parse from 'path-browserify'
 import {forwardize} from './components/library.js'
-import {brandFile} from './brand.js'
+import {brandStem} from './brand.js'
 
 /*
 Fuji's log: every line the page or Rust chose to keep, in one text file per run, written when fuji exits. Off unless log.record in fuji.toml says otherwise, and off at the factory: this is for answering a question about a run, not for running the app. Turn it on, use fuji, quit, and the file is in fuji-temp under the home folder, named for the moment the run began.
@@ -17,7 +17,7 @@ Two functions called log, one here and one in log.rs, each taking a string the w
 The typed rows — a load, a flip, a thumbnail, a card — are helpers over log() that write aligned columns, because reading a hundred flips means reading down a column rather than along a row. Loads and flips are interleaved on purpose, since a decode landing in the middle of a flip is what explains a slow one.
 */
 
-const logFolder = `${brandFile}-temp`//fuji-temp, under the user's home folder, on every platform; rust makes it on the way out if it is missing
+const logFolder = `${brandStem}-temp`//fuji-temp, under the user's home folder, on every platform; rust makes it on the way out if it is missing
 const logQuiet = 1500//milliseconds of nothing happening before pending lines go down to rust; long enough that a burst of flipping sends once rather than once a flip
 const logCeiling = 5000//lines, after which recording stops rather than growing without end; the beginning of a session is the most diagnostic part of it, so this keeps the start and drops the rest
 
@@ -38,7 +38,7 @@ export function logStart({label, record, notes = []}) {//name this run and hand 
 
 	let stamp = sayStamp(new Date())
 	homeDir()
-		.then(home => invoke('log_start', {path: parse.join(forwardize(home), logFolder, `${brandFile}-log-${stamp}.txt`)}))
+		.then(home => invoke('log_start', {path: parse.join(forwardize(home), logFolder, `${brandStem}-log-${stamp}.txt`)}))
 		.then(() => { logStarted = true; logHeader(label, stamp); logLater() })//the header first, then whatever lines gathered while the path was crossing
 		.catch(error => { logRecording = false; console.error('log, starting:', error) })//a recording nobody can write is worse than none; the console because the thing that would have taken this line is the thing that just failed
 }
@@ -88,7 +88,7 @@ function logSend() {
 
 function logHeader(label, stamp) {//once, ahead of the first lines
 	logPending.unshift(
-		`# ${brandFile} log, ${logWindow}, ${label}, run began ${stamp} utc`,//on the mac a second window's header lands partway down, and says where it joined the run the first one started
+		`# ${brandStem} log, ${logWindow}, ${label}, run began ${stamp} utc`,//on the mac a second window's header lands partway down, and says where it joined the run the first one started
 		...logNotes.map(note => `# ${note}`),
 		`# every line the page and rust chose to keep, roughly in the order they happened, each beginning with the window that recorded it, or rust----, and the utc time; other times in milliseconds`,
 		`# a load row: disk is the read, render the decode. A flip row: store is the wait on the cache, zero for an image it already had, and paint is the swap reaching the screen`,

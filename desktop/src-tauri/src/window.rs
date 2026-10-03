@@ -49,7 +49,7 @@ pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
 	let label = window_label();
 	open::open_hold(app, &label, paths);//before the window exists, so its page finds them the moment it mounts and asks
 	let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
-		.title(&app.package_info().name)//the product name from tauri.conf.json, until the page titles the window for what it shows
+		.title(&app.package_info().name)//brandName, the product name from tauri.conf.json, until the page titles the window for what it shows
 		.visible(false)//the page places it and then shows it, once it has something to draw
 		.fullscreen(false)
 		.on_page_load(|_, _| window_arrived())//the one sign a window really came, since build answers before anything is tried

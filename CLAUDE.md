@@ -180,7 +180,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **A command takes one thing, and a list stays in the page.** The page calls down once per item and owns the loop, the order, and how many are in flight; `thumbnail_probe` takes one path and `registry_set` writes one value for that reason. More crossings are the cheap side of that trade, and a command that loops over what the page handed it has pulled a decision down out of the page.
 
-**The payoff is fewer and simpler commands across the boundary,** which is what keeps the whole reliable and easy to reason about. Each Rust module is a handful of atomic calls, or answers a single question, or holds some text and writes it on the way out. None of them knows what it is part of, and none spells fuji's name: Rust reads the product name from `tauri.conf.json` through `package_info`, and the page reads the same file through `brand.js`. The test for a new command is the one `lib.rs` opens with — describe it without naming a fuji feature. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
+**The payoff is fewer and simpler commands across the boundary,** which is what keeps the whole reliable and easy to reason about. Each Rust module is a handful of atomic calls, or answers a single question, or holds some text and writes it on the way out. None of them knows what it is part of, and none spells fuji's names: Rust reads `brandName` and `brandStem` through `package_info`, which Tauri fills from `tauri.conf.json` and `Cargo.toml`, and the page reads the same two files through `brand.js`. The test for a new command is the one `lib.rs` opens with — describe it without naming a fuji feature. `lib.rs` already calls its handler list the whole of fuji's attack surface, so keeping that list short is this same discipline seen from the security side.
 
 ### Rust Backend (desktop/src-tauri/src/)
 
@@ -197,7 +197,7 @@ The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`wi
 
 **Entry point**: `main.js` → `App.vue` → `Shell.vue`, which shows one view at a time.
 
-`main.js` mounts the app and nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
+`main.js` titles the page and mounts the app, and does nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Where to read before changing something.** Every component in `src/components/` and every module in `src/` opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
 - `Shell.vue` — the window, which view is showing, and fuji's two fullscreens

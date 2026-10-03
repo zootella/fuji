@@ -1,6 +1,6 @@
 {
 	"name": "linux",
-	"description": "Fuji's linux packages, built on a mac through docker",
+	"description": "The linux packages, built on a mac through docker",
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",

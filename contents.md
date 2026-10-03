@@ -39,6 +39,8 @@ A letter is written to a specific reader — usually a Claude Code session on th
 
 - **`argon/argon.md`**, in a folder with its program `argon.rs` and the `Cargo.toml` that builds it — to the Raspberry Pi 4B: build and run an Argon2id speed test, check that its keys match the Mac mini's, and add the results. Written 2026-09-23.
 
+- **`win2mac.md`** — from the Windows box to the Mac: the product's two names, `brandName` and `brandStem`, now come from `tauri.conf.json` and `Cargo.toml` alone, and the three parts of that change only the Mac runs, the dmg, the Docker packages and the renamed desktop template, each want one build to confirm every output is unchanged. Written 2026-10-03.
+
 - **`win2linux.md`** — from the Windows box to Linux: the watchdog in `window_first`, and the one check that matters there, that the watchdog sees WebKitGTK's page load and so leaves a working window alone. Written 2026-09-28.
 
 **Six letters have been retired**, three named `windows.md`, one `mac.md`, one `win2mac.md` and one `mac2win.md`, each answered by the session it was written for and each leaving its findings in the document or the code that owns the subject — `associations.md`, `icon.md`, `fidelity.md`, `instances.md`, `performance.md`, and the essays in `window.rs` and `Shell.vue`. A new letter under either name is a new letter rather than a continuation.

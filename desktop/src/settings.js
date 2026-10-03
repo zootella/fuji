@@ -5,9 +5,9 @@ import {diskRead, diskWrite} from './disk.js'
 import {desktopExitHold} from './desktop.js'
 import {forwardize} from './components/library.js'
 import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
-import {brandName, brandFile} from './brand.js'
+import {brandName, brandStem} from './brand.js'
 
-const settingsFileName = `${brandFile}.toml`//fuji.toml, in the user's home folder for now; the per-platform config folders are a later decision, and a portable copy carrying its own is not one, since fuji is always installed
+const settingsFileName = `${brandStem}.toml`//fuji.toml, in the user's home folder for now; the per-platform config folders are a later decision, and a portable copy carrying its own is not one, since fuji is always installed
 const settingsHeader = `# ${settingsFileName} — ${brandName} reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
 
 const settingsThumbnailSizes = ['Small', 'Medium', 'Large', 'Xl']//the four named thumbnail sizes; each names the setting below it, lowercased
@@ -151,8 +151,8 @@ const settingsSchema = [
 		section: 'font',
 		key: 'faces',
 		factory: 'system',
-		comment: `which fonts ${brandName} sets its text in. ${brandFile} uses the two ${brandName} carries, Inter with IBM Plex Mono for the fixed-width text, so it looks the same on every computer. system uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas on Windows, and San Francisco with SF Mono on a mac. The fixed-width text is every hud and panel, and the caption beneath a picture; the settings panel changes this too`,
-		check: value => ['system', brandFile].includes(value),
+		comment: `which fonts ${brandName} sets its text in. ${brandStem} uses the two ${brandName} carries, Inter with IBM Plex Mono for the fixed-width text, so it looks the same on every computer. system uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas on Windows, and San Francisco with SF Mono on a mac. The fixed-width text is every hud and panel, and the caption beneath a picture; the settings panel changes this too`,
+		check: value => ['system', brandStem].includes(value),
 	}, {
 		section: 'appearance',
 		key: 'mode',
@@ -179,7 +179,7 @@ const settingsSchema = [
 		section: 'log',
 		key: 'record',
 		factory: false,
-		comment: `write the log: every image load, every flip and every thumbnail with what each cost, and any line the code chose to keep, from the page or from rust, saved when ${brandName} closes into ${brandFile}-temp under your home folder, which ${brandName} makes if it is missing; off by default because it is for answering a question rather than for running the app, and the file's own header says what each column means`,
+		comment: `write the log: every image load, every flip and every thumbnail with what each cost, and any line the code chose to keep, from the page or from rust, saved when ${brandName} closes into ${brandStem}-temp under your home folder, which ${brandName} makes if it is missing; off by default because it is for answering a question rather than for running the app, and the file's own header says what each column means`,
 	},
 ]
 

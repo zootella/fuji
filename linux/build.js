@@ -1,5 +1,5 @@
 import {execFileSync} from 'node:child_process'
-import {cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync} from 'node:fs'
+import {cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs'
 import {basename, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
@@ -47,11 +47,23 @@ const root    = join(here, '..')            //the monorepo, where the whitelist 
 const stage   = join(here, '.stage')        //the whitelist copy, and the only thing a container reads
 const release = join(here, 'release')       //what comes out, and the only thing a container writes
 
-//the three toolchains. one file serves both architectures because the only difference is the platform docker is told to build for, and letting that be an argument rather than a second file is the same discipline the rust side uses for its three operating systems
+function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern for the reason scripts.js gives: this workspace has no dependencies, and one line of toml needs no parser
+	let found = readFileSync(join(root, 'desktop/src-tauri/Cargo.toml'), 'utf8').match(/^name\s*=\s*"([^"]+)"/m)
+	if (!found) throw new Error('Cargo.toml names no package')
+	return found[1]
+}
+
+//the product's two names and its identifier, from the two files that set them, which the README's section The two names describes. read here because the flatpak container is given no source, so it is handed all three: brandName is productName in tauri.conf.json, which tauri names every package with; brandStem is the crate's name in Cargo.toml, the executable's; and the identifier, tauri.conf.json's too, is the name a flatpak is installed under
+const configuration = JSON.parse(readFileSync(join(root, 'desktop/src-tauri/tauri.conf.json'), 'utf8'))
+const brandName  = configuration.productName
+const brandStem  = readStem()
+const identifier = configuration.identifier
+
+//the three toolchains. one file serves both architectures because the only difference is the platform docker is told to build for, and letting that be an argument rather than a second file is the same discipline the rust side uses for its three operating systems. each is tagged with brandStem, so a fork built on the same mac keeps images of its own
 const images = {
-	'fuji-tauri:amd64':   {file: 'Dockerfile.tauri',   platform: 'linux/amd64'},
-	'fuji-tauri:arm64':   {file: 'Dockerfile.tauri',   platform: 'linux/arm64'},
-	'fuji-flatpak:amd64': {file: 'Dockerfile.flatpak', platform: 'linux/amd64'},
+	[`${brandStem}-tauri:amd64`]:   {file: 'Dockerfile.tauri',   platform: 'linux/amd64'},
+	[`${brandStem}-tauri:arm64`]:   {file: 'Dockerfile.tauri',   platform: 'linux/arm64'},
+	[`${brandStem}-flatpak:amd64`]: {file: 'Dockerfile.flatpak', platform: 'linux/amd64'},
 }
 
 //what goes into a container, said positively. desktop/ is copied whole except for the names below, which are all things a build makes rather than things a build needs
@@ -108,22 +120,22 @@ function tauri(tag, platform, bundles) {
 function flatpak() {
 	let deb = newestIn(release, '.deb', 'amd64')
 	if (!deb) throw new Error('the flatpak wraps the x86_64 deb and there is not one in release/ yet — run pnpm build-distro first')
-	say(`==> fuji-flatpak:amd64  wrapping ${deb}`)
+	say(`==> ${brandStem}-flatpak:amd64  wrapping ${deb}`)
 	run(['run', '--rm', '--platform', 'linux/amd64', '--privileged',
 		...inside('inside-flatpak.sh'),
 		'-v', `${release}:/out`,
-		'fuji-flatpak:amd64', '/build.sh', deb])
+		`${brandStem}-flatpak:amd64`, '/build.sh', deb, brandName, brandStem, identifier])
 }
 
 /*
 find a package in release/ by extension and architecture token. the filenames are tauri's own, which is deliberate — naming them for publication is the delivery half and belongs elsewhere.
 
-That is also why only a capital Fuji counts. `pnpm hash` stages into this same folder, so after a release has been staged once, fuji.amd64.deb sits beside Fuji_0.1.0_amd64.deb and both end in the same three characters. The staged copy is the wrong input here — inside-flatpak.sh reads the version and the architecture straight out of a build's filename and a published name carries neither — so a build output is what this looks for, and tauri's leading capital is what tells them apart
+That is also why only a name beginning with brandName and an underscore counts. `pnpm hash` stages into this same folder, so after a release has been staged once, fuji.amd64.deb sits beside Fuji_0.1.0_amd64.deb and both end in the same three characters. The staged copy is the wrong input here — inside-flatpak.sh reads the version and the architecture straight out of a build's filename and a published name carries neither — so a build output is what this looks for. Tauri names a build brandName, an underscore and the version, where a staged copy is brandStem and a dot, and the underscore tells them apart even for a product whose two names are the same string, where the capital that separates Fuji from fuji would not
 */
 function newestIn(folder, extension, token) {
 	if (!existsSync(folder)) return ''
 	let names = readdirSync(folder)
-		.filter(name => name.startsWith('Fuji') && name.endsWith(extension) && name.includes(token))
+		.filter(name => name.startsWith(`${brandName}_`) && name.endsWith(extension) && name.includes(token))
 		.map(name => ({name, when: statSync(join(folder, name)).mtimeMs}))
 		.sort((a, b) => b.when - a.when)
 	return names.length ? names[0].name : ''
@@ -136,8 +148,8 @@ The two steps `build` runs, in the order it runs them. They are grouped by conta
 */
 const steps = {
 	//arm64 first on purpose: it runs native on apple silicon where amd64 runs emulated, so anything wrong with the image, the whitelist or the lockfile surfaces in a couple of minutes rather than twenty. the slow one is never worth discovering a typo in
-	distro:  () => { stageSource(); tauri('fuji-tauri:arm64', 'linux/arm64', 'deb')
-	                                tauri('fuji-tauri:amd64', 'linux/amd64', 'deb,rpm') },
+	distro:  () => { stageSource(); tauri(`${brandStem}-tauri:arm64`, 'linux/arm64', 'deb')
+	                                tauri(`${brandStem}-tauri:amd64`, 'linux/amd64', 'deb,rpm') },
 	flatpak: () => flatpak(),
 }
 

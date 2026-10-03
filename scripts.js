@@ -18,6 +18,28 @@ Living at the root also settles the working-directory question by force rather t
 It imports node builtins and nothing else, and has to: the root package.json has no dependencies, and node_modules belongs to the workspaces below it.
 */
 
+//every path is built from this file's own location, never from the working directory, because both workspaces call this file and each calls it from its own folder
+const root = fileURLToPath(new URL('.', import.meta.url))
+const configurationFile = join(root, 'desktop/src-tauri/tauri.conf.json')//the file that named the bundle
+const manifestFile = join(root, 'desktop/src-tauri/Cargo.toml')          //and the crate's, which named the executable
+const bundled = join(root, 'desktop/src-tauri/target/release/bundle')    //where tauri leaves what it built
+const staged = {                                                         //where hash puts a package and its sidecar, and where upload looks for them
+	bundle: join(root, 'desktop/release'),                                //the dmg and the exe, copied out from under tauri's versioned name
+	linux:  join(root, 'linux/release'),                                 //the four the containers made, already sitting where they were written
+}
+const icons   = join(root, 'desktop/src-tauri/icons')                    //committed artwork, generated rather than drawn
+const built   = join(root, 'site/docs/.vitepress/dist')                  //what vitepress builds
+
+function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern: this file imports nothing but node, and one line of toml needs no parser
+	let found = readFileSync(manifestFile, 'utf8').match(/^name\s*=\s*"([^"]+)"/m)
+	if (!found) throw new Error('Cargo.toml names no package: ' + manifestFile)
+	return found[1]
+}
+
+//the product's two names, read before anything is named, from the two files brand.js reads them from for the page; the README's section The two names says which goes where. brandName is productName in tauri.conf.json, the name people read, which tauri names every build with. brandStem is the crate's name in Cargo.toml, the stem of the executable's name, which every published name begins with
+const brandName = JSON.parse(readFileSync(configurationFile, 'utf8')).productName
+const brandStem = readStem()
+
 /*
 Every artifact fuji publishes, and the one place any of it is said.
 
@@ -25,7 +47,7 @@ This was a table of three platforms keyed by process.platform until the linux wo
 
 source says where the built file is found: 'bundle' is the desktop workspace's build output, under tauri's bundle folder, 'linux' is what the containers left in linux/release.
 
-publish is the name the file takes on the server, and sidecar is the name of the json beside it. They are the same string throughout, deliberately.
+publish is the name the file takes on the server, and sidecar is the name of the json beside it. They are the same string throughout, deliberately, and each is brandStem followed by the format, so the published name is the executable's stem the way fuji.exe is fuji's.
 
 The rule for a published name: **every linux package states its architecture, and none carries a version.** macOS and Windows ship one architecture each by decision rather than by accident — there is no intel build and no ARM windows build — so fuji.dmg and fuji.exe need no token, and both names are already published and linked. Linux is where architectures multiply, so every name there says which machine it is for, including the formats that have only one build today. That costs a few characters and means no name ever has to change when an aarch64 flatpak or an ARM rpm turns up.
 
@@ -33,14 +55,14 @@ That is a decision worth not relitigating. A versioned filename says what it is 
 */
 const targets = {
 	//the two an operating system builds for itself
-	'dmg':     {source: 'bundle', folder: 'dmg',  suffix: '.dmg',       publish: 'fuji.dmg', sidecar: 'fuji.dmg'},
-	'exe':     {source: 'bundle', folder: 'nsis', suffix: '-setup.exe', publish: 'fuji.exe', sidecar: 'fuji.exe'},
+	'dmg':     {source: 'bundle', folder: 'dmg',  suffix: '.dmg',       publish: `${brandStem}.dmg`, sidecar: `${brandStem}.dmg`},
+	'exe':     {source: 'bundle', folder: 'nsis', suffix: '-setup.exe', publish: `${brandStem}.exe`, sidecar: `${brandStem}.exe`},
 
 	//the four the linux workspace builds in containers, and every one names its architecture. giving the ARM deb the bare name fuji.deb is the tempting mistake here, since it is the raspberry pi link: beside fuji.amd64.deb an unadorned name reads like the ordinary choice while being the rarer one, which is a trap laid for the majority. no bare linux name also means none has to be renamed, and no link broken, when a second architecture of some format turns up
-	'deb-arm64':   {source: 'linux', match: /_(arm64)\.deb$/,      publish: 'fuji.arm64.deb',      sidecar: 'fuji.arm64.deb'},
-	'deb-x64':     {source: 'linux', match: /_(amd64)\.deb$/,      publish: 'fuji.amd64.deb',      sidecar: 'fuji.amd64.deb'},
-	'rpm-x64':     {source: 'linux', match: /\.(x86_64)\.rpm$/,    publish: 'fuji.x86_64.rpm',     sidecar: 'fuji.x86_64.rpm'},
-	'flatpak-x64': {source: 'linux', match: /_(x86_64)\.flatpak$/, publish: 'fuji.x86_64.flatpak', sidecar: 'fuji.x86_64.flatpak'},
+	'deb-arm64':   {source: 'linux', match: /_(arm64)\.deb$/,      publish: `${brandStem}.arm64.deb`,      sidecar: `${brandStem}.arm64.deb`},
+	'deb-x64':     {source: 'linux', match: /_(amd64)\.deb$/,      publish: `${brandStem}.amd64.deb`,      sidecar: `${brandStem}.amd64.deb`},
+	'rpm-x64':     {source: 'linux', match: /\.(x86_64)\.rpm$/,    publish: `${brandStem}.x86_64.rpm`,     sidecar: `${brandStem}.x86_64.rpm`},
+	'flatpak-x64': {source: 'linux', match: /_(x86_64)\.flatpak$/, publish: `${brandStem}.x86_64.flatpak`, sidecar: `${brandStem}.x86_64.flatpak`},
 }
 
 /*
@@ -66,7 +88,7 @@ const machines = {
 function whatMachineMakes() {
 	let found = machines[process.platform]
 	if (!found) throw new Error(
-		`fuji does not publish from ${process.platform}. The dmg and every linux package are staged on the mac, ` +
+		`${brandName} does not publish from ${process.platform}. The dmg and every linux package are staged on the mac, ` +
 		`the exe on windows. Building here for your own use is a different thing and works: pnpm installer in desktop.`)
 	return found
 }
@@ -96,17 +118,6 @@ function chosenTargets() {
 //where a graphical file manager gets pointed, per platform rather than per target
 const openers = {darwin: 'open', win32: 'explorer', linux: 'xdg-open'}
 
-//every path is built from this file's own location, never from the working directory, because both workspaces call this file and each calls it from its own folder
-const root = fileURLToPath(new URL('.', import.meta.url))
-const configurationFile = join(root, 'desktop/src-tauri/tauri.conf.json')//the file that named the bundle
-const bundled = join(root, 'desktop/src-tauri/target/release/bundle')    //where tauri leaves what it built
-const staged = {                                                         //where hash puts a package and its sidecar, and where upload looks for them
-	bundle: join(root, 'desktop/release'),                                //the dmg and the exe, copied out from under tauri's versioned name
-	linux:  join(root, 'linux/release'),                                 //the four the containers made, already sitting where they were written
-}
-const icons   = join(root, 'desktop/src-tauri/icons')                    //committed artwork, generated rather than drawn
-const built   = join(root, 'site/docs/.vitepress/dist')                  //what vitepress builds
-
 let server//the destination, filled by readServer before either upload runs
 
 //open the graphical file manager on this platform's finished installer, so it can be double-clicked the way a person who downloaded it would. that is a different and stronger test than starting a built binary in place: an installer has a first-run experience — the publisher warning, the wizard, where the application ends up — and none of that happens otherwise
@@ -135,7 +146,7 @@ function findBuilt(target, version) {
 	if (target.source == 'bundle') {
 		let folder = join(bundled, target.folder)
 		if (!existsSync(folder)) return false
-		let prefix = `Fuji_${version}_`
+		let prefix = `${brandName}_${version}_`//tauri and dmg.js name a build brandName, version, architecture
 		let names = readdirSync(folder).filter(n => n.startsWith(prefix) && n.endsWith(target.suffix))
 		if (names.length > 1) throw new Error(`expected one ${prefix}*${target.suffix} in ${folder}, found ${names.length}: ${names.join(', ')}`)
 		if (!names.length) return false
@@ -241,13 +252,13 @@ function readServer() {//gather the destination from the environment, naming wha
 	if (missing.length > 0) throw new Error(`.env at the monorepo root is missing ${missing.join(', ')} — see the essay in scripts.js, and run this as pnpm rather than node, so the env file is passed`)
 
 	return {
-		host:     process.env.DEPLOY_HOST,
-		port:     process.env.DEPLOY_PORT,
-		siteUser: process.env.DEPLOY_SITE_USER,//administers the server; ships the site over rsync
-		sitePath: process.env.DEPLOY_SITE_PATH,
-		fujiUser: process.env.DEPLOY_FILES_USER,//no shell, chrooted, sftp only; ships installers over scp
-		fujiPath: process.env.DEPLOY_FILES_PATH,
-		fujiKey:  process.env.DEPLOY_FILES_KEY,//that account's own key, so an installer upload never offers the admin one
+		host:      process.env.DEPLOY_HOST,
+		port:      process.env.DEPLOY_PORT,
+		siteUser:  process.env.DEPLOY_SITE_USER,//administers the server; ships the site over rsync
+		sitePath:  process.env.DEPLOY_SITE_PATH,
+		filesUser: process.env.DEPLOY_FILES_USER,//no shell, chrooted, sftp only; ships installers over scp
+		filesPath: process.env.DEPLOY_FILES_PATH,
+		filesKey:  process.env.DEPLOY_FILES_KEY,//that account's own key, so an installer upload never offers the admin one
 	}
 }
 
@@ -256,8 +267,8 @@ function uploadSite() {//ship the built site, mirroring so a file dropped from t
 	if (!existsSync(built)) throw new Error('no build to upload, run pnpm build first: ' + built)
 
 	//refuse to ship a sidecar from inside the site. the server answers one hostname from two directories and checks the site's first, so a fuji.*.json in this build would shadow the real one in downloads and pin the download page to whatever hash it holds until the next deploy. one gets here by sitting in docs/public, which a retired fixtures script used to copy them into for local development — the files are gitignored, so a machine that ran it still has them and no other machine can tell
-	let shadowing = readdirSync(built).filter(name => name.startsWith('fuji.') && name.endsWith('.json'))
-	if (shadowing.length > 0) throw new Error(`${shadowing.join(', ')} would ship inside the site and shadow the real sidecar on the server — delete site/docs/public/fuji.*.json on this machine, then build again`)
+	let shadowing = readdirSync(built).filter(name => name.startsWith(`${brandStem}.`) && name.endsWith('.json'))
+	if (shadowing.length > 0) throw new Error(`${shadowing.join(', ')} would ship inside the site and shadow the real sidecar on the server — delete site/docs/public/${brandStem}.*.json on this machine, then build again`)
 
 	server = readServer()
 
@@ -304,9 +315,9 @@ function send(folder, name) {//copy one file into the downloads directory as the
 	execFileSync('scp', [
 		'-P', server.port,//scp spells the port capital -P, unlike ssh and rsync
 		'-o', 'IdentitiesOnly=yes',//offer only the key named below; without this, keys loaded in ssh-agent are offered too, and can go first, so the admin key could be tried
-		'-i', server.fujiKey,//with IdentitiesOnly above, the admin key is never tried
+		'-i', server.filesKey,//with IdentitiesOnly above, the admin key is never tried
 		name,
-		`${server.fujiUser}@${server.host}:${server.fujiPath}`,
+		`${server.filesUser}@${server.host}:${server.filesPath}`,
 	], {stdio: 'inherit', cwd: folder})
 }
 

@@ -1,7 +1,6 @@
 {
 	"name": "desktop",
-	"description": "Fuji, a multimedia file manager, built with Tauri",
-	"homepage": "https://fujidesktop.app/",
+	"description": "The desktop application, built with Tauri",
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",

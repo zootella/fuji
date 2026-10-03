@@ -1,7 +1,19 @@
 import tauriConfiguration from '../src-tauri/tauri.conf.json' with {type: 'json'}//the standard way to import json as a module, which vite and node both read
+import cargoManifest from '../src-tauri/Cargo.toml?raw'//the file as text, which vite hands over for any import marked raw
+import {parse as parseToml} from 'smol-toml'
 
-//the product's name and one-line description, read from tauri.conf.json when vite builds the page, so the one place they are written is the file every build of the application already reads. Rename the application there and the page and the rust follow: rust reads the same file through its package info
+/*
+The product's two names, read when vite builds the page from the two files that set them, which are the files every build of the application already reads. The section The two names in the README at the root is the short version, for somebody renaming fuji or making a fork of it their own.
 
-export const brandName        = tauriConfiguration.productName            //Fuji, as it is shown: the registry's names for it, and a menu or a window title
-export const brandFile        = brandName.toLowerCase()                   //fuji, as it is spelled in a file or folder name, which is lowercase on every platform
+brandName is the name people read, Fuji, productName in tauri.conf.json. It goes wherever a person reads a name: the window's title and the Mac's application menu, every sentence on the page and in the comments of fuji.toml, the Mac's Fuji.app and its dmg, the Windows installer, Start menu entry and uninstall entry, and the names Windows shows beside a file type, Fuji.webp among them.
+
+brandStem is the stem of the executable's name, fuji of fuji.exe, which is the crate's name in Cargo.toml, since Cargo names the executable from it. Stem is the word the languages use for a file name without its extension, Rust's file_stem and Python's stem. It goes wherever a file system or a program matches a name: the executable, fuji.toml, the fuji-temp folder the log is written into, and the published installer names, fuji.dmg, fuji.exe and the four linux packages; and, as a value rather than a name, the fonts setting's word for the two faces fuji carries.
+
+Nothing derives one from the other. Fuji and fuji differ only in case, but a product called Candy Crush may be candycrush or candy-crush inside, and only whoever names it knows which, so each is read from its own file. The identifier, app.fujidesktop.Fuji, is a third name with jobs of its own, the Mac's bundle identity, the folder WebView2 keeps its data in and the flatpak's identity, and it changes with the other two.
+
+Rust reads the same two from its package info, name and crate_name, which tauri fills from the same files at compile time, and the Windows installer's hooks get them from tauri as PRODUCTNAME and MAINBINARYNAME. The build scripts, dmg.js, scripts.js at the root and linux/build.js, read the two files themselves. Two places write brandStem out, because nothing there can read it, and each says so: the Start tile's manifest, which tauri.conf.json's resources copy beside the executable under its name, since that is the only way Windows finds it, and the library's name in Cargo.toml, which main.rs calls.
+*/
+
+export const brandName        = tauriConfiguration.productName            //the name people read, Fuji
+export const brandStem        = parseToml(cargoManifest).package.name     //the name files carry, fuji; read from Cargo.toml, and derived from nothing
 export const brandDescription = tauriConfiguration.bundle.shortDescription//the one line the installers and the settings app show beside the name
