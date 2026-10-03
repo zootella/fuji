@@ -12,6 +12,18 @@ That second subject is a page of its own once the work is done: how many thumbna
 
 Nothing was lost taking it out of the site page. `SquareFlow.vue`'s essay carries the two loops and their widths, and that is the right home for them until the second page exists.
 
+## Later: the look-ahead, and a database of what fuji has seen
+
+**A separate system, and a much later one.** Today fuji reads a file when a visible card needs its thumbnail, and nothing sooner: one render per tile, the first bytes and the header read by the library that decodes it, and nothing kept once the card goes. That is what fuji wants now — fast to first pixels and light on the disk. What is sketched here would read further ahead than any card and remember what it read, and it is written down so the idea is scoped rather than rebuilt piecemeal inside the flow.
+
+**What it would do.** Peek at the tips of files well ahead of the view — the first bytes for the format, the header for the size, a flag or two such as whether a WebP is animated — and keep what it learns, by path, in an SQLite database on disk, with enough beside each row to tell when a file has changed since, its size and modification time at the least. Everything that reads it would then ask the database first and the disk second.
+
+**What would read it.** A card could hold every tile's box before its pixels arrive, so the rows stop reflowing as a card fills. A file saved with no extension could be found and named by its bytes, which is the open case in `security.md`. Animated WebP could be routed to an `<img>` before its tile is chosen. A file the page route cannot size today could be checked against the ceiling. And the thumbnail cache on disk, under decisions not made above, is a store of the same shape over the same paths, so the two may turn out to be one database.
+
+**The one constraint already known.** The look-ahead can never stand between a card and its first thumbnail. Fuji had a version of this inside the flow: a probe of every file on a card, all answered before any render began. The sheet paused and then filled all at once, and taking it out made thumbnails appear immediately. Whatever reads ahead runs beside the view, or ahead of it, and the view uses what it finds when it is there and does without it when it is not.
+
+**Open, all of it.** Where the database lives and what it is called; what a row holds and how stale is too stale; how far ahead to read and in what order, and how to stay light on a spinning disk or a network share; whether it walks a drive in the background or only follows the user; and what it costs a machine that never needs it.
+
 ## Tests to run
 
 **A card's cost from inside the running app.** Every thumbnail and every card is already a row in the log, and the rows have now been read once — on Windows, to settle whether *WIC*'s scaled decode engages, which it does. That measurement is on the site, on the thumbnail pipeline page, along with the wrong experiment that nearly said otherwise.
@@ -24,13 +36,13 @@ What is still unread is the rest: what a card costs to fill, how that is spread 
 
 ## Decisions not made
 
-**Fault tolerance is its own session.** Today every file fuji cannot show gets the placeholder and nothing is tried twice, which is a policy chosen for being simple rather than for being right. That session decides: a file whose extension lies in either direction, an image saved with no image extension and a non-image saved with one; a file the operating system refuses that the page might still show, which is a second attempt fuji never makes; whether img tiles are probed at all, since a GIF has its size in its first ten bytes and an SVG has nothing to check but a leading `<`; and what a placeholder should say, if anything, about why.
+**Fault tolerance is its own session.** Today every file fuji cannot show gets the placeholder and nothing is tried twice, which is a policy chosen for being simple rather than for being right. That session decides: a file whose extension lies in either direction, an image saved with no image extension and a non-image saved with one; a file the operating system refuses that the page might still show, which is a second attempt fuji never makes; and what a placeholder should say, if anything, about why. The two routes already disagree about the first of those: the native route refuses a file whose bytes are not the format its extension names, and the page route hands it to the engine, which decodes by the bytes and shows it if it can.
 
 **The size ceiling's shape.** A header can claim a hundred thousand pixels a side so that a PNG decodes to forty gigabytes, and today's ceiling refuses anything whose raster would exceed half the machine's physical memory. A share of the machine rather than a fixed number is deliberate — it never limits capable hardware and never refuses what could have fit — but it has not been tested against the legitimate gigapixel files that exist, and half may be the wrong fraction.
 
-**Linux's size gate, for WebP and AVIF only.** PNG, GIF and BMP are sized by our own Rust on every platform, so Linux already refuses an oversized one. JPEG never needs the gate, because both operating systems decode a JPEG scaled and the full raster never exists. That leaves WebP and AVIF unsized on Linux, and closing it means a header parser of fuji's own for two formats.
+**The size ceiling on the page route.** The ceiling stands in `thumbnail.rs`, so it guards the native route, where the decoder runs in fuji's own process. The page route — everything on Linux, and BMP, WebP and AVIF on Windows — hands the engine the whole file with no ceiling, exactly as a light table does with every picture it shows. The engine decodes inside its sandbox, so a bomb there costs a crashed content process rather than fuji's. If a ceiling is wanted on that side, the place for it is the store, which every page decode passes through, the tables' included, and not the sheet alone.
 
-**Animated WebP**, which is a still on the native route today. Sending it to an `<img>` the way a GIF goes means reading the animation flag out of its header in the probe.
+**Animated WebP**, which is a still on the native route today. Sending it to an `<img>` the way a GIF goes means knowing it is animated before its tile is chosen, which is a reading ahead of the render, and so belongs to the look-ahead below.
 
 **HEIC, and the extension list generally.** ImageIO thumbnails a HEIC in about sixteen milliseconds; Windows without the paid codec cannot show one at all, so listing the extension means placeholders there. TIFF is the mirror case — WIC has it at the factory and Chromium never has. Neither is in `fileTypes` today, and both are a decision about what fuji claims to open rather than a decision about the pipeline.
 
@@ -42,7 +54,7 @@ What is still unread is the rest: what a card costs to fill, how that is spread 
 
 Listed so this file does not grow to hold them.
 
-**The path scope in Rust**, which would keep every disk and thumbnail command inside the folders the user has actually shown fuji. It is `security.md`'s first wall and the largest single change to fuji's posture available; the probe's signature check and the size ceiling are walls two and three and are built.
+**The path scope in Rust**, which would keep every disk and thumbnail command inside the folders the user has actually shown fuji. It is `security.md`'s first wall and the largest single change to fuji's posture available; the render's signature check and its size ceiling are walls two and three and are built.
 
 **What a card is to the user** — whether it is visible at all, how many fill a page, and where Next sits. `card.md` has the walk through a whole drive that the card exists for, and the open questions are there.
 

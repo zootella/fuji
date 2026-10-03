@@ -73,7 +73,7 @@ At Medium, five hundred thumbnails cost about what three full-size 26-megapixel 
 
 **Every card the folder needs is rendered.** The count of cards, the page, and Next are the walk above, and none of it is built.
 
-**A card lays its boxes out before its pictures arrive.** `SquareFlow` probes a card's files in one call and gets every size from the header alone, so thumbnails land in boxes already there and nothing shifts as a card fills. PNG, GIF and BMP are sized by fuji's own Rust and reflow nowhere; JPEG, WebP and AVIF need the platform library and so reflow on Linux, which has none; an SVG has no size to read and reflows everywhere. The two flows this one replaced reflowed on every arrival, and a hidden sheet fills nothing under `SquareFlow`, where both of them kept working behind the table.
+**A card fills as its pictures arrive.** `SquareFlow` reads nothing ahead: a tile takes its room when its pixels land, so the first thumbnails show at once and the rows settle as the rest fill in. Holding every box from the start would need every picture's size before any thumbnail is made, which is the look-ahead `thumbnail-open.md` scopes as a later system. A hidden sheet fills nothing, so a card waiting behind the table does no work in the table's frames.
 
 ## Open
 

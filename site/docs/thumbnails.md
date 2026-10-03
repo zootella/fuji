@@ -44,10 +44,10 @@ Two hundred Medium thumbnails come to a hundred and twenty megabytes where two h
 
 ## The fork
 
-Every file goes down the same three decisions:
+Every file goes down the same two decisions:
 
 <div style="overflow-x:auto;margin:2rem 0">
-<svg viewBox="0 0 640 520" role="img" aria-label="Each file passes a probe, then its extension chooses an img tile or a canvas tile, then the platform's list chooses which decoder fills the canvas" style="width:100%;min-width:480px;max-width:640px;height:auto;font-family:var(--vp-font-family-base, system-ui, sans-serif)">
+<svg viewBox="0 0 640 366" role="img" aria-label="A file's extension chooses an img tile or a canvas tile, then the platform's list chooses which decoder fills the canvas" style="width:100%;min-width:480px;max-width:640px;height:auto;font-family:var(--vp-font-family-base, system-ui, sans-serif)">
 	<defs>
 		<marker id="forkArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
 			<path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor" fill-opacity="0.45" />
@@ -55,52 +55,45 @@ Every file goes down the same three decisions:
 	</defs>
 	<g fill="none" stroke="currentColor" stroke-opacity="0.45" marker-end="url(#forkArrow)">
 		<path d="M 170 62 L 170 96" />
-		<path d="M 170 160 L 170 204" />
-		<path d="M 170 250 L 170 294" />
-		<path d="M 170 350 L 170 394" />
-		<path d="M 310 128 L 372 128" />
-		<path d="M 310 227 L 372 227" />
-		<path d="M 310 322 L 372 322" />
+		<path d="M 170 142 L 170 186" />
+		<path d="M 170 242 L 170 286" />
+		<path d="M 310 119 L 372 119" />
+		<path d="M 310 214 L 372 214" />
 	</g>
 	<g fill="none" stroke="currentColor" stroke-opacity="0.28" rx="6">
 		<rect x="30" y="16" width="280" height="46" rx="6" />
-		<rect x="30" y="100" width="280" height="60" rx="6" />
-		<rect x="30" y="208" width="280" height="42" rx="6" />
-		<rect x="30" y="298" width="280" height="52" rx="6" />
-		<rect x="30" y="398" width="280" height="60" rx="6" />
-		<rect x="372" y="105" width="240" height="46" rx="6" />
-		<rect x="372" y="199" width="240" height="56" rx="6" />
-		<rect x="372" y="294" width="240" height="56" rx="6" />
+		<rect x="30" y="100" width="280" height="42" rx="6" />
+		<rect x="30" y="190" width="280" height="52" rx="6" />
+		<rect x="30" y="290" width="280" height="60" rx="6" />
+		<rect x="372" y="91" width="240" height="56" rx="6" />
+		<rect x="372" y="186" width="240" height="56" rx="6" />
 	</g>
 	<g fill="currentColor" font-size="14" text-anchor="middle">
 		<text x="170" y="44">one file path from the folder</text>
-		<text x="170" y="124">the probe reads the first bytes</text>
-		<text x="170" y="144">and the header, decoding nothing</text>
-		<text x="170" y="235">is it a GIF or an SVG?</text>
-		<text x="170" y="322">is the format on this</text>
-		<text x="170" y="341">platform&#39;s native list?</text>
-		<text x="170" y="424">the page decodes the file</text>
-		<text x="170" y="444">and halves it down</text>
-		<text x="492" y="133">a placeholder, and nothing retried</text>
-		<text x="492" y="222">an img tile: the engine draws</text>
-		<text x="492" y="242">the file itself, at any size</text>
-		<text x="492" y="317">the operating system decodes</text>
-		<text x="492" y="337">it already scaled</text>
+		<text x="170" y="127">is it a GIF or an SVG?</text>
+		<text x="170" y="214">is the format on this</text>
+		<text x="170" y="233">platform&#39;s native list?</text>
+		<text x="170" y="316">the page decodes the file</text>
+		<text x="170" y="336">and halves it down</text>
+		<text x="492" y="114">an img tile: the engine draws</text>
+		<text x="492" y="134">the file itself, at any size</text>
+		<text x="492" y="209">the operating system decodes</text>
+		<text x="492" y="229">it already scaled</text>
 	</g>
 	<g fill="currentColor" fill-opacity="0.65" font-size="12">
-		<text x="180" y="184">it passes</text>
-		<text x="180" y="278">no, so a canvas tile</text>
-		<text x="180" y="376">no</text>
-		<text x="318" y="122">refused</text>
-		<text x="318" y="221">yes</text>
-		<text x="318" y="316">yes</text>
+		<text x="180" y="170">no, so a canvas tile</text>
+		<text x="180" y="268">no</text>
+		<text x="318" y="113">yes</text>
+		<text x="318" y="208">yes</text>
 	</g>
 </svg>
 </div>
 
 The last question names the two routes the rest of this document turns on: the ***native route***, where the operating system decodes the file and Fuji paints the pixels it returns, and the ***page route***, where the web engine decodes it and Fuji scales it down by hand.
 
-Linux is not a fourth branch. It is the platform whose native list is empty, so every raster file on it answers that last question the same way and takes the page route.
+Linux is not a third branch. It is the platform whose native list is empty, so every raster file on it answers that last question the same way and takes the page route.
+
+A file that nothing on the platform can draw, or that its decoder refuses, gets a placeholder, and Fuji tries nothing twice. And Fuji reads nothing ahead of a thumbnail: a tile takes its room on the contact sheet when its pixels arrive, so the first thumbnails appear at once and the rows settle as the rest fill in.
 
 ### Fuji shows a GIF or an SVG in an img
 
@@ -130,51 +123,11 @@ The formats Fuji opens at all are a shorter list than any of the decoders undern
 
 For context on how much headroom that leaves: ImageIO on a current Mac will decode some sixty types, including thirty-odd camera raw formats; WIC on a stock Windows install handles JPEG, PNG, GIF, BMP, TIFF, ICO, JPEG-XR and DDS, with WebP, AVIF and HEIC arriving as store extensions. Chromium's own decoders cover JPEG, PNG, GIF, WebP, BMP, ICO, AVIF and JPEG XL. The two platforms come out opposite. On macOS the native side is the more capable one and the web side adds only SVG; on Windows it is the other way round for the web-born formats, until the codec packs are installed.
 
-## The probe
-
-Before Fuji makes any thumbnail, a Rust call — *the probe* — reads the file's first bytes. It asks about every file on a card at once, one call per file:
-
-```js
-thumbnailProbe(path)   // → {format, width, height, problem}
-```
-
-For a file path it answers what the bytes say the file is, how big the header claims the picture is, and, if Fuji will not show it, why. It decodes nothing to answer any of that.
-
-The format comes from a signature table, the same signatures Chromium chooses a decoder by:
-
-```
-first bytes                                 format
-FF D8 FF                                    jpeg
-89 "PNG" 0D 0A 1A 0A                        png
-"GIF87a" or "GIF89a"                        gif
-"BM"                                        bmp
-"RIFF", then "WEBP" at byte 8               webp
-"ftyp" at byte 4, then "avif" or "avis"     avif
-"ftyp" at byte 4, then "heic", "mif1", …    heic
-a "<" first, past any byte order mark       svg
-```
-
-Every format Fuji handles announces itself in its first twelve bytes, and Fuji reads thirty-two, which is also enough to size three of them.
-
-### Why the size matters
-
-A tile whose aspect ratio Fuji already knows can take its final size before its pixels arrive, so the thumbnail lands in a box that is already there. Without the sizes the contact sheet reflows on every arrival, each picture nudging the ones after it down the page as it appears.
-
-Where the size comes from depends on the format, and only partly on the platform:
-
-| format | read from | macOS | Windows | Linux |
-| --- | --- | :-: | :-: | :-: |
-| PNG, GIF, BMP | the first 32 bytes, parsed in Rust | yes | yes | yes |
-| JPEG, WebP, AVIF, HEIC | the platform library, header only | yes | yes | no |
-| SVG | nothing to read | no | no | no |
-
-The first row is a few lines of our own Rust, so Fuji gets those three sizes on every platform. Only JPEG, WebP and AVIF reflow on Linux, and an SVG reflows on every platform.
-
-The probe also turns files back at this point: bytes that are not a format we know, bytes that disagree with the extension, or a header claiming a raster that would not fit in half the machine's physical memory. Fuji shows the placeholder for those and never hands them to a decoder at all. The render command repeats every one of these checks itself, so a caller that skipped the probe cannot hand it a mystery. Why those particular walls, and what else belongs around a decoder, is a subject of its own and not this one.
-
 ## The operating system's route
 
 `thumbnail.rs` calls *ImageIO* on macOS and the *Windows Imaging Component* on Windows — the same libraries Finder and Explorer use for the thumbnails in their own windows. Both take a file path rather than bytes. The library opens and reads the file itself, and the page never holds it.
+
+Before either library decodes anything, Fuji checks the file twice. It reads the first twelve bytes and refuses a file whose signature is not the format its extension promised — the same signatures Chromium chooses a decoder by. Then it reads the header and refuses a picture whose raster would not fit in half the machine's physical memory. Those two checks stand here because this is the route where the decoder runs in Fuji's own process; the page route hands the file to the web engine, which decodes inside its sandbox and chooses its decoder by the bytes, exactly as it does for a light table.
 
 On macOS the body is short, because ImageIO does the whole job in one call given three options: the longest side to scale to, a flag to render a thumbnail from the full image rather than handing back whatever small preview the file may have embedded, and a flag to apply the file's EXIF orientation. Then Fuji draws the result into a bitmap context of the color space it wants. That draw is where [Core Graphics](https://developer.apple.com/documentation/coregraphics) does the color management. One loop afterwards undoes the *premultiplied alpha* a drawing context produces: colors pre-scaled by their own transparency, which have to be divided back out before the pixels mean what `ImageData` expects.
 
@@ -322,7 +275,7 @@ function flowSnap(side, have) {
 
 That tolerance, `have + backingPerCss`, separates two cases. A thumbnail shrunk to fit misses its box by at most one backing pixel of rounding, and taking that sliver buys a one-to-one blit for every row — so Fuji takes it, and repeats the picture's last row and column into it, making the seam the picture's own color rather than a transparent line. A picture *smaller* than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an `<img>` would; that one keeps the pixels it has.
 
-Three things follow. There is **no reflow**, because the box Fuji reserves from the header size and the box it computes from the thumbnail land on the same whole CSS pixel. The rule is a **no-op where a CSS pixel is one backing pixel**, so an ordinary monitor behaves exactly as before. And it is a **no-op on the page route**, where the canvas is derived from the CSS size and the two cannot disagree — the native route is the only place where a bitmap arrives from outside and the CSS size has to be recovered from it by division.
+Two things follow. The rule is a **no-op where a CSS pixel is one backing pixel**, so an ordinary monitor behaves exactly as before. And it is a **no-op on the page route**, where the canvas is derived from the CSS size and the two cannot disagree — the native route is the only place where a bitmap arrives from outside and the CSS size has to be recovered from it by division.
 
 One platform difference works out differently. On macOS `devicePixelRatio` is only ever 1 or 2, so a whole-CSS box is always a whole number of backing pixels and Fuji can always size a canvas to it exactly. Windows offers 125%, 150% and 175%, where it is fractional and a whole-CSS box lands on a fraction of a backing pixel: at 150%, a box of 135 CSS pixels is 202.5 backing pixels, and a canvas can be 202 or 203 but not 202.5. Windows has one pixel unit fewer than macOS, and pays for the simpler model with worse arithmetic.
 
@@ -407,8 +360,9 @@ Red and green trade places exactly as the profile says they should, and blue is 
 
 We left every one of these alone on purpose.
 
-- **Animated WebP** is a still on the native route. Sending it to an `<img>` the way Fuji sends a GIF means reading the animation flag out of its header in the probe.
-- **Linux's size gate** covers PNG, GIF and BMP, which our own Rust can size. WebP and AVIF are unsized there, and they are two of the formats that decode whole — a JPEG never needs the gate, because both operating systems decode one scaled and the full raster never exists.
+- **Reading ahead.** The rows reflow as a contact sheet fills, because Fuji learns a picture's size only when its thumbnail arrives. A later system may read the first bytes and headers of files well ahead of the view and keep what it learns, by path, in a database on disk, so a tile could hold its box before its pixels land. It can never delay the first thumbnail to do it.
+- **Animated WebP** is a still on the native route. Sending it to an `<img>` the way Fuji sends a GIF means knowing it is animated before its tile is chosen, which is a job for that reading ahead.
+- **A size ceiling on the page route.** The ceiling stands in front of the operating system's decoder, so the page route — all of Linux, and BMP, WebP and AVIF on Windows — hands the engine the whole file as a light table does, and the engine's sandbox is what contains a picture claiming an impossible size.
 - **Tile position at a fractional scale**, which is what the Windows measurement above turned the old `flowSnap` question into. Sizing a canvas is settled and rounding is the right rule; what is not settled is placing a row on the backing grid, and that is a layout problem rather than a canvas one. It needs whoever next takes on how the contact sheet lays its rows out, and nothing about how a thumbnail is sized can substitute for it.
 - **A Display P3 file on a wide-gamut Windows panel.** The profile path works, per the measurement above, but *WIC* converts everything to sRGB because it has no wide-gamut context to draw into without a profile file. So a Display P3 photograph loses its out-of-gamut colors before the page ever sees the pixels, and the header honestly reports sRGB. On an ordinary Windows screen nothing is lost; on a wide-gamut one this is the gap, and closing it means giving *WIC* a profile file to make that context from.
 - **A change of monitor.** Fuji never remakes a canvas when a window moves to a different screen, so the `devicePixelRatio` and the gamut it was made for both go stale until the contact sheet rebuilds.
