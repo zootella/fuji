@@ -3,14 +3,13 @@ The operating system's thumbnailer, called from Rust: ImageIO on the Mac and the
 
 Both libraries take a path or bytes, and the path is right: the library reads the file itself and the page never holds it. That is the same trust disk_read extends, under the contract disk.rs states.
 
-Two commands. thumbnail_probe takes one path and says what its first bytes are and what its header claims its size is, without decoding; the page asks it about every file on a card before anything else, so it can route every file and lay out every box before any thumbnail is made. thumbnail_render makes one thumbnail. Both hold the same two walls: bytes that are not a format fuji handles are refused whatever the extension, and a header claiming a raster that would not fit in half this machine's memory is refused before any decoder allocates. That second is the decompression bomb, which needs no bug in anything, and it is a share of the machine's memory rather than a number, so it never limits capable hardware.
+There is one command, thumbnail_render, and it holds two walls before any decoder sees the file. It refuses bytes that are not the format the page expected, whatever the extension, and it refuses a header claiming a raster that would not fit in half this machine's memory before any decoder allocates. That second is the decompression bomb, which needs no bug in anything, and it is a share of the machine's memory rather than a number, so it never limits capable hardware. The walls stand here rather than in the page because this is where the decoder runs unsandboxed, in fuji's own process.
 
 The render returns one buffer, so the bytes cross as an ArrayBuffer rather than a json array of numbers — that serialization was measured at about 150 milliseconds a megabyte, flat and linear in file size, which no disk is. Twelve bytes of header — width, height, and whether the pixels are Display P3 — as little-endian unsigned 32-bit integers, then straight-alpha RGBA, top row first; thumbnail.js unpacks it for ImageData. The longer side is the maximum asked for, or the picture's own when it was smaller, because neither library enlarges.
 
 The Mac body is short because ImageIO does the whole job in one call given three options, and drawing the result into a bitmap context of the wanted color space is where CoreGraphics does the color management. The Windows body is long because WIC is a pipeline of separate objects, each initialised over the last, and because WIC leaves EXIF orientation to the caller. WIC is a COM library, which is how Windows hands an application an object out of a system DLL: a thread calls CoInitializeEx once before it asks for anything, and then every piece of the pipeline arrives through CoCreateInstance. There is no plain function to call instead, so the initialisation is the price of using the library at all, and it is not the heavier embedding layer of the same name that puts a spreadsheet inside a document. The page owns two things: the color space, since only it knows the screen's gamut, and Windows answers sRGB whatever is asked, which the header says; and the fit, since it turns the returned size back into a css size by one rule, longer side to the box, never enlarged.
 */
 
-use serde::Serialize;
 use std::io::Read;
 use std::sync::OnceLock;
 use tauri::ipc::Response;
@@ -22,20 +21,6 @@ pub struct Thumbnail {//what a platform hands back, before it is packed into the
 	pub pixels: Vec<u8>,//straight-alpha rgba, width times four bytes a row, top row first
 }
 
-#[derive(Serialize)]
-pub struct Probe {//what the probe says about one path, in one shape whatever it found
-	pub format:  String,//jpeg png gif bmp webp avif svg heic, from the first bytes; blank when they name nothing fuji knows
-	pub width:   u32,//from the header alone, as the picture will show after its orientation; 0 when nothing short of decoding could say
-	pub height:  u32,
-	pub problem: String,//why this file will not be shown, or blank
-}
-
-//one path; the page asks about a card's files together, and each runs on tauri's thread pool, like the render
-#[tauri::command(async)]
-pub fn thumbnail_probe(path: String) -> Probe {
-	probe(&path)
-}
-
 //the one thumbnail; the async in the attribute has tauri run this sync body on its thread pool, which is what keeps a decode off the thread that runs the window
 #[tauri::command(async)]
 pub fn thumbnail_render(path: String, format: String, maximum: u32, gamut: String) -> Result<Response, String> {
@@ -44,7 +29,7 @@ pub fn thumbnail_render(path: String, format: String, maximum: u32, gamut: Strin
 	let head = head(&path)?;
 	let found = sniff(&head);
 	if found.is_empty() { return Err(format!("thumbnail: the first bytes are not a known image format: {path}")) }//before the comparison below, because blank matches blank: a caller that named no format would otherwise walk an unknown file straight past this wall
-	if found != format { return Err(format!("thumbnail: the bytes say {found} and the caller expected {format}: {path}")) }//the first wall, held here as well as in the probe, so a caller that skipped the probe cannot hand this a mystery
+	if found != format { return Err(format!("thumbnail: the bytes say {found} and the caller expected {format}: {path}")) }//the first wall: the page names the format its extension implies, and a file whose bytes disagree never reaches the decoder
 	let wide = gamut == "display-p3";//anything else is srgb, which is what a canvas is unless asked
 	let t = platform::render(&path, maximum, wide)?;//which holds the second wall, the ceiling, because it has the header in hand before it decodes
 
@@ -56,24 +41,9 @@ pub fn thumbnail_render(path: String, format: String, maximum: u32, gamut: Strin
 	Ok(Response::new(bytes))
 }
 
-fn probe(path: &str) -> Probe {//one file: its format from its bytes, its size from its header, and whether either is a reason to refuse it
-	let mut p = Probe { format: String::new(), width: 0, height: 0, problem: String::new() };
-	let head = match head(path) { Ok(head) => head, Err(problem) => { p.problem = problem; return p } };
-	p.format = sniff(&head).to_string();
-	if p.format.is_empty() { p.problem = "the first bytes are not a known image format".into(); return p }
-
-	let (mut width, mut height) = head_size(&p.format, &head);//png, gif and bmp say their size in the bytes already read
-	if width == 0 && matches!(p.format.as_str(), "jpeg" | "webp" | "avif" | "heic") {//the rest need the library to read further into the header, which the mac and windows can do without decoding and linux cannot
-		if let Ok(size) = platform::size(path) { width = size.0; height = size.1 }
-	}
-	p.width = width; p.height = height;
-	if let Err(problem) = check_ceiling(width, height) { p.problem = problem }
-	p
-}
-
-fn head(path: &str) -> Result<Vec<u8>, String> {//the first bytes of a file, up to 32, which is enough to name every format fuji handles and to size three of them
+fn head(path: &str) -> Result<Vec<u8>, String> {//the first bytes of a file, up to 12, which is as far into a file as any signature below reaches
 	let mut file = std::fs::File::open(path).map_err(|e| format!("thumbnail: {path}: {e}"))?;
-	let mut buffer = vec![0u8; 32];
+	let mut buffer = vec![0u8; 12];
 	let mut got = 0;
 	while got < buffer.len() {
 		let n = file.read(&mut buffer[got..]).map_err(|e| format!("thumbnail: {path}: {e}"))?;
@@ -95,22 +65,7 @@ fn sniff(head: &[u8]) -> &'static str {//the format the first bytes announce, or
 		if brand == b"avif" || brand == b"avis" { return "avif" }
 		if matches!(brand, b"heic" | b"heix" | b"hevc" | b"hevx" | b"mif1" | b"msf1") { return "heic" }
 	}
-	let text = head.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(head);//an svg is text, perhaps behind a byte order mark and whitespace, and all that can be said of it here is that it opens a tag; the img it goes into is its sandbox
-	if text.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'<') { return "svg" }
 	""
-}
-
-fn head_size(format: &str, head: &[u8]) -> (u32, u32) {//the size written in the first bytes, for the three formats that write it there; 0 for the others. Plain rust rather than a library call, so those three are sized on every platform, linux included; only the four probe() hands to the library go unsized there
-	let le16 = |i: usize| u16::from_le_bytes([head[i], head[i + 1]]) as u32;
-	let be32 = |i: usize| u32::from_be_bytes([head[i], head[i + 1], head[i + 2], head[i + 3]]);
-	let le32 = |i: usize| i32::from_le_bytes([head[i], head[i + 1], head[i + 2], head[i + 3]]).unsigned_abs();//a bmp stores a negative height to mean top-down rows
-	match format {
-		"png" if head.len() >= 24 => (be32(16), be32(20)),
-		"gif" if head.len() >= 10 => (le16(6), le16(8)),
-		"bmp" if head.len() >= 26 && le32(14) == 12 => (le16(18), le16(20)),//the 1990 os/2 header, twelve bytes long with 16-bit sides
-		"bmp" if head.len() >= 26 => (le32(18), le32(22)),
-		_ => (0, 0),
-	}
 }
 
 fn check_ceiling(width: u32, height: u32) -> Result<(), String> {//the second wall: a header may claim any size at all, and a decoder believes it before it finds out otherwise
@@ -157,7 +112,6 @@ mod platform {
 		static kCGImageSourceCreateThumbnailWithTransform: CFStringRef;
 		static kCGImagePropertyPixelWidth: CFStringRef;
 		static kCGImagePropertyPixelHeight: CFStringRef;
-		static kCGImagePropertyOrientation: CFStringRef;
 	}
 	extern "C" {
 		fn CFRelease(cf: *const c_void);
@@ -171,7 +125,7 @@ mod platform {
 
 	fn render_or_panic(path: &str, maximum: u32, wide: bool) -> Result<Thumbnail, String> {
 		let source = open(path)?;
-		let (width, height) = properties_size(source);//the header, read before anything decodes
+		let (width, height) = properties_size(source);//the header, read before anything decodes, for the ceiling
 		if let Err(problem) = super::check_ceiling(width, height) { unsafe { CFRelease(source) }; return Err(problem) }
 
 		let options: CFDictionary<CFString, CFType> = CFDictionary::from_CFType_pairs(&[
@@ -194,13 +148,6 @@ mod platform {
 		Ok(Thumbnail { width: width as u32, height: height as u32, wide, pixels })
 	}
 
-	pub fn size(path: &str) -> Result<(u32, u32), String> {//the size the picture will show at, from the header alone
-		let source = open(path)?;
-		let size = properties_size(source);
-		unsafe { CFRelease(source) };
-		Ok(size)
-	}
-
 	fn open(path: &str) -> Result<CGImageSourceRef, String> {//an image source over the file, which reads nothing until asked; Create in the name, so the caller releases it
 		let url = CFURL::from_path(path, false).ok_or_else(|| format!("thumbnail: not a path: {path}"))?;
 		let source = unsafe { CGImageSourceCreateWithURL(url.as_concrete_TypeRef(), std::ptr::null()) };
@@ -208,7 +155,7 @@ mod platform {
 		Ok(source)
 	}
 
-	fn properties_size(source: CGImageSourceRef) -> (u32, u32) {//pixel width and height from the header, swapped when the exif orientation turns the picture on its side; 0 when the header does not say
+	fn properties_size(source: CGImageSourceRef) -> (u32, u32) {//pixel width and height from the header, as stored; 0 when the header does not say
 		let properties = unsafe { CGImageSourceCopyPropertiesAtIndex(source, 0, std::ptr::null()) };
 		if properties.is_null() { return (0, 0) }
 		let properties: CFDictionary<CFString, CFType> = unsafe { CFDictionary::wrap_under_create_rule(properties) };//Copy in the name, so the wrapper's drop releases it
@@ -219,8 +166,7 @@ mod platform {
 		};
 		let width = number(unsafe { kCGImagePropertyPixelWidth }).max(0) as u32;
 		let height = number(unsafe { kCGImagePropertyPixelHeight }).max(0) as u32;
-		let sideways = number(unsafe { kCGImagePropertyOrientation }) >= 5;//5 through 8 are the four that turn width into height
-		if sideways { (height, width) } else { (width, height) }
+		(width, height)
 	}
 
 	pub fn memory() -> u64 {
@@ -254,7 +200,7 @@ mod platform {
 	use windows::Win32::System::Variant::VT_UI2;
 	use super::Thumbnail;
 
-	struct Opened {//one open of one file, and everything both commands need before any pixel is decoded
+	struct Opened {//one open of one file, and everything the render needs before any pixel is decoded
 		_decoder: IWICBitmapDecoder,//nothing reads it: the frame below pulls its pixels through the decoder's stream, so the decoder is held for as long as the frame is
 		factory: IWICImagingFactory,
 		frame: IWICBitmapFrameDecode,
@@ -266,17 +212,8 @@ mod platform {
 		unsafe {
 			start_com();
 			let o = open(path).map_err(|e| format!("thumbnail: {path}: {e}"))?;//one open for the whole thumbnail: the header here, the pixels below
-			let (width, height) = shown(&o);
-			super::check_ceiling(width, height)?;//the second wall, from the header, before anything decodes
+			super::check_ceiling(o.width, o.height)?;//the second wall, from the header, before anything decodes; the stored size, since turning a picture does not change its area
 			render_com(&o, maximum).map_err(|e| format!("thumbnail: {path}: {e}"))
-		}
-	}
-
-	pub fn size(path: &str) -> Result<(u32, u32), String> {//the size the picture will show at, from the header alone
-		unsafe {
-			start_com();
-			let o = open(path).map_err(|e| format!("thumbnail: {path}: {e}"))?;
-			Ok(shown(&o))
 		}
 	}
 
@@ -416,10 +353,6 @@ mod platform {
 
 	pub fn render(_path: &str, _maximum: u32, _wide: bool) -> Result<Thumbnail, String> {
 		Err("thumbnail: the operating system's thumbnailer is not used on this platform".into())//linux makes every thumbnail in the web renderer, so the page routes nothing here and this answers only a caller that got it wrong
-	}
-
-	pub fn size(_path: &str) -> Result<(u32, u32), String> {
-		Err("thumbnail: no library to read a header with on this platform".into())//so a jpeg, webp, avif or heic probes at 0 here and the page lays its box out when the picture arrives; png, gif and bmp are sized by head_size above and reflow nowhere
 	}
 
 	pub fn memory() -> u64 {//MemTotal from the kernel's own listing, in kilobytes there

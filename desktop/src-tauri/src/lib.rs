@@ -3,7 +3,7 @@ The boundary. Everything the page may ask Rust to do is named once in this file,
 
 **The page is the application, and Rust is a library beneath it.** The page decides everything: what a setting is, which files to show and in what order, which types to offer Windows under which keys, when to ask and how often. Rust grows only for what the page cannot do well — speed, reaching the operating system, or holding a security wall — and what it adds is a general command any desktop application could use as it stands: read a file, write a registry value, make a thumbnail of a path. The test for a new one is to describe it without naming a fuji feature. "Write this string value under the current user" passes; "register fuji's image types with Windows" fails, and was split into registry.rs and associate.js. A command that has to know why it is called, or that spells a fuji name in its code, is application logic that has leaked down; even the product's two names come through package_info, brandName as name from tauri.conf.json and brandStem as crate_name from Cargo.toml.
 
-**A command takes one thing.** A list stays in the page, which calls once per item and owns the order, how many are in flight, and when to stop; so thumbnail_probe takes one path and registry_set writes one value. A crossing costs little, and a loop down here is a decision taken away from the page.
+**A command takes one thing.** A list stays in the page, which calls once per item and owns the order, how many are in flight, and when to stop; so thumbnail_render takes one path and registry_set writes one value. A crossing costs little, and a loop down here is a decision taken away from the page.
 
 **A command that waits runs on the thread pool.** Tauri runs a plain #[command] on the thread that runs the window, one at a time in the order they arrive, and a #[command(async)] on its thread pool. So a command that works on the window stays plain — window.rs — because on that thread tauri makes a change at once, where from the pool it only queues the change and the command answers before the window has moved. A command that waits, on the disk, the processor or another program, is async — disk.rs, thumbnail.rs, and panel.rs for the xrandr it runs on linux — so a slow read or a decode never holds up a window event or another command's reply. The rest return at once and are plain. On the pool, as many run together as the page asks for, which keeps how many are in flight the page's decision rather than a side effect of one thread. The pool is tokio's workers, one per core, and a body that blocks holds its worker until it returns; moving the body into spawn_blocking, onto tokio's larger pool meant for exactly that, is the next step if the page's own scheduling ever finds that ceiling in its way.
 
@@ -26,7 +26,7 @@ mod open;//and open.rs: the files the operating system handed over, held for the
 mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
 mod registry;//and registry.rs: the windows registry, read and written for the page
-mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, behind a probe and a render
+mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path at a time
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
 mod window;//and window.rs: making windows, placing them, and how long the process outlives them
 
@@ -51,7 +51,6 @@ pub fn run() {
 				launch::launch_set,
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
-				thumbnail::thumbnail_probe,
 				open::open_files,//and in open.rs
 				paths::paths_executable,//and in paths.rs
 				registry::registry_get,//and in registry.rs

@@ -5,7 +5,7 @@ import parse from 'path-browserify'
 import {cacheNeed, cacheRelease} from '../cache.js'
 import {modelShowing} from '../model.js'
 import {settingsThumbnailBox} from '../settings.js'
-import {thumbnailProbe, thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
+import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logCard} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every card is a row in it
 import {xy, errorImageData, platform} from './library.js'
 import {fileTypesEnabled} from '../fileTypes.js'
@@ -13,7 +13,7 @@ import {fileTypesEnabled} from '../fileTypes.js'
 /*
 The one flow, and the whole of how a path becomes a tile. A card hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw gets the placeholder. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
-First, a probe for every file on the card, all at once: Rust reads each file's first bytes and its header and says what it is and how big, without decoding. A file whose bytes are not what its name claims, or not any format fuji knows, or whose header claims a raster that would not fit in memory, gets the placeholder and nothing is tried. Every other tile is laid out at its final size at once, so the flow does not reflow as it fills.
+Nothing is read ahead of its thumbnail. A tile takes up room when its pixels arrive, so the rows reflow as a card fills, and a file that cannot be shown becomes the placeholder when its render or its decode fails. The checks on a file's bytes and on the size its header claims are the render's own, in thumbnail.rs, where the decoder runs unsandboxed.
 
 Two loops. The native loop keeps a few thumbnails in flight, each a pool thread that never touches the page. The page loop keeps one, each a full decode held in the store and a draw on the main thread. Both stop when the card goes away, and both wait while the sheet is hidden, so a sheet behind the table does no work inside the table's frames.
 
@@ -37,19 +37,19 @@ let flowHeld = []//the paths this flow holds a store reference on, which are the
 let flowBytes = 0//what this card's canvases cost; the imgs are the engine's and small
 let flowRefused = 0
 
-function tileFor(path) {//what the extension says a path will be, before its bytes are read
+function tileFor(path) {//the kind of tile a path gets on this platform, from its extension alone
 	let entry = fileTypesEnabled[parse.extname(path).toLowerCase()]
-	let tile = {path, format: formatOf(entry), kind: 'canvas', route: '', css: null, url: ''}//kind: canvas, img or placeholder. route: native or page for a canvas, blank where nothing on this platform can draw it. css: the size once known; null lays out nothing until then
 	let native = entry?.imageNative.includes(flowPlatform)
 	let web = entry?.imageWeb.includes(flowPlatform)
-	if (web && entry.contactSheet == 'img') tile.kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
-	else if (native) tile.route = 'native'//the operating system's thumbnail, preferred wherever it can make one
-	else if (web) tile.route = 'page'
-	return tile
+	let kind = 'placeholder'//nothing on this platform can draw it
+	if (web && entry.contactSheet == 'img') kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
+	else if (native) kind = 'native'//a canvas the operating system fills, preferred wherever it can
+	else if (web) kind = 'page'//a canvas the page fills
+	return {path, format: formatOf(entry), kind, url: ''}//kind turns to placeholder when a render or a decode fails; url is an img tile's, once the store has it
 }
-function formatOf(entry) {//jpeg from image/jpeg, svg from image/svg+xml: the names the probe answers with, so the two compare. The waiting entries in fileTypes.js carry mimes like image/x-pcx, and the x- is not stripped here, so the day one of those gets a native route this and the sniff have to agree on a name
+function formatOf(entry) {//jpeg from image/jpeg, the name the sniff in thumbnail.rs answers with, so a native tile's render can check the bytes against the extension. The waiting entries in fileTypes.js carry mimes like image/x-pcx, and the x- is not stripped here, so the day one of those goes native this and the sniff have to agree on a name
 	if (!entry) return ''
-	return entry.mime.split('/')[1].replace('+xml', '')
+	return entry.mime.split('/')[1]
 }
 
 onMounted(() => { flowFill().catch(error => logTrouble('SquareFlow: filling a card', error)) })//the top gate for this card: anything that escapes the loops lands here, loudly
@@ -58,27 +58,18 @@ onBeforeUnmount(() => {
 	for (let path of flowHeld) cacheRelease(path, flowHolder)
 })
 
-async function flowFill() {//probe, lay out, then fill by path
+async function flowFill() {//sort the tiles by kind, then fill each
 	let began = performance.now()
 	await flowShowing()
-	let probes = await Promise.all(props.paths.map(path => thumbnailProbe(path)))//every file on the card at once, a call each, since the layout below waits for all of them
-	if (flowClosed) return
-	for (let [i, tile] of flowTiles.value.entries()) flowApply(tile, probes[i])
-
-	let imgs = flowTiles.value.filter(tile => tile.kind == 'img')
-	let native = flowTiles.value.filter(tile => tile.kind == 'canvas' && tile.route == 'native')
-	let page = flowTiles.value.filter(tile => tile.kind == 'canvas' && tile.route == 'page')
+	if (flowClosed) return//a card that went away while the sheet was hidden starts nothing
+	let ofKind = kind => flowTiles.value.filter(tile => tile.kind == kind)
+	let imgs = ofKind('img'), native = ofKind('native'), page = ofKind('page')
+	for (let tile of ofKind('placeholder')) flowRefuse(tile, 'nothing on this platform can draw it')//already a placeholder; this writes its row in the log
 	for (let tile of imgs) flowImg(tile)//set at once; the engine loads them as it likes
 	await Promise.all([flowLoop(native, flowInFlight, flowNative1), flowLoop(page, 1, flowPage1)])
 	if (!flowClosed) logCard({index: props.paths.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
 }
 
-function flowApply(tile, probe) {//what the probe said about one file: a reason to refuse it, or its size, which reserves its box
-	if (probe.problem) { flowRefuse(tile, probe.problem); return }
-	if (probe.format != tile.format) { flowRefuse(tile, `the bytes say ${probe.format} and the name says ${tile.format}`); return }
-	if (tile.kind == 'canvas' && !tile.route) { flowRefuse(tile, 'nothing on this platform can draw it'); return }
-	if (probe.width > 0) tile.css = flowFit(xy(probe.width, probe.height)).css
-}
 function flowRefuse(tile, why) {//the placeholder, and a row saying which file and why; nothing is tried twice
 	tile.kind = 'placeholder'
 	flowRefused++
@@ -112,7 +103,7 @@ async function flowNative1(tile) {//one thumbnail from the operating system, ont
 		let {width, height, gamut, pixels} = thumbnailUnpack(buffer)
 		let canvas = flowCanvases.get(tile.path)
 		if (flowClosed || !canvas) return
-		flowSize(tile, canvas, xy(width, height))
+		flowSize(canvas, xy(width, height))
 		let context = canvas.getContext('2d', {colorSpace: flowGamut})
 		context.putImageData(new ImageData(pixels, width, height, {colorSpace: gamut}), 0, 0)//tagged with what the pixels are, so windows' srgb pixels are right on a wide-gamut canvas; anything past the canvas is clipped
 		flowEdge(context, canvas, width, height)//the sliver flowSnap may have added, if this thumbnail came back a backing pixel short of its box
@@ -136,7 +127,7 @@ async function flowPage1(tile) {//one thumbnail made by the page from the store'
 		let {scale, css} = flowFit(natural)//the size it will show at, and the css pixels per image pixel that got it there
 		let detail = Math.min(window.devicePixelRatio, 1 / scale)//canvas pixels per css pixel: devicePixelRatio, but never more than the file has; from the scale rather than the sizes, because a sliver rounds up to one css pixel
 		let backing = xy(Math.max(1, Math.round(css.x * detail)), Math.max(1, Math.round(css.y * detail)))
-		flowSize(tile, canvas, backing)
+		flowSize(canvas, backing)
 		flowShrink(canvas.getContext('2d', {colorSpace: flowGamut}), entry.img, natural, xy(canvas.width, canvas.height))//the canvas rather than the ask, so this route fills whatever flowSnap sized it to and never leaves an edge
 		logThumbnail({hit: 'page', render: Math.round(performance.now() - began), bytes: canvas.width * canvas.height * 4, natural: `${canvas.width}x${canvas.height}`, path: tile.path})
 	} catch (error) {
@@ -158,10 +149,10 @@ function flowImg(tile) {//a gif or an svg: the store's url, no decode; the css f
 		.catch(error => logTrouble('SquareFlow: loading an img thumbnail', error))//the store answers a bad file with entry.error, so this catches only a store that broke
 }
 
-function flowSize(tile, canvas, backing) {//size a canvas to its pixels; assigning width or height also clears it and resets its context, so it comes before any drawing
-	tile.css = flowFit(backing).css//a returned thumbnail's longer side is the box times devicePixelRatio when it was shrunk and its own when it was not, and this rule fits both
-	canvas.width = flowSnap(tile.css.x, backing.x); canvas.height = flowSnap(tile.css.y, backing.y)
-	canvas.style.width = tile.css.x + 'px'; canvas.style.height = tile.css.y + 'px'//set here as well as by the template, so the element is right in the frame it is painted
+function flowSize(canvas, backing) {//size a canvas to its pixels, which is also what gives its tile room in the flow; assigning width or height also clears it and resets its context, so it comes before any drawing
+	let css = flowFit(backing).css//a returned thumbnail's longer side is the box times devicePixelRatio when it was shrunk and its own when it was not, and this rule fits both
+	canvas.width = flowSnap(css.x, backing.x); canvas.height = flowSnap(css.y, backing.y)
+	canvas.style.width = css.x + 'px'; canvas.style.height = css.y + 'px'//the only place a canvas gets its css size, so the template binds none and never overwrites it
 	flowBytes += canvas.width * canvas.height * 4
 }
 function flowSnap(side, have) {//how many pixels a canvas gets for one axis: the css box in backing pixels, or the pixels in hand where those cannot reach it
@@ -188,7 +179,6 @@ function flowFit(size) {//the css size a picture of size pixels shows at, and th
 	let scale = Math.min(flowBox / size.x, flowBox / size.y, 1)//css pixels per image pixel; the 1 keeps a small picture at its own size rather than blowing it up
 	return {scale, css: xy(Math.max(1, Math.round(size.x * scale)), Math.max(1, Math.round(size.y * scale)))}//whole css pixels, because that is the grid the engine lays a box out on however this rounds; flowSize is where the pixels are then made to match it
 }
-function flowStyle(tile) { return tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {} }//a tile with a known size holds its box before its pixels arrive
 
 /*
 Why this halves rather than drawing once. Fuji's first thumbnails aliased on the Mac — the roof tiles of a 26-megapixel photograph turned to jaggies at 240 css pixels, while Safari showed the same file smooth as an img — and two things caused it. CoreGraphics' high interpolation reads a fixed footprint of source pixels around each output pixel, so at 26 to 1 most of the picture is never read, and pixels that are never read alias. And WebKit hands drawImage a subsampled frame only when it has to decode one: a frame already decoded at full size counts as good enough for any smaller request, and the store's decode() makes exactly that frame, so drawImage was given all 26 megapixels where Safari's img, which never called decode(), was given a quarter of them. Halving until the last draw is within two to one puts every source pixel into the average. Chromium's high quality is already a chain of halvings under a cubic filter, so on Windows this is work the engine would have done anyway.
@@ -215,14 +205,14 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 </script>
 <template>
 
-<!-- every tile names its path in data-path, which is how the sheet knows which one was double-clicked without a handler on each. items-start so a short tile keeps its own height instead of stretching to the tallest in its row; a tile with a known size holds its box from the start -->
+<!-- every tile names its path in data-path, which is how the sheet knows which one was double-clicked without a handler on each. items-start so a short tile keeps its own height instead of stretching to the tallest in its row -->
 <div class="flex flex-wrap items-start" :style="{'--box': flowBox + 'px'}">
 	<template v-for="tile in flowTiles" :key="tile.path">
-		<canvas v-if="tile.kind == 'canvas'"
+		<canvas v-if="tile.kind == 'native' || tile.kind == 'page'"
 			:ref="el => el ? flowCanvases.set(tile.path, el) : flowCanvases.delete(tile.path)"
-			class="myTile" :data-path="tile.path" :style="flowStyle(tile)" width="0" height="0"
+			class="myTile" :data-path="tile.path" width="0" height="0"
 		></canvas>
-		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile myImg" :data-path="tile.path" :src="tile.url" :style="flowStyle(tile)" @error="flowRefuse(tile, 'the engine could not show it')" />
+		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile myImg" :data-path="tile.path" :src="tile.url" @error="flowRefuse(tile, 'the engine could not show it')" />
 		<img v-else-if="tile.kind == 'placeholder'" class="myTile" :data-path="tile.path" :src="errorImageData" :style="{width: flowBox + 'px', height: flowBox + 'px'}" />
 	</template>
 </div>
