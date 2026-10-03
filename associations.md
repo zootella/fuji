@@ -8,7 +8,6 @@ The Windows flows seen passing on 2026-10-01, each read in the registry and in `
 
 ## Open on Windows
 
-- **A pin from Start is unconfirmed.** Launch fuji from a Start pin: one taskbar button means Windows carries the shortcut's AppUserModelID to the window, and two means fuji has to set it on its process at startup.
 - **A type with no saved choice was never exercised.** There the fallback alone decides, so a yes should make fuji the default at once with no trip to Windows Settings. Every type on the Windows box carried a saved choice before fuji arrived, so this needs a fresh Windows profile.
 - **Windows 11 is documented, not measured.** Its Default apps link should open fuji's own page listing every type fuji offers; only Windows 10's behavior, the general page, has been seen.
 - **Linux is left out.** Its packages declare no `MimeType`, so fuji cannot be handed a file there; `desktop-entry.hbs` in `src-tauri` is where that starts, as a static list the way `Info.plist` is one.
