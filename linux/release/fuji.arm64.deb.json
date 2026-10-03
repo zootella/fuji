@@ -2,7 +2,7 @@
 	"file": "fuji.arm64.deb",
 	"version": "0.1.0",
 	"arch": "arm64",
-	"bytes": 5959522,
-	"sha256": "34e9203ea57b6f97429331a7175e847a4a81373efd29f874a687c753ed26a368",
-	"date": "2026-10-02"
+	"bytes": 5960996,
+	"sha256": "52cde7d54846806eabec5955c14be0e3f9d1c0c3d42bc61b380fc7db15d64515",
+	"date": "2026-10-03"
 }
