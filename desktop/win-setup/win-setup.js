@@ -44,7 +44,7 @@ function main() {
 	if (!existsSync(executable)) throw new Error(`${executable} is not built; tauri build makes it`)
 	let registry = uninstallInstructions(brandName)//what uninstall takes out of the registry, from the list in registry.js, which reads brandStem from Cargo.toml itself
 
-	//stage: the executable and every resource, laid out as installed. tauri.conf.json's resources are a map from a path relative to src-tauri to the path it takes beside the executable; a folder copies whole, which keeps the engine's _internal where the freeze expects it
+	//stage: the executable and every resource, laid out as installed. tauri.conf.json's resources are a map from a path relative to src-tauri to the path it takes beside the executable; a folder copies whole, with everything inside it where it was
 	let stage = join(work, 'stage')
 	rmSync(work, {recursive: true, force: true})
 	mkdirSync(stage, {recursive: true})
