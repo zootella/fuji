@@ -1,61 +1,51 @@
 # Thumbnails, still open
 
-What is left to decide, build and measure about the thumbnail pipeline, and nothing else. The pipeline as built is documented on the site, in `site/docs/thumbnails.md` — that page is the record of how a path becomes a tile and what was measured to choose each route, and it replaced the planning document that stood in for it while it was being built. This file is the short list of what that page does not get to claim.
+What is left to decide, build and measure about the thumbnail pipeline. What is built is documented where it lives: the site's thumbnail pipeline page for how one file becomes one tile and what was measured to choose each route, the essays in `SquareFlow.vue`, `governor.js` and `thumbnail.rs` for the code, and the essay above `disk_readdir` in `disk.rs` for where Rust's waiting commands run. This file holds only what none of those can claim yet.
 
-It is deliberately small. A question here is one we decided not to answer yet, not one nobody thought of.
+Boiled down on 2026-10-04, at the end of a pass that set out to evaluate, simplify and correct the pipeline before adding to it. That pass removed the probe that read every file on a card before any render, put every flow's reads and renders behind governors four wide, and moved every waiting Rust command onto the blocking pool so a panic comes back as an error.
 
-## The document that comes next
+## Next, in the order they would likely come
 
-The site page is about getting one thumbnail right: which decoder, at what size, with which pixels, in which colors. It stops on purpose before every question that is about many of them at once, because those have different answers, fuji's are still moving, and the card they are currently built on is scaffolding that may not survive.
+Each says where it came from, since some are the user's and some are a session's suggestions the user has not yet adopted.
 
-That second subject is a page of its own once the work is done: how many thumbnails to keep in flight on each route and in what order; what the sheet should be holding at any moment and what it should let go of; how the store should behave when the sheet and a table want the same file; and whether finished thumbnails belong on disk, which is how a file manager is instant on a folder it has seen before. `cache.md` holds the store's half of it in the meantime.
+**A deadline in the governor.** The answer to a call that never ends: past it, the governor frees the place and fails the caller's promise, while the stuck work finishes or does not on a thread nothing waits for. It would also free the diamond table, whose queue freezes behind one load that never settles. `security.md` has the case and `governor.js` the shape. From this session's conversation, as the answer to the third outcome.
 
-Nothing was lost taking it out of the site page. `governor.js` carries how many calls go through at once and why, and `SquareFlow.vue`'s essay which line each kind of tile waits in, and those are the right homes until the second page exists.
+**Fuzzy Logic.** Each governor timing its calls and widening or narrowing itself from four to fit the resource, so a fast internal drive is driven harder than a conference thumb drive. The user's idea; `governor.js` sketches it.
+
+**Priority in the governor**, letting a tile the user can see go ahead of one they cannot. A session's suggestion, written into `governor.js`'s essay and not yet adopted.
+
+**More cards, pages, and the walk through a whole drive.** One card is all the sheet shows today. `card.md` owns this.
+
+**The look-ahead, and a database of what fuji has seen**, below. The user's idea, and deliberately much later.
+
+**Two corrections found while rewriting `security.md`**, a session's suggestions and not yet adopted: a top gate in the page that writes every escaped rejection to the log, and a limit on a read checked against the listing's size, so a disk image renamed `.jpg` is not read whole. `security.md` lists both under what to build next.
 
 ## Later: the look-ahead, and a database of what fuji has seen
 
-**A separate system, and a much later one.** Today fuji reads a file when a visible card needs its thumbnail, and nothing sooner: one render per tile, the first bytes and the header read by the library that decodes it, and nothing kept once the card goes. That is what fuji wants now — fast to first pixels and light on the disk. What is sketched here would read further ahead than any card and remember what it read, and it is written down so the idea is scoped rather than rebuilt piecemeal inside the flow.
+**A separate system, and a much later one.** Today fuji reads a file when a visible card needs its thumbnail and nothing sooner, and keeps nothing once the card goes: fast to first pixels and light on the disk, which is what fuji wants now.
 
-**What it would do.** Peek at the tips of files well ahead of the view — the first bytes for the format, the header for the size, a flag or two such as whether a WebP is animated — and keep what it learns, by path, in an SQLite database on disk, with enough beside each row to tell when a file has changed since, its size and modification time at the least. Everything that reads it would then ask the database first and the disk second.
+**What it would do.** Peek at the tips of files well ahead of the view — the first bytes for the format, the header for the size, a flag or two such as whether a WebP is animated — and keep what it learns by path in an SQLite database, with each file's size and modification time beside it to tell when it has changed. A card could then hold every tile's box before its pixels arrive; a file with no extension could be named by its bytes, the open case in `security.md`; animated WebP could go to an `<img>`; and a page-route file could be checked against the size ceiling. A thumbnail cache on disk, which is how Finder is instant on a folder it has seen, is a store of the same shape over the same paths, so the two may be one database.
 
-**What would read it.** A card could hold every tile's box before its pixels arrive, so the rows stop reflowing as a card fills. A file saved with no extension could be found and named by its bytes, which is the open case in `security.md`. Animated WebP could be routed to an `<img>` before its tile is chosen. A file the page route cannot size today could be checked against the ceiling. And the thumbnail cache on disk, under decisions not made above, is a store of the same shape over the same paths, so the two may turn out to be one database.
+**The one constraint already known.** It can never stand between a card and its first thumbnail. The probe did exactly that — every file on a card read before any render began — and the sheet paused and then filled all at once; taking it out made thumbnails appear immediately. Whatever reads ahead runs beside the view, and the view uses what it finds when it is there and does without it when it is not.
 
-**The one constraint already known.** The look-ahead can never stand between a card and its first thumbnail. Fuji had a version of this inside the flow: a probe of every file on a card, all answered before any render began. The sheet paused and then filled all at once, and taking it out made thumbnails appear immediately. Whatever reads ahead runs beside the view, or ahead of it, and the view uses what it finds when it is there and does without it when it is not.
-
-**Open, all of it.** Where the database lives and what it is called; what a row holds and how stale is too stale; how far ahead to read and in what order, and how to stay light on a spinning disk or a network share; whether it walks a drive in the background or only follows the user; and what it costs a machine that never needs it.
+**Open, all of it:** where the database lives, what a row holds and how stale is too stale, how far ahead to read and how to stay light on a spinning disk or a share, whether it walks a drive in the background or follows the user, and what it costs a machine that never needs it.
 
 ## Tests to run
 
-**A card's cost from inside the running app.** Every thumbnail and every card is already a row in the log, and the rows have now been read once — on Windows, to settle whether *WIC*'s scaled decode engages, which it does. That measurement is on the site, on the thumbnail pipeline page, along with the wrong experiment that nearly said otherwise.
+**The Windows box**, for the blocking pool's change: COM initialized and uninitialized around each render on threads that come and go, and the Windows bodies of `thumbnail.rs` and `panel.rs`, type-checked on the Mac but never built with Tauri or run. `mac2win.md` has the checks.
 
-What is still unread is the rest: what a card costs to fill, how that is spread across a real folder rather than a handful of authored files, and whether several native thumbnails in flight is helping or crowding. That last one is a tuning question rather than a correctness one, which is why it has waited. The trap, now known, is that a reading taken while a folder fills carries the other thumbnails' contention in it — a per-image cost has to be taken with one image in the folder.
+**A card's cost from inside the running app.** Every thumbnail and every card is a row in the log, and apart from one Windows question the rows have never been read: what a card costs to fill across a real folder, and whether four native thumbnails in flight helps or crowds. It is the data Fuzzy Logic would need. A per-image cost has to be taken with one image in the folder, since a reading taken while a folder fills carries the others' contention.
 
-**The odd-and-even measurement again, after a macOS or Safari update.** The `flowSnap` rule rests on observed WKWebView behaviour — a canvas box rounded to whole CSS pixels — and not on anything a specification guarantees. It needs a Retina Mac, takes about ten minutes, and the answer is a single percentage.
-
-**`flowSnap` on Windows is settled, and is named here only so it is not mistaken for a gap.** It was measured at 125%, 150% and 175%, flooring was tried against rounding and was worse, and rounding stayed, because how far a canvas misses its box matters more than which side it misses on. Some tiles still resample at fractional scaling, and where a tile sits is involved, but that part is not characterized and no model built from one run has survived a fresh set of files — what is certain is that no canvas size can reach it, so it belongs to the sheet's layout. The measurements, the failed alternative and a picture of the defect are on the site, on the thumbnail pipeline page, which is where to go before reopening any of it.
+**The odd-and-even measurement again, after a macOS or Safari update.** `flowSnap` rests on observed WKWebView behavior, a canvas box rounded to whole CSS pixels, not on anything a specification guarantees. It needs a Retina Mac, takes about ten minutes, and the answer is a single percentage.
 
 ## Decisions not made
 
-**Fault tolerance is its own session.** Today every file fuji cannot show gets the placeholder and nothing is tried twice, which is a policy chosen for being simple rather than for being right. That session decides: a file whose extension lies in either direction, an image saved with no image extension and a non-image saved with one; a file the operating system refuses that the page might still show, which is a second attempt fuji never makes; and what a placeholder should say, if anything, about why. The two routes already disagree about the first of those: the native route refuses a file whose bytes are not the format its extension names, and the page route hands it to the engine, which decodes by the bytes and shows it if it can.
+**Fault tolerance is its own session.** Every file fuji cannot show gets the placeholder and nothing is tried twice, a policy chosen for being simple rather than right. That session decides what to do with an extension that lies in either direction, with a file the operating system refuses that the page might still show, and what a placeholder should say. The two routes already disagree on the first: the native route refuses a file whose bytes are not the format its extension names, and the page route hands it to the engine, which decodes by the bytes.
 
-**The size ceiling's shape.** A header can claim a hundred thousand pixels a side so that a PNG decodes to forty gigabytes, and today's ceiling refuses anything whose raster would exceed half the machine's physical memory. A share of the machine rather than a fixed number is deliberate — it never limits capable hardware and never refuses what could have fit — but it has not been tested against the legitimate gigapixel files that exist, and half may be the wrong fraction.
+**The size ceiling.** It refuses a raster over half the machine's physical memory, which has never been tested against the legitimate gigapixel files that exist, and half may be the wrong fraction. It also guards only the native route, where the decoder runs in fuji's own process; the page route hands the engine the whole file inside its sandbox, as a light table does. If the page side wants one, the store is the place, since every page decode passes through it.
 
-**The size ceiling on the page route.** The ceiling stands in `thumbnail.rs`, so it guards the native route, where the decoder runs in fuji's own process. The page route — everything on Linux, and BMP, WebP and AVIF on Windows — hands the engine the whole file with no ceiling, exactly as a light table does with every picture it shows. The engine decodes inside its sandbox, so a bomb there costs a crashed content process rather than fuji's. If a ceiling is wanted on that side, the place for it is the store, which every page decode passes through, the tables' included, and not the sheet alone.
+**HEIC and TIFF**, a decision about what fuji claims to open rather than about the pipeline. ImageIO thumbnails a HEIC in about sixteen milliseconds and Windows without the paid codec cannot show one; TIFF is the mirror case, in WIC at the factory and never in Chromium.
 
-**Animated WebP**, which is a still on the native route today. Sending it to an `<img>` the way a GIF goes means knowing it is animated before its tile is chosen, which is a reading ahead of the render, and so belongs to the look-ahead below.
+**A change of monitor.** Canvases are never remade when a window moves to another screen, so `devicePixelRatio` and the gamut go stale until the sheet rebuilds. Read from the code and never exercised; it needs two screens of different character.
 
-**HEIC, and the extension list generally.** ImageIO thumbnails a HEIC in about sixteen milliseconds; Windows without the paid codec cannot show one at all, so listing the extension means placeholders there. TIFF is the mirror case — WIC has it at the factory and Chromium never has. Neither is in `fileTypes` today, and both are a decision about what fuji claims to open rather than a decision about the pipeline.
-
-**A thumbnail cache on disk.** How Finder is instant on a folder it has seen, and what would make the walk through a drive free on the way back. It is a store with an eviction policy, a location, and an invalidation rule, so it belongs to the document above rather than to this list.
-
-**A change of monitor.** Canvases are never remade when a window moves to a different screen, so both `devicePixelRatio` and the gamut go stale until the sheet rebuilds. Read from the code, never exercised, and it needs two screens of different character to exercise at all.
-
-## Owned somewhere else
-
-Listed so this file does not grow to hold them.
-
-**The path scope in Rust**, which would keep every disk and thumbnail command inside the folders the user has actually shown fuji. It is `security.md`'s first wall and the largest single change to fuji's posture available; the render's signature check and its size ceiling are walls two and three and are built.
-
-**What a card is to the user** — whether it is visible at all, how many fill a page, and where Next sits. `card.md` has the walk through a whole drive that the card exists for, and the open questions are there.
-
-**Everything the engines do with a canvas** — acceleration, compositing layers, subsampling rules, and the sources each claim was read from. `canvas.md` is that file and it is not about thumbnails specifically.
+**Elsewhere, so this file does not grow to hold them:** the path scope in Rust is `security.md`'s first wall; what a card is to the user is `card.md`'s; and what the engines do with a canvas is `canvas.md`'s.

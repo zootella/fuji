@@ -191,7 +191,7 @@ mod platform {
 	use windows::core::{w, Interface, HSTRING};
 	use windows::Win32::Foundation::GENERIC_READ;
 	use windows::Win32::Graphics::Imaging::*;
-	use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+	use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
 	use windows::Win32::System::Com::StructuredStorage::{PropVariantClear, PROPVARIANT};
 	use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 	use windows::Win32::System::Variant::VT_UI2;
@@ -207,15 +207,21 @@ mod platform {
 
 	pub fn render(path: &str, maximum: u32, _wide: bool) -> Result<Thumbnail, String> {//wide is ignored: everything comes back srgb, because wic has no display p3 context without a profile file, and the header says so
 		unsafe {
-			start_com();
+			let _com = start_com();//first, so it drops last: every com object below is released before com is uninitialized, on every path out, the ? ones included
 			let o = open(path).map_err(|e| format!("thumbnail: {path}: {e}"))?;//one open for the whole thumbnail: the header here, the pixels below
 			super::check_ceiling(o.width, o.height)?;//the second wall, from the header, before anything decodes; the stored size, since turning a picture does not change its area
 			render_com(&o, maximum).map_err(|e| format!("thumbnail: {path}: {e}"))
 		}
 	}
 
-	unsafe fn start_com() {//wic is a com library, so every object below arrives through CoCreateInstance, and that answers nothing on a thread that has not said this first. Once per thread and harmless again, and a thread already in the other mode says so and works anyway. The blocking pool retires a thread after ten idle seconds and nothing uninitializes com on the way out, which Microsoft asks for; what that leaves behind per thread is what the windows box should watch for
-		let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+	struct Com;//com initialized on this thread, for as long as this value lives
+	impl Drop for Com {
+		fn drop(&mut self) { unsafe { CoUninitialize() } }//the other half of the initialize below, which windows asks for before a thread exits; the blocking pool retires a thread after ten idle seconds, so a thread left initialized would add up over a session. The cost: the last uninitialize is documented to unload the dlls com loaded, so wic may load again at the start of each burst; renders in flight together keep it loaded for each other
+	}
+
+	unsafe fn start_com() -> Option<Com> {//wic is a com library, so every object below arrives through CoCreateInstance, and that answers nothing on a thread that has not said this first. Initialized and uninitialized around each render rather than once per thread, because the blocking pool's threads come and go
+		let result = CoInitializeEx(None, COINIT_MULTITHREADED);
+		if result.is_ok() { Some(Com) } else { None }//S_OK and S_FALSE, already initialized, each owe one uninitialize; RPC_E_CHANGED_MODE owes none, and com works anyway in the mode the thread already had
 	}
 
 	unsafe fn open(path: &str) -> windows::core::Result<Opened> {//the file, opened once: the header is read now and the pixels wait until something asks for them
