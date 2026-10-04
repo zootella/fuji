@@ -65,7 +65,7 @@ async function flowFill() {//ask for every tile at once, each in the line of the
 	await Promise.all([
 		...imgs.map(tile =>                                       flowImg(tile)),//not governed here: the store's read is, under disk, and governing it again would wait in that line behind itself
 		...native.map(tile => governorRun('rust computation', () => flowNative1(tile))),
-		...page.map(tile =>   governorRun('web computation',  () => flowPage1(tile))),
+		...page.map(tile =>   governorRun('web computation',  () => flowPage1(tile))),//keeps its place through the store's read under disk, so at most four page tiles hold a whole file and its decode at once; governor.js says why this one caller holds two lines
 	])
 	if (!flowClosed) logCard({index: props.paths.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
 }

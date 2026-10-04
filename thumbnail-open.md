@@ -8,7 +8,7 @@ Boiled down on 2026-10-04, at the end of a pass that set out to evaluate, simpli
 
 Each says where it came from, since some are the user's and some are a session's suggestions the user has not yet adopted.
 
-**A deadline in the governor.** The answer to a call that never ends: past it, the governor frees the place and fails the caller's promise, while the stuck work finishes or does not on a thread nothing waits for. It would also free the diamond table, whose queue freezes behind one load that never settles. `security.md` has the case and `governor.js` the shape. From this session's conversation, as the answer to the third outcome.
+**A deadline in the governor.** The answer to a call that never ends: past it, the governor frees the place and fails the caller's promise, while the stuck work finishes or does not on a thread nothing waits for. It would also free the diamond table, whose queue freezes behind one load that never settles. `security.md` has the case and `governor.js` the shape. Raised in conversation with the user during the 2026-10-04 pass, as the answer to the third of the three ways `security.md` says any call can end: never.
 
 **Fuzzy Logic.** Each governor timing its calls and widening or narrowing itself from four to fit the resource, so a fast internal drive is driven harder than a conference thumb drive. The user's idea; `governor.js` sketches it.
 

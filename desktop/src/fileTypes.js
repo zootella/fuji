@@ -250,7 +250,7 @@ export const fileTypes = {
 		mime: 'image/heif',
 		type: 'HEIF Image',
 		title: 'Image',
-		imageNative: ['mac'],//as for .heic; the sniff in thumbnail.rs answers heic for every brand of this container, so on the day this is switched on the flow's format name and the sniff's have to be made to agree
+		imageNative: ['mac'],//as for .heic; the sniff in thumbnail.rs answers heic for a file of this container whose brands name HEVC and avif for one whose brands name AV1, never heif, so on the day this is switched on the flow's format name and the sniff's have to be made to agree
 		imageWeb: ['mac'],
 		contactSheet: 'canvas',
 		about: `The High Efficiency Image Format under its container's own name, which some Android phones and converters write instead of .heic. Inside it is usually the same HEVC still a .heic holds, though the container can also carry AV1 or JPEG, and it opens wherever .heic does, which on a PC means the same two extensions from the Store.`,

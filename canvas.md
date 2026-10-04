@@ -96,7 +96,7 @@ So on the Mac the native side is the capable one — every format WebKit shows a
 
 ## Choosing a path for a file
 
-The thumbnail pipeline document on the site owns this and is the answer: the extension says whether a file is an img or a canvas, the platform's allow list says whether the operating system or the page makes a canvas's pixels, and the render refuses a file that lies about its format or claims a raster that would not fit in memory. The signatures it reads are the same ones Chromium chooses its decoder by, and every format fuji sends it announces itself in its first twelve bytes, which is all the render reads before the library takes over.
+The thumbnail pipeline document on the site owns this and is the answer: the extension says whether a file is an img or a canvas, the platform's allow list says whether the operating system or the page makes a canvas's pixels, and the render refuses a file that lies about its format or claims a raster that would not fit in memory. The signatures it reads are the same ones Chromium chooses its decoder by, and every format fuji sends it announces itself in its first 144 bytes, which is all the render reads before the library takes over: twelve are enough for most, and the rest hold the list of brands a HEIF file opens with, which is how an AVIF is told from a HEIC.
 
 ## Measured, outside the app, 2026-09-08
 

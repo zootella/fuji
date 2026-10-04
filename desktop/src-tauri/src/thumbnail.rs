@@ -44,9 +44,9 @@ pub async fn thumbnail_render(path: String, format: String, maximum: u32, gamut:
 	}).await
 }
 
-fn head(path: &str) -> Result<Vec<u8>, String> {//the first bytes of a file, up to 12, which is as far into a file as any signature below reaches
+fn head(path: &str) -> Result<Vec<u8>, String> {//the first bytes of a file, up to 144, which is as far as chromium reads to choose a decoder and room for every brand a heif file lists
 	let mut file = std::fs::File::open(path).map_err(|e| format!("thumbnail: {path}: {e}"))?;
-	let mut buffer = vec![0u8; 12];
+	let mut buffer = vec![0u8; 144];
 	let mut got = 0;
 	while got < buffer.len() {
 		let n = file.read(&mut buffer[got..]).map_err(|e| format!("thumbnail: {path}: {e}"))?;
@@ -63,11 +63,23 @@ fn sniff(head: &[u8]) -> &'static str {//the format the first bytes announce, or
 	if head.starts_with(b"GIF87a") || head.starts_with(b"GIF89a") { return "gif" }
 	if head.starts_with(b"BM") { return "bmp" }
 	if head.len() >= 12 && head.starts_with(b"RIFF") && &head[8..12] == b"WEBP" { return "webp" }
-	if head.len() >= 12 && &head[4..8] == b"ftyp" {//an iso media box, whose brand says which picture format is inside
-		let brand = &head[8..12];
-		if brand == b"avif" || brand == b"avis" { return "avif" }
-		if matches!(brand, b"heic" | b"heix" | b"hevc" | b"hevx" | b"mif1" | b"msf1") { return "heic" }
-	}
+	if head.len() >= 12 && &head[4..8] == b"ftyp" { return sniff_heif(head) }//an iso media box, whose brands say which picture format is inside
+	""
+}
+
+/*
+How the sniff tells AVIF from HEIC, the one signature here that is a list to read rather than a run of bytes to match. Both are HEIF, the ISO media container that the iPhone's camera and AV1's still pictures share, and a HEIF file opens with an ftyp box: its length, the word ftyp, a major brand, a minor version, and then a list of compatible brands, four bytes each. A brand is a claim the file makes about itself, and two kinds of claim appear in that list. A codec brand says what the pictures inside are compressed with: avif and avis for AV1, heic, heix, hevc and hevx for HEVC. A structural brand says only that the file follows HEIF's layout, mif1 for a still picture, msf1 for a sequence, miaf and others like them, and says nothing about the codec.
+
+The major brand is not the codec either. It is whichever brand the writer chose to put first, and the specifications let a writer put a structural brand there and name the codec only in the list, so an AVIF whose major brand is mif1 and whose list says avif is a correct AVIF. This sniff once read the major brand alone and counted mif1 and msf1 as HEIC, which refused a file like that as a HEIC wearing an .avif extension, and the sheet showed a placeholder for a correct file.
+
+So this reads every brand, the major one and each compatible one, and answers by codec: avif when any brand names AV1, otherwise heic when any names HEVC, otherwise blank, because a file that names only its structure has not said what it is, and a wall does not guess. AV1 is asked first because that is Chromium's rule: it reads a file's first 144 bytes and decodes it as AVIF when avif or avis appears anywhere among its brands, through libavif's avifPeekCompatibleFileType, as read in Chromium's and libavif's sources in October 2026. Fuji reads the same 144 bytes, which hold a major brand and thirty-two compatible ones where real files list four or five, so this wall and Chromium agree on every file whose ftyp box fits in them, and the sniff is still one read.
+*/
+fn sniff_heif(head: &[u8]) -> &'static str {//avif or heic from an ftyp box's brands, or blank when none of them names a codec fuji knows
+	let size = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;//the box's own length, which is where its list of brands ends
+	let compatible = head.get(16..size.min(head.len())).unwrap_or(&[]);//empty when the box is too short to hold a list, or claims a length no ftyp box has
+	let brands: Vec<&[u8]> = std::iter::once(&head[8..12]).chain(compatible.chunks_exact(4)).collect();//the major brand, then each compatible one
+	if brands.iter().any(|brand| matches!(*brand, b"avif" | b"avis")) { return "avif" }
+	if brands.iter().any(|brand| matches!(*brand, b"heic" | b"heix" | b"hevc" | b"hevx")) { return "heic" }
 	""
 }
 
