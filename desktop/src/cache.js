@@ -1,12 +1,13 @@
 import parse from 'path-browserify'
 import {diskRead} from './disk.js'
+import {governorRun} from './governor.js'
 import {fileTypes} from './fileTypes.js'
 import {logLoad} from './log.js'//the log already records what a load cost; this is only reporting it, and a load nothing ever flipped to counts too
 
 /*
 A store, not a strategy. It holds what the views tell it to hold and lets go when they say to let go. It does not decide, schedule, prioritise, or expire, and it knows nothing about folders, order, or who is asking. Every clever decision fuji makes about images lives in the view that is showing them: three earlier stores that decided for themselves each failed, and this one does not decide.
 
-Three shapes came before this one and each failed the same way: intelligence in the middle needs knowledge only the edges have. A shared queue has to be told whose request matters, which is the view's knowledge moved somewhere it does not belong — so there is no queue here, and every load races every other load, exactly as if the view had called the disk itself. A shared eviction policy has to know what the user is looking at — so there is no policy, and nothing is ever freed except on command.
+Three shapes came before this one and each failed the same way: intelligence in the middle needs knowledge only the edges have. A shared queue has to be told whose request matters, which is the view's knowledge moved somewhere it does not belong — so there is no queue of the store's own, and every read waits only in the disk governor's line, which takes calls in the order they came and judges none of them, exactly as if the view had called the disk itself. A shared eviction policy has to know what the user is looking at — so there is no policy, and nothing is ever freed except on command.
 
 What is left is worth one place precisely because it is not clever: a path's bytes, its object url, its decoded pixels, and what each of those cost.
 
@@ -67,7 +68,7 @@ export function cacheFootprint() {//what fuji is holding, in the two units that 
 
 async function cacheRead(entry) {//read the file into a blob and make its url, recording what that cost; every need waits on this, and a need that wants no element waits on nothing else
 	try {
-		let bytes = new Uint8Array(await diskRead(entry.path))
+		let bytes = new Uint8Array(await governorRun('disk', () => diskRead(entry.path)))//in the disk governor's line with every other read the store makes, for every view; the time it waits there is part of what loaded measures
 		entry.loaded = performance.now()
 
 		let type = fileTypes[parse.extname(entry.path).toLowerCase()]//blank for an extension fuji does not know, which the folder listing never offers but a caller with a path of its own could

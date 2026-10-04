@@ -1,9 +1,9 @@
 <script setup>//every thumbnail fits a square and the squares flow like words; the pixels come from the operating system or from the page, decided per file
 
-import {ref, watch, onMounted, onBeforeUnmount} from 'vue'
+import {ref, onMounted, onBeforeUnmount} from 'vue'
 import parse from 'path-browserify'
 import {cacheNeed, cacheRelease} from '../cache.js'
-import {modelShowing} from '../model.js'
+import {governorRun} from '../governor.js'
 import {settingsThumbnailBox} from '../settings.js'
 import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logCard} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every card is a row in it
@@ -15,7 +15,7 @@ The one flow, and the whole of how a path becomes a tile. A card hands this its 
 
 Nothing is read ahead of its thumbnail. A tile takes up room when its pixels arrive, so the rows reflow as a card fills, and a file that cannot be shown becomes the placeholder when its render or its decode fails. The checks on a file's bytes and on the size its header claims are the render's own, in thumbnail.rs, where the decoder runs unsandboxed.
 
-Two loops. The native loop keeps a few thumbnails in flight, each a pool thread that never touches the page. The page loop keeps one, each a full decode held in the store and a draw on the main thread. Both stop when the card goes away, and both wait while the sheet is hidden, so a sheet behind the table does no work inside the table's frames.
+Every tile on a card is asked for at once, and each waits in the line of the resource it taxes, which governor.js lets through four at a time in the order asked, so a card fills from the top. A native tile waits under rust computation, since its decode runs on a Rust pool thread and never touches the page. A page tile waits under web computation, since it is a full decode held in the store and a draw on the main thread. An img tile has no line of its own; it waits only for the store's read, which every view's reads share under disk. A card that goes away leaves its tiles in line, and each returns the moment it is let in, since a call already made cannot be called back. Nothing pauses a card, so a sheet hidden behind the table goes on filling.
 
 Two flows came before this one and are gone, and both of their lessons are in this file. TagFlow handed the engine full-size originals in plain img tags and let it decide everything, which is why every raster tile here is a canvas instead: the engine's thumbnail is smaller than a full decode but it is the engine's to keep or drop, and a canvas is a number of bytes fuji owns and can total. CanvasFlow painted each picture down into a canvas by hand, which is the page route below, and the halving in flowShrink is the part of it that had to be got right. The thumbnail pipeline document on fuji's site is the long version, with the measurements that chose each path.
 */
@@ -24,7 +24,6 @@ const flowHolder = 'SquareFlow'//on every reference this flow takes, so a leak h
 const flowBox = settingsThumbnailBox()//read once: every tile is sized to it, and a change means making them all again
 const flowGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space every canvas is made in, read once like the box. A canvas is sRGB unless asked, and drawing a Display P3 photograph into an sRGB canvas clamps its most saturated colors away for good, so the thumbnail would come out duller than a table shows the same file. Asking the screen what it can show, rather than asking the engine whether it knows the name, is what keeps this from being a feature check: webkitgtk has no display-p3 value and throws when handed one, and is never handed one, because the query is always false there. Stale on a change of monitor, exactly as devicePixelRatio is
 const flowPlatform = platform()//mac, windows or linux, read once, which is how this flow reads each type's imageNative and imageWeb lists in fileTypes.js
-const flowInFlight = 4//native thumbnails at once; a guess for the log to correct
 
 const props = defineProps({
 	paths: {type: Array, required: true},//already in the model's order, and never from two folders
@@ -32,7 +31,7 @@ const props = defineProps({
 
 const flowTiles = ref(props.paths.map(path => tileFor(path)))//one small reactive object per path, built once; a load or a refusal changes one tile
 const flowCanvases = new Map()//path to its canvas element, kept by the refs in the template
-let flowClosed = false//the card is going away, so every loop stops
+let flowClosed = false//the card is going away, so every tile still in line returns as it is let in
 let flowHeld = []//the paths this flow holds a store reference on, which are the img tiles; released on unmount, since an img needs its url as long as it shows
 let flowBytes = 0//what this card's canvases cost; the imgs are the engine's and small
 let flowRefused = 0
@@ -52,21 +51,22 @@ function formatOf(entry) {//jpeg from image/jpeg, the name the sniff in thumbnai
 	return entry.mime.split('/')[1]
 }
 
-onMounted(() => { flowFill().catch(error => logTrouble('SquareFlow: filling a card', error)) })//the top gate for this card: anything that escapes the loops lands here, loudly
+onMounted(() => { flowFill().catch(error => logTrouble('SquareFlow: filling a card', error)) })//the top gate for this card: anything that escapes a tile's work lands here, loudly
 onBeforeUnmount(() => {
 	flowClosed = true
 	for (let path of flowHeld) cacheRelease(path, flowHolder)
 })
 
-async function flowFill() {//sort the tiles by kind, then fill each
+async function flowFill() {//ask for every tile at once, each in the line of the resource it taxes, and log the card when all of them are done
 	let began = performance.now()
-	await flowShowing()
-	if (flowClosed) return//a card that went away while the sheet was hidden starts nothing
 	let ofKind = kind => flowTiles.value.filter(tile => tile.kind == kind)
 	let imgs = ofKind('img'), native = ofKind('native'), page = ofKind('page')
 	for (let tile of ofKind('placeholder')) flowRefuse(tile, 'nothing on this platform can draw it')//already a placeholder; this writes its row in the log
-	for (let tile of imgs) flowImg(tile)//set at once; the engine loads them as it likes
-	await Promise.all([flowLoop(native, flowInFlight, flowNative1), flowLoop(page, 1, flowPage1)])
+	await Promise.all([
+		...imgs.map(tile =>                                       flowImg(tile)),//not governed here: the store's read is, under disk, and governing it again would wait in that line behind itself
+		...native.map(tile => governorRun('rust computation', () => flowNative1(tile))),
+		...page.map(tile =>   governorRun('web computation',  () => flowPage1(tile))),
+	])
 	if (!flowClosed) logCard({index: props.paths.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
 }
 
@@ -76,33 +76,14 @@ function flowRefuse(tile, why) {//the placeholder, and a row saying which file a
 	logThumbnail({hit: 'refused', path: tile.path, note: why})
 }
 
-function flowShowing() {//resolved once the sheet is on screen, at once if it already is
-	if (modelShowing.value == 'Sheet') return Promise.resolve()
-	return new Promise(resolve => {
-		let stop = watch(modelShowing, showing => { if (showing == 'Sheet') { stop(); resolve() } })
-	})
-}
-
-async function flowLoop(tiles, width, one) {//width workers over one list, each taking the next tile
-	let next = 0
-	async function worker() {
-		while (next < tiles.length && !flowClosed) {
-			let tile = tiles[next++]
-			await flowShowing()//a sheet hidden mid-fill pauses here and resumes when shown
-			if (flowClosed) return
-			await one(tile)
-		}
-	}
-	await Promise.all(Array.from({length: Math.min(width, tiles.length)}, worker))
-}
-
 async function flowNative1(tile) {//one thumbnail from the operating system, onto its canvas
+	if (flowClosed) return//a card that went away while this tile waited in line asks Rust for nothing
 	let began = performance.now()
 	try {
 		let buffer = await thumbnailRender(tile.path, tile.format, Math.round(flowBox * window.devicePixelRatio), flowGamut)//the longer side in backing pixels; never enlarged, so a small picture comes back at its own size
 		let {width, height, gamut, pixels} = thumbnailUnpack(buffer)
 		let canvas = flowCanvases.get(tile.path)
-		if (flowClosed || !canvas) return
+		if (flowClosed || !canvas) return//and one that went away while Rust worked throws the thumbnail away
 		flowSize(canvas, xy(width, height))
 		let context = canvas.getContext('2d', {colorSpace: flowGamut})
 		context.putImageData(new ImageData(pixels, width, height, {colorSpace: gamut}), 0, 0)//tagged with what the pixels are, so windows' srgb pixels are right on a wide-gamut canvas; anything past the canvas is clipped
@@ -114,6 +95,7 @@ async function flowNative1(tile) {//one thumbnail from the operating system, ont
 }
 
 async function flowPage1(tile) {//one thumbnail made by the page from the store's decoded element, halved down; the essay above flowShrink says why halving rather than one draw
+	if (flowClosed) return//before the store is asked, so a card that went away takes no reference it would have to give back
 	let began = performance.now()
 	let promise = cacheNeed(tile.path, flowHolder)//the reference is taken before any await, so the release below is owed from this line on
 	try {
@@ -137,10 +119,10 @@ async function flowPage1(tile) {//one thumbnail made by the page from the store'
 	}
 }
 
-function flowImg(tile) {//a gif or an svg: the store's url, no decode; the css fits it to the square
+function flowImg(tile) {//a gif or an svg: the store's url, no decode; the css fits it to the square. Resolves once the url is set or refused
 	let began = performance.now()
 	flowHeld.push(tile.path)
-	cacheNeed(tile.path, flowHolder, {decode: false})
+	return cacheNeed(tile.path, flowHolder, {decode: false})
 		.then(entry => {
 			if (entry.error) { flowRefuse(tile, String(entry.error)); return }
 			tile.url = entry.url

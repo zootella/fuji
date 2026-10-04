@@ -154,7 +154,7 @@ For everything else — WebP, AVIF and BMP on Windows, everything on Linux — t
 
 On macOS nothing takes this route at all: every raster extension Fuji opens is on that platform's native list. Emptying that list is the only way to reach it on a Mac, and that is how we test it.
 
-One image at a time, because each one is a full decode held in memory and a draw on the main thread.
+Four images at a time, the same as the native route. Each one is a full decode held in memory and a draw on the main thread, so four large photographs at once is a few hundred megabytes for a moment, which a present-day desktop has to spare.
 
 ### Why the page halves instead of drawing once
 
@@ -218,7 +218,7 @@ Thumbnails on the contact sheet are made several at a time, so a reading taken w
 
 ### Where this document stops
 
-The costs above are per picture, and they are what this document is about. How many thumbnails should be in flight at once, in what order, what a contact sheet ought to be holding while the user scrolls, and whether finished thumbnails belong on disk are different questions with different answers, and Fuji's are still moving. The one thing that follows directly from the numbers above: the native route can run several at a time, because each is a pool thread that never touches the page, and the page route cannot, because each is a full decode and a draw on the one thread that also has to keep the window responsive.
+The costs above are per picture, and they are what this document is about. How many thumbnails should be in flight at once, in what order, what a contact sheet ought to be holding while the user scrolls, and whether finished thumbnails belong on disk are different questions with different answers, and Fuji's are still moving. The one thing that follows directly from the numbers above: the native route can run several at a time at no cost to the window, because each is a pool thread that never touches the page, while every page-route thumbnail is a full decode held in memory and a draw on the one thread that also has to keep the window responsive. Fuji lets four of each through at a time today.
 
 ## Fidelity
 

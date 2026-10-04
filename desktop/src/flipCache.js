@@ -8,7 +8,7 @@ It replaces the triad. Three img elements held three decoded images, which is wh
 
 What the triad was also doing, and this file keeps, is showing an element that already has its pixels. A flip is a display swap rather than a source assignment, which is what keeps it from flickering, and it is why the table shows the store's own element instead of pointing one of its own at the same picture. That would be worth doing even against a perfect store.
 
-Loads race. There is no queue and no priority here, on purpose — the store has none either, and a table asking for eleven images is not the case that needs scheduling. A sheet asking for five hundred is, and that is the sheet's problem to solve when it exists.
+Loads race. There is no queue and no priority here, on purpose: a table asking for eleven images is not the case that needs scheduling. The store reads each one through the disk governor, a few at a time in the order asked, and the table's reads share that line with the sheet's.
 
 Every reference this file takes is labelled, so a leak has a name. The store keeps holder to count on every entry, so if these images are ever held after the table has stopped wanting them, what is holding them says DiamondTable rather than reporting an anonymous pile of memory.
 */
@@ -22,7 +22,7 @@ export function flipCacheWindow(list, index) {//the user is here: hold everythin
 	for (let i = index - settings.flip.back; i <= index + settings.flip.forward; i++) {//read every time, so a number changed in fuji.toml means what it says
 		if (i < 0 || i >= list.length) continue//the ends of a folder are simply a shorter window
 		let path = list[i]
-		want.set(path, flipCacheHeld.get(path) || cacheNeed(path, flipCacheHolder))//already held, or asked for now; the loads race each other and the operating system sorts them out
+		want.set(path, flipCacheHeld.get(path) || cacheNeed(path, flipCacheHolder))//already held, or asked for now; the loads race each other in the disk governor's line
 	}
 	for (let path of flipCacheHeld.keys()) if (!want.has(path)) cacheRelease(path, flipCacheHolder)//out of reach, so the store may let it go if nobody else wants it
 	flipCacheHeld = want

@@ -99,7 +99,7 @@ On the Mac the decoder is the same library either way — WebKit decodes through
 **Where a call that never ends does its damage, read from the code:**
 
 - **The diamond table stops.** Every flip and every drop goes through one queue, one at a time, which is right — `DiamondTable.vue` says why a drop must never land inside a flip. But the queue moves only when the work at its head settles. A load that never settles stops every flip and every drop after it, and the table is frozen until fuji is restarted. The queue already survives a failure; it does not survive a silence.
-- **The contact sheet's page route stops.** The page loop keeps one thumbnail in flight, so one read or decode that never settles leaves every page tile behind it empty. The native loop keeps four, so it takes four.
+- **A governor's line stops.** Every governor in `governor.js` lets four calls through at a time, so four calls that never settle hold all four places, and everything behind them in that line waits for good. The store reads under one name, `disk`, for every view, so four reads stuck on a dead share stop the contact sheet and the table's own reads together.
 - **Rust's pool fills up.** An async command runs on Tauri's pool, one worker per core, and a body blocked in `std::fs` holds its worker until the read returns. A handful of reads stuck on a dead share can hold every worker, and then every command waits, including ones that have nothing to do with that disk. `lib.rs` names the next step: `spawn_blocking`, onto Tokio's larger pool meant for blocking work.
 
 **Where forever comes from, for fuji.** A network share that dropped mid-read. A disk spinning up after sleeping, which is seconds, and is not forever but feels like it. A cloud placeholder file, which reads by downloading. A failing CD or floppy, where the drive retries a bad sector for minutes. And a decoder stuck in a loop on a malformed file, which is the place where the third outcome meets malice: a file that does not crash a decoder but keeps it busy forever is a denial of service, and needs no bug that leaks anything.
@@ -117,6 +117,6 @@ Candidates rather than decisions, gathered here so the next pass can take them t
   - Names that survive the round trip: paths carried as the operating system's bytes rather than as text, and forwardizing only on Windows.
 - **Malice.** The walls above, starting with the path scope.
 - **Forever.**
-  - A deadline on each kind of call in the page, after which the view treats the call as failed and moves on: a refused tile, a placeholder in the table, and the queue free for the next flip.
+  - A deadline in the governor, after which it frees the place and fails the caller's promise, so the view treats the call as failed and moves on: a refused tile, a placeholder in the table, the line free for the next call. The table's own queue needs the same, since a flip waits on a read.
   - `spawn_blocking` for every command that waits on a disk or a decoder, so stuck calls cannot starve the rest.
   - A way to reproduce it on demand — a folder on a share that can be pulled out from under fuji, or a file system that answers slowly on purpose — because forever cannot be tested on the disks fuji is developed on.

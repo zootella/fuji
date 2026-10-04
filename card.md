@@ -73,7 +73,7 @@ At Medium, five hundred thumbnails cost about what three full-size 26-megapixel 
 
 **Every card the folder needs is rendered.** The count of cards, the page, and Next are the walk above, and none of it is built.
 
-**A card fills as its pictures arrive.** `SquareFlow` reads nothing ahead: a tile takes its room when its pixels land, so the first thumbnails show at once and the rows settle as the rest fill in. Holding every box from the start would need every picture's size before any thumbnail is made, which is the look-ahead `thumbnail-open.md` scopes as a later system. A hidden sheet fills nothing, so a card waiting behind the table does no work in the table's frames.
+**A card fills as its pictures arrive.** `SquareFlow` reads nothing ahead: a tile takes its room when its pixels land, so the first thumbnails show at once and the rows settle as the rest fill in. Holding every box from the start would need every picture's size before any thumbnail is made, which is the look-ahead `thumbnail-open.md` scopes as a later system. A card goes on filling while the sheet is hidden behind the table, and its reads share the disk governor's line with the table's own.
 
 ## Open
 

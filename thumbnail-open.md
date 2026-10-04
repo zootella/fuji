@@ -10,7 +10,7 @@ The site page is about getting one thumbnail right: which decoder, at what size,
 
 That second subject is a page of its own once the work is done: how many thumbnails to keep in flight on each route and in what order; what the sheet should be holding at any moment and what it should let go of; how the store should behave when the sheet and a table want the same file; and whether finished thumbnails belong on disk, which is how a file manager is instant on a folder it has seen before. `cache.md` holds the store's half of it in the meantime.
 
-Nothing was lost taking it out of the site page. `SquareFlow.vue`'s essay carries the two loops and their widths, and that is the right home for them until the second page exists.
+Nothing was lost taking it out of the site page. `governor.js` carries how many calls go through at once and why, and `SquareFlow.vue`'s essay which line each kind of tile waits in, and those are the right homes until the second page exists.
 
 ## Later: the look-ahead, and a database of what fuji has seen
 

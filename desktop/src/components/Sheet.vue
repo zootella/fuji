@@ -10,7 +10,7 @@ import Card from './Card.vue'
 const sheetStarted = ref(false)//the shell has shown this view at least once, which is what the guard below turns on
 const sheetImages = ref(0)//how many pictures the card holds, read from settings each time the sheet comes on screen: the settings panel is where it changes, and the sheet is never showing while it does, so reading on arrival is all the watching it needs
 
-//that guard covers only a sheet that has never been shown. After that, a folder opened on the table rebuilds these cards behind it. The flow waits on modelShowing before it reads, decodes or draws anything, so a hidden sheet does none of that inside the table's frames
+//that guard covers only a sheet that has never been shown. After that, a folder opened on the table rebuilds these cards behind it, and they fill there, hidden, as they would on screen
 const sheetCards = computed(() => {
 	if (!sheetStarted.value) return []//v-show hides without unmounting, so without this an unlooked-at sheet would still render and quietly load a whole folder on the table's drop
 	if (!modelList.value.length) return []

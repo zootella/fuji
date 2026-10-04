@@ -6,7 +6,7 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {open as openDialog} from '@tauri-apps/plugin-dialog'//the picker behind File, Open; the plugin is registered in lib.rs and granted in capabilities/default.json
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
-import {modelStart, modelShowing, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; which view is showing lives in the model so a flow can wait on it; the path and the folder are here for the title bar, which is the shell's because the window is
+import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
@@ -59,7 +59,7 @@ const tables = {//everything the shell can show in place of a table; view.table 
 const sheetRef    = ref(null)
 const settingsRef = ref(null)
 const tableRef    = ref(null)
-const showing     = modelShowing//Sheet, Settings or Table: which kind of view the user is looking at; the model's ref, written only here
+const showing     = ref('Table')//Sheet, Settings or Table: which kind of view the user is looking at
 const whichTable  = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
 const helpShowing = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
 
