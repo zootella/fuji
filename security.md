@@ -37,13 +37,12 @@ Fuji's happy path is the one that has been built and measured: the listing, the 
 **Most of fuji's calls down already turn failure into a value, and the views already carry on past one.**
 
 - **Rust answers with a value.** Every command returns a `Result`, and an error crosses to the page as a rejected promise carrying a sentence. `disk_readdir` skips an entry it cannot read or stat rather than failing the folder over it.
-- **Two Mac bodies catch a panic.** `thumbnail.rs` and `panel.rs` call crates that assert rather than return when CoreGraphics or CoreFoundation will not cooperate, and both wrap that work in `catch_unwind`, so a panic there comes back as an error.
+- **A panic comes back as an error.** Every command that waits runs its body through `run_blocking` in `lib.rs`, on Tokio's blocking pool, which reports a panic when it is awaited, and `run_blocking` hands it to the page as an ordinary error. Without it a panic would unwind past Tauri's reply and leave the page waiting forever, which is read from Tauri 2.11.5's source rather than seen; the essay above `disk_readdir` in `disk.rs` has the account. The commands that answer at once, on the thread that runs the window, are not covered, and none of them calls anything that panics by design.
 - **The store remembers a failure.** `cache.js` records a failed read or decode on the entry, so one broken file is not read again on every pass, and every caller is answered with the entry and its error rather than with a throw.
 - **The views refuse a file and move on.** The contact sheet shows a placeholder and logs which file and why. The diamond table's queue catches a failed flip or drop, logs it, and goes on with the next one. The shell routes a drop and an open through gates that log what escaped.
 
-**Three gaps, all read from the code.**
+**Two gaps, both read from the code.**
 
-- **A panic outside `catch_unwind` may become a call that never ends.** The Windows thumbnail body, the disk commands and the rest have no such wrapper. Tauri runs an async command as a task on its pool, and a panic ends that task; the belief is that the page's promise is then never answered, which would turn the second layer of failure into the third outcome. That is assumed from how Tauri is built and has not been watched happening. A panic in any of those bodies should be rare, since they call `std::fs` and WIC through `Result`s, but the place to settle it is one command that panics on purpose.
 - **A rejection that escapes every gate goes nowhere anyone looks.** The page has no `unhandledrejection` or `error` listener on the window, so a promise rejected outside the gates above lands in the web inspector's console, which neither the user nor a session ever reads. One listener writing to the log is the page's top gate, and fuji does not have it yet.
 - **A read is as large as the file.** `disk_read` reads a whole file into memory, and the page holds it more than once on the way to a blob. The size ceiling guards a decode by the raster its header claims; nothing guards a read by the size of the file. A twelve-gigabyte disk image renamed `.jpg` would be read whole the moment a table or the page route asked for it. The listing already knows every file's size, so a limit costs nothing to check.
 
@@ -94,13 +93,13 @@ On the Mac the decoder is the same library either way — WebKit decodes through
 
 ## Forever
 
-**No call in fuji has a timeout.** Not one invoke, read, or decode is ever abandoned for taking too long: each waits until it is answered. On the local disks fuji has been developed on, everything is answered in milliseconds, which is exactly why this has never shown.
+**Almost no call in fuji has a timeout.** Not one invoke, read, or decode is ever abandoned for taking too long: each waits until it is answered. The one exception is `launch_set`, which waits ten seconds for the Mac's answer and then says it heard none. On the local disks fuji has been developed on, everything is answered in milliseconds, which is exactly why this has never shown.
 
 **Where a call that never ends does its damage, read from the code:**
 
 - **The diamond table stops.** Every flip and every drop goes through one queue, one at a time, which is right — `DiamondTable.vue` says why a drop must never land inside a flip. But the queue moves only when the work at its head settles. A load that never settles stops every flip and every drop after it, and the table is frozen until fuji is restarted. The queue already survives a failure; it does not survive a silence.
 - **A governor's line stops.** Every governor in `governor.js` lets four calls through at a time, so four calls that never settle hold all four places, and everything behind them in that line waits for good. The store reads under one name, `disk`, for every view, so four reads stuck on a dead share stop the contact sheet and the table's own reads together.
-- **Rust's pool fills up.** An async command runs on Tauri's pool, one worker per core, and a body blocked in `std::fs` holds its worker until the read returns. A handful of reads stuck on a dead share can hold every worker, and then every command waits, including ones that have nothing to do with that disk. `lib.rs` names the next step: `spawn_blocking`, onto Tokio's larger pool meant for blocking work.
+- **Threads pile up, but only by the hundreds.** A command that waits runs its body on Tokio's blocking pool, a thread for each, so a read stuck on a dead share holds one thread that nothing else needs. The pool stops at 512 threads, and that many stuck reads would bring every waiting command to a halt; the governors' widths keep fuji far below it, so this is containment rather than a cure.
 
 **Where forever comes from, for fuji.** A network share that dropped mid-read. A disk spinning up after sleeping, which is seconds, and is not forever but feels like it. A cloud placeholder file, which reads by downloading. A failing CD or floppy, where the drive retries a bad sector for minutes. And a decoder stuck in a loop on a malformed file, which is the place where the third outcome meets malice: a file that does not crash a decoder but keeps it busy forever is a denial of service, and needs no bug that leaks anything.
 
@@ -112,11 +111,9 @@ Candidates rather than decisions, gathered here so the next pass can take them t
 
 - **Failure.**
   - A top gate for the page, writing every escaped rejection and error to the log.
-  - Every command turning a panic into an error, so a panic can never become a silence; first, one command that panics on purpose, to settle what Tauri does today.
   - A size limit on a read, checked against the listing's size before `disk_read` is asked.
   - Names that survive the round trip: paths carried as the operating system's bytes rather than as text, and forwardizing only on Windows.
 - **Malice.** The walls above, starting with the path scope.
 - **Forever.**
   - A deadline in the governor, after which it frees the place and fails the caller's promise, so the view treats the call as failed and moves on: a refused tile, a placeholder in the table, the line free for the next call. The table's own queue needs the same, since a flip waits on a read.
-  - `spawn_blocking` for every command that waits on a disk or a decoder, so stuck calls cannot starve the rest.
   - A way to reproduce it on demand — a folder on a share that can be pulled out from under fuji, or a file system that answers slowly on purpose — because forever cannot be tested on the disks fuji is developed on.

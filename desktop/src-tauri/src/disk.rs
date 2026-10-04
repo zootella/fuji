@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::fs;
 use std::time::UNIX_EPOCH;
 use tauri::command;
+use crate::run_blocking;
 
 /*
 The design contract of this module: these commands hand the interface the full, standard power a desktop application has over the disk — the same power a native Mac or Windows app wields through its file APIs. They follow POSIX semantics faithfully, sharp edges included: disk_copy overwrites an existing destination, just like cp and std::fs::copy do, and disk_write truncates one. Code that calls these commands must be careful, exactly as native application code must.
@@ -35,49 +36,65 @@ pub struct FileStat {
 	pub ctime:      u128,//creation time, in milliseconds since the unix epoch; 0 when the filesystem has no answer, which is common on linux
 }
 
+/*
+Every command here is an async fn whose body goes to run_blocking in lib.rs, and so is every other command that waits — thumbnail.rs, launch.rs and panel.rs. The body is ordinary blocking code, unchanged; the wrapper decides which threads it runs on.
+
+Until October 2026 these were plain functions marked #[command(async)]. Tauri wraps such a body in an async task and spawns it on tokio's worker pool, one thread per core, but the body never yields: std::fs, ImageIO, WIC and Launch Services each hold their thread until they answer. So every call held a worker for its whole length, the time it spent only waiting on the disk included. That was two concerns. The first was the count: eight workers on the Mac mini and four on a Raspberry Pi, against governors in the page that let up to twelve calls through, so on a small machine the core count rather than the page decided how many ran, and a few reads stuck on a dead share would have held every worker and stalled every async command, ones that had nothing to do with that disk among them. The second was a panic. Tauri replies to the page after the body returns, and a panic unwinds past the reply, so the page's promise never settles — read in tauri 2.11.5's ipc/mod.rs and tauri-macros' wrapper.rs, not seen happening. Under a governor that call holds its place for good, and four of them freeze a line. Two Mac bodies caught their own panics; nothing else did.
+
+run_blocking hands the body to spawn_blocking, which runs it on tokio's blocking pool instead: a thread for each body that waits, up to 512, each retired after ten idle seconds. Awaiting it reports a panic as an error, and run_blocking turns that into the same kind of string every command already answers with. So how many calls run together is the governors' decision alone; a stuck call costs one thread that nothing else is waiting for; and every panic in every command comes back to the page as an error, from one place, which is why the hand-written catch_unwinds are gone.
+
+What it does not do, and what it costs. It is not faster on the machines fuji runs on today: on the Mac mini the governors never reached the core count. It cancels nothing: a read stuck on a dead share still sits in the kernel, now on a thread of its own, and five hundred and twelve of those would fill the blocking pool and bring the old problem back at a larger number — containment rather than a cure, and the deadline security.md proposes is still the answer to a call that never ends. Threads now come and go, so a burst after an idle spell pays to start some, and on Windows each new thread initializes COM for WIC and is retired without uninitializing it, which thumbnail.rs names for the Windows box to watch. A panic arrives coarse, as the fact that a command panicked and its message, without where. And each waiting command reads a level deeper, its body inside a closure that owns everything it uses, so a body can never borrow from its call; every argument here is already an owned String, so nothing had to change for that.
+
+Truly asynchronous file reads were the other road, and they are not there to take. tokio::fs runs these same blocking calls on this same blocking pool. The kernels' genuinely asynchronous interfaces, io_uring on linux and overlapped I/O on windows, would be a different program, and ImageIO, WIC and Launch Services have no asynchronous form at all.
+*/
+
 /// POSIX-like `readdir`, shallow only
-#[command(async)]//every command here waits on the disk, so every one runs on tauri's thread pool rather than the thread that runs the window, where a slow folder or a large file would hold up every window event and every other reply until it finished
-pub fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
-	let mut results = Vec::new();
-	for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
-		let entry = match entry { Ok(entry) => entry, Err(_) => continue };//skip an entry rather than fail the whole folder over it
-		let meta  = match fs::symlink_metadata(entry.path()) { Ok(meta) => meta, Err(_) => continue };//same for one we can't stat, like a locked file
-		let ft    = meta.file_type();
-		results.push(DirEntry {
-			name:       entry.file_name().to_string_lossy().into_owned(),
-			is_file:    ft.is_file(),
-			is_dir:     ft.is_dir(),
-			is_symlink: ft.is_symlink(),
-			size:       meta.len(),
-		});
-	}
-	Ok(results)
+#[command]//every command here waits on the disk, so each is async and runs its body through run_blocking rather than on the thread that runs the window, where a slow folder or a large file would hold up every window event and every other reply until it finished
+pub async fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
+	run_blocking(move || {
+		let mut results = Vec::new();
+		for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
+			let entry = match entry { Ok(entry) => entry, Err(_) => continue };//skip an entry rather than fail the whole folder over it
+			let meta  = match fs::symlink_metadata(entry.path()) { Ok(meta) => meta, Err(_) => continue };//same for one we can't stat, like a locked file
+			let ft    = meta.file_type();
+			results.push(DirEntry {
+				name:       entry.file_name().to_string_lossy().into_owned(),
+				is_file:    ft.is_file(),
+				is_dir:     ft.is_dir(),
+				is_symlink: ft.is_symlink(),
+				size:       meta.len(),
+			});
+		}
+		Ok(results)
+	}).await
 }
 
 /// POSIX-like `stat(2)` metadata
 //no caller in the page yet: a date sort needs one of these per file, which is the shape the listing will have to grow to carry
-#[command(async)]
-pub fn disk_stat(path: String) -> Result<FileStat, String> {
-	let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
-	let ft    = meta.file_type();
-	Ok(FileStat {
-		is_file:    ft.is_file(),
-		is_dir:     ft.is_dir(),
-		is_symlink: ft.is_symlink(),
-		size:       meta.len(),
-		atime:      millis(meta.accessed()),
-		mtime:      millis(meta.modified()),
-		ctime:      millis(meta.created()),
-	})
+#[command]
+pub async fn disk_stat(path: String) -> Result<FileStat, String> {
+	run_blocking(move || {
+		let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+		let ft    = meta.file_type();
+		Ok(FileStat {
+			is_file:    ft.is_file(),
+			is_dir:     ft.is_dir(),
+			is_symlink: ft.is_symlink(),
+			size:       meta.len(),
+			atime:      millis(meta.accessed()),
+			mtime:      millis(meta.modified()),
+			ctime:      millis(meta.created()),
+		})
+	}).await
 }
 fn millis(time: std::io::Result<std::time::SystemTime>) -> u128 {//milliseconds since the unix epoch, or 0 when the filesystem cannot say
 	time.ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis()).unwrap_or(0)
 }
 
 /// POSIX-like `open` + `read` + `close`
-#[command(async)]
-pub fn disk_read(path: String) -> Result<tauri::ipc::Response, String> {
-	std::fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())//Response carries the bytes raw; the essay below has the cost
+#[command]
+pub async fn disk_read(path: String) -> Result<tauri::ipc::Response, String> {
+	run_blocking(move || std::fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())).await//Response carries the bytes raw; the essay below has the cost
 }
 /*
 Returning Response rather than Vec<u8> is the difference between a copy and a translation. A Vec<u8> is serialized as a JSON array — one decimal number per byte, written on the Rust side and parsed on the JS side — so a 2.5 MB photograph crosses as roughly two and a half million numbers. Fuji measured that at about 150ms per megabyte on an M2, linear in file size, and it was landing on the main thread in the middle of flips. Response hands the same bytes over as an ArrayBuffer instead. The JS side already wrapped the result in `new Uint8Array(...)`, which accepts either, so nothing above had to change.
@@ -91,9 +108,9 @@ so this will be fine for images, but for big files, you'll have to use plugin-fs
 
 /// "cp" (shallow, files only)
 //also without a caller yet, and correct to be ready: copying is what a backup feature is made of, and the essay below is the research behind doing it well
-#[command(async)]
-pub fn disk_copy(source: String, destination: String) -> Result<(), String> {
-	fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string())
+#[command]
+pub async fn disk_copy(source: String, destination: String) -> Result<(), String> {
+	run_blocking(move || fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string())).await
 }
 /*
 Bytes in a Tauri application live in three places: the kernel's page cache, the Rust process, and the webview's JS heap. Reading a file drags them through all three — disk, page cache, Rust buffer, the transfer, JS heap — and every one of those is a copy. That is the cost disk_read above pays, and the Response change was about removing the worst step from it rather than the steps themselves.
@@ -106,7 +123,7 @@ There is a third shape, if fuji ever needs a progress bar on a large copy: keep 
 */
 
 /// POSIX `open` with `O_TRUNC|O_CREAT` + `write` + `close`
-#[command(async)]
-pub fn disk_write(path: String, data: Vec<u8>) -> Result<(), String> {
-	fs::write(&path, data).map_err(|e| e.to_string())
+#[command]
+pub async fn disk_write(path: String, data: Vec<u8>) -> Result<(), String> {
+	run_blocking(move || fs::write(&path, data).map_err(|e| e.to_string())).await
 }

@@ -1,4 +1,5 @@
 use tauri::command;
+use crate::run_blocking;
 
 /*
 Launch Services, the Mac's record of which application opens which kind of file, offered to the page the way registry.rs offers the Windows registry: two general commands any Mac application could use as they are. Which extensions to ask about, when, and what to do with the answers is the page's; associate.js is the one caller.
@@ -9,7 +10,7 @@ launch_opens answers in the shape registry_opens does on Windows, the applicatio
 
 launch_set makes the running application the one that opens a kind, through NSWorkspace's setDefaultApplicationAtURL, which arrived in macOS 12. It changes the user's own saved choice, the same one Get Info's Change All writes, and the system asks nobody: seen on the Mac mini 2026-10-01, it answered at once with no dialog, and Finder and Get Info both followed. That is the difference from Windows, where only the system's own screens can write a saved choice, and it is why associate.js can carry out a choice on the Mac at the click that makes it.
 
-Both are async, since each waits on another program, the Launch Services daemon. Off the Mac there is no Launch Services, and each command answers so.
+Both are async and run their bodies through run_blocking, since each waits on another program, the Launch Services daemon. Off the Mac there is no Launch Services, and each command answers so.
 */
 
 /// What opens a kind of file, each part blank where nothing does
@@ -21,15 +22,15 @@ pub struct Opener {
 }
 
 /// Which application the Mac would open a file type with, the type written with its dot, like .png
-#[command(async)]
-pub fn launch_opens(extension: String) -> Result<Opener, String> {
-	platform::opens(&extension)
+#[command]
+pub async fn launch_opens(extension: String) -> Result<Opener, String> {
+	run_blocking(move || platform::opens(&extension)).await
 }
 
 /// Make the running application the one that opens a file type, and every type sharing its kind
-#[command(async)]
-pub fn launch_set(extension: String) -> Result<(), String> {
-	platform::set(&extension)
+#[command]
+pub async fn launch_set(extension: String) -> Result<(), String> {
+	run_blocking(move || platform::set(&extension)).await
 }
 
 #[cfg(target_os = "macos")]
@@ -41,7 +42,7 @@ mod platform {
 	use objc2_uniform_type_identifiers::UTType;
 	use super::Opener;
 
-	const SET_WAIT: Duration = Duration::from_secs(10);//how long launch_set waits for the system's answer; it came at once on the Mac mini, so this only keeps a lost answer from holding a worker forever
+	const SET_WAIT: Duration = Duration::from_secs(10);//how long launch_set waits for the system's answer; it came at once on the Mac mini, so this only keeps a lost answer from holding a thread forever
 
 	//the kind of file an extension names, with or without its dot
 	fn kind(extension: &str) -> Result<Retained<UTType>, String> {

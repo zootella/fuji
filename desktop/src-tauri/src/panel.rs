@@ -9,6 +9,7 @@ What none of the four does is notice which display fuji is on. They all ask abou
 */
 
 use serde::{Serialize, Deserialize};
+use crate::run_blocking;
 
 //serde turns this into json crossing to javascript; Copy makes it a value that is duplicated rather than moved, which is what you want from a pair of numbers
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -18,27 +19,25 @@ pub struct Arrow {//general {x, y} pair useful for a positions or a dimensions
 }
 
 //the one command javascript calls; the body it reaches was chosen when this was compiled
-#[tauri::command(async)]//on the pool because linux answers by running xrandr and waiting for it; the mac asks CoreGraphics and windows asks user32, and neither minds which thread asks
-pub fn panel_resolution() -> Arrow {
-	platform::panel_resolution()//returns a {x, y} pixel count, or {0, 0} for any error or inability to find the answer
+#[tauri::command]//its body on the blocking pool because linux answers by running xrandr and waiting for it; the mac asks CoreGraphics and windows asks user32, and neither minds which thread asks
+pub async fn panel_resolution() -> Arrow {
+	run_blocking(|| Ok(platform::panel_resolution())).await.unwrap_or(Arrow { x: 0, y: 0 })//a {x, y} pixel count, or {0, 0} for any error or inability to find the answer, a panic in a body below included
 }
 
 #[cfg(target_os = "windows")]//conditional compilation: the bodies that do not match are absent from the binary, not skipped at runtime
 mod platform {
 	use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};//user32's stable way to ask the desktop's shape
 	use super::Arrow;//super is the module above, so this is the Arrow declared at the top of this file
-	use std::panic;
 
 	pub fn panel_resolution() -> Arrow {
-		panic::catch_unwind(|| unsafe {//unsafe promises the compiler we checked what it cannot; catch_unwind makes a panic a value rather than a dead app
+		unsafe {//unsafe promises the compiler we checked what it cannot
 			let width = GetSystemMetrics(SM_CXSCREEN);//the primary display's resolution, in backing pixels because the process is dpi aware, and the panel's own only while the display runs at its native resolution
 			let height = GetSystemMetrics(SM_CYSCREEN);
 			if width <= 0 || height <= 0 {//a signed int, so compare before casting: a negative cast to u32 becomes an enormous number
 				return Arrow { x: 0, y: 0 };
 			}
 			Arrow { x: width as u32, y: height as u32 }//every "as" is a conversion someone chose, and a block's last expression is its value
-		})
-		.unwrap_or(Arrow { x: 0, y: 0 })//and the fallback if that closure panicked
+		}
 	}
 }
 
@@ -47,7 +46,7 @@ Quartz has no call that says "this is the panel's resolution." What it has is th
 
 Two simpler calls were tried first and both answer a different question. CGDisplayPixelsHigh is one line and looks exactly right, but it reports the current display mode rather than the panel, so a scaled retina display answers with the size of the desktop it is pretending to be — 1112 css pixels where the panel has 1664. CGDisplay::main().display_mode() fails from the other direction: it gives the backing pixels of whichever mode is set, and macOS will happily render a scaled mode larger than the panel and downsample.
 
-CoreFoundation's memory rules decide the shape of the loop below. A function with Create or Copy in its name hands you something you own and must release; a function with Get in its name lends you something you must not. Rust makes the second half easy to get wrong, because wrapping a borrowed pointer in a type that knows how to release it is exactly what you would do with an owned one — and this file did that for a year, releasing each mode once more than it had been retained, which corrupts memory rather than raising anything catch_unwind could see. The rule to carry away: a pointer from a Get function must never end up somewhere with a destructor.
+CoreFoundation's memory rules decide the shape of the loop below. A function with Create or Copy in its name hands you something you own and must release; a function with Get in its name lends you something you must not. Rust makes the second half easy to get wrong, because wrapping a borrowed pointer in a type that knows how to release it is exactly what you would do with an owned one — and this file did that for a year, releasing each mode once more than it had been retained, which corrupts memory rather than panicking or failing in any way the code could see. The rule to carry away: a pointer from a Get function must never end up somewhere with a destructor.
 */
 #[cfg(target_os = "macos")]
 mod platform {
@@ -60,7 +59,6 @@ mod platform {
 	use super::Arrow;
 	use std::ffi::c_void;//an address with no type attached, which is how C describes a pointer to anything
 	use std::mem::ManuallyDrop;
-	use std::panic;
 	
 	extern "C" {//declared by hand because the crate wrapping Quartz does not wrap CFArray; the linker finds the real ones
 		fn CFArrayGetCount(array: *const c_void) -> isize;
@@ -69,7 +67,7 @@ mod platform {
 	}
 	
 	pub fn panel_resolution() -> Arrow {
-		panic::catch_unwind(|| unsafe {
+		unsafe {
 			let id = CGMainDisplayID();//the display with the menu bar on it, not necessarily the one fuji is showing on
 			let modes = CGDisplayCopyAllDisplayModes(id, std::ptr::null());//Copy in the name, so this array is ours to release below. The null options are load-bearing: pass kCGDisplayShowDuplicateLowResolutionModes instead and the list gains the scaled modes' backing stores, so the tallest below becomes 3420 by 2224 on a machine whose panel is 2560 by 1664 — the backing store, which is the one answer this function exists not to give. measured on a MacBook Air
 			if modes.is_null() {
@@ -96,8 +94,7 @@ mod platform {
 			
 			CFRelease(modes as *const c_void);//necessary to release the array
 			winner
-		})
-		.unwrap_or(Arrow { x: 0, y: 0 })
+		}
 	}
 }
 

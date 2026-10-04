@@ -13,6 +13,7 @@ The Mac body is short because ImageIO does the whole job in one call given three
 use std::io::Read;
 use std::sync::OnceLock;
 use tauri::ipc::Response;
+use crate::run_blocking;
 
 pub struct Thumbnail {//what a platform hands back, before it is packed into the one buffer
 	pub width:  u32,
@@ -21,24 +22,26 @@ pub struct Thumbnail {//what a platform hands back, before it is packed into the
 	pub pixels: Vec<u8>,//straight-alpha rgba, width times four bytes a row, top row first
 }
 
-//the one thumbnail; the async in the attribute has tauri run this sync body on its thread pool, which is what keeps a decode off the thread that runs the window
-#[tauri::command(async)]
-pub fn thumbnail_render(path: String, format: String, maximum: u32, gamut: String) -> Result<Response, String> {
-	if path.trim().is_empty() { return Err("thumbnail_render: expected a path".into()) }//the mistakes a caller could make, returned as errors the page sees rather than a panic on a pool thread
-	if maximum == 0 { return Err("thumbnail_render: expected a longest side of at least 1".into()) }
-	let head = head(&path)?;
-	let found = sniff(&head);
-	if found.is_empty() { return Err(format!("thumbnail: the first bytes are not a known image format: {path}")) }//before the comparison below, because blank matches blank: a caller that named no format would otherwise walk an unknown file straight past this wall
-	if found != format { return Err(format!("thumbnail: the bytes say {found} and the caller expected {format}: {path}")) }//the first wall: the page names the format its extension implies, and a file whose bytes disagree never reaches the decoder
-	let wide = gamut == "display-p3";//anything else is srgb, which is what a canvas is unless asked
-	let t = platform::render(&path, maximum, wide)?;//which holds the second wall, the ceiling, because it has the header in hand before it decodes
+//the one thumbnail, its body on the blocking pool through run_blocking, which keeps a decode off the thread that runs the window and turns a panic anywhere below into an error
+#[tauri::command]
+pub async fn thumbnail_render(path: String, format: String, maximum: u32, gamut: String) -> Result<Response, String> {
+	run_blocking(move || {
+		if path.trim().is_empty() { return Err("thumbnail_render: expected a path".into()) }//the mistakes a caller could make, returned as errors the page can read
+		if maximum == 0 { return Err("thumbnail_render: expected a longest side of at least 1".into()) }
+		let head = head(&path)?;
+		let found = sniff(&head);
+		if found.is_empty() { return Err(format!("thumbnail: the first bytes are not a known image format: {path}")) }//before the comparison below, because blank matches blank: a caller that named no format would otherwise walk an unknown file straight past this wall
+		if found != format { return Err(format!("thumbnail: the bytes say {found} and the caller expected {format}: {path}")) }//the first wall: the page names the format its extension implies, and a file whose bytes disagree never reaches the decoder
+		let wide = gamut == "display-p3";//anything else is srgb, which is what a canvas is unless asked
+		let t = platform::render(&path, maximum, wide)?;//which holds the second wall, the ceiling, because it has the header in hand before it decodes
 
-	let mut bytes = Vec::with_capacity(12 + t.pixels.len());//the header, then the pixels, in one buffer so it crosses raw
-	bytes.extend_from_slice(&t.width.to_le_bytes());
-	bytes.extend_from_slice(&t.height.to_le_bytes());
-	bytes.extend_from_slice(&(t.wide as u32).to_le_bytes());
-	bytes.extend_from_slice(&t.pixels);
-	Ok(Response::new(bytes))
+		let mut bytes = Vec::with_capacity(12 + t.pixels.len());//the header, then the pixels, in one buffer so it crosses raw
+		bytes.extend_from_slice(&t.width.to_le_bytes());
+		bytes.extend_from_slice(&t.height.to_le_bytes());
+		bytes.extend_from_slice(&(t.wide as u32).to_le_bytes());
+		bytes.extend_from_slice(&t.pixels);
+		Ok(Response::new(bytes))
+	}).await
 }
 
 fn head(path: &str) -> Result<Vec<u8>, String> {//the first bytes of a file, up to 12, which is as far into a file as any signature below reaches
@@ -97,7 +100,6 @@ mod platform {
 	use core_graphics::sys::CGImageRef;
 	use foreign_types_shared::ForeignType;
 	use std::ffi::{c_char, c_void};
-	use std::panic;
 	use super::Thumbnail;
 
 	type CGImageSourceRef = *const c_void;//ImageIO's handle to a file it has opened, opaque to us
@@ -119,11 +121,6 @@ mod platform {
 	}
 
 	pub fn render(path: &str, maximum: u32, wide: bool) -> Result<Thumbnail, String> {
-		panic::catch_unwind(|| render_or_panic(path, maximum, wide))//the crate wrapping CoreGraphics asserts rather than returns on a context it could not make, and a panic on a pool thread has to come back as an error the page can see
-			.unwrap_or_else(|_| Err(format!("thumbnail: CoreGraphics could not draw {path}")))
-	}
-
-	fn render_or_panic(path: &str, maximum: u32, wide: bool) -> Result<Thumbnail, String> {
 		let source = open(path)?;
 		let (width, height) = properties_size(source);//the header, read before anything decodes, for the ceiling
 		if let Err(problem) = super::check_ceiling(width, height) { unsafe { CFRelease(source) }; return Err(problem) }
@@ -141,7 +138,7 @@ mod platform {
 		let (width, height) = (image.width(), image.height());
 		let name = unsafe { if wide { kCGColorSpaceDisplayP3 } else { kCGColorSpaceSRGB } };
 		let space = CGColorSpace::create_with_name(name).ok_or("thumbnail: no such color space")?;
-		let mut context = CGContext::create_bitmap_context(None, width, height, 8, width * 4, &space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);//rgba bytes in that order; premultiplied because that is the only alpha a drawing context accepts, undone below
+		let mut context = CGContext::create_bitmap_context(None, width, height, 8, width * 4, &space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);//the crate asserts rather than returns when it cannot make a context, and run_blocking hands that panic to the page as an error. Rgba bytes in that order; premultiplied because that is the only alpha a drawing context accepts, undone below
 		context.draw_image(CGRect::new(&CGPoint::new(0.0, 0.0), &CGSize::new(width as f64, height as f64)), &image);//one to one, so this is a color conversion and not a resample
 		let mut pixels = context.data().to_vec();
 		unpremultiply(&mut pixels);
@@ -217,7 +214,7 @@ mod platform {
 		}
 	}
 
-	unsafe fn start_com() {//wic is a com library, so every object below arrives through CoCreateInstance, and that answers nothing on a thread that has not said this first. Once per thread and harmless again; a pool thread keeps it for its life, and a thread already in the other mode says so and works anyway
+	unsafe fn start_com() {//wic is a com library, so every object below arrives through CoCreateInstance, and that answers nothing on a thread that has not said this first. Once per thread and harmless again, and a thread already in the other mode says so and works anyway. The blocking pool retires a thread after ten idle seconds and nothing uninitializes com on the way out, which Microsoft asks for; what that leaves behind per thread is what the windows box should watch for
 		let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
 	}
 

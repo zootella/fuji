@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{command, AppHandle, Manager, State};
 
-use crate::disk;
 
 /*
 Where fuji meets the actions the user takes on the desktop itself rather than inside the window. Today that is one action, the way out: hand it a path and the text that ought to be at that path, and it writes them when fuji's last window closes and again when the process exits. It never looks inside the text, and a second caller with a different path needs nothing added here, even though the settings file is why it exists.
@@ -32,7 +31,7 @@ pub fn desktop_exit_write(app: &AppHandle) {
 	let state = app.state::<ExitFiles>();
 	let mut files = state.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());//panicking here would lose the settings silently, for nothing
 	for (path, text) in files.drain() {//drain empties as it goes, so nothing is written twice if this is somehow reached again
-		if let Err(e) = disk::disk_write(path, text.into_bytes()) {//a rename, not a conversion: a String is already the utf-8 bytes disk_write wants
+		if let Err(e) = std::fs::write(&path, text) {//std::fs directly rather than disk_write, which is a command and so async; at exit the write should block, since nothing waits on this thread but the process leaving
 			eprintln!("could not write a file on the way out: {e}");//nothing above can be told now, and the process is leaving
 		}
 	}
