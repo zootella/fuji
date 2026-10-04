@@ -50,25 +50,29 @@ mod platform {
 	}
 
 	pub fn opens(extension: &str) -> Result<Opener, String> {
-		let kind = kind(extension)?;
-		let identifier = kind.identifier().to_string();
-		let Some(application) = NSWorkspace::sharedWorkspace().URLForApplicationToOpenContentType(&kind) else { return Ok(Opener { name: String::new(), executable: String::new(), kind: identifier }) };//nothing opens this kind
-		let name = application.path().map(|path| NSFileManager::defaultManager().displayNameAtPath(&path).to_string()).unwrap_or_default();//the name the Finder shows, without .app
-		let executable = NSBundle::bundleWithURL(&application).and_then(|bundle| bundle.executableURL()).and_then(|file| file.path()).map(|path| path.to_string()).unwrap_or_default();
-		Ok(Opener { name, executable, kind: identifier })
+		objc2::rc::autoreleasepool(|_| {//a pool for what these calls autorelease: this runs on a blocking pool thread, which has none of its own, and without one the objects wait for the thread to retire
+			let kind = kind(extension)?;
+			let identifier = kind.identifier().to_string();
+			let Some(application) = NSWorkspace::sharedWorkspace().URLForApplicationToOpenContentType(&kind) else { return Ok(Opener { name: String::new(), executable: String::new(), kind: identifier }) };//nothing opens this kind
+			let name = application.path().map(|path| NSFileManager::defaultManager().displayNameAtPath(&path).to_string()).unwrap_or_default();//the name the Finder shows, without .app
+			let executable = NSBundle::bundleWithURL(&application).and_then(|bundle| bundle.executableURL()).and_then(|file| file.path()).map(|path| path.to_string()).unwrap_or_default();
+			Ok(Opener { name, executable, kind: identifier })
+		})
 	}
 
 	pub fn set(extension: &str) -> Result<(), String> {
-		let kind = kind(extension)?;
-		let application = NSBundle::mainBundle().bundleURL();//the running application's bundle; a program run outside one gets its folder here, which the system would refuse, and the page never asks from one
-		let (sender, receiver) = std::sync::mpsc::channel();
-		let named = extension.to_string();//the block outlives this call's borrow, so it carries its own copy for the message
-		let done = block2::RcBlock::new(move |error: *mut NSError| {//called once, on a queue of the system's choosing, with null for success
-			let answer = if error.is_null() { Ok(()) } else { Err(format!("launch: could not set the application for {named}, {}", unsafe { &*error }.localizedDescription())) };
-			let _ = sender.send(answer);//nobody listening means the wait below already gave up
-		});
-		NSWorkspace::sharedWorkspace().setDefaultApplicationAtURL_toOpenContentType_completionHandler(&application, &kind, Some(&done));
-		receiver.recv_timeout(SET_WAIT).map_err(|_| format!("launch: no answer setting the application for {extension}"))?
+		objc2::rc::autoreleasepool(|_| {//the same pool as opens, for the same reason
+			let kind = kind(extension)?;
+			let application = NSBundle::mainBundle().bundleURL();//the running application's bundle; a program run outside one gets its folder here, which the system would refuse, and the page never asks from one
+			let (sender, receiver) = std::sync::mpsc::channel();
+			let named = extension.to_string();//the block outlives this call's borrow, so it carries its own copy for the message
+			let done = block2::RcBlock::new(move |error: *mut NSError| {//called once, on a queue of the system's choosing, with null for success
+				let answer = if error.is_null() { Ok(()) } else { Err(format!("launch: could not set the application for {named}, {}", unsafe { &*error }.localizedDescription())) };
+				let _ = sender.send(answer);//nobody listening means the wait below already gave up
+			});
+			NSWorkspace::sharedWorkspace().setDefaultApplicationAtURL_toOpenContentType_completionHandler(&application, &kind, Some(&done));
+			receiver.recv_timeout(SET_WAIT).map_err(|_| format!("launch: no answer setting the application for {extension}"))?
+		})
 	}
 }
 

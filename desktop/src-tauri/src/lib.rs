@@ -36,6 +36,7 @@ pub(crate) async fn run_blocking<T: Send + 'static>(body: impl FnOnce() -> Resul
 }
 
 pub fn run() {
+	log::log_panics();//before anything can panic, so every panic after this has its place in the log; a line held for the log survives a panic run_blocking catches, and is lost with the rest of the held text in one that ends the process
 	window::window_launch();//first of all, so this copy's launch moment is when it started; window.rs tells a flurry of copies from a deliberate second launch by it
 	tauri::Builder::default()//start building the Tauri application
 		.plugin(tauri_plugin_opener::init())//reveal a file in finder or explorer, and open windows' default apps settings; capabilities grant those two and no other url

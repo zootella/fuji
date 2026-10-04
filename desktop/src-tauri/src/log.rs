@@ -40,6 +40,16 @@ pub fn log(text: &str) {
 	log.text.push_str(&format!("rust---- {} {text}\n", log_clock()));//the same prefix the page puts on its lines, with rust where a window's label would be, since no window wrote this; the dashes make it as wide as window-1, so the times line up until a tenth window
 }
 
+/// Put every panic's place in the log, when the log is recording, then let the default hook print it as before; run calls this first, so it covers every thread from then on. payload_as_str is stable since rust 1.91, and rust-toolchain.toml pins every build above that
+pub fn log_panics() {
+	let default_hook = std::panic::take_hook();
+	std::panic::set_hook(Box::new(move |info| {//runs on the thread that panicked, before the unwind, so the line is in the text whether the panic then becomes an error in run_blocking or ends the process
+		let at = info.location().map(|at| format!("{}:{}", at.file(), at.line())).unwrap_or_default();
+		log(&format!("panic at {at}: {}", info.payload_as_str().unwrap_or("")));//log takes the mutex, which is safe because nothing in this file panics while holding it
+		default_hook(info);
+	}));
+}
+
 //utc time of day to the millisecond, like 18:29:27.123, matching sayClock in log.js; the day is left out because the file name already carries it
 fn log_clock() -> String {
 	let since = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();//a clock set before 1970 reads as midnight rather than panicking inside a log line
