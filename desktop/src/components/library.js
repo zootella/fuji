@@ -59,7 +59,14 @@ export function sayList(items) {//items in a sentence: .png, then .gif and .png,
 }
 
 export async function listFolder(folder) {//the image files in one folder, in whatever order the disk handed them over; a sort is what puts them in one
+	return _listImages(folder, await diskReadDir(folder))
+}
+export async function listDirectory(folder) {//the same images, and beside them the subfolders a walk can enter, as paths, from the one readdir; walk.js is the caller
 	let contents = await diskReadDir(folder)
+	let folders = contents.filter(f => f.is_dir && !f.is_symlink && !f.name.startsWith('.')).map(f => parse.join(folder, f.name))//not a symlink, which is how a walk loops forever, and not hidden
+	return {images: _listImages(folder, contents), folders}
+}
+function _listImages(folder, contents) {//the entries of a readdir that are image files fuji shows, each with its path, extension and mime beside what rust gave
 	let files = contents.filter(f => f.is_file && !f.is_dir && !f.is_symlink)//only include files
 	files = files.map(f => ({...f,
 		path: parse.join(folder, f.name),

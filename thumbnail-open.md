@@ -38,7 +38,7 @@ Each says where it came from, since some are the user's and some are a session's
 
 ## Decisions not made
 
-**Fault tolerance is its own session.** Every file fuji cannot show gets the placeholder and nothing is tried twice, a policy chosen for being simple rather than right. That session decides what to do with an extension that lies in either direction, with a file the operating system refuses that the page might still show, and what a placeholder should say. Both routes decode by the bytes whatever the extension says, so a file with the wrong extension shows wherever a decoder takes it.
+**Fault tolerance is its own session.** Every file fuji cannot show is left out of its bucket and counted in its caption, and nothing is tried twice, a policy chosen for being simple rather than right. That session decides what to do with an extension that lies in either direction, with a file the operating system refuses that the page might still show, and what a bucket should say about them beyond a count. Both routes decode by the bytes whatever the extension says, so a file with the wrong extension shows wherever a decoder takes it.
 
 **The size ceiling.** It refuses a raster over half the machine's physical memory, which has never been tested against the legitimate gigapixel files that exist, and half may be the wrong fraction. It also guards only the native route, where the decoder runs in fuji's own process; the page route hands the engine the whole file inside its sandbox, as a light table does. If the page side wants one, the store is the place, since every page decode passes through it.
 

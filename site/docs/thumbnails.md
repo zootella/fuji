@@ -93,7 +93,7 @@ The last question names the two routes the rest of this document turns on: the *
 
 Linux is not a third branch. It is the platform whose native list is empty, so every raster file on it answers that last question the same way and takes the page route.
 
-A file that nothing on the platform can draw, or that its decoder refuses, gets a placeholder, and Fuji tries nothing twice. And Fuji reads nothing ahead of a thumbnail: a tile takes its room on the contact sheet when its pixels arrive, so the first thumbnails appear at once and the rows settle as the rest fill in.
+A file that nothing on the platform can draw, or that its decoder refuses, is left out of its bucket and counted in the bucket's caption, and Fuji tries nothing twice. And Fuji reads nothing ahead of a thumbnail: a tile takes its room on the contact sheet when its pixels arrive, so the first thumbnails appear at once and the rows settle as the rest fill in.
 
 ### Fuji shows a GIF or an SVG in an img
 

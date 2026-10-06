@@ -8,16 +8,16 @@ import {settings, settingsThumbnailBeam} from '../settings.js'
 import {fitSize} from '../fit.js'
 import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logBucket} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
-import {xy, errorImageData, platform, sayDay, sayDimensions, saySize4, middleDot, backize} from './library.js'
+import {xy, platform, sayDay, sayDimensions, saySize4, middleDot, backize} from './library.js'
 import {fileTypesEnabled} from '../fileTypes.js'
 import {modelFile} from '../model.js'//what the folder's listing knows about each path, for the caption
 
 /*
-The one flow, and the whole of how a path becomes a tile. A bucket hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw gets the placeholder. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
+The one flow, and the whole of how a path becomes a tile. A bucket hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw is left out, counted in the bucket's caption. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
 Every tile is sized the same way whatever its route: from the picture's own size, by the fit thumbnail.fit names, which the settings panel sets, through flowFit and fit.js. A page tile has that size once its decode resolves, an img tile once the engine has loaded it, and a native tile from Rust, which sends it back beside the pixels after running the same fit to choose how large to render. The flow itself is wrap, which places tiles left to right like words, and its name names no fit, since the fit is the user's to choose.
 
-Nothing is read ahead of its thumbnail. A tile takes up room when its pixels arrive, so the rows reflow as a bucket fills, and a file that cannot be shown becomes the placeholder when its render or its decode fails. The check on the size a file's header claims is the render's own, in thumbnail.rs, where the decoder runs unsandboxed.
+Nothing is read ahead of its thumbnail. A tile takes up room when its pixels arrive, so the rows reflow as a bucket fills, and a file that cannot be shown leaves the bucket when its render or its decode fails, counted in the caption rather than shown as anything; the bucket's numbers are the listing's, so a failure never renumbers what is around it. The check on the size a file's header claims is the render's own, in thumbnail.rs, where the decoder runs unsandboxed.
 
 Every tile in a bucket is asked for at once, and each waits in the line of the resource it taxes, which governor.js lets through four at a time in the order asked, so a bucket fills from the top. A native tile waits under rust computation, since its decode runs on a Rust pool thread and never touches the page. A page tile waits under web computation, since it is a full decode held in the store and a draw on the main thread. An img tile has no line of its own; it waits only for the store's read, which every view's reads share under disk. A bucket that goes away leaves its tiles in line, and each returns the moment it is let in, since a call already made cannot be called back. Nothing pauses a bucket, so a sheet hidden behind the table goes on filling.
 
@@ -34,7 +34,7 @@ const flowPlatform = platform()//mac, windows or linux, read once, which is how 
 const props = defineProps({
 	paths: {type: Array, required: true},//already in the model's order, and never from two folders
 })
-const emit = defineEmits(['bytes'])//what this bucket's canvases cost so far, sent up as each one is sized, for the bucket's caption
+const emit = defineEmits(['bytes', 'refused'])//what this bucket's canvases cost so far, sent up as each one is sized, and how many of its files could not be shown, sent up as each is refused, both for the bucket's caption
 
 const flowTiles = ref(props.paths.map(path => tileFor(path)))//one small reactive object per path, built once; a load or a refusal changes one tile
 const flowCanvases = new Map()//path to its canvas element, kept by the refs in the template
@@ -47,7 +47,7 @@ function tileFor(path) {//the kind of tile a path gets on this platform, from it
 	let entry = fileTypesEnabled[parse.extname(path).toLowerCase()]
 	let native = entry?.imageNative.includes(flowPlatform)
 	let web = entry?.imageWeb.includes(flowPlatform)
-	let kind = 'placeholder'//nothing on this platform can draw it
+	let kind = 'refused'//nothing on this platform can draw it, which flowFill counts with the files that fail
 	if (web && entry.contactSheet == 'img') kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
 	else if (native) kind = 'native'//a canvas the operating system fills, preferred wherever it can
 	else if (web) kind = 'page'//a canvas the page fills
@@ -64,7 +64,7 @@ async function flowFill() {//ask for every tile at once, each in the line of the
 	let began = performance.now()
 	let ofKind = kind => flowTiles.value.filter(tile => tile.kind == kind)
 	let imgs = ofKind('img'), native = ofKind('native'), page = ofKind('page')
-	for (let tile of ofKind('placeholder')) flowRefuse(tile, 'nothing on this platform can draw it')//already a placeholder; this writes its row in the log
+	for (let tile of ofKind('refused')) flowRefuse(tile, 'nothing on this platform can draw it')//refused before anything was tried; this counts it and writes its row in the log
 	await Promise.all([
 		...imgs.map(tile =>                                       flowImg(tile)),//not governed here: the store's read is, under disk, and governing it again would wait in that line behind itself
 		...native.map(tile => governorRun('rust computation', () => flowNative1(tile))),
@@ -73,9 +73,9 @@ async function flowFill() {//ask for every tile at once, each in the line of the
 	if (!flowClosed) logBucket({index: props.paths.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
 }
 
-function flowRefuse(tile, why) {//the placeholder, and a row saying which file and why; nothing is tried twice
-	tile.kind = 'placeholder'
-	flowRefused++
+function flowRefuse(tile, why) {//the file leaves the bucket, its caption counts one more, and a row says which file and why; nothing is tried twice
+	tile.kind = 'refused'
+	flowRefused++; emit('refused', flowRefused)
 	logThumbnail({hit: 'refused', path: tile.path, note: why})
 }
 
@@ -208,18 +208,17 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 
 <!-- every tile names its path in data-path, on the cell that holds the picture and its caption, which is how the sheet knows which one was double-clicked without a handler on each. items-start so a short cell keeps its own height instead of stretching to the tallest in its row; the spacing is in myFlow, beside the outline it makes room for -->
 <div class="myFlow flex flex-wrap items-start" :style="{'--beam': flowBeam + 'px'}">
-	<div v-for="tile in flowTiles" :key="tile.path" class="myCell flex flex-col" :data-path="tile.path">
+	<template v-for="tile in flowTiles" :key="tile.path"><div v-if="tile.kind != 'refused'" class="myCell flex flex-col" :data-path="tile.path"><!-- a refused file has no cell at all, so the rows close over it; the caption above the bucket says how many -->
 		<canvas v-if="tile.kind == 'native' || tile.kind == 'page'"
 			:ref="el => el ? flowCanvases.set(tile.path, el) : flowCanvases.delete(tile.path)"
 			class="myTile" width="0" height="0"
 		></canvas>
 		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile" :class="{myImg: !tile.css}" :src="tile.url" :style="tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {}" @load="flowImgLoad(tile, $event)" @error="flowRefuse(tile, 'the engine could not show it')" />
-		<img v-else-if="tile.kind == 'placeholder'" class="myTile" :src="errorImageData" :style="{width: flowBeam + 'px', height: flowBeam + 'px'}" />
 		<div class="myCaption mySans" @click="flowCopy(tile.path)"><!-- always the same lines, each its own text rather than one text wrapped, so every caption is the same height and each line is cut on its own -->
 			<div class="myCaptionLine">{{tile.file.name}}</div>
 			<div class="myCaptionLine">{{flowDetails(tile)}}</div>
 		</div>
-	</div>
+	</div></template>
 </div>
 
 </template>
