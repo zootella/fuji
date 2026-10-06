@@ -42,11 +42,9 @@ A letter is written to a specific reader — usually a Claude Code session on th
 
 - **`argon/argon.md`**, in a folder with its program `argon.rs` and the `Cargo.toml` that builds it — to the Raspberry Pi 4B: build and run an Argon2id speed test, check that its keys match the Mac mini's, and add the results. Written 2026-09-23.
 
-- **`mac2win.md`** — from the Mac to Windows: COM is now initialized and uninitialized around each thumbnail render, because the blocking pool's threads come and go, and since 2026-10-06 a request to re-evaluate that against the user's parable about uncommon API patterns, now that the Mac render has an autorelease pool; since 2026-10-05 the Windows render takes its size from a fit through the new `fit.rs`; the Windows bodies of `thumbnail.rs` and `panel.rs` have been type-checked but never built with Tauri or run. Written 2026-10-04.
-
 - **`win2linux.md`** — from the Windows box to Linux: the watchdog in `window_first`, and the one check that matters there, that the watchdog sees WebKitGTK's page load and so leaves a working window alone. Written 2026-09-28.
 
-**Seven letters have been retired**, three named `windows.md`, one `mac.md`, two `win2mac.md` and one `mac2win.md`, each answered by the session it was written for and each leaving its findings in the document or the code that owns the subject — `associations.md`, `icon.md`, `fidelity.md`, `instances.md`, `performance.md`, the README's section The two names, and the essays in `window.rs`, `Shell.vue` and `brand.js`. A new letter under either name is a new letter rather than a continuation.
+**Eight letters have been retired**, three named `windows.md`, one `mac.md`, two `win2mac.md` and two `mac2win.md`, each answered by the session it was written for and each leaving its findings in the document or the code that owns the subject — `associations.md`, `icon.md`, `fidelity.md`, `instances.md`, `performance.md`, the README's section The two names, the essays in `lib.rs`, `window.rs`, `Shell.vue` and `brand.js`, and the comment above `Com` in `thumbnail.rs`. A new letter under either name is a new letter rather than a continuation.
 
 ## What has moved to the site
 

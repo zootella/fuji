@@ -43,7 +43,7 @@ Apple's frameworks hand some objects back autoreleased, freed when the thread's 
 
 It is here, around every body, rather than in each body that calls Apple, because the need belongs to the thread rather than to the call, and because a body that needed one and lacked it was the mistake: panel.rs asked CoreGraphics without one. The obvious callers are AppKit and Foundation, in launch.rs, but ImageIO and CoreGraphics are C interfaces that link Foundation and the Objective-C runtime all the same, so nothing that calls into Apple can be sure it autoreleases nothing. A body that never does, like std::fs in disk.rs, gets a pool that stays empty, which costs a push and a pop against a disk read. objc2's pool pops itself when a panic unwinds through it, so a panicking body still comes back to the page as an error.
 
-Windows and Linux run the body as it is. The thought that COM on Windows belongs at this same level, once per thread rather than once per render, is an open question in mac2win.md.
+Windows and Linux run the body as it is. COM on Windows, which the thumbnail initializes and uninitializes around each render, was weighed for this same level, once per thread, and stays where it is; the comment above Com in thumbnail.rs says why.
 */
 #[cfg(target_os = "macos")]
 fn pooled<T>(body: impl FnOnce() -> T) -> T { objc2::rc::autoreleasepool(|_| body()) }

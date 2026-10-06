@@ -32,8 +32,6 @@ Each says where it came from, since some are the user's and some are a session's
 
 ## Tests to run
 
-**The Windows box**, for the blocking pool's change: COM initialized and uninitialized around each render on threads that come and go, and the Windows bodies of `thumbnail.rs` and `panel.rs`, type-checked on the Mac but never built with Tauri or run. `mac2win.md` has the checks.
-
 **A bucket's cost from inside the running app.** Every thumbnail and every bucket is a row in the log, and apart from one Windows question the rows have never been read: what a bucket costs to fill across a real folder, and whether four native thumbnails in flight helps or crowds. It is the data Fuzzy Logic would need. A per-image cost has to be taken with one image in the folder, since a reading taken while a folder fills carries the others' contention.
 
 **The odd-and-even measurement again, after a macOS or Safari update.** `flowSnap` rests on observed WKWebView behavior, a canvas box rounded to whole CSS pixels, not on anything a specification guarantees. It needs a Retina Mac, takes about ten minutes, and the answer is a single percentage.

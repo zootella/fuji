@@ -227,7 +227,7 @@ mod platform {
 		}
 	}
 
-	struct Com;//com initialized on this thread, for as long as this value lives
+	struct Com;//com initialized on this thread, for as long as this value lives. Per render on purpose, settled 2026-10-06 against Microsoft's documentation: a pair around each unit of work is the balance CoInitializeEx asks for and the common shape for work on threads the program did not make, and the cost below, paid once per burst, is about a millisecond against a decode and accepted. Once per thread was weighed and declined both ways it could be had: a thread-local's destructor may run under the loader lock, where CoUninitialize can deadlock, and a runtime of fuji's own with thread hooks would make an ordinary call unusual for one platform
 	impl Drop for Com {
 		fn drop(&mut self) { unsafe { CoUninitialize() } }//the other half of the initialize below, which windows asks for before a thread exits; the blocking pool retires a thread after ten idle seconds, so a thread left initialized would add up over a session. The cost: the last uninitialize is documented to unload the dlls com loaded, so wic may load again at the start of each burst; renders in flight together keep it loaded for each other
 	}
