@@ -1,20 +1,21 @@
 <script setup>//the contact sheet: one folder, as a stack of buckets of thumbnails
 
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, reactive, watch, onMounted} from 'vue'
 import {documentDir, downloadDir} from '@tauri-apps/api/path'
 import {modelList, modelOpen, modelOpenFolder, modelStand} from '../model.js'
 import {forwardize} from './library.js'
 import {logTrouble} from '../log.js'
-import {settings, settingsSet} from '../settings.js'
-import {fitNames} from '../fit.js'
+import {settings} from '../settings.js'
 import Bucket from './Bucket.vue'
+import BucketMemory from './BucketMemory.vue'
 
 //a stack of buckets down one scroll, sheet.buckets of them with bucket.images pictures each, from the start of the folder, and no more: the rest of a large folder is simply not shown, so the two settings together are a ceiling on how many thumbnails the sheet ever holds. This file cuts the list into buckets, and sizing, arranging, loading and holding are the flow's, one level down. The settings panel takes this view's place in the same window, and s trades the two
 
 const sheetStarted = ref(false)//the shell has shown this view at least once, which is what the guard below turns on
 const sheetImages = ref(0)//how many pictures a bucket holds
 const sheetBucketCount = ref(0)//and how many buckets the sheet holds; both read from settings each time the sheet comes on screen, because the settings panel is where they change and the sheet is never showing while it does, so reading on arrival is all the watching they need
-const sheetFit = ref('')//the fit the toolbar shows chosen, and part of every bucket's key, so choosing another rebuilds them all; read in start like the two above, because this view is made before the shell has read fuji.toml, and a value taken now would be the factory's
+const sheetFit = ref('')//the fit, and part of every bucket's key, so one chosen in the settings panel rebuilds them all when the sheet comes back; read in start like the two above, because this view is made before the shell has read fuji.toml, and a value taken now would be the factory's
+const sheetBeam = ref('')//the beam's name, the same way: a flow reads its length once, as it is made, so a new beam needs new buckets
 
 //that guard covers only a sheet that has never been shown. After that, a folder opened on the table rebuilds these buckets behind it, and they fill there, hidden, as they would on screen
 const sheetBuckets = computed(() => {
@@ -28,10 +29,13 @@ const sheetBuckets = computed(() => {
 	return buckets
 })
 
-function start() { sheetImages.value = settings.bucket.images; sheetBucketCount.value = settings.sheet.buckets; sheetFit.value = settings.thumbnail.fit; sheetStarted.value = true }//the shell calls this each time this view comes on screen; a count that changed rebuilds the buckets, and one that did not changes nothing
-function fitChoose(fit) {//the toolbar: write the fit to the setting, which every flow reads as it is made, then change the key that remakes the buckets; the setting first, so the new buckets read the new fit
-	if (settingsSet('thumbnail', 'fit', fit)) sheetFit.value = fit
-}
+function bucketKey(bucket) { return bucket.join() + sheetFit.value + sheetBeam.value }//what tells one bucket from another below: its contents, the fit and the beam, so a change to any of the three makes a new bucket rather than reusing one
+const sheetBytes = reactive(new Map())//each bucket's canvases, by its key, as each reports them; a reactive map, so the sum below follows
+watch([sheetBuckets, sheetFit, sheetBeam], () => sheetBytes.clear())//buckets being remade, by new contents or a new fit or beam, start their counts over under new keys, and a bucket of imgs alone never reports, so nothing stale may be left behind
+const sheetBytesSum = computed(() => sheetBuckets.value.reduce((sum, bucket) => sum + (sheetBytes.get(bucketKey(bucket)) || 0), 0))//the inner number: every bucket's thumbnails together
+const sheetThumbnails = computed(() => sheetBuckets.value.reduce((count, bucket) => count + bucket.length, 0))
+
+function start() { sheetImages.value = settings.bucket.images; sheetBucketCount.value = settings.sheet.buckets; sheetFit.value = settings.thumbnail.fit; sheetBeam.value = settings.thumbnail.beam; sheetStarted.value = true }//the shell calls this each time this view comes on screen; a value that changed rebuilds the buckets, and one that did not changes nothing
 const emit = defineEmits(['table', 'settings'])//a double-clicked thumbnail, for the shell to show the table fullscreen, and s, for the settings panel in this same window; which view is showing is the shell's, so this only asks
 function onKey(e) {
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('settings')//a temporary way in, until fuji has a better place for one
@@ -69,13 +73,9 @@ defineExpose({start, onKey, onResize, onDrop})//the same calls every view answer
 		<p>contact sheet - drop a picture here to open its folder</p>
 		<p v-if="sheetFolders.length">or open <template v-for="(folder, i) in sheetFolders" :key="folder.path"><template v-if="i > 0"> or </template><button class="underline cursor-pointer" @click="folderOpen(folder.path)">{{folder.name}}</button></template></p><!-- buttons rather than links, since each one does something here rather than going somewhere -->
 	</div>
-	<!-- the toolbar, a spike for now and the start of the sheet's own: one radio per fit, sticky so it stays at the top as the buckets scroll under it -->
-	<div v-if="sheetBuckets.length" class="mySheetBar myMono sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-1.5 py-1" role="radiogroup" aria-label="Fit">
-		<span>Fit</span>
-		<label v-for="fit in fitNames" :key="fit" class="flex items-center gap-1"><input type="radio" name="fit" :value="fit" :checked="fit == sheetFit" @change="fitChoose(fit)" />{{fit.replace(/Fit$/, '')}}</label>
-	</div>
-	<!-- keyed on contents and the fit, so a bucket whose images or fit changed is rebuilt rather than reused: a reused bucket keeps canvases painted from images it no longer holds and never paints the new ones, and its flow read the fit once, when it was made -->
-	<Bucket v-for="(bucket, i) in sheetBuckets" :key="bucket.join() + sheetFit" :paths="bucket" :first="i * sheetImages + 1" :total="modelList.length" /><!-- first and total for the bucket's caption, counted from 1 the way a person counts, since the slicing that knows them is here -->
+	<!-- keyed on contents, the fit and the beam, so a bucket whose images, fit or beam changed is rebuilt rather than reused: a reused bucket keeps canvases painted from images it no longer holds and never paints the new ones, and its flow read the fit and the beam once, when it was made -->
+	<Bucket v-for="(bucket, i) in sheetBuckets" :key="bucketKey(bucket)" :paths="bucket" :first="i * sheetImages + 1" :total="modelList.length" @bytes="bytes => sheetBytes.set(bucketKey(bucket), bytes)" /><!-- first and total for the bucket's caption, counted from 1 the way a person counts, since the slicing that knows them is here; and each bucket's bytes back, for the report beneath -->
+	<BucketMemory v-if="sheetBuckets.length" :buckets="sheetBuckets.length" :thumbnails="sheetThumbnails" :bytes="sheetBytesSum" :beam="sheetBeam" :fit="sheetFit" /><!-- beneath the last bucket, on the same scroll, and only when there are buckets to weigh -->
 </div>
 
 </template>
@@ -83,10 +83,6 @@ defineExpose({start, onKey, onResize, onDrop})//the same calls every view answer
 
 .mySheet {
 	background-color: var(--color-paper);
-}
-.mySheetBar {
-	background-color: var(--color-paper); /* the sheet's own color, as a toolbar over its content is in Zed, and opaque, so the buckets scroll under it rather than show through */
-	color: var(--color-ink);
 }
 .myEmpty {
 	color: var(--color-faint);

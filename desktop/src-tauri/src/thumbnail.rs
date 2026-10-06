@@ -12,7 +12,6 @@ The render returns one buffer, so the bytes cross as an ArrayBuffer rather than 
 The Mac body is short because ImageIO does the whole job in one call given three options, and drawing the result into a bitmap context of the wanted color space is where CoreGraphics does the color management. The Windows body is long because WIC is a pipeline of separate objects, each initialised over the last, and because WIC leaves EXIF orientation to the caller. WIC is a COM library, which is how Windows hands an application an object out of a system DLL: a thread calls CoInitializeEx once before it asks for anything, and then every piece of the pipeline arrives through CoCreateInstance. There is no plain function to call instead, so the initialisation is the price of using the library at all, and it is not the heavier embedding layer of the same name that puts a spreadsheet inside a document. The page owns the color space, since only it knows the screen's gamut, and Windows answers sRGB whatever is asked, which the header says.
 */
 
-use std::sync::OnceLock;
 use tauri::ipc::Response;
 use crate::run_blocking;
 
@@ -64,8 +63,8 @@ No size is a different case. On the Mac, properties answers 0 when ImageIO's pro
 fn check_size(width: u32, height: u32) -> Result<(), String> {
 	if width == 0 || height == 0 { return Err(format!("thumbnail: the library gave no size for this picture, {width} by {height}")) }
 	let raster = (width as u64).saturating_mul(height as u64).saturating_mul(4);//saturating, because two u32 sizes times four can pass u64, and a release build would wrap that to a small number the ceiling lets through: a header claiming 2^31 by 2^31 is the one file this wall is for, and it must not walk past it on arithmetic
-	let ceiling = memory() / 2;
-	if raster > ceiling { return Err(format!("thumbnail: {width} by {height} pixels would need {} MB to decode, more than half of this machine's {} MB", raster >> 20, memory() >> 20)) }
+	let ceiling = crate::memory::memory_total() / 2;
+	if raster > ceiling { return Err(format!("thumbnail: {width} by {height} pixels would need {} MB to decode, more than half of this machine's {} MB", raster >> 20, crate::memory::memory_total() >> 20)) }
 	Ok(())
 }
 
@@ -76,11 +75,6 @@ fn target(ask: &Ask, width: u32, height: u32) -> Result<(u32, u32), String> {
 	let want_height = (css_height as f64 * ask.backing_per_css).round().max(1.0);
 	if want_width.max(want_height) >= width.max(height) as f64 { return Ok((width, height)) }//the picture's own pixels, all of them, when the fit's longer side asks for as many or more; decided by the longer side, because a sliver can reach its own short side by rounding while its long side is still being shrunk
 	Ok(((want_width as u32).min(width), (want_height as u32).min(height)))//and the short side never past the picture's own either
-}
-
-fn memory() -> u64 {//the machine's physical memory in bytes, asked once; 8 GB when the platform will not say, which is a floor rather than a guess about any real machine
-	static MEMORY: OnceLock<u64> = OnceLock::new();
-	*MEMORY.get_or_init(|| { let m = platform::memory(); if m > 0 { m } else { 8 << 30 } })
 }
 
 #[cfg(target_os = "macos")]
@@ -98,7 +92,7 @@ mod platform {
 	use core_graphics::image::CGImage;
 	use core_graphics::sys::CGImageRef;
 	use foreign_types_shared::ForeignType;
-	use std::ffi::{c_char, c_void};
+	use std::ffi::c_void;
 	use super::{Ask, Thumbnail};
 
 	type CGImageSourceRef = *const c_void;//ImageIO's handle to a file it has opened, opaque to us
@@ -117,7 +111,6 @@ mod platform {
 	}
 	extern "C" {
 		fn CFRelease(cf: *const c_void);
-		fn sysctlbyname(name: *const c_char, old: *mut c_void, old_length: *mut usize, new: *mut c_void, new_length: usize) -> i32;//how the mac says how much memory it has
 	}
 
 	pub fn render(path: &str, ask: &Ask, wide: bool) -> Result<Thumbnail, String> {
@@ -177,13 +170,6 @@ mod platform {
 		(width, height, if (1..=8).contains(&orientation) { orientation as u32 } else { 1 })
 	}
 
-	pub fn memory() -> u64 {
-		let mut bytes: u64 = 0;
-		let mut length = std::mem::size_of::<u64>();
-		let status = unsafe { sysctlbyname(c"hw.memsize".as_ptr(), &mut bytes as *mut u64 as *mut c_void, &mut length, std::ptr::null_mut(), 0) };
-		if status == 0 { bytes } else { 0 }
-	}
-
 	fn key(name: CFStringRef) -> CFString {//a constant the framework owns: Get rule, so the wrapper retains it on the way in and releases it on the way out, net nothing
 		unsafe { CFString::wrap_under_get_rule(name) }
 	}
@@ -204,7 +190,6 @@ mod platform {
 	use windows::Win32::Graphics::Imaging::*;
 	use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
 	use windows::Win32::System::Com::StructuredStorage::{PropVariantClear, PROPVARIANT};
-	use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 	use windows::Win32::System::Variant::VT_UI2;
 	use super::{Ask, Thumbnail};
 
@@ -310,12 +295,6 @@ mod platform {
 		Ok(Thumbnail { width: target_width, height: target_height, wide: false, pixels, natural_width, natural_height })
 	}
 
-	pub fn memory() -> u64 {
-		let mut status = MEMORYSTATUSEX { dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32, ..Default::default() };//the length field is how windows knows which version of the struct it was handed
-		unsafe { if GlobalMemoryStatusEx(&mut status).is_ok() { status.ullTotalPhys } else { 0 } }
-	}
-
-
 	unsafe fn exif_orientation(frame: &IWICBitmapFrameDecode) -> u16 {
 		let Ok(reader) = frame.GetMetadataQueryReader() else { return 1 };//png and bmp have no reader at all
 		let mut value = PROPVARIANT::default();
@@ -363,11 +342,5 @@ mod platform {
 
 	pub fn render(_path: &str, _ask: &Ask, _wide: bool) -> Result<Thumbnail, String> {
 		Err("thumbnail: the operating system's thumbnailer is not used on this platform".into())//linux makes every thumbnail in the web renderer, so the page routes nothing here and this answers only a caller that got it wrong
-	}
-
-	pub fn memory() -> u64 {//MemTotal from the kernel's own listing, in kilobytes there
-		let text = std::fs::read_to_string("/proc/meminfo").unwrap_or_default();
-		let line = text.lines().find(|line| line.starts_with("MemTotal:")).unwrap_or("");
-		line.split_whitespace().nth(1).and_then(|kb| kb.parse::<u64>().ok()).map(|kb| kb * 1024).unwrap_or(0)
 	}
 }

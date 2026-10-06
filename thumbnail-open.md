@@ -32,7 +32,7 @@ Each says where it came from, since some are the user's and some are a session's
 
 ## Tests to run
 
-**A bucket's cost from inside the running app.** Every thumbnail and every bucket is a row in the log, and apart from one Windows question the rows have never been read: what a bucket costs to fill across a real folder, and whether four native thumbnails in flight helps or crowds. It is the data Fuzzy Logic would need. A per-image cost has to be taken with one image in the folder, since a reading taken while a folder fills carries the others' contention.
+**A bucket's cost from inside the running app.** Every thumbnail and every bucket is a row in the log, and apart from one Windows question the rows have never been read: what a bucket costs to fill across a real folder, and whether four native thumbnails in flight helps or crowds. It is the data Fuzzy Logic would need. A per-image cost has to be taken with one image in the folder, since a reading taken while a folder fills carries the others' contention. The bytes, as against the milliseconds, are on screen now: each bucket's caption ends with its canvases' cost, and the memory report beneath the buckets sums them and sets them beside what fuji's processes and the machine are using.
 
 **The odd-and-even measurement again, after a macOS or Safari update.** `flowSnap` rests on observed WKWebView behavior, a canvas box rounded to whole CSS pixels, not on anything a specification guarantees. It needs a Retina Mac, takes about ten minutes, and the answer is a single percentage.
 

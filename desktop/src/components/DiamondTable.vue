@@ -3,9 +3,9 @@
 import {ref, watch, onBeforeUnmount} from 'vue'
 import {
 xy, xySnap, raf, errorImageData,
-sayGroupDigits, saySize4,
+sayGroupDigits, saySize4, sayDay, sayDimensions, middleDot, backize,
 } from './library.js'//our javascript library
-import {modelList, modelPath, modelOpen, modelIndex, modelStand} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
+import {modelList, modelPath, modelOpen, modelIndex, modelStand, modelFile} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
 import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
 import {log, logFlip, logTrouble} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
@@ -250,7 +250,7 @@ function quiver() {
 	//keep a record of what we told the page to only bother it next time it's necessary
 	quiverC = quiverB
 
-	updateInformation()
+	updateInformation(); updateCaption()
 }
 let quiverC//Quiver C: our record of how we've styled the page to appear; treat as private to above
 
@@ -313,7 +313,7 @@ async function _flip(direction) {
 	flipMs = Math.round(painted - began)
 	flipFrames = Math.ceil(flipMs / frameMs)//rounded up, so a flip that spilled a millisecond into a second frame does not get to claim it took one; converted rather than counted, because a blocked main thread fires no animation frames at all and counting callbacks would report one frame for a stall that dropped twelve
 	paintMs = Math.round(painted - shownAt)//the half of the flip that is the engine putting an image the store says is ready onto the screen
-	updateInformation()
+	updateInformation(); updateCaption()
 	learnFrameMs(painted)//deliberately not awaited: the flip is over, and the queue behind it must not wait on a measurement
 	logFlip({//before the window slides, so nothing the log does can land inside what it just measured
 		sequence: ++flipSequence, index: ahead, direction: direction > 0 ? 'fwd' : 'back', hit: storeHit ? 'hit' : 'miss',
@@ -368,13 +368,10 @@ function hudStart() {
 
 hud3Ref.value = ``
 
-captionRef.value = `A multimedia file manager designed
-with privacy and precision in mind`//placeholder text, set once: the caption is meant to carry the image's path and natural size, and nothing updates it on a flip yet
-
 	showHud3Ref.value    = settings.hud.information//where these two start; [i] toggles this one from there, and no key toggles the caption yet
 	showCaptionRef.value = settings.hud.caption
 
-	updateInformation()
+	updateInformation(); updateCaption()
 }
 function toggleInformation() {
 	showHud3Ref.value = !showHud3Ref.value
@@ -396,6 +393,14 @@ cache ${f.count} images, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} o
 	}
 	s += `\ngamma ${gamma.value == 1 ? '1, off' : gamma.value.toFixed(2)}`//at the end of every reading, loaded or not, because it is a lens over the whole window rather than a fact about one picture
 	hud3Ref.value = s
+}
+function updateCaption() {//the caption below the card: the picture's full path, the day it was last modified, its size and its dimensions, the line the contact sheet writes under a thumbnail with the path in place of the name, since there is room for it here
+	if (!showCaptionRef.value || !here) return
+	let file = modelFile(here.path)//the listing's entry, with the modified time and the size; false for a picture outside the listed folder, which then shows its path and dimensions alone
+	let parts = []
+	if (file) parts.push(sayDay(file.mtime), saySize4(file.size))
+	if (here.img) parts.push(sayDimensions(xy(here.img.naturalWidth, here.img.naturalHeight)))//none for the error placeholder, whose dimensions are nobody's
+	captionRef.value = `${backize(here.path)}\n${parts.filter(part => part).join(` ${middleDot} `)}`//two lines, as under a thumbnail: the path, then the details
 }
 watch(gamma, updateInformation)//the keys, the wheel and the drag all change it, and neither goes through the quiver, which is what refreshes this hud for everything else
 
@@ -435,8 +440,8 @@ let here = null//the store's entry for the image on the card, which is where the
 		<!-- the images the card shows are the store's own elements, put here by cardShow; this one is only for a file fuji could not read -->
 		<img ref="errorRef" class="myImage" :src="errorImageData" />
 
-		<!-- caption lives inside the card, but sits below its border -->
-		<div v-if="showCaptionRef" class="absolute bottom-0 translate-y-full py-2 whitespace-nowrap myMono myEmbossed">{{captionRef}}</div>
+		<!-- caption lives inside the card, but sits below its border; pre keeps its two lines apart and never wraps either -->
+		<div v-if="showCaptionRef" class="absolute bottom-0 translate-y-full py-2 whitespace-pre myMono myEmbossed">{{captionRef}}</div>
 
 	</div>
 

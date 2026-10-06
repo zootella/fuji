@@ -123,7 +123,7 @@ On the M2 Mac mini, macOS 15.7.4, one image at a time, third run of three, thumb
 
 **Layers.** On the Mac, run the debug build with `pnpm local`, open Safari, and choose this Mac under the Develop menu, then Fuji, then the Layers tab; it lists every compositing layer with its size, its memory, and the reason it exists. On Windows the same panel is under More tools in the WebView2 developer tools.
 
-**Memory.** Process memory from Activity Monitor or Task Manager is the only number that sees an `img`'s decode and a canvas's backing store alike; `cache.js` counts what fuji holds and cannot see either. `bucket.md` says why that makes a footprint readout comparing the two flows misleading.
+**Memory.** Process memory from Activity Monitor or Task Manager is the only number that sees an `img`'s decode and a canvas's backing store alike; `cache.js` counts what fuji holds and cannot see either. `bucket.md` says why that makes a footprint readout comparing the two flows misleading. Since 2026-10-06 the memory report beneath the buckets reads those same process numbers from inside fuji, through `memory.rs`, beside the exact count of the canvases, so the two can be watched together as a sheet fills.
 
 **Frames.** A scroll is a stream of frames and a hitch is a dropped one, which `log.js` can record the way it records a flip.
 

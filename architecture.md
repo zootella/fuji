@@ -8,8 +8,9 @@ It says what fuji does, not what it might. It is the only architecture document:
 App.vue
 └── Shell.vue            the window: settings, reveal, window events, which view is showing
     ├── Sheet.vue        v-show   one sheet: a scroll of buckets over one folder
-    │   └── Bucket.vue            a capped number of images, all from one folder
-    │       └── TestFlow.vue      the flow that sizes and arranges them, and routes each file to a decoder
+    │   ├── Bucket.vue            a capped number of images, all from one folder
+    │   │   └── TestFlow.vue      the flow that sizes and arranges them, and routes each file to a decoder
+    │   └── BucketMemory.vue      beneath the last bucket: the machine's memory, fuji's processes, and what the thumbnails cost
     ├── SettingsPanel.vue v-if    what a user changes from inside fuji, in the sheet's window
     └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
@@ -21,6 +22,7 @@ App.vue
                 ↓
         disk.js → disk.rs
         thumbnail.js → thumbnail.rs   beside the cache, for the sheet only: the operating system's thumbnailer
+        memory.js → memory.rs         for the report alone: the machine's memory and what fuji's processes take
 ```
 
 ## The shell

@@ -1,7 +1,8 @@
 <script setup>//the settings panel: what a user changes from inside fuji, shown in the contact sheet's window in place of the sheet
 
 import {ref} from 'vue'
-import {settings, settingsSet} from '../settings.js'
+import {settings, settingsSet, settingsThumbnailBeams} from '../settings.js'
+import {fitNames, fitDescriptions} from '../fit.js'
 import {brandName, brandStem} from '../brand.js'
 import {platform} from './library.js'
 import SettingsFileTypes from './SettingsFileTypes.vue'
@@ -16,6 +17,11 @@ const sheetBuckets = ref(settings.sheet.buckets)//the same, for how many buckets
 function sheetBucketsCommit() {
 	if (!settingsSet('sheet', 'buckets', sheetBuckets.value)) sheetBuckets.value = settings.sheet.buckets
 }
+
+const beam = ref(settings.thumbnail.beam)//which beam length every thumbnail is measured against; the buttons offer only the names the setting takes, so it never needs putting back
+function beamCommit() { settingsSet('thumbnail', 'beam', beam.value) }//the sheet reads it again when it comes back on screen and remakes every bucket, since a flow reads the beam once, as it is made
+const fit = ref(settings.thumbnail.fit)//how every thumbnail is sized against that beam, one of the fits fit.js lists
+function fitCommit() { settingsSet('thumbnail', 'fit', fit.value) }//the same way
 
 const faces = ref(settings.font.faces)//which fonts, the ones fuji carries or the system's; the buttons offer only what the setting takes, so it never needs putting back
 const systemFaces = {windows: ['Segoe UI', 'Consolas'], mac: ['San Francisco', 'SF Mono']}[platform()]//what the system's fonts are, proportional and fixed-width, named where every computer of that kind has the same ones; a linux desktop chooses its own, so there the choice names none
@@ -55,6 +61,20 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 	<!-- no hint beneath: for now the two together are also how many of a folder's pictures the sheet shows, which is scaffolding to know rather than something to tell a user -->
 
 	<div class="mt-4 flex gap-4">
+		<span class="w-48">Thumbnail size</span>
+		<div role="radiogroup" aria-label="Thumbnail size">
+			<label v-for="(name, i) in settingsThumbnailBeams" :key="name" :class="{'mt-1': i > 0}" class="flex items-center gap-2"><input type="radio" name="beam" :value="name" v-model="beam" @change="beamCommit" /><span>{{name == 'Xl' ? 'XL' : name}}, {{settings.thumbnail[name.toLowerCase()]}} px</span></label><!-- the beam's length beside its name, since it is what every thumbnail is measured against and what a bucket's cost follows -->
+		</div>
+	</div>
+
+	<div class="mt-4 flex gap-4">
+		<span class="w-48">Fit</span>
+		<div role="radiogroup" aria-label="Fit">
+			<label v-for="(name, i) in fitNames" :key="name" :class="{'mt-1': i > 0}" class="flex items-center gap-2"><input type="radio" name="fit" :value="name" v-model="fit" @change="fitCommit" /><span>{{name.replace(/Fit$/, '')}}: {{fitDescriptions[name]}}</span></label><!-- Square rather than SquareFit, as the sheet's toolbar wrote them until the choice moved here, and then what it does, from the table beside the fits themselves -->
+		</div>
+	</div>
+
+	<div class="mt-4 flex gap-4">
 		<span class="w-48">Typography</span>
 		<div role="radiogroup" aria-label="Typography"><!-- radio buttons rather than a list, so every choice and what it gives are in view without a click; the panel scrolls when it grows -->
 			<label class="flex items-center gap-2"><input type="radio" name="faces" value="system" v-model="faces" @change="facesCommit" /><span>System fonts<template v-if="systemFaces">: <i>{{systemFaces[0]}}</i>, with <i>{{systemFaces[1]}}</i></template></span></label><!-- the words in one span, so the flex row holds the button and them as two items, rather than putting its gap around every name -->
@@ -73,7 +93,7 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 
 	<SettingsFileTypes ref="fileTypes" class="mt-12" />
 
-	<p class="mt-12 text-faint">Press S to return to the contact sheet</p>
+	<p class="mt-12">Press S to return to the contact sheet</p>
 
 	<!-- a sample of the root's text, apart from the panel's fixed-width type, so the fonts choice above can be seen changing it: first a line whose letters give a typeface away, the pangram for every shape, AVATAR and Wavy Tofu for the spacing between pairs, QGRSJ for the letters faces differ on most, and Il1| O0 rn m for the ones easiest to confuse; then the words of File Explorer's ribbon, to set beside it on Windows. Here until fuji has text of its own in that face -->
 	<div class="mySans mt-12">

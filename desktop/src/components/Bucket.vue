@@ -1,9 +1,9 @@
 <script setup>//a bucket of thumbnails, all from one folder, arranged by the flow
 
-import {computed} from 'vue'
+import {ref, computed} from 'vue'
 import parse from 'path-browserify'
 import TestFlow from './TestFlow.vue'
-import {backize, middleDot} from './library.js'
+import {backize, middleDot, saySize4} from './library.js'
 
 //the bucket stays simple and the flow does the work: this takes a width from whatever contains it, hands its images to the flow, and takes back whatever height the flow needed. The bucket exists so the sheet has something it can count — a bucket totals what its canvases cost, and a limit on buckets is what turns that into a real ceiling on the sheet. Named bucket rather than card, which is the table's word for the box around its picture
 //there is one flow, so this names it directly; a register and a prop come back when there is a second one to choose between
@@ -13,13 +13,16 @@ const props = defineProps({
 	first: {type: Number, required: true},//where this bucket starts in the folder, counting from 1
 	total: {type: Number, required: true},//how many images the folder holds, shown or not
 })
+const bucketBytes = ref(0)//what the flow's canvases cost so far, in bytes, which it reports as each one is sized; exact, since a canvas is the bytes fuji asked for, and the imgs are the engine's and not counted
+const emit = defineEmits(['bytes'])//the same number, passed up for the sheet's total beneath every bucket
+function bucketBytesSet(bytes) { bucketBytes.value = bytes; emit('bytes', bytes) }//kept for the caption and passed up
 
-const bucketCaption = computed(() => {//the folder the bucket's images are in, and which of the folder's images they are, like /Users/name/Pictures · Images 1 through 20 of 35
+const bucketCaption = computed(() => {//the folder the bucket's images are in, which of the folder's images they are, and what its thumbnails cost, like /Users/name/Pictures · Images 1 through 20 of 35 · 11 MB
 	let folder = backize(parse.dirname(props.paths[0]))//one folder per bucket, so the first image's says it for all; written as the platform's file manager writes it
 	let last = props.first + props.paths.length - 1
 	let range = `Images ${props.first} through ${last} of ${props.total}`
 	if (props.first == last) range = `Image ${last} of ${props.total}`//a bucket holding one image, which the plural would make read oddly
-	return `${folder} ${middleDot} ${range}`
+	return `${folder} ${middleDot} ${range} ${middleDot} ${saySize4(bucketBytes.value)}`//the cost grows as the bucket fills, and stays at 0 bytes for a bucket of imgs alone
 })
 
 </script>
@@ -27,8 +30,8 @@ const bucketCaption = computed(() => {//the folder the bucket's images are in, a
 
 <!-- no border, no background: a bucket is a boundary fuji needs and the user is not meant to notice -->
 <div>
-	<div class="myBucketCaption mySans"><span class="myBucketCaptionText">{{bucketCaption}}</span></div>
-	<TestFlow :paths="props.paths" />
+	<div class="myBucketCaption mySans">{{bucketCaption}}</div>
+	<TestFlow :paths="props.paths" @bytes="bucketBytesSet" />
 </div>
 
 </template>
@@ -40,9 +43,6 @@ const bucketCaption = computed(() => {//the folder the bucket's images are in, a
 	white-space: pre; overflow: hidden; /* one line, cut off at the bucket's right edge, as a thumbnail's caption is at its picture's */
 	color: var(--color-quiet);
 	cursor: default;
-}
-.myBucketCaptionText {
-	background-color: orange; /* the text alone, shown while its place in the layout is tried */
 }
 
 </style>

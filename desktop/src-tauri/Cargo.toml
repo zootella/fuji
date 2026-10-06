@@ -26,7 +26,7 @@ serde_json = "1"
 display-info = "0.5"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Graphics_Imaging", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_System_SystemInformation", "Win32_Foundation", "Win32_System_Registry", "Win32_Security", "Win32_UI_Shell", "Win32_Graphics_Dwm", "Win32_UI_HiDpi"] } # the imaging features are for thumbnail.rs; Registry, Security and Shell are for registry.rs, Security because RegCreateKeyExW takes a security attributes pointer; Dwm and HiDpi are for window.rs, to find where a window's visible frame is
+windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Graphics_Imaging", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_System_SystemInformation", "Win32_Foundation", "Win32_System_Registry", "Win32_Security", "Win32_UI_Shell", "Win32_Graphics_Dwm", "Win32_UI_HiDpi", "Win32_System_ProcessStatus", "Win32_System_Threading"] } # the imaging features are for thumbnail.rs; Registry, Security and Shell are for registry.rs, Security because RegCreateKeyExW takes a security attributes pointer; Dwm and HiDpi are for window.rs, to find where a window's visible frame is; SystemInformation, ProcessStatus and Threading are for memory.rs, the last two to open another process and read its memory counters
 webview2-com = "0.38" # the web view's key event, which window.rs handles to turn off the browser's shortcut keys; tauri already brings this crate at this version, and the controller tauri hands over is its type
 windows-core = "0.61" # the trait window.rs casts webview2-com's types with, from the version that crate is built on; fuji's own windows crate is 0.62, whose trait does not reach them, and tauri already brings this one
 
@@ -39,3 +39,4 @@ objc2-app-kit = { version = "0.3", features = ["objc2-uniform-type-identifiers"]
 objc2-foundation = "0.3"
 objc2-uniform-type-identifiers = "0.3" # UTType, the kind of file launch.rs asks NSWorkspace about; new to the tree, from the same family and release as the three above
 block2 = "0.6" # touch.rs hands AppKit the block its scroll monitor calls; already in the tree beneath objc2-app-kit
+libc = "0.2" # memory.rs asks mach and libproc through it, host_statistics64 and proc_pid_rusage, and sysctlbyname; already in the tree beneath tauri

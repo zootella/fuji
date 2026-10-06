@@ -11,7 +11,7 @@ import {fitNames} from './fit.js'
 const settingsFileName = `${brandStem}.toml`//fuji.toml, in the user's home folder for now; the per-platform config folders are a later decision, and a portable copy carrying its own is not one, since fuji is always installed
 const settingsHeader = `# ${settingsFileName} — ${brandName} reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
 
-const settingsThumbnailBeams = ['Small', 'Medium', 'Large', 'Xl']//the named beam lengths; each names the setting below it, lowercased
+export const settingsThumbnailBeams = ['Small', 'Medium', 'Large', 'Xl']//the named beam lengths; each names the setting below it, lowercased, and the settings panel offers them in this order
 const settingsTextList = value => value.every(item => typeof item == 'string')//a list whose every item is text; what each item means is for the code reading the list to judge, one item at a time, so a typo in one never throws away the rest
 
 //every setting fuji has, and the only place any of them is defined; a check, where the type alone isn't enough, has to accept the factory value or an ordinary file would report a problem against itself

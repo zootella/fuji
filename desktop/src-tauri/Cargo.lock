@@ -1090,6 +1090,7 @@ dependencies = [
  "core-graphics",
  "display-info",
  "foreign-types-shared",
+ "libc",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

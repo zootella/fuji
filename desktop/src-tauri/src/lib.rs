@@ -21,6 +21,7 @@ mod launch;//and launch.rs: launch services, the mac's record of which applicati
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
 mod dock;//and dock.rs: the dock icon's own menu, and its one New Window item
 mod log;//and log.rs: the log's text, held from both sides and written on the way out
+mod memory;//and memory.rs: how much memory the machine has and is using, and what this process and its web engine's processes take
 #[cfg(target_os = "macos")]//the whole module is macos-only: it calls tauri menu methods that do not exist on other targets, and a menu belongs along the top of the screen only here
 mod menu;//and menu.rs: the menu bar
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
@@ -70,6 +71,7 @@ pub fn run() {
 				log::log_append,
 				launch::launch_opens,//and in launch.rs
 				launch::launch_set,
+				memory::memory_report,//and in memory.rs
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				open::open_files,//and in open.rs

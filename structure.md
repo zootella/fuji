@@ -20,7 +20,8 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
     Table     several             one                 rarely
     Sort      several             one                 often, while in the sheet
     Flow      one                 one                 never; there is nothing yet to choose between
-    Size      four                one                 often, while in the sheet
+    Size      four                one                 sometimes, in settings
+    Fit       eight               one                 rarely, in settings
 
 **Frequency is the useful column.** It is why moving between the Sheet and a Table has to be instant with nothing reloading, and why choosing a different Table can afford to be slower. `architecture.md` turns that into the `v-show` and `v-if` rule.
 
@@ -42,7 +43,7 @@ One worked example, the kind Flickr uses: resize every image to a constant heigh
 
 **There is one, `TestFlow`, and two came before it.** `TagFlow` handed the renderer full-size originals in plain img tags, and `CanvasFlow` painted each image down into a canvas fuji sized; they were the two halves of an experiment, and `bucket.md` says what it found. `TestFlow` is the answer and both were deleted once it was: every raster thumbnail is a canvas, with pixels from the operating system where the platform allows and from the page where it does not, and a GIF or an SVG is an img. The thumbnail pipeline document on the site is the whole of it, and `thumbnail-open.md` is what is left.
 
-**How big a thumbnail is belongs to the Sizes, not to a Flow.** `Small`, `Medium`, `Large` and `Xl` are four named squares a thumbnail fits inside — 120, 240, 360 and 480 css pixels at the factory — and the user says once what each one means, in `fuji.toml`. Every Flow reads the same chosen Size, so switching Flows never changes how big anything is, and nothing in fuji is tuned to the particular numbers.
+**How big a thumbnail is belongs to the Sizes and the Fits, not to a Flow.** `Small`, `Medium`, `Large` and `Xl` are four named lengths of the beam, 120, 240, 360 and 480 css pixels at the factory, that every thumbnail is measured against, and the user says once what each one means, in `fuji.toml`. A Fit is the rule that says where the beam is laid against a picture: the longer side under `SquareFit`, the diagonal under `CircleFit`, the width plus the height under `DiamondFit`, and so on through eight, which `fits.md` has in full. The user chooses both in settings. Every Flow reads the same chosen Size and Fit, so switching Flows never changes how big anything is, and nothing in fuji is tuned to the particular numbers.
 
 **A Flow arranges within one Bucket, and one Flow governs every Bucket at once.** Two Buckets in the same scroll always look alike; switching Flows switches all of them together, and a Flow that sizes thumbnails differently changes how tall every Bucket renders.
 
@@ -76,7 +77,7 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
 
 ## Naming conventions
 
-**A member of a named set is Title Case**, so it is recognisable on sight: `Alphabet` is a member, `alphabet` would be a variable holding one. This covers Sorts, Flows, and the Tables. `sort.md` states the rule where it first mattered.
+**A member of a named set is Title Case**, so it is recognisable on sight: `Alphabet` is a member, `alphabet` would be a variable holding one. This covers Sorts, Fits, Flows, and the Tables. `sort.md` states the rule where it first mattered.
 
 **A family shares a leading noun** in code, so its parts sort and read together — `cacheNeed`, `cacheRelease`, `cacheFootprint`. `style.md` is the authority on how code is written.
 
@@ -86,6 +87,9 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
 
     architecture.md    the four layers, and where a value or a view belongs
     bucket.md            the box of thumbnails the sheet scrolls over, and the walk it makes possible
+    fits.md            the beam and the fits: how big each thumbnail is, and the rules that measure it
+    dates.md           which date fuji shows for a file, and how it is written
+    theme.md           the colors fuji's interface is drawn in, copied from Zed's themes
     thumbnail-open.md  what is left to decide and measure about thumbnails; the pipeline itself is a page on the site
     canvas.md          what the two engines do with a canvas, measured, and where a thumbnail is made
     security.md        where untrusted bytes are parsed, and the walls to build

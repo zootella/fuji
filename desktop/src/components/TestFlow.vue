@@ -15,7 +15,7 @@ import {modelFile} from '../model.js'//what the folder's listing knows about eac
 /*
 The one flow, and the whole of how a path becomes a tile. A bucket hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw gets the placeholder. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
-Every tile is sized the same way whatever its route: from the picture's own size, by the fit thumbnail.fit names, which the sheet's toolbar sets, through flowFit and fit.js. A page tile has that size once its decode resolves, an img tile once the engine has loaded it, and a native tile from Rust, which sends it back beside the pixels after running the same fit to choose how large to render. The flow itself is wrap, which places tiles left to right like words, and its name names no fit, since the fit is the user's to choose.
+Every tile is sized the same way whatever its route: from the picture's own size, by the fit thumbnail.fit names, which the settings panel sets, through flowFit and fit.js. A page tile has that size once its decode resolves, an img tile once the engine has loaded it, and a native tile from Rust, which sends it back beside the pixels after running the same fit to choose how large to render. The flow itself is wrap, which places tiles left to right like words, and its name names no fit, since the fit is the user's to choose.
 
 Nothing is read ahead of its thumbnail. A tile takes up room when its pixels arrive, so the rows reflow as a bucket fills, and a file that cannot be shown becomes the placeholder when its render or its decode fails. The check on the size a file's header claims is the render's own, in thumbnail.rs, where the decoder runs unsandboxed.
 
@@ -34,6 +34,7 @@ const flowPlatform = platform()//mac, windows or linux, read once, which is how 
 const props = defineProps({
 	paths: {type: Array, required: true},//already in the model's order, and never from two folders
 })
+const emit = defineEmits(['bytes'])//what this bucket's canvases cost so far, sent up as each one is sized, for the bucket's caption
 
 const flowTiles = ref(props.paths.map(path => tileFor(path)))//one small reactive object per path, built once; a load or a refusal changes one tile
 const flowCanvases = new Map()//path to its canvas element, kept by the refs in the template
@@ -153,7 +154,7 @@ function flowCopy(path) {//a click on a caption: the picture's whole path onto t
 function flowSize(canvas, css, backing) {//size a canvas to the css size its fit chose and the backing pixels it has, which is also what gives its tile room in the flow; assigning width or height also clears it and resets its context, so it comes before any drawing
 	canvas.width = flowSnap(css.x, backing.x); canvas.height = flowSnap(css.y, backing.y)
 	canvas.style.width = css.x + 'px'; canvas.style.height = css.y + 'px'//the only place a canvas gets its css size, so the template binds none and never overwrites it
-	flowBytes += canvas.width * canvas.height * 4
+	flowBytes += canvas.width * canvas.height * 4; emit('bytes', flowBytes)//the running total, which the bucket shows in its caption
 }
 function flowSnap(side, have) {//how many pixels a canvas gets for one axis: the css box in backing pixels, or the pixels in hand where those cannot reach it
 	/*
@@ -215,8 +216,8 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile" :class="{myImg: !tile.css}" :src="tile.url" :style="tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {}" @load="flowImgLoad(tile, $event)" @error="flowRefuse(tile, 'the engine could not show it')" />
 		<img v-else-if="tile.kind == 'placeholder'" class="myTile" :src="errorImageData" :style="{width: flowBeam + 'px', height: flowBeam + 'px'}" />
 		<div class="myCaption mySans" @click="flowCopy(tile.path)"><!-- always the same lines, each its own text rather than one text wrapped, so every caption is the same height and each line is cut on its own -->
-			<div class="myCaptionLine"><span class="myCaptionText">{{tile.file.name}}</span></div>
-			<div class="myCaptionLine"><span class="myCaptionText">{{flowDetails(tile)}}</span></div>
+			<div class="myCaptionLine">{{tile.file.name}}</div>
+			<div class="myCaptionLine">{{flowDetails(tile)}}</div>
 		</div>
 	</div>
 </div>
@@ -248,9 +249,6 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 	min-height: 1lh; /* a line tall even with nothing in it, like the size of a picture not yet loaded or refused, so every caption keeps the same height */
 	white-space: pre; overflow: hidden; /* one line, cut off at the tile's right edge where the tile is narrower than the words; pre rather than nowrap, which also never wraps but keeps every space, so a filename shows its spaces as they are */
 	mask-image: linear-gradient(to right, black calc(100% - 2px), transparent); /* and melted over the last 2 css pixels, so a letter cut in half fades out rather than looking broken; on the line's box rather than the overflow, so a short line ending right there fades a little too, which is the price of doing it without script */
-}
-.myCaptionText {
-	background-color: orange; /* the text alone, shown while its place in the layout is tried */
 }
 .myImg { /* an img tile until flowImgLoad has sized it by the fit, and for good if its picture has no size of its own */
 	max-width: var(--beam); /* only ever shrinks: a square lands on the beam, a wide one hits the limit on width alone, and an image already smaller keeps its own size */

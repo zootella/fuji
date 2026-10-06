@@ -1,7 +1,7 @@
 //the fits: how big a thumbnail is, from the picture's size and the beam; fit.rs is the same arithmetic in rust, kept in step with this file operation for operation
 
 /*
-A fit is the rule that sizes a thumbnail: given a picture's size and the beam, it answers the size the thumbnail shows at. The user picks one fit for the whole sheet and switches with a click on the sheet's toolbar, which remakes every thumbnail. A fit only sizes; where the sized thumbnails go is the flow's business, a separate choice. fits.md is where the fits were planned.
+A fit is the rule that sizes a thumbnail: given a picture's size and the beam, it answers the size the thumbnail shows at. The user picks one fit for the whole sheet in the settings panel, and the sheet remakes every thumbnail when it comes back on screen. A fit only sizes; where the sized thumbnails go is the flow's business, a separate choice. fits.md is where the fits were planned.
 
 The beam is one length in CSS pixels for the whole sheet, the Small, Medium, Large or Xl the user chose, and every fit uses it the same way, through one imaginary picture. That picture is 4:3 landscape, the beam wide and three quarters of the beam tall, and it never changes; call it the reference. Each fit is nothing but a measure — the longer side, the diagonal, the width plus the height, the square root of the area, the height, or the width — and it scales a picture until the picture's measure matches the reference's. So every fit but row, scale and log shows a 4:3 picture at exactly the reference's size, the beam across, and the fits differ only in what they do with other shapes; nothing in any fit is tuned by hand. Row stands the reference upright, 3:4, so a row's height is the beam just as a column's width is, and it is a portrait 4:3 picture that stays put under it. The scale and log fits use the reference differently, as the one picture that sets the sheet's single scale: a picture the size of the screen comes out measuring as the reference does by its width plus height.
 
@@ -33,6 +33,17 @@ export const fitMeasures = {//each fit's measure of a picture, and the setting's
 	LogFit:     (w, h) => w + h,//scale with the differences compressed by a square root: a picture the size of the screen shows as it would under scale, one four times as large across is only twice as large, and an icon stays something you can see. It still says which pictures are big, without letting one dwarf the rest
 }
 export const fitNames = Object.keys(fitMeasures)//in the order above
+
+export const fitDescriptions = {//what each fit holds constant, for the settings panel, in a user's words rather than the comments' above; kept here beside the measures so a changed fit changes its words in the same place
+	RowFit:     'every thumbnail the same height',
+	ColumnFit:  'every thumbnail the same width',
+	SquareFit:  'the longer side the same for every picture, as Finder and Explorer do',
+	CircleFit:  'the diagonal the same for every picture',
+	DiamondFit: 'width plus height the same for every picture, as on the light table',
+	AreaFit:    'the area the same for every picture',
+	ScaleFit:   'one scale for everything, so big pictures are big and small ones small',
+	LogFit:     'like Scale, with the differences shrunk by a square root',
+}
 
 /*
 fitSize: the size a picture shows at under a fit. It takes one object, with these names:
