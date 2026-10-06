@@ -7,23 +7,24 @@ import {governorRun} from '../governor.js'
 import {settings, settingsThumbnailBeam} from '../settings.js'
 import {fitSize} from '../fit.js'
 import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
-import {logTrouble, logThumbnail, logCard} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every card is a row in it
-import {xy, errorImageData, platform} from './library.js'
+import {logTrouble, logThumbnail, logBucket} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
+import {xy, errorImageData, platform, sayDay, sayDimensions, saySize4, middleDot, backize} from './library.js'
 import {fileTypesEnabled} from '../fileTypes.js'
+import {modelFile} from '../model.js'//what the folder's listing knows about each path, for the caption
 
 /*
-The one flow, and the whole of how a path becomes a tile. A card hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw gets the placeholder. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
+The one flow, and the whole of how a path becomes a tile. A bucket hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw gets the placeholder. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
-Every tile is sized the same way whatever its route: from the picture's own size, by the fit thumbnail.fit names, which the sheet's toolbar sets, through flowFit and fit.js. A page tile has that size once its decode resolves, an img tile once the engine has loaded it, and a native tile from Rust, which sends it back beside the pixels after running the same fit to choose how large to render. The name says square because the square fit came first; the flow itself is wrap, which places tiles left to right like words.
+Every tile is sized the same way whatever its route: from the picture's own size, by the fit thumbnail.fit names, which the sheet's toolbar sets, through flowFit and fit.js. A page tile has that size once its decode resolves, an img tile once the engine has loaded it, and a native tile from Rust, which sends it back beside the pixels after running the same fit to choose how large to render. The flow itself is wrap, which places tiles left to right like words, and its name names no fit, since the fit is the user's to choose.
 
-Nothing is read ahead of its thumbnail. A tile takes up room when its pixels arrive, so the rows reflow as a card fills, and a file that cannot be shown becomes the placeholder when its render or its decode fails. The check on the size a file's header claims is the render's own, in thumbnail.rs, where the decoder runs unsandboxed.
+Nothing is read ahead of its thumbnail. A tile takes up room when its pixels arrive, so the rows reflow as a bucket fills, and a file that cannot be shown becomes the placeholder when its render or its decode fails. The check on the size a file's header claims is the render's own, in thumbnail.rs, where the decoder runs unsandboxed.
 
-Every tile on a card is asked for at once, and each waits in the line of the resource it taxes, which governor.js lets through four at a time in the order asked, so a card fills from the top. A native tile waits under rust computation, since its decode runs on a Rust pool thread and never touches the page. A page tile waits under web computation, since it is a full decode held in the store and a draw on the main thread. An img tile has no line of its own; it waits only for the store's read, which every view's reads share under disk. A card that goes away leaves its tiles in line, and each returns the moment it is let in, since a call already made cannot be called back. Nothing pauses a card, so a sheet hidden behind the table goes on filling.
+Every tile in a bucket is asked for at once, and each waits in the line of the resource it taxes, which governor.js lets through four at a time in the order asked, so a bucket fills from the top. A native tile waits under rust computation, since its decode runs on a Rust pool thread and never touches the page. A page tile waits under web computation, since it is a full decode held in the store and a draw on the main thread. An img tile has no line of its own; it waits only for the store's read, which every view's reads share under disk. A bucket that goes away leaves its tiles in line, and each returns the moment it is let in, since a call already made cannot be called back. Nothing pauses a bucket, so a sheet hidden behind the table goes on filling.
 
 Two flows came before this one and are gone, and both of their lessons are in this file. TagFlow handed the engine full-size originals in plain img tags and let it decide everything, which is why every raster tile here is a canvas instead: the engine's thumbnail is smaller than a full decode but it is the engine's to keep or drop, and a canvas is a number of bytes fuji owns and can total. CanvasFlow painted each picture down into a canvas by hand, which is the page route below, and the halving in flowShrink is the part of it that had to be got right. The thumbnail pipeline document on fuji's site is the long version, with the measurements that chose each path.
 */
 
-const flowHolder = 'SquareFlow'//on every reference this flow takes, so a leak has a name
+const flowHolder = 'TestFlow'//on every reference this flow takes, so a leak has a name
 const flowBeam = settingsThumbnailBeam()//the length every thumbnail is measured against, in css pixels; read once: every tile is sized to it, and a change means making them all again
 const flowFitName = settings.thumbnail.fit//how every tile is sized against the beam, one of fitNames in fit.js; read once like the beam
 const flowScreen = xy(screen.width, screen.height)//the screen's size in css pixels, which ScaleFit and LogFit measure against; read once, and stale on a change of monitor exactly as devicePixelRatio is
@@ -36,9 +37,9 @@ const props = defineProps({
 
 const flowTiles = ref(props.paths.map(path => tileFor(path)))//one small reactive object per path, built once; a load or a refusal changes one tile
 const flowCanvases = new Map()//path to its canvas element, kept by the refs in the template
-let flowClosed = false//the card is going away, so every tile still in line returns as it is let in
+let flowClosed = false//the bucket is going away, so every tile still in line returns as it is let in
 let flowHeld = []//the paths this flow holds a store reference on, which are the img tiles; released on unmount, since an img needs its url as long as it shows
-let flowBytes = 0//what this card's canvases cost; the imgs are the engine's and small
+let flowBytes = 0//what this bucket's canvases cost; the imgs are the engine's and small
 let flowRefused = 0
 
 function tileFor(path) {//the kind of tile a path gets on this platform, from its extension alone
@@ -49,16 +50,16 @@ function tileFor(path) {//the kind of tile a path gets on this platform, from it
 	if (web && entry.contactSheet == 'img') kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
 	else if (native) kind = 'native'//a canvas the operating system fills, preferred wherever it can
 	else if (web) kind = 'page'//a canvas the page fills
-	return {path, kind, url: '', css: null}//kind turns to placeholder when a render or a decode fails; url is an img tile's, once the store has it, and css its size once the engine has loaded it
+	return {path, kind, url: '', css: null, file: modelFile(path), natural: null}//file is the listing's entry, with the name, the size and the modified time, already in hand; natural is the picture's own size, once a route reports it. kind turns to placeholder when a render or a decode fails; url is an img tile's, once the store has it, and css its size once the engine has loaded it
 }
 
-onMounted(() => { flowFill().catch(error => logTrouble('SquareFlow: filling a card', error)) })//the top gate for this card: anything that escapes a tile's work lands here, loudly
+onMounted(() => { flowFill().catch(error => logTrouble('TestFlow: filling a bucket', error)) })//the top gate for this bucket: anything that escapes a tile's work lands here, loudly
 onBeforeUnmount(() => {
 	flowClosed = true
 	for (let path of flowHeld) cacheRelease(path, flowHolder)
 })
 
-async function flowFill() {//ask for every tile at once, each in the line of the resource it taxes, and log the card when all of them are done
+async function flowFill() {//ask for every tile at once, each in the line of the resource it taxes, and log the bucket when all of them are done
 	let began = performance.now()
 	let ofKind = kind => flowTiles.value.filter(tile => tile.kind == kind)
 	let imgs = ofKind('img'), native = ofKind('native'), page = ofKind('page')
@@ -68,7 +69,7 @@ async function flowFill() {//ask for every tile at once, each in the line of the
 		...native.map(tile => governorRun('rust computation', () => flowNative1(tile))),
 		...page.map(tile =>   governorRun('web computation',  () => flowPage1(tile))),//keeps its place through the store's read under disk, so at most four page tiles hold a whole file and its decode at once; governor.js says why this one caller holds two lines
 	])
-	if (!flowClosed) logCard({index: props.paths.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
+	if (!flowClosed) logBucket({index: props.paths.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
 }
 
 function flowRefuse(tile, why) {//the placeholder, and a row saying which file and why; nothing is tried twice
@@ -78,14 +79,15 @@ function flowRefuse(tile, why) {//the placeholder, and a row saying which file a
 }
 
 async function flowNative1(tile) {//one thumbnail from the operating system, onto its canvas
-	if (flowClosed) return//a card that went away while this tile waited in line asks Rust for nothing
+	if (flowClosed) return//a bucket that went away while this tile waited in line asks Rust for nothing
 	let began = performance.now()
 	try {
 		let buffer = await thumbnailRender({path: tile.path, fit: flowFitName, beam: flowBeam, screenWidth: flowScreen.x, screenHeight: flowScreen.y, backingPerCss: window.devicePixelRatio, gamut: flowGamut})//rust runs the same fit on the picture's size to choose how large to render; never enlarged, so a small picture comes back at its own size
 		let {width, height, gamut, naturalWidth, naturalHeight, pixels} = thumbnailUnpack(buffer)
 		let canvas = flowCanvases.get(tile.path)
 		if (flowClosed || !canvas) return//and one that went away while Rust worked throws the thumbnail away
-		flowSize(canvas, flowFit(xy(naturalWidth, naturalHeight)).css, xy(width, height))//the tile's size from the picture's own, which rust sends back for this, as every route works it out
+		tile.natural = xy(naturalWidth, naturalHeight)
+		flowSize(canvas, flowFit(tile.natural).css, xy(width, height))//the tile's size from the picture's own, which rust sends back for this, as every route works it out
 		let context = canvas.getContext('2d', {colorSpace: flowGamut})
 		context.putImageData(new ImageData(pixels, width, height, {colorSpace: gamut}), 0, 0)//tagged with what the pixels are, so windows' srgb pixels are right on a wide-gamut canvas; anything past the canvas is clipped
 		flowEdge(context, canvas, width, height)//the sliver flowSnap may have added, if this thumbnail came back a backing pixel short of its box
@@ -96,7 +98,7 @@ async function flowNative1(tile) {//one thumbnail from the operating system, ont
 }
 
 async function flowPage1(tile) {//one thumbnail made by the page from the store's decoded element, halved down; the essay above flowShrink says why halving rather than one draw
-	if (flowClosed) return//before the store is asked, so a card that went away takes no reference it would have to give back
+	if (flowClosed) return//before the store is asked, so a bucket that went away takes no reference it would have to give back
 	let began = performance.now()
 	let promise = cacheNeed(tile.path, flowHolder)//the reference is taken before any await, so the release below is owed from this line on
 	try {
@@ -106,6 +108,7 @@ async function flowPage1(tile) {//one thumbnail made by the page from the store'
 		if (entry.error) { flowRefuse(tile, String(entry.error)); return }
 		let natural = xy(entry.img.naturalWidth, entry.img.naturalHeight)
 		if (!(natural.x > 0 && natural.y > 0)) { flowRefuse(tile, 'the picture has no size'); return }
+		tile.natural = natural
 
 		let {scale, css} = flowFit(natural)//the size it will show at, and the css pixels per image pixel that got it there
 		let detail = Math.min(window.devicePixelRatio, 1 / scale)//canvas pixels per css pixel: devicePixelRatio, but never more than the file has; from the scale rather than the sizes, because a sliver rounds up to one css pixel
@@ -129,12 +132,22 @@ function flowImg(tile) {//a gif or an svg: the store's url, no decode; flowImgLo
 			tile.url = entry.url
 			logThumbnail({hit: 'img', render: Math.round(performance.now() - began), path: tile.path})//the read only; what the engine then spends showing it, nothing here can see
 		})
-		.catch(error => logTrouble('SquareFlow: loading an img thumbnail', error))//the store answers a bad file with entry.error, so this catches only a store that broke
+		.catch(error => logTrouble('TestFlow: loading an img thumbnail', error))//the store answers a bad file with entry.error, so this catches only a store that broke
 }
 
 function flowImgLoad(tile, event) {//an img tile, sized by the fit once the engine knows its picture's size; until then, and for an svg with no size of its own, the css in myImg holds it to the beam's square
 	let natural = xy(event.target.naturalWidth, event.target.naturalHeight)
-	if (natural.x > 0 && natural.y > 0) tile.css = flowFit(natural).css
+	if (natural.x > 0 && natural.y > 0) { tile.natural = natural; tile.css = flowFit(natural).css }
+}
+
+function flowDetails(tile) {//the caption's second line: the day the file was last modified, its size, and the size the picture shows at, each left out until it is known, so a missing one never leaves a divider standing alone
+	let parts = [sayDay(tile.file.mtime), saySize4(tile.file.size)]
+	if (tile.natural) parts.push(sayDimensions(tile.natural))//known once the thumbnail lands, and never for a file fuji refused
+	return parts.filter(part => part).join(` ${middleDot} `)//full spaces around the dot, which separates things, where a thin space joins a number to its unit; chosen 2026-10-06 over a fullwidth slash, two spaces and a plain slash
+}
+
+function flowCopy(path) {//a click on a caption: the picture's whole path onto the clipboard, written the way the platform's own file manager writes it; nothing on screen says so yet
+	navigator.clipboard.writeText(backize(path)).catch(error => logTrouble('TestFlow: copying a path', error))//the top gate for the click, since the engine can refuse the clipboard
 }
 
 function flowSize(canvas, css, backing) {//size a canvas to the css size its fit chose and the backing pixels it has, which is also what gives its tile room in the flow; assigning width or height also clears it and resets its context, so it comes before any drawing
@@ -192,26 +205,52 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 </script>
 <template>
 
-<!-- every tile names its path in data-path, which is how the sheet knows which one was double-clicked without a handler on each. items-start so a short tile keeps its own height instead of stretching to the tallest in its row, and gap-1.5 with p-1.5 for 6 css pixels between tiles and between a tile and the card's edge, so two cards meet 12 apart -->
-<div class="flex flex-wrap items-start gap-1.5 p-1.5" :style="{'--beam': flowBeam + 'px'}">
-	<template v-for="tile in flowTiles" :key="tile.path">
+<!-- every tile names its path in data-path, on the cell that holds the picture and its caption, which is how the sheet knows which one was double-clicked without a handler on each. items-start so a short cell keeps its own height instead of stretching to the tallest in its row; the spacing is in myFlow, beside the outline it makes room for -->
+<div class="myFlow flex flex-wrap items-start" :style="{'--beam': flowBeam + 'px'}">
+	<div v-for="tile in flowTiles" :key="tile.path" class="myCell flex flex-col" :data-path="tile.path">
 		<canvas v-if="tile.kind == 'native' || tile.kind == 'page'"
 			:ref="el => el ? flowCanvases.set(tile.path, el) : flowCanvases.delete(tile.path)"
-			class="myTile" :data-path="tile.path" width="0" height="0"
+			class="myTile" width="0" height="0"
 		></canvas>
-		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile" :class="{myImg: !tile.css}" :data-path="tile.path" :src="tile.url" :style="tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {}" @load="flowImgLoad(tile, $event)" @error="flowRefuse(tile, 'the engine could not show it')" />
-		<img v-else-if="tile.kind == 'placeholder'" class="myTile" :data-path="tile.path" :src="errorImageData" :style="{width: flowBeam + 'px', height: flowBeam + 'px'}" />
-	</template>
+		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile" :class="{myImg: !tile.css}" :src="tile.url" :style="tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {}" @load="flowImgLoad(tile, $event)" @error="flowRefuse(tile, 'the engine could not show it')" />
+		<img v-else-if="tile.kind == 'placeholder'" class="myTile" :src="errorImageData" :style="{width: flowBeam + 'px', height: flowBeam + 'px'}" />
+		<div class="myCaption mySans" @click="flowCopy(tile.path)"><!-- always the same lines, each its own text rather than one text wrapped, so every caption is the same height and each line is cut on its own -->
+			<div class="myCaptionLine"><span class="myCaptionText">{{tile.file.name}}</span></div>
+			<div class="myCaptionLine"><span class="myCaptionText">{{flowDetails(tile)}}</span></div>
+		</div>
+	</div>
 </div>
 
 </template>
 <style scoped>
 
+.myFlow { /* 6 css pixels of paper between two tiles' outlines and between an outline and the bucket's edge, with room for the 2 each outline takes outside its tile; so two buckets' outlines meet 12 apart */
+	gap: 10px; /* 6, and an outline on either side */
+	padding: 8px; /* 6, and the one outline */
+}
 .myTile {
 	display: block; /* a canvas and an img are inline by default, and their baselines would show as a stripe under every row */
-	border-radius: 8px; /* a clip the compositor draws, so the pixels inside are blitted exactly as before; it only hides the few in each corner, and a tile shorter than 16px gets a smaller radius from css itself */
-	outline: 2px solid var(--color-brand); /* an outline rather than a border, which would take its width from each side of the box the canvas is sized to and resample every thumbnail into what was left; an outline takes no room and follows the radius */
-	outline-offset: -2px; /* drawn just inside the edge, over the picture's outermost two css pixels, so the outline sits on the tile's own box and the gap between tiles stays the gap the flow set */
+	border-radius: 4px; /* a clip the compositor draws, so the pixels inside are blitted exactly as before; it only hides the few in each corner, and a tile shorter than 8px gets a smaller radius from css itself */
+	outline: 2px solid var(--color-frame); /* an outline rather than a border, which would take its width from each side of the box the canvas is sized to and resample every thumbnail into what was left; an outline takes no room and follows the radius */
+	outline-offset: 0; /* drawn just outside the edge, so every pixel of the picture shows; the line lands in the gap and the bucket's padding, which leaves 2 css pixels of paper between two neighbors' outlines and 4 between an outline and the bucket's edge */
+	box-shadow: 4px 4px 12px var(--color-shade); /* one wide soft shadow, lit from the top left, so the right and bottom match and so do the left and top, since the outline already draws the crisp edge where the tile meets the sheet; the same shadow the table's card casts. Painted outside the box and taking no room, so the canvas is blitted exactly as before, and shaped by the radius. box-shadow rather than a drop-shadow filter, because filter on a tile is the gamma lens's, in Shell.vue */
+}
+.myCell:hover .myTile {
+	outline-color: var(--color-brand); /* the tile under the pointer, or under it on its caption, in fuji's cyan, by its frame alone, so nothing about its size or its pixels changes */
+}
+.myCaption {
+	width: 0; min-width: 100%; /* as wide as the tile above it and never wider: no width of its own to give the cell, then stretched to the one the tile gave it, so the fit alone still sizes every cell */
+	padding-top: 6px; /* 4 css pixels of paper under the outline, which takes the first 2 */
+	color: var(--color-quiet);
+	cursor: default; /* the arrow rather than the text beam, since the caption is clicked to copy rather than selected */
+}
+.myCaptionLine {
+	min-height: 1lh; /* a line tall even with nothing in it, like the size of a picture not yet loaded or refused, so every caption keeps the same height */
+	white-space: pre; overflow: hidden; /* one line, cut off at the tile's right edge where the tile is narrower than the words; pre rather than nowrap, which also never wraps but keeps every space, so a filename shows its spaces as they are */
+	mask-image: linear-gradient(to right, black calc(100% - 2px), transparent); /* and melted over the last 2 css pixels, so a letter cut in half fades out rather than looking broken; on the line's box rather than the overflow, so a short line ending right there fades a little too, which is the price of doing it without script */
+}
+.myCaptionText {
+	background-color: orange; /* the text alone, shown while its place in the layout is tried */
 }
 .myImg { /* an img tile until flowImgLoad has sized it by the fit, and for good if its picture has no size of its own */
 	max-width: var(--beam); /* only ever shrinks: a square lands on the beam, a wide one hits the limit on width alone, and an image already smaller keeps its own size */

@@ -40,11 +40,11 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
 
 One worked example, the kind Flickr uses: resize every image to a constant height, then set the thumbnails left to right like words in a left-aligned paragraph, wrapping at the edge. Wide images take more width than tall ones, rows come out ragged on the right, and **nothing is cropped** — every picture is shown whole. A Flow that instead squared everything to a grid would have to crop, and that is precisely the sort of trade a Flow exists to make.
 
-**There is one, `SquareFlow`, and two came before it.** `TagFlow` handed the renderer full-size originals in plain img tags, and `CanvasFlow` painted each image down into a canvas fuji sized; they were the two halves of an experiment, and `card.md` says what it found. `SquareFlow` is the answer and both were deleted once it was: every raster thumbnail is a canvas, with pixels from the operating system where the platform allows and from the page where it does not, and a GIF or an SVG is an img. The thumbnail pipeline document on the site is the whole of it, and `thumbnail-open.md` is what is left.
+**There is one, `TestFlow`, and two came before it.** `TagFlow` handed the renderer full-size originals in plain img tags, and `CanvasFlow` painted each image down into a canvas fuji sized; they were the two halves of an experiment, and `bucket.md` says what it found. `TestFlow` is the answer and both were deleted once it was: every raster thumbnail is a canvas, with pixels from the operating system where the platform allows and from the page where it does not, and a GIF or an SVG is an img. The thumbnail pipeline document on the site is the whole of it, and `thumbnail-open.md` is what is left.
 
 **How big a thumbnail is belongs to the Sizes, not to a Flow.** `Small`, `Medium`, `Large` and `Xl` are four named squares a thumbnail fits inside — 120, 240, 360 and 480 css pixels at the factory — and the user says once what each one means, in `fuji.toml`. Every Flow reads the same chosen Size, so switching Flows never changes how big anything is, and nothing in fuji is tuned to the particular numbers.
 
-**A Flow arranges within one Card, and one Flow governs every Card at once.** Two Cards in the same scroll always look alike; switching Flows switches all of them together, and a Flow that sizes thumbnails differently changes how tall every Card renders.
+**A Flow arranges within one Bucket, and one Flow governs every Bucket at once.** Two Buckets in the same scroll always look alike; switching Flows switches all of them together, and a Flow that sizes thumbnails differently changes how tall every Bucket renders.
 
 ## Sorts and Flows are orthogonal, and not equally shared
 
@@ -56,13 +56,13 @@ Whether that asymmetry should show up as two different homes for the two values,
 
 Both survive a restart, by the test in `architecture.md` — the user would be annoyed to reopen fuji and find their order and their layout thrown away.
 
-## Cards
+## Buckets
 
-**A Card is a box of thumbnails inside the Sheet's one scroll.** It holds up to a capped number of images, all from the same folder, and hands them to a Flow. The Sheet's scroll runs over a stack of Cards rather than over the thumbnails themselves, and a Card boundary falls in exactly two places: the cap was reached, or a new folder began.
+**A Bucket is a box of thumbnails inside the Sheet's one scroll.** It holds up to a capped number of images, all from the same folder, and hands them to a Flow. The Sheet's scroll runs over a stack of Buckets rather than over the thumbnails themselves, and a Bucket boundary falls in exactly two places: the cap was reached, or a new folder began.
 
-**A Card began as scaffolding and may stay.** No file manager shows this box. It was put there to make the Sheet's hard problems measurable, and it has turned out to be the unit of the walk through a whole drive in constant memory; `card.md` has both, and whether it stays is open there.
+**A Bucket began as scaffolding and may stay.** No file manager shows this box. It was put there to make the Sheet's hard problems measurable, and it has turned out to be the unit of the walk through a whole drive in constant memory; `bucket.md` has both, and whether it stays is open there.
 
-**The word is already taken, and that is not settled.** `DiamondTable` calls its single image container the card — `cardRef`, `cardShow()`, `.myCard`. That is a different thing at a different altitude, and one of the two names will have to move.
+**Bucket rather than card, settled 2026-10-06.** It was called a card until `DiamondTable` turned out to call its single image container the card — `cardRef`, `cardShow()`, `.myCard` — a different thing at a different altitude. The table keeps card; this one became a bucket, a container sized for resources rather than a design element, which is what it is.
 
 ## Tables
 
@@ -85,7 +85,7 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
 ## Where the rest is written down
 
     architecture.md    the four layers, and where a value or a view belongs
-    card.md            the box of thumbnails the sheet scrolls over, and the walk it makes possible
+    bucket.md            the box of thumbnails the sheet scrolls over, and the walk it makes possible
     thumbnail-open.md  what is left to decide and measure about thumbnails; the pipeline itself is a page on the site
     canvas.md          what the two engines do with a canvas, measured, and where a thumbnail is made
     security.md        where untrusted bytes are parsed, and the walls to build

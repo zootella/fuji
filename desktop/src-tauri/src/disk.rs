@@ -23,6 +23,7 @@ pub struct DirEntry {
 	pub is_dir:     bool,//true if this entry is a directory
 	pub is_symlink: bool,//true if this entry is a symbolic link
 	pub size:       u64,//size in bytes; typically 0 for directories and symlinks
+	pub mtime:      u128,//last modification time, in milliseconds since the unix epoch; 0 when the filesystem has no answer. From the metadata already read for the kind and the size, so it costs the listing nothing more
 }
 
 #[derive(Serialize)]
@@ -33,7 +34,7 @@ pub struct FileStat {
 	pub size:       u64,//size in bytes
 	pub atime:      u128,//last access time, in milliseconds since the unix epoch; 0 when the filesystem has no answer
 	pub mtime:      u128,//last modification time, in milliseconds since the unix epoch; 0 when the filesystem has no answer
-	pub ctime:      u128,//creation time, in milliseconds since the unix epoch; 0 when the filesystem has no answer, which is common on linux
+	pub birthtime:  u128,//creation time, in milliseconds since the unix epoch; 0 when the filesystem has no answer, which is common on linux. Named for the birth time rather than ctime, which in posix is when the metadata last changed, a different time rust does not offer portably
 }
 
 /*
@@ -63,6 +64,7 @@ pub async fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 				is_dir:     ft.is_dir(),
 				is_symlink: ft.is_symlink(),
 				size:       meta.len(),
+				mtime:      millis(meta.modified()),
 			});
 		}
 		Ok(results)
@@ -70,7 +72,7 @@ pub async fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 }
 
 /// POSIX-like `stat(2)` metadata
-//no caller in the page yet: a date sort needs one of these per file, which is the shape the listing will have to grow to carry
+//one caller in the page, associate.js, which asks only whether a path is there; a listing carries a folder's sizes and modified times without one of these per file
 #[command]
 pub async fn disk_stat(path: String) -> Result<FileStat, String> {
 	run_blocking(move || {
@@ -83,7 +85,7 @@ pub async fn disk_stat(path: String) -> Result<FileStat, String> {
 			size:       meta.len(),
 			atime:      millis(meta.accessed()),
 			mtime:      millis(meta.modified()),
-			ctime:      millis(meta.created()),
+			birthtime:  millis(meta.created()),
 		})
 	}).await
 }

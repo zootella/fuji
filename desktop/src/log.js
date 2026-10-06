@@ -14,7 +14,7 @@ The first fence is the platform. A console is a different tool on the Mac and on
 
 Two functions called log, one here and one in log.rs, each taking a string the way console.log does. This one gathers lines and hands them down after things go quiet, so even that small crossing never lands beside a flip being timed, and for the same reason nothing else touches the disk during a session: a write lands in whatever flip is being measured. Rust's appends in place. Lines from the two sides keep no exact order against each other, and console.log never promised one either, so every line begins with who wrote it and when: this window's label, or rust----, and the utc time, to the millisecond, of when it was recorded rather than when it was handed down. On the mac several windows share one file, and that prefix is how their lines are told apart. The cost of writing at exit is that a crash loses the log, which is the right trade for an instrument, since a crash mid-run invalidates the measurement anyway.
 
-The typed rows — a load, a flip, a thumbnail, a card — are helpers over log() that write aligned columns, because reading a hundred flips means reading down a column rather than along a row. Loads and flips are interleaved on purpose, since a decode landing in the middle of a flip is what explains a slow one.
+The typed rows — a load, a flip, a thumbnail, a bucket — are helpers over log() that write aligned columns, because reading a hundred flips means reading down a column rather than along a row. Loads and flips are interleaved on purpose, since a decode landing in the middle of a flip is what explains a slow one.
 */
 
 const logFolder = `${brandStem}-temp`//fuji-temp, under the user's home folder, on every platform; rust makes it on the way out if it is missing
@@ -73,7 +73,7 @@ export function logTrouble(where, error) { log(sayTrouble(where, error)) }//the 
 
 export function logFlip(row)      { log(sayRow({what: 'flip',  ...row})) }//one flip, already measured by the view, which is the only place that can see both halves of it
 export function logThumbnail(row) { log(sayRow({what: 'thumb', ...row})) }//one thumbnail the sheet made or refused: hit says by which path, render the milliseconds, bytes its canvas, natural its pixels, and the note why it was refused
-export function logCard(row)      { log(sayRow({what: 'card',  ...row})) }//one card filled: index is how many images it holds, render the milliseconds to fill it, bytes what its canvases cost, and the note the count by path
+export function logBucket(row)    { log(sayRow({what: 'bucket', ...row})) }//one bucket filled: index is how many images it holds, render the milliseconds to fill it, bytes what its canvases cost, and the note the count by path
 
 function logLater() {//hand lines down after things go quiet, so even this small crossing never lands beside a flip
 	clearTimeout(logQuietTimer)
@@ -93,7 +93,7 @@ function logHeader(label, stamp) {//once, ahead of the first lines
 		`# every line the page and rust chose to keep, roughly in the order they happened, each beginning with the window that recorded it, or rust----, and the utc time; other times in milliseconds`,
 		`# a load row: disk is the read, render the decode. A flip row: store is the wait on the cache, zero for an image it already had, and paint is the swap reaching the screen`,
 		`# a thumb row is one thumbnail the sheet made: hit is its path, native, page or img, or refused with the reason in the note; render is the milliseconds to make it; bytes its canvas; natural its pixels`,
-		`# a card row is one card filled: index is how many images, render the milliseconds, bytes the canvases, and the note the count by path`,
+		`# a bucket row is one bucket filled: index is how many images, render the milliseconds, bytes the canvases, and the note the count by path`,
 		'',
 		sayRow({
 			what: 'what', sequence: 'seq', index: 'index', direction: 'dir', hit: 'hit',

@@ -69,7 +69,7 @@ fn check_size(width: u32, height: u32) -> Result<(), String> {
 	Ok(())
 }
 
-//the size to render at, in backing pixels, for a picture that shows at width by height image pixels: the fit's css size times backing_per_css, rounded the way flowSnap in SquareFlow.vue rounds it, so the canvas the page makes is exactly this size; and never more than the picture's own pixels, since a thumbnail is never enlarged and the windows scaler, unlike imageio, would enlarge it if asked
+//the size to render at, in backing pixels, for a picture that shows at width by height image pixels: the fit's css size times backing_per_css, rounded the way flowSnap in TestFlow.vue rounds it, so the canvas the page makes is exactly this size; and never more than the picture's own pixels, since a thumbnail is never enlarged and the windows scaler, unlike imageio, would enlarge it if asked
 fn target(ask: &Ask, width: u32, height: u32) -> Result<(u32, u32), String> {
 	let (css_width, css_height, _) = crate::fit::fit_size(&ask.fit, width, height, ask.beam, ask.screen_width, ask.screen_height)?;
 	let want_width  = (css_width  as f64 * ask.backing_per_css).round().max(1.0);//the same multiplication and rounding as Math.round(side * backingPerCss) in flowSnap

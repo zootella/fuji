@@ -7,9 +7,9 @@ It says what fuji does, not what it might. It is the only architecture document:
 ```
 App.vue
 └── Shell.vue            the window: settings, reveal, window events, which view is showing
-    ├── Sheet.vue        v-show   one sheet: a scroll of cards over one folder
-    │   └── Card.vue              a capped number of images, all from one folder
-    │       └── SquareFlow.vue    the flow that sizes and arranges them, and routes each file to a decoder
+    ├── Sheet.vue        v-show   one sheet: a scroll of buckets over one folder
+    │   └── Bucket.vue            a capped number of images, all from one folder
+    │       └── TestFlow.vue      the flow that sizes and arranges them, and routes each file to a decoder
     ├── SettingsPanel.vue v-if    what a user changes from inside fuji, in the sheet's window
     └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
@@ -37,7 +37,7 @@ App.vue
 
 **A table is named for what makes it different, not for what they all are.** They are all light tables, which is why none of them is called one: `DiamondTable` is the one that keeps a diamond, and the next is the one that keeps whatever it keeps instead.
 
-**The sheet scrolls over cards, not over thumbnails.** A card holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every card at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `card.md` carries what a card is for, and the thumbnail pipeline document on the site how the flow gets its pixels.
+**The sheet scrolls over buckets, not over thumbnails.** A bucket holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every bucket at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `bucket.md` carries what a bucket is for, and the thumbnail pipeline document on the site how the flow gets its pixels.
 
 **A double-click moves between the sheet and the current table, and they swap with `v-show`.** A double-clicked thumbnail opens its picture on the table, and a double-click on the table goes back to the sheet. That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
 
@@ -121,7 +121,7 @@ The shell and its views are real: the sheet, the settings panel, the diamond tab
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 
-`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. There is one flow, `SquareFlow`, named by `Card.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of the experiment `card.md` records, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
+`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. There is one flow, `TestFlow`, named by `Bucket.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of the experiment `bucket.md` records, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
 
 There is no router and no store library. `App.vue` renders the one view directly and `main.js` titles the page and mounts the app, and does nothing else.
 

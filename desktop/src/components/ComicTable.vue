@@ -25,7 +25,7 @@ defineExpose({start, onKey, onResize})
 <style scoped>
 
 .myComic {
-	background-color: var(--color-surface);
+	background-color: var(--color-paper); /* the ground every view stands on */
 	color: var(--color-faint);
 }
 

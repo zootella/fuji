@@ -8,13 +8,13 @@ import SettingsFileTypes from './SettingsFileTypes.vue'
 
 //the shell trades this with the sheet when either asks with s, and makes it fresh each time, so every box starts from the settings as they are now. A change reaches the settings object the moment the user commits it, and the file when fuji closes, as every setting does; settings.js checks it against the one schema, so nothing here repeats what a valid value is. A section with a life of its own, like the file types, is a component of its own, and a setting that is one box stays here
 
-const cardImages = ref(settings.card.images)//what the box says, which becomes the setting only once the user commits it
-function cardImagesCommit() {//enter, or leaving the box
-	if (!settingsSet('card', 'images', cardImages.value)) cardImages.value = settings.card.images//a value the setting turns away, like 0, 2.5 or nothing at all, puts the box back to the setting as it stands
+const bucketImages = ref(settings.bucket.images)//what the box says, which becomes the setting only once the user commits it
+function bucketImagesCommit() {//enter, or leaving the box
+	if (!settingsSet('bucket', 'images', bucketImages.value)) bucketImages.value = settings.bucket.images//a value the setting turns away, like 0, 2.5 or nothing at all, puts the box back to the setting as it stands
 }
-const sheetCards = ref(settings.sheet.cards)//the same, for how many cards the sheet holds
-function sheetCardsCommit() {
-	if (!settingsSet('sheet', 'cards', sheetCards.value)) sheetCards.value = settings.sheet.cards
+const sheetBuckets = ref(settings.sheet.buckets)//the same, for how many buckets the sheet holds
+function sheetBucketsCommit() {
+	if (!settingsSet('sheet', 'buckets', sheetBuckets.value)) sheetBuckets.value = settings.sheet.buckets
 }
 
 const faces = ref(settings.font.faces)//which fonts, the ones fuji carries or the system's; the buttons offer only what the setting takes, so it never needs putting back
@@ -45,12 +45,12 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 	<h1 class="mb-8 text-strong">Settings</h1>
 
 	<label class="flex items-center gap-4">
-		<span class="w-48">Images on a card</span>
-		<input type="number" min="1" step="1" v-model.number="cardImages" @change="cardImagesCommit" @keydown.enter="$event.target.blur()" class="myBox w-24 px-2 py-1" />
+		<span class="w-48">Images in a bucket</span>
+		<input type="number" min="1" step="1" v-model.number="bucketImages" @change="bucketImagesCommit" @keydown.enter="$event.target.blur()" class="myBox w-24 px-2 py-1" />
 	</label>
 	<label class="mt-1 flex items-center gap-4">
-		<span class="w-48">Cards on the sheet</span>
-		<input type="number" min="1" step="1" v-model.number="sheetCards" @change="sheetCardsCommit" @keydown.enter="$event.target.blur()" class="myBox w-24 px-2 py-1" />
+		<span class="w-48">Buckets on the sheet</span>
+		<input type="number" min="1" step="1" v-model.number="sheetBuckets" @change="sheetBucketsCommit" @keydown.enter="$event.target.blur()" class="myBox w-24 px-2 py-1" />
 	</label>
 	<!-- no hint beneath: for now the two together are also how many of a folder's pictures the sheet shows, which is scaffolding to know rather than something to tell a user -->
 

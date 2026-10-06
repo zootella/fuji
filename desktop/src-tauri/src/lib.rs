@@ -31,10 +31,24 @@ mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path a
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
 mod window;//and window.rs: making windows, placing them, and how long the process outlives them
 
-//the body of a command that waits, run on tokio's blocking pool and answered as a value however it ends: what the body returned, or an error if it panicked. The essay above disk_readdir in disk.rs says why every waiting command goes through here, and what it costs
+//the body of a command that waits, run on tokio's blocking pool inside an autorelease pool, and answered as a value however it ends: what the body returned, or an error if it panicked. The essay above disk_readdir in disk.rs says why every waiting command goes through here, and what it costs, and the one below why every body gets a pool
 pub(crate) async fn run_blocking<T: Send + 'static>(body: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
-	tauri::async_runtime::spawn_blocking(body).await.map_err(|e| format!("the command panicked: {e}"))?
+	tauri::async_runtime::spawn_blocking(move || pooled(body)).await.map_err(|e| format!("the command panicked: {e}"))?
 }
+
+/*
+Every body run_blocking runs gets an autorelease pool of its own on the Mac, drained as the body ends.
+
+Apple's frameworks hand some objects back autoreleased, freed when the thread's autorelease pool next drains rather than when the caller is done with them. AppKit drains one on the main thread after every event, and NSOperationQueue and GCD drain one after every piece of work, so code there never thinks about it. A thread on Tokio's blocking pool has none: Apple never saw it made, so whatever is autoreleased on it waits until the thread exits, and a thread kept busy by a burst of work does not exit. Apple's two guides say what to do, and it is this. Advanced Memory Management: if you detach a thread, you need to create your own autorelease pool block, and a long-lived thread that may autorelease a lot should use them, otherwise autoreleased objects accumulate and your memory footprint grows. Threading Programming Guide: long-lived threads should create additional autorelease pools to free objects more frequently.
+
+It is here, around every body, rather than in each body that calls Apple, because the need belongs to the thread rather than to the call, and because a body that needed one and lacked it was the mistake: panel.rs asked CoreGraphics without one. The obvious callers are AppKit and Foundation, in launch.rs, but ImageIO and CoreGraphics are C interfaces that link Foundation and the Objective-C runtime all the same, so nothing that calls into Apple can be sure it autoreleases nothing. A body that never does, like std::fs in disk.rs, gets a pool that stays empty, which costs a push and a pop against a disk read. objc2's pool pops itself when a panic unwinds through it, so a panicking body still comes back to the page as an error.
+
+Windows and Linux run the body as it is. The thought that COM on Windows belongs at this same level, once per thread rather than once per render, is an open question in mac2win.md.
+*/
+#[cfg(target_os = "macos")]
+fn pooled<T>(body: impl FnOnce() -> T) -> T { objc2::rc::autoreleasepool(|_| body()) }
+#[cfg(not(target_os = "macos"))]
+fn pooled<T>(body: impl FnOnce() -> T) -> T { body() }
 
 pub fn run() {
 	log::log_panics();//before anything can panic, so every panic after this has its place in the log; a line held for the log survives a panic run_blocking catches, and is lost with the rest of the held text in one that ends the process

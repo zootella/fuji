@@ -37,9 +37,9 @@ const settingsSchema = [
 		comment: 'whether you left the contact sheet maximized, which on a mac is zoomed, so the next one opens that way; the size above stays the one it had before, which is where restoring it goes',
 	}, {
 		section: 'sheet',
-		key: 'cards',
+		key: 'buckets',
 		factory: 3,
-		comment: `how many cards the contact sheet holds, so this times the images on a card is the most thumbnails ${brandName} ever has at once; for now that is also how much of a folder the sheet shows, from the first in the current order, and the rest is not shown`,
+		comment: `how many buckets the contact sheet holds, so this times the images in a bucket is the most thumbnails ${brandName} ever has at once; for now that is also how much of a folder the sheet shows, from the first in the current order, and the rest is not shown`,
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'sort',
@@ -47,22 +47,22 @@ const settingsSchema = [
 		factory: 'Alphabet',
 		comment: `which order ${brandName} puts a folder in: Alphabet is the order javascript itself puts an array of names in, capitals before lowercase and page10 before page9, with no locale and no opinion; the sorts ${brandName} has are known to the model rather than here, so a name it does not recognize is reported there and Alphabet used instead`,
 	}, {
-		section: 'card',
+		section: 'bucket',
 		key: 'images',
 		factory: 20,
-		comment: 'how many images one card holds. A card never mixes two folders, and the sheet scrolls over cards rather than over the thumbnails themselves, so that one day it can walk a whole drive in constant memory',
+		comment: 'how many images one bucket holds. A bucket never mixes two folders, and the sheet scrolls over buckets rather than over the thumbnails themselves, so that one day it can walk a whole drive in constant memory',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'thumbnail',
 		key: 'fit',
 		factory: 'SquareFit',
-		comment: `how every thumbnail is sized against the beam below: ${fitNames.join(', ')}. SquareFit lays the beam across a picture's longer side, which is what Finder and Explorer do; fit.js says what each of the others does. One choice for the whole sheet, so changing it changes every card at once`,
+		comment: `how every thumbnail is sized against the beam below: ${fitNames.join(', ')}. SquareFit lays the beam across a picture's longer side, which is what Finder and Explorer do; fit.js says what each of the others does. One choice for the whole sheet, so changing it changes every bucket at once`,
 		check: value => fitNames.includes(value),
 	}, {
 		section: 'thumbnail',
 		key: 'beam',
 		factory: 'Medium',
-		comment: 'which of the beam lengths below every thumbnail is measured against; one choice for the whole sheet, so changing it changes every card at once',
+		comment: 'which of the beam lengths below every thumbnail is measured against; one choice for the whole sheet, so changing it changes every bucket at once',
 		check: value => settingsThumbnailBeams.includes(value),
 	}, {
 		section: 'thumbnail',

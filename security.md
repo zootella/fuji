@@ -50,7 +50,7 @@ Fuji's happy path is the one that has been built and measured: the listing, the 
 
 **Fuji answers "what is this file" once, by name, and every decoder answers it again by the bytes.**
 
-*By name.* `fileTypes` in `fileTypes.js` maps ten extensions to formats. It decides what `listFolder` keeps out of a folder, how `SquareFlow` routes a tile, what the store types its blobs as, and what fuji declares to each operating system.
+*By name.* `fileTypes` in `fileTypes.js` maps ten extensions to formats. It decides what `listFolder` keeps out of a folder, how `TestFlow` routes a tile, what the store types its blobs as, and what fuji declares to each operating system.
 
 *By bytes.* Every decoder fuji hands a file to — ImageIO and WIC on the native route, the web engine on the page route and the tables — chooses how to decode it from the file's own bytes, whatever its name. Fuji itself never reads a file's bytes to name it.
 

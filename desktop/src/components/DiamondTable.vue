@@ -453,7 +453,7 @@ let here = null//the store's entry for the image on the card, which is where the
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {} /* not using this yet, but it's here */
-.myCard { outline: 1px solid var(--color-paper) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n */
+.myCard { outline: 1px solid var(--color-frame) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n */
 
 /*
 The image on the card is the store's own element: cache.js makes it with new Image() and cardShow adopts it into the card. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
@@ -474,14 +474,14 @@ Without this the only rule landing on an adopted image was tailwind's own img{ma
 .myWillChangeTransform          { will-change: transform;           }
 .myWillChangeBackgroundPosition { will-change: background-position; } /* with the styles, you get 2 layers in dev tools Layers */
 
-.myDots { /* the ground the card pans over, its dots a step lighter than it in dark and a step darker in light, from the palette in index.css */
-	background-color: var(--color-surface);
+.myDots { /* the ground the card pans over, the paper every view stands on, its dots a step lighter than it in dark and a step darker in light, from the palette in index.css */
+	background-color: var(--color-paper);
 	background-image: radial-gradient(circle at center, var(--color-dot) 6px, transparent 6px);
 	background-size: 60px 60px;
 	background-position: 0 0, 30px 30px;
 }
 .myShadow {
-	box-shadow: 6px 6px 12px var(--color-shade);
+	box-shadow: 4px 4px 12px var(--color-shade); /* lit from the top left, the same shadow every thumbnail on the sheet casts */
 }
 .myEmbossed {
 	white-space: pre; /* honor \n and overflow the container */

@@ -172,7 +172,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ## Architecture
 
-**The two layers are not coworkers.** Fuji's Rust and its JavaScript do not confer, do not split a problem between them, and do not solve one together. Every Rust command is dumb, atomic and simple; all the orchestration — the sequencing, the routing, the deciding what to call and when — happens in the page. `SquareFlow.vue` is the worked example: it decides per file whether a thumbnail comes from the operating system or from the page, runs two loops at different widths, and stops them when a card goes away, while the Rust underneath does nothing but answer one question about one file.
+**The two layers are not coworkers.** Fuji's Rust and its JavaScript do not confer, do not split a problem between them, and do not solve one together. Every Rust command is dumb, atomic and simple; all the orchestration — the sequencing, the routing, the deciding what to call and when — happens in the page. `TestFlow.vue` is the worked example: it decides per file whether a thumbnail comes from the operating system or from the page, runs two loops at different widths, and stops them when a bucket goes away, while the Rust underneath does nothing but answer one question about one file.
 
 **The Rust codebase grows for three reasons and no others: speed, operating-system proximity, and a permission or security necessity.** Never because a task is "mostly Rust" or "involves Rust." When a feature needs both layers, the question is what single dumb thing Rust has to do that JavaScript cannot — write that, and put the rest in the page.
 
@@ -201,7 +201,7 @@ The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`wi
 
 **Where to read before changing something.** Every component in `src/components/` and every module in `src/` opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
 - `Shell.vue` — the window, which view is showing, and fuji's two fullscreens
-- `SquareFlow.vue` — how a path becomes a thumbnail
+- `TestFlow.vue` — how a path becomes a thumbnail
 - `DiamondTable.vue` — the quiver, and why a flip shows first and loads last
 - `model.js`, `settings.js`, `cache.js` — what the user is looking at, the one schema for `fuji.toml`, and the store of pictures
 - `associate.js` — file associations, starting from the values the design follows
@@ -213,11 +213,13 @@ The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`wi
 - Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
-- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `SquareFlow.vue` is the code, and the thumbnail pipeline document on the site is why it is shaped that way
-- A canvas is sized to its box in backing pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one backing pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `SquareFlow.vue` hold this; `fidelity.md` has the measurement
+- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `TestFlow.vue` is the code, and the thumbnail pipeline document on the site is why it is shaped that way
+- A canvas is sized to its box in backing pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one backing pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `TestFlow.vue` hold this; `fidelity.md` has the measurement
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 
 ### Styling
+
+**The look and the CSS are decided together, and simple, correct CSS wins a tie.** When a look would take complex or brittle styles, say so and offer a look CSS gives cleanly; the essay at the top of `index.css`, fuji's one stylesheet, is the whole of it.
 
 - Tailwind CSS 4.x with Vite plugin, kept for its reset, which evens out three engines' defaults, and for layout that reads in the template
 - **Tailwind classes in the template** for layout and one-off values; **a named class in CSS** when other code finds the element by it — `myTile` for the gamma filter, `myImage` reached with `:deep()` because the template did not make that element — or when the style is one utilities say badly, like a gradient pattern or a layered shadow. A named class starts with `my`, so none can ever be mistaken for a utility, and lives in its component's `<style scoped>` unless several components share it, when it goes in `index.css`

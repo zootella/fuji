@@ -256,8 +256,12 @@ export function sayGroupDigits(s, thousandsSeparator = ',') {//pass comma, perio
 	return minus+s
 }
 
+export const thinSpace = '\u2009'//between a number and its unit, and around the parts of a date or the x of a size; named rather than typed, because typed it looks like any other space
+export const multiplicationSign = '\u00d7'//the x of a size, which typed is easy to mistake for the letter
+export const middleDot = '\u00b7'//between things listed on one line, which typed is easy to mistake for a period
+
 // Describe big sizes and counts in four digits or less
-export function saySize4(n)   { return _number4(n, 1024, [' bytes', ' KB', ' MB', ' GB', ' TB', ' PB', ' EB', ' ZB', ' YB']) }
+export function saySize4(n)   { return _number4(n, 1024, ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].map(unit => thinSpace + unit)) }//a thin space between the number and its unit
 export function sayNumber4(n) { return _number4(n, 1000, ['',       ' K',  ' M',  ' B',  ' T',  ' P',  ' E',  ' Z',  ' Y'])  }
 function _number4(n, power, units) {
 	var u = 0 // Start on the first unit
@@ -271,4 +275,16 @@ function _number4(n, power, units) {
 		d *= power
 	}
 	return n+'' // We ran out of units
+}
+
+export function sayDimensions(size) {//a picture's width by its height, like 1050 × 856, with thin spaces around the sign
+	return `${size.x}${thinSpace}${multiplicationSign}${thinSpace}${size.y}`
+}
+
+const sayMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']//fuji's own, rather than Intl's, so a date reads the same on every machine whatever its language
+export function sayDay(milliseconds) {//the day a time falls on, in this machine's time zone, year first like 2026 Oct 6; blank for 0, which is how a listing says the file system had no answer, rather than a day in 1970
+	if (typeof milliseconds != 'number' || milliseconds < 0) throw new Error(`expected milliseconds since 1970: ${milliseconds}`)
+	if (milliseconds == 0) return ''
+	let d = new Date(milliseconds)//read with its local getters, so the day is the user's own
+	return `${d.getFullYear()}${thinSpace}${sayMonths[d.getMonth()]}${thinSpace}${d.getDate()}`
 }

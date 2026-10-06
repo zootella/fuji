@@ -21,23 +21,32 @@ export const modelPath = ref('')//the image the user is on, and the durable answ
 export const modelSort = ref('Alphabet')//chosen in the sheet, read by every table
 
 let modelFiles = []//the listing every sort orders, as it came off the disk; nothing renders it, so it stays out of vue
+let modelFilesByPath = new Map()//the same entries by path, for a view that holds a path and wants what the listing knows about it
 
 export function modelStart() { modelSortSet(settings.sort.order) }//the shell calls this once, after the settings file is read
 
 export async function modelOpen(path) {//list the folder this image sits in, put it in order, and stand on the image
 	if (typeof path != 'string' || !path.trim()) throw new Error(`opened a path that is not one: ${path}`)
-	let folder = parse.dirname(path)
-	modelFiles = await listFolder(folder)
-	modelFolder.value = folder
-	modelList.value = modelOrder()
-
+	await _modelList(parse.dirname(path))
 	modelPath.value = ''
 	if (modelList.value.includes(path)) modelPath.value = path
 	else if (modelList.value.length) modelPath.value = modelList.value[0]//the dropped file is not one fuji shows, so stand on the first that is; blank when the folder holds no images at all
 }
+export async function modelOpenFolder(folder) {//the same for a folder itself, with no picture in particular to stand on, so stand on the first
+	if (typeof folder != 'string' || !folder.trim()) throw new Error(`opened a folder that is not one: ${folder}`)
+	await _modelList(folder)
+	modelPath.value = modelList.value[0] || ''//blank when the folder holds no images at all
+}
+async function _modelList(folder) {//list a folder and put it in order, which every way of opening one does first
+	modelFiles = await listFolder(folder)
+	modelFilesByPath = new Map(modelFiles.map(f => [f.path, f]))
+	modelFolder.value = folder
+	modelList.value = modelOrder()
+}
 
 export function modelIndex() { return modelList.value.indexOf(modelPath.value) }//or -1, when the current image is not in the list at all
 export function modelStand(path) { modelPath.value = path }//what a flip and a click on a thumbnail both do
+export function modelFile(path) { return modelFilesByPath.get(path) || false }//the listing's entry for a path in the current folder, with its name, size in bytes and modified time, or false for one the listing does not hold
 
 export function modelSortSet(name) {//choose an order; the list is rebuilt from the listing already in hand, and every view is reading that list
 	if (!modelSorts[name]) {//a name settings cannot check, because the sorts fuji has are known here and not there
