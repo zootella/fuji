@@ -11,7 +11,7 @@ The commands take any path and hold no guard, on purpose: the page alone knows w
 
 Two of these commands now change the disk rather than read it. disk_copy writes a file the user asked for; disk_write is how settings and the performance log reach the disk at all, and both of its callers hand it a path they built themselves rather than one that came from the page. That is the current line, and it is thinner than it was when this contract was first written.
 
-Commands here are named for the POSIX call they stand on — disk_readdir, disk_stat, disk_read — so the next ones write themselves: disk_rename over fs::rename, disk_unlink over fs::remove_file, disk_mkdir over fs::create_dir. Each is a line of std::fs and a map_err, which is why none of them is sitting here waiting.
+Commands here are named for the POSIX call they stand on — disk_readdir, disk_stat, disk_read — so the next ones write themselves: disk_rename over fs::rename, disk_unlink over fs::remove_file, disk_mkdir over fs::create_dir. Each is a line of std::fs and a map_err, which is why none of them is sitting here waiting. disk_peek is the one exception to the naming: a readdir that answers a count and the subfolders' names rather than a record per entry, for a caller that passes through folders it will never show.
 
 When the delete family arrives, hold a guard here as well: a Rust-side registry of allowed roots, recording folders the user has actually dragged in or chosen, with commands refusing paths outside them. Read and copy trust their caller; unlink should trust less.
 */
@@ -24,6 +24,12 @@ pub struct DirEntry {
 	pub is_symlink: bool,//true if this entry is a symbolic link
 	pub size:       u64,//size in bytes; typically 0 for directories and symlinks
 	pub mtime:      u128,//last modification time, in milliseconds since the unix epoch; 0 when the filesystem has no answer. From the metadata already read for the kind and the size, so it costs the listing nothing more
+}
+
+#[derive(Serialize)]
+pub struct Peek {
+	pub files:   u32,//how many visible regular files have one of the extensions asked about
+	pub folders: Vec<String>,//the names of the visible subfolders, symlinks left out, in whatever order the disk handed them over
 }
 
 #[derive(Serialize)]
@@ -68,6 +74,29 @@ pub async fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 			});
 		}
 		Ok(results)
+	}).await
+}
+
+/// A glance at a folder: how many of its files have one of these extensions, and the names of its subfolders, from the directory read alone
+//readdir without the stat per entry a listing costs and without a record per entry across the bridge: a cache folder of fifty thousand files answers in one call with a number and a few names, where disk_readdir stats every file and sends fifty thousand records, which the walk in walk.js measured at seconds for one folder it would never show. Visible means what ls shows without -a, names not starting with a dot; a symlink is neither a file nor a folder here, so a walk never follows one into a loop; and an extension is compared lowercased with its dot, like .jpg. library.js applies the same rule to a full listing in _listImages, and the two must agree, since the walk counts a folder's images here and cuts its buckets from there
+#[command]
+pub async fn disk_peek(path: String, extensions: Vec<String>) -> Result<Peek, String> {
+	run_blocking(move || {
+		let wanted: std::collections::HashSet<String> = extensions.into_iter().collect();
+		let mut files = 0u32;
+		let mut folders = Vec::new();
+		for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
+			let entry = match entry { Ok(entry) => entry, Err(_) => continue };//skip an entry rather than fail the whole folder over it, as the listing does
+			let name = entry.file_name().to_string_lossy().into_owned();
+			if name.starts_with('.') { continue }
+			let ft = match entry.file_type() { Ok(ft) => ft, Err(_) => continue };//free on both platforms, since the kind comes with the entry itself; only a filesystem that withholds it costs a stat here
+			if ft.is_dir() { folders.push(name) }
+			else if ft.is_file() {
+				let extension = std::path::Path::new(&name).extension().map(|e| format!(".{}", e.to_string_lossy().to_lowercase())).unwrap_or_default();//blank for a name with no dot after its first character, which matches nothing
+				if wanted.contains(&extension) { files += 1 }
+			}
+		}
+		Ok(Peek { files, folders })
 	}).await
 }
 

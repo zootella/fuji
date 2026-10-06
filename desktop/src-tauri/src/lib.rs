@@ -62,6 +62,7 @@ pub fn run() {
 		.invoke_handler(//the complete list of what javascript may invoke; a name absent here cannot be called at all
 			tauri::generate_handler![
 				disk::disk_readdir, //functions we've written in disk.rs
+				disk::disk_peek,
 				disk::disk_stat,
 				disk::disk_read,
 				disk::disk_write,
