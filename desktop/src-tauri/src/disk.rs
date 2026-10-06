@@ -56,7 +56,7 @@ pub async fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
 		let mut results = Vec::new();
 		for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
 			let entry = match entry { Ok(entry) => entry, Err(_) => continue };//skip an entry rather than fail the whole folder over it
-			let meta  = match fs::symlink_metadata(entry.path()) { Ok(meta) => meta, Err(_) => continue };//same for one we can't stat, like a locked file
+			let meta  = match entry.metadata() { Ok(meta) => meta, Err(_) => continue };//same for one we can't stat, like a locked file. The entry's own metadata, which describes a symlink rather than following it, and costs no call at all on windows, where the enumeration already carried the size and times, and one fstatat on the folder's handle elsewhere; symlink_metadata on the path would open every file on windows
 			let ft    = meta.file_type();
 			results.push(DirEntry {
 				name:       entry.file_name().to_string_lossy().into_owned(),

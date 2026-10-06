@@ -63,7 +63,7 @@ No size is a different case. On the Mac, properties answers 0 when ImageIO's pro
 */
 fn check_size(width: u32, height: u32) -> Result<(), String> {
 	if width == 0 || height == 0 { return Err(format!("thumbnail: the library gave no size for this picture, {width} by {height}")) }
-	let raster = width as u64 * height as u64 * 4;
+	let raster = (width as u64).saturating_mul(height as u64).saturating_mul(4);//saturating, because two u32 sizes times four can pass u64, and a release build would wrap that to a small number the ceiling lets through: a header claiming 2^31 by 2^31 is the one file this wall is for, and it must not walk past it on arithmetic
 	let ceiling = memory() / 2;
 	if raster > ceiling { return Err(format!("thumbnail: {width} by {height} pixels would need {} MB to decode, more than half of this machine's {} MB", raster >> 20, memory() >> 20)) }
 	Ok(())
