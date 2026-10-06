@@ -10,7 +10,7 @@ The cache went through three shapes before this one, and each failed for the sam
 
 **A shared queue needs a priority system.** If one loader serves everybody, a table's urgent image lands behind the sheet's four hundredth thumbnail, and fixing that means teaching the middle whose request matters — which is the view's knowledge, moved somewhere it does not belong. So there is no queue. Every request races every other request, and Rust and the operating system sort it out, exactly as if the view had called the disk itself.
 
-**A shared eviction policy needs to know what the user is looking at.** What to keep, in what size, for how long, and what to throw away when the sheet's thumbnail size changes are all questions with view-shaped answers. So there is no policy. The store frees what it is told to free, when it is told.
+**A shared eviction policy needs to know what the user is looking at.** What to keep, in what size, for how long, and what to throw away when the sheet's beam length changes are all questions with view-shaped answers. So there is no policy. The store frees what it is told to free, when it is told.
 
 **What is left is worth centralising precisely because it is not clever**: one place that knows a path's bytes, its object url, its decoded pixels, and what each of those cost. One owner, so nothing is loaded twice and nothing is freed twice or never.
 
@@ -79,7 +79,7 @@ This is the triad grown up: same job, no fixed three. The half of the triad that
 
 **The sheet's thumbnails are not the store's.** A CSS-shrunk `<img>` may or may not be holding a full-size bitmap, and none of it is observable from JavaScript, so the sheet makes a canvas per picture instead: its pixels come from the operating system through `thumbnail.rs` where the platform's list allows, and the store never hears about the file; where it does not, the flow needs the full decode from the store, halves it down, and releases it. The thumbnail pipeline document on the site has the routing and the measurements. The `createImageBitmap` resize this file once planned on is ignored by WebKit on the Mac, which fuji measured.
 
-**When the sheet changes thumbnail size, it releases everything and asks again.** No invalidation logic, no store cleverness — a view letting go of one set of references and taking another.
+**When the sheet changes beam length, it releases everything and asks again.** No invalidation logic, no store cleverness — a view letting go of one set of references and taking another.
 
 ## The safety
 

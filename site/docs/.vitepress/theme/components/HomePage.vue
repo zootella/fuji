@@ -114,7 +114,7 @@ async function copyHash(row) {
 <style scoped>
 
 /*
-The old page did two jobs with two elements: body carried the mint over the whole viewport, and the box below was 80vh. Body is shared with the documentation pages now, so it can't be painted mint — .page takes over that job, and .home goes back to being exactly the 80vh box it was. Collapsing the two into one element is what pushed the content down a tenth of a viewport, since it centers inside its box.
+The old page did two jobs with two elements: body carried the cyan over the whole viewport, and the box below was 80vh. Body is shared with the documentation pages now, so it can't be painted cyan — .page takes over that job, and .home goes back to being exactly the 80vh box it was. Collapsing the two into one element is what pushed the content down a tenth of a viewport, since it centers inside its box.
 */
 
 .page {
@@ -134,7 +134,7 @@ The old page did two jobs with two elements: body carried the mint over the whol
 	-moz-osx-font-smoothing: auto;
 
 	/*
-	Black, for the same reason. VitePress sets body to --vp-c-text-1, which is #3c3c43, a soft slate rather than black — a sensible choice for long documentation, and not what this page had. The old page set no color at all and so got the browser default, pure black, which on the mint measures 17.85:1 against 9.30:1 — nearly double. Lower contrast is what reads as "lighter", which is why this looked like a font weight problem and was not.
+	Black, for the same reason. VitePress sets body to --vp-c-text-1, which is #3c3c43, a soft slate rather than black — a sensible choice for long documentation, and not what this page had. The old page set no color at all and so got the browser default, pure black, which on the cyan measures 17.85:1 against 9.30:1 — nearly double. Lower contrast is what reads as "lighter", which is why this looked like a font weight problem and was not.
 	*/
 	color: #000;
 }
@@ -197,7 +197,7 @@ The tagline's two lines get none: they are one sentence broken to fit, not two p
 
 .links a,
 .reveal a {
-	color: inherit;                /* the mint page sets its own black; links follow it rather than the theme's brand */
+	color: inherit;                /* the cyan page sets its own black; links follow it rather than the theme's brand */
 	text-decoration: underline;
 	cursor: pointer;               /* the toggles carry no href, so they would not get one on their own */
 }

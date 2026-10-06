@@ -62,7 +62,7 @@ Catppuccin was chosen by walking the alternatives. What it has is even chroma: t
 one fixed set of accents held at a constant saturation and lightness across every hue, then assigned to
 scopes, so no token shouts over its neighbours. Measured across seven token colors, mean saturation is
 82% in latte and 78% in mocha against Solarized's 73%, and mocha's accents average 77% lightness where
-fuji's own mint is 81% — the same chroma with far more light behind it, which is what reads as neon.
+fuji's own cyan is 81% — the same chroma with far more light behind it, which is what reads as neon.
 
 It also italicizes comments, and that matters more than it looks: the two rules in theme/style.css that
 carry a theme's fontStyle through to the page do nothing unless the theme asks for italic. Of the light
@@ -74,7 +74,7 @@ What was tried and set aside, in the order it was tried:
 	solarized-light / solarized-dark       the runner-up. The only mode-symmetric pair — identical token
 	                                       colors in both modes, only the comment grey moves — and the
 	                                       only one putting fuji's hue on tokens you read constantly:
-	                                       teal strings 14° from the mint, blue functions 44°. Lost on
+	                                       teal strings 14° from the cyan, blue functions 44°. Lost on
 	                                       its keywords, a 100%-saturated olive 93° away, everywhere
 	snazzy-light / monokai                 the loudest, and the reason the italics went missing
 	material-theme-lighter / -ocean        cyan-forward but earthy and pastel
@@ -110,7 +110,7 @@ export default defineConfig({
 	// points at a file that exists and the site needs no rule on the server to resolve a bare path
 
 	head: [
-		// the mint disc, the same mark as the application icon
+		// the cyan disc, the same mark as the application icon
 		['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
 
 		// and nothing else. Every face the site sets text in is packaged with the repository and declared

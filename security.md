@@ -2,7 +2,7 @@
 
 How fuji stays safe, correct and responsive when it is pointed at files nobody vouches for, on storage nobody promised would answer. The three ways any call can end, what fuji's job makes of each, where fuji stands on each today, and what to build. `disk.rs` carries the contract for the disk commands, `lib.rs` argues the walls around the page, and `canvas.md` says which path decodes which format and why.
 
-The state of the code described here was read from the source on 2026-10-03, on the Mac mini, and none of the gaps below has been reproduced on a running machine unless it says so.
+The state of the code described here was read from the source on 2026-10-03, on the Mac mini, and checked against it again on 2026-10-05, and none of the gaps below has been reproduced on a running machine unless it says so.
 
 ## Three outcomes
 
@@ -48,18 +48,18 @@ Fuji's happy path is the one that has been built and measured: the listing, the 
 
 ### What fuji thinks a file is
 
-**Fuji answers "what is this file" twice, in two places, by two different means, and they compare notes at only one seam.**
+**Fuji answers "what is this file" once, by name, and every decoder answers it again by the bytes.**
 
 *By name.* `fileTypes` in `fileTypes.js` maps ten extensions to formats. It decides what `listFolder` keeps out of a folder, how `SquareFlow` routes a tile, what the store types its blobs as, and what fuji declares to each operating system.
 
-*By bytes.* `thumbnail_render` reads a file's first bytes before any decoder sees it, and refuses a file whose bytes are not the format it was told to expect.
+*By bytes.* Every decoder fuji hands a file to — ImageIO and WIC on the native route, the web engine on the page route and the tables — chooses how to decode it from the file's own bytes, whatever its name. Fuji itself never reads a file's bytes to name it.
 
-**They meet at one seam, and disagreement is treated as an error.** `SquareFlow` works the format out from the name and hands it to the render, and a mismatch refuses the tile — *the bytes say png and the name says jpeg*. That is wall two below, and it should stay exactly as it is: a decoder in fuji's own process handed bytes it did not expect is the case the wall exists for. The seam is on the native route only. The page route and every table hand the file to the web engine, which chooses its decoder by the bytes rather than the name, inside its sandbox.
+**The native route had a check of its own, and it is gone.** From 2026-09-08 `thumbnail_render` read each file's first bytes and refused one whose bytes were not the format its extension promised. The user removed it on 2026-10-05: a file crafted against a decoder fuji means to use is that format and passes any such check, and the check cost every native thumbnail a read of its file ahead of the library's own. What it did narrow, and what is open again without it, is which decoder a file reaches. ImageIO and WIC each read dozens of formats, so on the native route a file named `.jpg` whose bytes are some rarer format reaches that rarer decoder, in fuji's own process. That is the pattern of FORCEDENTRY in 2021, PDFs named `.gif` that ImageIO handed to its JBIG2 decoder. In the web engine the same mismatch stays inside the sandbox.
 
 **Four cases follow, and the third is open.**
 
 1. **The name is right.** Everything works, which is almost always.
-2. **The name is wrong.** On the native route the render catches it and the tile is refused. Safe — and a picture fuji could have shown perfectly is not shown. That trade is deliberate and, for now, correct. On the page route and on a table, the engine decodes by the bytes and shows the picture if it can.
+2. **The name is wrong.** Every route decodes by the bytes, so the picture shows if the decoder its route reaches can read it, and the tile is the placeholder if not; no file is tried on a second route.
 3. **There is no name to go on.** `listFolder` keeps only files whose extension is in `fileTypes`, so a file with no extension is dropped before anything asks what it is. Fuji never reaches the machinery that would have identified it correctly in a millisecond. Pictures arrive without extensions from downloads, exports and messaging apps all the time, and from the oldest collections, written before extensions meant much, more often still.
 4. **The name is right and the bytes are damaged.** A truncated or corrupted JPEG: the decoder fails, the tile shows the placeholder, and the log says why. That works and needs nothing. What nobody has decided is whether a partial decode should show the part that arrived, the way a browser does, or keep refusing whole — which matters more for a collection whose files have been decaying for thirty years.
 
@@ -86,10 +86,9 @@ On the Mac the decoder is the same library either way — WebKit decodes through
 ### The walls to build, in order
 
 1. **A path scope in Rust, for every command that touches the disk.** A registry of the folders the user has dragged in or chosen, kept on the Rust side, with read, copy, write and thumbnail refusing anything outside it. `disk.rs` planned this for the delete family; it belongs to all of them, and it is the largest single change to fuji's posture available. With it, a compromised renderer reaches only what the user already showed fuji. Not built.
-2. **The first bytes decide the format, before any decoder sees the file.** Built, 2026-09-08: `thumbnail_render` refuses a file whose bytes are not the format it was told to expect, whatever the extension. This turns "any file ImageIO or WIC will parse", sixty formats on the Mac, into the handful fuji actually shows. `thumbnail.rs` has the signatures.
-3. **A size ceiling from the header, before any decode allocates.** Built, the same day: the render refuses a header claiming a raster over half the machine's physical memory. The decompression bomb is the attack that needs no bug, and the ceiling is a share of the machine rather than a number, so it never limits capable hardware and refuses only what could not have fit. The page route and the tables decode in the web engine without it, which is the sandbox's job there rather than fuji's; if it is wanted on that side, the store is the place, since every page decode passes through it.
-4. **The rarer the format, the more sandboxed its path.** The routing table sends the mainstream formats native and keeps the odd ones in the page or refuses them. The exotic decoders are where the bugs live, and the page is the process that can afford them. A policy rather than code, and it holds today because both native lists are short.
-5. **On the Mac, when isolation matters more than the module's simplicity, QuickLook's thumbnail generator.** It decodes in a sandboxed system agent, handles every format QuickLook does, and keeps a cache on disk. It is the way to go native and keep a sandbox, at the price of Objective-C from Rust. Not built.
+2. **A size ceiling from the header, before any decode allocates.** Built 2026-09-08: the render refuses a header claiming a raster over half the machine's physical memory. The decompression bomb is the attack that needs no bug, and the ceiling is a share of the machine rather than a number, so it never limits capable hardware and refuses only what could not have fit. The page route and the tables decode in the web engine without it, which is the sandbox's job there rather than fuji's; if it is wanted on that side, the store is the place, since every page decode passes through it.
+3. **The rarer the format, the more sandboxed its path.** The routing table sends the mainstream formats native and keeps the odd ones in the page or refuses them. The exotic decoders are where the bugs live, and the page is the process that can afford them. A policy rather than code, and it holds today because both native lists are short.
+4. **On the Mac, when isolation matters more than the module's simplicity, QuickLook's thumbnail generator.** It decodes in a sandboxed system agent, handles every format QuickLook does, and keeps a cache on disk. It is the way to go native and keep a sandbox, at the price of Objective-C from Rust. Not built.
 
 ## Forever
 

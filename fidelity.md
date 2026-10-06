@@ -157,7 +157,7 @@ Two distinct clusters per hue, in equal counts, on both views. **Display P3 surv
 
 ### The ask is right
 
-Established by the earlier code-reading audit and unchanged by anything measured since. `SquareFlow.vue` asks Rust for `flowBox × window.devicePixelRatio` as the longest side in backing pixels, sizes each canvas bitmap to what comes back, and derives the CSS size back down by the same `devicePixelRatio`. The page route computes `detail = min(devicePixelRatio, 1 / scale)` and so never allocates more canvas pixels than the file actually has. The worry that fuji asked for thumbnails sized in CSS pixels on a Retina screen was unfounded.
+Established by the earlier code-reading audit and unchanged by anything measured since. `SquareFlow.vue` asked Rust for `flowBeam × window.devicePixelRatio` as the longest side in backing pixels, sized each canvas bitmap to what came back, and derived the CSS size back down by the same `devicePixelRatio`. Since 2026-10-05 the page sends a fit instead, Rust converts the fit's CSS size to backing pixels by the same `devicePixelRatio`, and the page sizes the tile from the picture's own size, which `fits.md` describes. The page route computes `detail = min(devicePixelRatio, 1 / scale)` and so never allocates more canvas pixels than the file actually has. The worry that fuji asked for thumbnails sized in CSS pixels on a Retina screen was unfounded.
 
 ### One backing pixel
 
@@ -169,7 +169,7 @@ A canvas is laid out on whole CSS pixels and painted in backing pixels, so its b
     css.x  = round(480 × 0.5) = 240        → 240 × 2 = 480 = bitmap    ✓
     css.y  = round(269 × 0.5) = 135        → 135 × 2 = 270 ≠ 269       ✗
 
-The long axis always survives, because it *is* the box times `devicePixelRatio` by construction — an even number by definition. The short axis is whatever the thumbnailer computed for the aspect, `round(short × 480 / long)`, and that is odd about half the time. So roughly half of all native-route thumbnails were handed a box one backing pixel taller or wider than they had pixels for, and the compositor filled the gap by resampling.
+The long axis always survives, because it *is* the beam times `devicePixelRatio` by construction — an even number by definition. The short axis is whatever the thumbnailer computed for the aspect, `round(short × 480 / long)`, and that is odd about half the time. So roughly half of all native-route thumbnails were handed a box one backing pixel taller or wider than they had pixels for, and the compositor filled the gap by resampling.
 
 That resample is not a soft edge. The phase between source and destination rows drifts from zero at one end to a full pixel at the other, passing through exactly half a pixel in the middle, where every output row is the mean of two source rows.
 
@@ -235,7 +235,7 @@ Tauri reports the backing store here, `2224` for a screen `1112` CSS pixels tall
 
 **A canvas is never remade when its window changes monitors**, so a `devicePixelRatio` or gamut change goes stale until the sheet rebuilds. Read from the code; not exercised.
 
-**An image whose pixels fall between the box and the box times `devicePixelRatio` is displayed enlarged in backing terms.** `flowFit` treats bitmap pixels as CSS pixels, which is exactly an `<img>` tag's semantics and is consistent, but "never enlarged" is true only of the bitmap, not of what reaches the glass. This is a design choice, not a defect, and `flowSnap` preserves it deliberately.
+**An image whose pixels fall between the beam and the beam times `devicePixelRatio` is displayed enlarged in backing terms.** `flowFit` treats bitmap pixels as CSS pixels, which is exactly an `<img>` tag's semantics and is consistent, but "never enlarged" is true only of the bitmap, not of what reaches the glass. This is a design choice, not a defect, and `flowSnap` preserves it deliberately.
 
 Three things that only matter to someone driving fuji from outside, all met while building this audit. Tauri's capability list has no `core:window:allow-set-focus` or `core:window:allow-close`, so a script can move and resize the window but cannot raise or quit it. `DiamondTable` loads an image only in response to a drop, so opening the model is not enough to make it show anything. And `tauri dev`'s rebuild kills the app without reaching `RunEvent::Exit`, so a rebuild writes neither the settings nor the log — as does any run short enough that the page's 1500 ms quiet timer never flushed a line.
 
@@ -258,7 +258,7 @@ Three things can only be settled on a Retina, wide-gamut Mac, so they wait for t
 
 ## Repeating this
 
-The test images are the whole method, and each is a few dozen lines of C. Author them in a `CGBitmapContext` of a named color space, fill rectangles with `CGColor`s created in *different* named spaces so CoreGraphics does every conversion, and write them out with `CGImageDestination`, which embeds the profile. For color, make a two-half image whose halves are the same hue in and out of sRGB, and ask only whether the halves differ. For geometry, author at exactly `box × devicePixelRatio` on the long side so nothing is resampled on the way in, put one-pixel rows and columns in it, and count the pixels that come back neither black nor white.
+The test images are the whole method, and each is a few dozen lines of C. Author them in a `CGBitmapContext` of a named color space, fill rectangles with `CGColor`s created in *different* named spaces so CoreGraphics does every conversion, and write them out with `CGImageDestination`, which embeds the profile. For color, make a two-half image whose halves are the same hue in and out of sRGB, and ask only whether the halves differ. For geometry, author at exactly `beam × devicePixelRatio` on the long side so nothing is resampled on the way in, put one-pixel rows and columns in it, and count the pixels that come back neither black nor white.
 
 Read the results with `screencapture -x -o -l <CGWindowID>` and a C tool that reports stored bytes without converting them. Never compare across two captures.
 

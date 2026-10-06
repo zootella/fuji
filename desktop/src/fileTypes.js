@@ -7,7 +7,7 @@ An entry never says what category it is in. Its properties are parts of fuji, ea
 
 A type names the extension rather than the format on purpose, since a shared type would scatter a folder's .jpe files through the only sort by extension Explorer has. A title names what the format can do and never what it cannot, in one order, lossless or vector, then transparency, then animation, leaving out what the format allows but people rarely use, like animation in PNG, SVG and AVIF. Audio is the medium, beside image and video, so a title and a property say audio; sound is what a video has and what an audio file holds, and the prose says sound. A video's title is Video alone, since every video format here can carry sound and none needs to, so sound sets none of them apart.
 
-This file imports nothing, so it sits beneath everything that reads it. Three lists live outside it and change with it in the same commit, because each is read where this file cannot reach. CFBundleDocumentTypes in src-tauri/Info.plist declares the enabled extensions to the Mac, which reads it out of the bundle before any of fuji's code has run, and the list in win-setup/registry.js names the same extensions for the Windows uninstaller, which takes back what fuji registered for them; generating either from this table was declined while the table changed about once a year, which is worth deciding again as it grows. Fuji only ever turns a type on, never back off, so those two only grow. And sniff in src-tauri/src/thumbnail.rs knows each format by its first bytes, the wall a file passes before any decoder sees it, so a format given a thumbnail route needs a signature there.
+This file imports nothing, so it sits beneath everything that reads it. Two lists live outside it and change with it in the same commit, because each is read where this file cannot reach. CFBundleDocumentTypes in src-tauri/Info.plist declares the enabled extensions to the Mac, which reads it out of the bundle before any of fuji's code has run, and the list in win-setup/registry.js names the same extensions for the Windows uninstaller, which takes back what fuji registered for them; generating either from this table was declined while the table changed about once a year, which is worth deciding again as it grows. Fuji only ever turns a type on, never back off, so those two only grow.
 
 The table runs far past what fuji plays because it is a manifest of what is out there. Fuji is a love letter to the years personal computers learned to show color and then to play video, and to the collections people made once they could: pictures pulled down from a BBS at 2400 baud, clips off a CD-ROM, songs from Napster, and on through the forums, imageboards, Reddit and Discord that keep the same habit today. Picture the homebrew computer club of that first multimedia decade meeting again, with every hard drive its members have ever owned. What sits on those drives, from then to now, is what this table names, and no more: a format a collector would have to look up is the long tail, and it stays out.
 
@@ -17,7 +17,7 @@ So each entry's about names where a format started and reads that forward to tod
 export const fileTypes = {
 	'.bmp': {
 		enabled: true,//fuji lists, draws, offers and shows this extension; false keeps an entry here, described and waiting, and out of sight everywhere else
-		mime: 'image/bmp',//what the store types a blob as; after the slash, the format the flow checks against the file's first bytes
+		mime: 'image/bmp',//what the store types a blob as
 		type: 'BMP Image',//what Windows prints in Explorer's Type column once fuji opens the extension
 		title: 'Lossless image',//the first line of the extension's card in fuji's settings
 		imageNative: ['mac'],//platforms where Rust asks the operating system for a still picture of the file, ImageIO on the Mac and WIC on Windows; Windows is left out though WIC reads BMP, since fuji keeps its native route on Windows to JPEG and PNG
@@ -250,7 +250,7 @@ export const fileTypes = {
 		mime: 'image/heif',
 		type: 'HEIF Image',
 		title: 'Image',
-		imageNative: ['mac'],//as for .heic; the sniff in thumbnail.rs answers heic for a file of this container whose brands name HEVC and avif for one whose brands name AV1, never heif, so on the day this is switched on the flow's format name and the sniff's have to be made to agree
+		imageNative: ['mac'],//as for .heic
 		imageWeb: ['mac'],
 		contactSheet: 'canvas',
 		about: `The High Efficiency Image Format under its container's own name, which some Android phones and converters write instead of .heic. Inside it is usually the same HEVC still a .heic holds, though the container can also carry AV1 or JPEG, and it opens wherever .heic does, which on a PC means the same two extensions from the Store.`,

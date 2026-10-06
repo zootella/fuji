@@ -6,11 +6,12 @@ import {desktopExitHold} from './desktop.js'
 import {forwardize} from './components/library.js'
 import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
 import {brandName, brandStem} from './brand.js'
+import {fitNames} from './fit.js'
 
 const settingsFileName = `${brandStem}.toml`//fuji.toml, in the user's home folder for now; the per-platform config folders are a later decision, and a portable copy carrying its own is not one, since fuji is always installed
 const settingsHeader = `# ${settingsFileName} — ${brandName} reads this file when it starts and writes it when it closes; edit the values freely, but the comments and the layout are regenerated every time, so notes of your own here will not survive`
 
-const settingsThumbnailSizes = ['Small', 'Medium', 'Large', 'Xl']//the four named thumbnail sizes; each names the setting below it, lowercased
+const settingsThumbnailBeams = ['Small', 'Medium', 'Large', 'Xl']//the named beam lengths; each names the setting below it, lowercased
 const settingsTextList = value => value.every(item => typeof item == 'string')//a list whose every item is text; what each item means is for the code reading the list to judge, one item at a time, so a typo in one never throws away the rest
 
 //every setting fuji has, and the only place any of them is defined; a check, where the type alone isn't enough, has to accept the factory value or an ordinary file would report a problem against itself
@@ -35,6 +36,12 @@ const settingsSchema = [
 		factory: false,
 		comment: 'whether you left the contact sheet maximized, which on a mac is zoomed, so the next one opens that way; the size above stays the one it had before, which is where restoring it goes',
 	}, {
+		section: 'sheet',
+		key: 'cards',
+		factory: 3,
+		comment: `how many cards the contact sheet holds, so this times the images on a card is the most thumbnails ${brandName} ever has at once; for now that is also how much of a folder the sheet shows, from the first in the current order, and the rest is not shown`,
+		check: value => Number.isInteger(value) && value >= 1,
+	}, {
 		section: 'sort',
 		key: 'order',
 		factory: 'Alphabet',
@@ -42,20 +49,26 @@ const settingsSchema = [
 	}, {
 		section: 'card',
 		key: 'images',
-		factory: 50,
-		comment: 'how many images one card holds; for now the sheet shows a single card, so this is also how many of a folder it shows, from the first in the current order. A card never mixes two folders. The sheet scrolls over cards rather than over the thumbnails themselves so that one day it can walk a whole drive in constant memory, and a single card is the scaffolding for that',
+		factory: 20,
+		comment: 'how many images one card holds. A card never mixes two folders, and the sheet scrolls over cards rather than over the thumbnails themselves, so that one day it can walk a whole drive in constant memory',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'thumbnail',
-		key: 'size',
+		key: 'fit',
+		factory: 'SquareFit',
+		comment: `how every thumbnail is sized against the beam below: ${fitNames.join(', ')}. SquareFit lays the beam across a picture's longer side, which is what Finder and Explorer do; fit.js says what each of the others does. One choice for the whole sheet, so changing it changes every card at once`,
+		check: value => fitNames.includes(value),
+	}, {
+		section: 'thumbnail',
+		key: 'beam',
 		factory: 'Medium',
-		comment: 'which of the four sizes below every flow uses; one choice for the whole sheet, so changing it changes every card at once',
-		check: value => settingsThumbnailSizes.includes(value),
+		comment: 'which of the beam lengths below every thumbnail is measured against; one choice for the whole sheet, so changing it changes every card at once',
+		check: value => settingsThumbnailBeams.includes(value),
 	}, {
 		section: 'thumbnail',
 		key: 'small',
 		factory: 120,
-		comment: 'what each size means: the side of the square a thumbnail fits inside, in css pixels. A square image lands exactly on it, a wide one hits the limit on width alone, and an image already smaller is left at its own size rather than blown up. Nothing is tuned to these particular numbers, so raise them all or just the one you live in',
+		comment: 'what each beam length means, in css pixels: the width a 4:3 picture, like an 800 by 600 screenshot or a phone photograph, comes out at under every fit but RowFit, ScaleFit and LogFit, which is what every other shape is measured against; under RowFit it is the height of every thumbnail. An image already smaller than its fit is left at its own size rather than blown up. Nothing is tuned to these particular numbers, so raise them all or just the one you live in',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'thumbnail',
@@ -257,8 +270,8 @@ function sayType(value) {//the word for a value's type in a complaint, so a list
 	return Array.isArray(value) ? 'a list' : typeof value
 }
 
-export function settingsThumbnailBox() {//the side of the square a thumbnail fits inside, for the size the user chose; the one place the name becomes a number, so a flow asks rather than looks up
-	return settings.thumbnail[settings.thumbnail.size.toLowerCase()]
+export function settingsThumbnailBeam() {//the beam in css pixels, for the length the user chose; the one place the name becomes a number, so a flow asks rather than looks up
+	return settings.thumbnail[settings.thumbnail.beam.toLowerCase()]
 }
 
 export function settingsSet(section, key, value) {//change one setting from inside fuji, held to the same type and check as a value read from the file; answers whether it took, and a value turned away leaves the setting as it was

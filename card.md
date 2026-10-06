@@ -12,7 +12,7 @@ A card is a box of thumbnails, and the sheet's one scroll runs over a stack of t
 
 **The sheet is one scroll over a stack of full-width cards.** There is one contact sheet and it has one big top-to-bottom scroll, exactly as expected. What that scroll moves the viewport over is not individual thumbnails; it is cards, each as wide as the sheet and as tall as its contents need, and the thumbnails are inside them.
 
-**A card holds up to a maximum number of images, and the maximum is a setting.** `card.images` in `fuji.toml`, 200 at the factory. A folder of 80 images is one card with 80 thumbnails in it. A folder of 220 images is a card of 200 and, beneath it, a second card holding the remaining 20.
+**A card holds up to a maximum number of images, and the maximum is a setting.** `card.images` in `fuji.toml`, 20 at the factory. A folder of 15 images is one card with 15 thumbnails in it. A folder of 50 images is a card of 20, a second card of 20 beneath it, and a third holding the remaining 10.
 
 **A card never mixes folders.** Images from two different folders never share a card, however few of them there are.
 
@@ -39,7 +39,7 @@ A card is a box of thumbnails, and the sheet's one scroll runs over a stack of t
 
 **What a page costs is a number, now.** Every raster thumbnail is a canvas fuji sized, whichever path made its pixels, and `SquareFlow` totals their bytes per card. So a page costs its cards' totals plus the imgs, which are the engine's and small, and the ceiling the two settings put on the sheet is a real bound rather than a count of things whose size fuji cannot see.
 
-**None of it is built.** Today every card the folder needs is rendered, there is one folder, and there is no page and no Next.
+**Only the first page is built.** Today the sheet shows `sheet.cards` cards of `card.images` each from the start of one folder, three of twenty at the factory, and the rest of a larger folder is not shown; there is no second page and no Next.
 
 ## The experiment the card ran, and what it found
 
@@ -67,17 +67,17 @@ At Medium, five hundred thumbnails cost about what three full-size 26-megapixel 
 
 ## What is built
 
-**A card and one flow, on a sheet that scrolls.** `Card.vue` takes a list of images and decides nothing else; `SquareFlow.vue` is the flow, and `TagFlow.vue` and `CanvasFlow.vue` were deleted once the experiment below had answered. In `fuji.toml`, `card.images` is the cap at 200 and `thumbnail.size` picks one of four squares a thumbnail fits inside — 120, 240, 360 and 480 css pixels, so the user says once what Medium means. There is no setting naming the flow, because there is one flow; the name is in `Card.vue` and a second one brings a register back with it.
+**A card and one flow, on a sheet that scrolls.** `Card.vue` takes a list of images and decides nothing else; `SquareFlow.vue` is the flow, and `TagFlow.vue` and `CanvasFlow.vue` were deleted once the experiment below had answered. In `fuji.toml`, `card.images` caps a card at 20 and `sheet.cards` the sheet at 3, so the sheet never holds more than 60 thumbnails, and `thumbnail.beam` picks the length every thumbnail is measured against — 120, 240, 360 and 480 css pixels, so the user says once what Medium means; `fits.md` plans the ways a thumbnail can be measured against it. There is no setting naming the flow, because there is one flow; the name is in `Card.vue` and a second one brings a register back with it.
 
-**A flow acts within one card, and one flow governs the whole sheet.** That was the open question when this file was first written and it is settled: the sheet holds the name and hands the same one to every card, so switching switches all of them together.
+**A flow acts within one card, and one flow governs the whole sheet.** That was the open question when this file was first written and it is settled: every card makes the same flow, so a second one would switch all of them together.
 
-**Every card the folder needs is rendered.** The count of cards, the page, and Next are the walk above, and none of it is built.
+**The sheet cuts a folder into cards, and stops at its count.** `Sheet.vue` slices the folder into cards of `card.images` and keeps the first `sheet.cards` of them, all mounted at once; each card's tiles join the governors' lines as it mounts, so the first card fills first. Pages and Next are the walk above, and are not built.
 
 **A card fills as its pictures arrive.** `SquareFlow` reads nothing ahead: a tile takes its room when its pixels land, so the first thumbnails show at once and the rows settle as the rest fill in. Holding every box from the start would need every picture's size before any thumbnail is made, which is the look-ahead `thumbnail-open.md` scopes as a later system. A card goes on filling while the sheet is hidden behind the table, and its reads share the disk governor's line with the table's own.
 
 ## Open
 
 - **The word `card` is already taken.** `DiamondTable.vue` calls its one image container the card — `cardRef`, `cardShow()`, `.myCard`, and `quiverB.card1` and `card2` are the arrows that place and size it. That is a different thing at a different altitude, and `structure.md` is where the vocabulary gets settled.
-- **The second setting.** How many cards fill a page, what it is called, and whether a page is measured in cards or in bytes, now that a card's bytes are a number the sheet can read. The first is already `card.images`.
+- **The second setting.** Built as `sheet.cards`, counted in cards. Still open: whether a page should one day be measured in bytes instead, now that a card's bytes are a number the sheet can read.
 - **What a card is to the user** — whether it is visible at all, whether it is bordered, headed, or named with the folder it came from, and where Next sits.
 - **Whether the card stays.** It began as scaffolding, it is the unit of the walk above, and the walk is the argument for keeping it. Nothing else here depends on the answer.

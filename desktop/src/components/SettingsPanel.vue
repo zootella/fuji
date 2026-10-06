@@ -12,6 +12,10 @@ const cardImages = ref(settings.card.images)//what the box says, which becomes t
 function cardImagesCommit() {//enter, or leaving the box
 	if (!settingsSet('card', 'images', cardImages.value)) cardImages.value = settings.card.images//a value the setting turns away, like 0, 2.5 or nothing at all, puts the box back to the setting as it stands
 }
+const sheetCards = ref(settings.sheet.cards)//the same, for how many cards the sheet holds
+function sheetCardsCommit() {
+	if (!settingsSet('sheet', 'cards', sheetCards.value)) sheetCards.value = settings.sheet.cards
+}
 
 const faces = ref(settings.font.faces)//which fonts, the ones fuji carries or the system's; the buttons offer only what the setting takes, so it never needs putting back
 const systemFaces = {windows: ['Segoe UI', 'Consolas'], mac: ['San Francisco', 'SF Mono']}[platform()]//what the system's fonts are, proportional and fixed-width, named where every computer of that kind has the same ones; a linux desktop chooses its own, so there the choice names none
@@ -44,7 +48,11 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 		<span class="w-48">Images on a card</span>
 		<input type="number" min="1" step="1" v-model.number="cardImages" @change="cardImagesCommit" @keydown.enter="$event.target.blur()" class="myBox w-24 px-2 py-1" />
 	</label>
-	<!-- no hint beneath: for now the sheet shows one card, so this is also how many of a folder's pictures it shows, which is scaffolding to know rather than something to tell a user -->
+	<label class="mt-1 flex items-center gap-4">
+		<span class="w-48">Cards on the sheet</span>
+		<input type="number" min="1" step="1" v-model.number="sheetCards" @change="sheetCardsCommit" @keydown.enter="$event.target.blur()" class="myBox w-24 px-2 py-1" />
+	</label>
+	<!-- no hint beneath: for now the two together are also how many of a folder's pictures the sheet shows, which is scaffolding to know rather than something to tell a user -->
 
 	<div class="mt-4 flex gap-4">
 		<span class="w-48">Typography</span>

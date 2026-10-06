@@ -6,7 +6,7 @@ What fuji's application icon is, what each desktop platform expects one to be, a
 
 ## The design, and why it is a bare circle
 
-**A single flat colour, and nothing else.** No border, no gradient, no shadow, no shine. `#9FFFE0` is a mint that almost smells of photo chemicals, and that association is the whole of the idea — the icon says darkroom without drawing one.
+**A single flat colour, and nothing else.** No border, no gradient, no shadow, no shine. `#9FFFE0` is a cyan that almost smells of photo chemicals, and that association is the whole of the idea — the icon says darkroom without drawing one.
 
 **Simplicity is the differentiator, not a shortcut.** A dock and an app store are cluttered, and something this plain is genuinely rare in both. It is easy to pick out precisely because everything around it is busy.
 
@@ -24,7 +24,7 @@ This matters below because it separates two things that are easy to confuse. The
 
 Layers come out of an `.icns` with `iconutil -c iconset`, and out of an `.ico` by reading the directory at the front of the file. Both hold ordinary PNGs at every size fuji uses.
 
-**One trap in that instrument.** `iconutil -c iconset` is not a faithful inverse of `iconutil -c icns`. Exporting the 16 and 32 layers back out returns their edge pixels as white, whatever colour they really are — reading the small-size entry straight out of the container instead gives the true mint. Sizes survive the round trip and colours do not, so any colour claim about a small layer has to be read from the icns directly, not from an exported iconset.
+**One trap in that instrument.** `iconutil -c iconset` is not a faithful inverse of `iconutil -c icns`. Exporting the 16 and 32 layers back out returns their edge pixels as white, whatever colour they really are — reading the small-size entry straight out of the container instead gives the true cyan. Sizes survive the round trip and colours do not, so any colour claim about a small layer has to be read from the icns directly, not from an exported iconset.
 
 ## What fuji had, and how it got there
 
@@ -34,7 +34,7 @@ The state the investigation started from, kept because both defects are only leg
 
     <circle cx="512" cy="512" r="512" fill="#9FFFE0"/>
 
-on a 1024 viewBox — a mint disc that touches all four edges, and still the source for every platform but macOS. `tauri icon` had been run on it once, in commit `931648c custom icon`, generating the whole tree: `icon.icns`, `icon.ico`, the Linux PNGs, the Microsoft Store `Square*Logo` set, and the `android/` and `ios/` folders. `tauri.conf.json` lists five of those in `bundle.icon`.
+on a 1024 viewBox — a cyan disc that touches all four edges, and still the source for every platform but macOS. `tauri icon` had been run on it once, in commit `931648c custom icon`, generating the whole tree: `icon.icns`, `icon.ico`, the Linux PNGs, the Microsoft Store `Square*Logo` set, and the `android/` and `ios/` folders. `tauri.conf.json` lists five of those in `bundle.icon`.
 
 **The generated `.icns` is well formed.** Twelve entries, real PNGs from 16 through 1024, both legacy masks present. Nothing about the file is malformed, which is what made the problem hard to see: it is a correct container around wrong artwork.
 
@@ -84,9 +84,9 @@ Reported upstream and still open as [discussion #10999](https://github.com/tauri
 
 **Symptom.** Against the white of a Finder window — the dmg installer worst of all — the disc has a dirty outline. Some edge pixels are a darker, desaturated cyan; the border reads as jagged rather than smooth.
 
-**It is not jaggedness.** The edge is properly antialiased. The transition is simply going through the wrong colours: mint, then *grey*, then white. The eye reads a non-monotone ramp as a stair rather than a curve, which is why it looks jagged when nothing is aliased.
+**It is not jaggedness.** The edge is properly antialiased. The transition is simply going through the wrong colours: cyan, then *grey*, then white. The eye reads a non-monotone ramp as a stair rather than a curve, which is why it looks jagged when nothing is aliased.
 
-**Measured.** Reading the faintest edge pixels of the committed files, against the mint they should all be:
+**Measured.** Reading the faintest edge pixels of the committed files, against the cyan they should all be:
 
     file                    alpha   rgb found      rgb it should be
     app-icon.png  SOURCE      16    159,255,223     159,255,224     correct
@@ -94,11 +94,11 @@ Reported upstream and still open as [discussion #10999](https://github.com/tauri
     128x128.png               14     16, 25, 22     159,255,224     wrong
     icon.ico 256 layer        11     13, 22, 19     159,255,224     wrong
 
-The source is clean. Everything generated from it is wrong, and wrong in one exact way: the RGB has been scaled down in proportion to the pixel's own alpha. At alpha 9 of 255, the mint has been multiplied to a thirtieth of itself — very nearly black.
+The source is clean. Everything generated from it is wrong, and wrong in one exact way: the RGB has been scaled down in proportion to the pixel's own alpha. At alpha 9 of 255, the cyan has been multiplied to a thirtieth of itself — very nearly black.
 
 **Every generated file, on every platform.** All twelve `.icns` entries, all six `.ico` layers, the Linux PNGs, and the Microsoft Store logos. This is not a macOS problem.
 
-**The cause.** Fuji's `app-icon.png` stores black in its fully transparent pixels — 223,272 of them, RGB `(0,0,0)` at alpha 0, which is what an SVG renderer ordinarily produces and is harmless in a correctly written file. The old generator resized the four channels independently, so along the edge the Lanczos filter averaged mint against that invisible black and kept the result. The alpha channel averaged the same way, which is why the darkening tracks the alpha so exactly. A renderer then applies the alpha *again* when compositing, and the edge lands halfway to black.
+**The cause.** Fuji's `app-icon.png` stores black in its fully transparent pixels — 223,272 of them, RGB `(0,0,0)` at alpha 0, which is what an SVG renderer ordinarily produces and is harmless in a correctly written file. The old generator resized the four channels independently, so along the edge the Lanczos filter averaged cyan against that invisible black and kept the result. The alpha channel averaged the same way, which is why the darkening tracks the alpha so exactly. A renderer then applies the alpha *again* when compositing, and the edge lands halfway to black.
 
 **It was a real bug, and it is already fixed.** [Issue #14351](https://github.com/tauri-apps/tauri/issues/14351), closed, fixed by premultiplying before the resize and undoing it afterwards. Verified here rather than taken on trust — the same `app-icon.png` through `tauri-cli` 2.11.4, the version this repository already depends on:
 
@@ -136,7 +136,7 @@ added to `package.json` for that, taking `app-icon.svg` directly — the CLI acc
 
 Run it from `desktop/`, the workspace that owns the script; every path in this document is written from there, the way the code refers to itself.
 
-**The `.ico` carried the fringe and one run cleared it.** Verified layer by layer before, and again on the Windows 10 box on 2026-09-13 by decoding the committed file — every partial-alpha pixel in all six layers is the mint, and the dominant value is the predicted clean one:
+**The `.ico` carried the fringe and one run cleared it.** Verified layer by layer before, and again on the Windows 10 box on 2026-09-13 by decoding the committed file — every partial-alpha pixel in all six layers is the cyan, and the dominant value is the predicted clean one:
 
     layer   committed, old cli        after pnpm icons, 2.11.4     committed today
     16      37, 59, 52   fringe       159,255,223   clean          159,255,223
@@ -299,7 +299,7 @@ Fuji's are full bleed at every size, for the same reason as the `.icns`. The sca
 
 **The 16 and 24 layers do not need artwork of their own.** The reason a small layer is usually hand-drawn is that fine detail collapses under a downscale, and there is no fine detail here — one filled shape in one colour, with no shadow, no outline and no inset. The 16-pixel layer's alpha map is a clean disc with a one-pixel antialiased edge, which is what the artwork is. Hand-drawing it could only reproduce the downscale.
 
-**The same decode confirms nothing else is in these files.** Across all six layers there is not one fully-opaque pixel that is not `#9FFFE0`, and every partial-alpha pixel is the mint as well. Whatever a future session suspects it is seeing at the edge, it is the antialiasing.
+**The same decode confirms nothing else is in these files.** Across all six layers there is not one fully-opaque pixel that is not `#9FFFE0`, and every partial-alpha pixel is the cyan as well. Whatever a future session suspects it is seeing at the edge, it is the antialiasing.
 
 **Windows 11's rounded taskbar treatment is the one question this box cannot answer,** and it is parked rather than open: fuji develops on Windows 10, and no Windows 11 machine is among the computers listed in `CLAUDE.md`. It costs a look on borrowed hardware and it changes nothing until then, because a fuller disc is the right answer under any masking a platform might apply.
 
@@ -350,7 +350,7 @@ It was looked at **without installing**, which is worth recording because it mak
 
 The first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are three drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
 
-**Why there are any.** `associate.js` writes a `DefaultIcon` per ProgID. With nothing else to name it named fuji's own executable, and every picture a user let fuji open wore the application icon — a full-bleed mint disc, identical on every file, most visible in Details view and with Explorer's thumbnails turned off. An application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document.
+**Why there are any.** `associate.js` writes a `DefaultIcon` per ProgID. With nothing else to name it named fuji's own executable, and every picture a user let fuji open wore the application icon — a full-bleed cyan disc, identical on every file, most visible in Details view and with Explorer's thumbnails turned off. An application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document.
 
 **Three, and only one is used.**
 
@@ -376,7 +376,7 @@ That is **a richer set than `tauri icon` produces** for the application icon: ou
 
 ## Linux — researched only as far as the current files
 
-Fuji ships `32x32.png`, `128x128.png`, and `128x128@2x.png`, listed in `bundle.icon`. All three are full bleed, 100% of the canvas, which is correct here for the same reason as on Windows. They were regenerated with the rest and are clean — decoded on the Windows 10 box 2026-09-13, no fringe, and no opaque pixel that is not the mint.
+Fuji ships `32x32.png`, `128x128.png`, and `128x128@2x.png`, listed in `bundle.icon`. All three are full bleed, 100% of the canvas, which is correct here for the same reason as on Windows. They were regenerated with the rest and are clean — decoded on the Windows 10 box 2026-09-13, no fringe, and no opaque pixel that is not the cyan.
 
 **Which desktops fuji targets, and what each expects, is undecided and unresearched.** The freedesktop icon theme specification is the likely authority, and whether GNOME's and KDE's differing conventions matter to a single-window application is the first question to answer.
 

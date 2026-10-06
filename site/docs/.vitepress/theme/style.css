@@ -112,35 +112,35 @@ Each rule matches VitePress's own selector exactly, so the correspondence is rea
 /*
 The brand color, everywhere outside the fences.
 
-#9FFFE0 is the whole of fuji's identity and it cannot be typed on a white page: it measures 1.18:1 against white, where prose runs at 10.94:1. So the mint is never ink in light mode — it is the field. Two further shades come off it for the jobs it cannot do itself, and both hold hue 161 and saturation 100 exactly, moving lightness alone, so all three are demonstrably the same color at different strengths rather than three colors that resemble each other.
+#9FFFE0 is the whole of fuji's identity and it cannot be typed on a white page: it measures 1.18:1 against white, where prose runs at 10.94:1. So the cyan is never ink in light mode — it is the field. Two further shades come off it for the jobs it cannot do itself, and both hold hue 161 and saturation 100 exactly, moving lightness alone, so all three are demonstrably the same color at different strengths rather than three colors that resemble each other.
 
 	#9FFFE0  hue 161, saturation 100%, lightness 81%   the brand, unmodified. The mark behind a code
 	         word, the bar behind a link, and every ink in dark mode
 	#154739  hue 163, saturation  55%, lightness 18%   ink, for a word inside the mark. Cyan with the
 	         page's own #3c3c43 mixed into it, so the saturation falls by nearly half and it reads as
-	         black ink stained rather than as a green. 8.96:1 on the mint field, 10.54:1 on white
+	         black ink stained rather than as a green. 8.96:1 on the cyan field, 10.54:1 on white
 
 A third shade, #00A370 at lightness 32%, was derived and then retired. It was the rule under a link while
 the rule sat below the text and needed 3:1 against white to be seen at all; once the bar moved behind the
-glyphs the mint carried it unmodified and nothing needed the middle value. It survived one revision longer
+glyphs the cyan carried it unmodified and nothing needed the middle value. It survived one revision longer
 than it should have, wired to brand-3 — which VitePress spends on --vp-button-brand-bg behind white text,
 where 3.24:1 is well under the 4.5:1 that text wants. brand-3 is the ink now, at 10.54:1.
 
-Dark mode inverts the story rather than dimming it. There the mint is 14.6:1 against the page, so it becomes the ink in all 43 places brand-1 reaches, and the pill behind a code word becomes a 14% wash of itself — pigment and field trade places. The brand color is used literally wherever it is ink, which is the one place it can be.
+Dark mode inverts the story rather than dimming it. There the cyan is 14.6:1 against the page, so it becomes the ink in all 43 places brand-1 reaches, and the pill behind a code word becomes a 14% wash of itself — pigment and field trade places. The brand color is used literally wherever it is ink, which is the one place it can be.
 
-Which is why dark mode does not have a highlighter at all. A mark has to sit between the page and the ink in luminance: on white the mint does — the page above it, the prose far below — so a bar under a link can be the brand unmodified and the words still read at 9.3:1 where they cross it. On the dark page the mint is above the ink instead of below it, and light prose crossing a full-strength bar measures 1.14:1, which is not dimmer but gone. Dimming the bar to 30% alpha fixes the arithmetic and was tried, and what it buys is a muddy stripe: the whole idea of a highlighter is a bright mark on a pale ground, and there is no bright left to go to when the page is already dark.
+Which is why dark mode does not have a highlighter at all. A mark has to sit between the page and the ink in luminance: on white the cyan does — the page above it, the prose far below — so a bar under a link can be the brand unmodified and the words still read at 9.3:1 where they cross it. On the dark page the cyan is above the ink instead of below it, and light prose crossing a full-strength bar measures 1.14:1, which is not dimmer but gone. Dimming the bar to 30% alpha fixes the arithmetic and was tried, and what it buys is a muddy stripe: the whole idea of a highlighter is a bright mark on a pale ground, and there is no bright left to go to when the page is already dark.
 
-So the dark page gets an ordinary link instead, and the way that is written matters more than it looks. **Dark mode has no link rules at all.** It is VitePress's own link — underlined, offset 2px, colored from brand-1 — and brand-1 is mint there, so the color is the only thing that ever changed. Everything below is scoped to html:not(.dark), which means the highlighter is a light-mode feature rather than a global one that dark has to undo.
+So the dark page gets an ordinary link instead, and the way that is written matters more than it looks. **Dark mode has no link rules at all.** It is VitePress's own link — underlined, offset 2px, colored from brand-1 — and brand-1 is cyan there, so the color is the only thing that ever changed. Everything below is scoped to html:not(.dark), which means the highlighter is a light-mode feature rather than a global one that dark has to undo.
 
-That ordering was arrived at backwards and is worth recording. The mark was written as the base rule first and dark mode given overrides to turn it off, which works for everything that was remembered and fails for everything that was not: the hover flooded a mint field on the dark page too, because the hover rule was never scoped. Anything global that only suits one page color will do that again. The test is whether dark mode can be described without mentioning light mode, and now it can: a mint link on a dark page, and nothing else.
+That ordering was arrived at backwards and is worth recording. The mark was written as the base rule first and dark mode given overrides to turn it off, which works for everything that was remembered and fails for everything that was not: the hover flooded a cyan field on the dark page too, because the hover rule was never scoped. Anything global that only suits one page color will do that again. The test is whether dark mode can be described without mentioning light mode, and now it can: a cyan link on a dark page, and nothing else.
 
-The brand buttons need their text changed too, not their background. VitePress paints --vp-button-brand-bg from brand-3 and puts --vp-button-brand-text on it, and that text is --vp-c-white in all three states with no dark override — so mint behind white is 1.18:1 and unreadable. In dark mode the button keeps the mint and takes the ink instead, at 8.96:1.
+The brand buttons need their text changed too, not their background. VitePress paints --vp-button-brand-bg from brand-3 and puts --vp-button-brand-text on it, and that text is --vp-c-white in all three states with no dark override — so cyan behind white is 1.18:1 and unreadable. In dark mode the button keeps the cyan and takes the ink instead, at 8.96:1.
 
 The chrome is a third value, and the reason is rank rather than legibility. Navigation — the prev/next titles, the sidebar's active item, the outline marker, the return-to-top link — was painted in the ink, which measures 10.54:1 on white against the prose's 10.94:1. Nothing was wrong with it except that it carried the same weight as the words it serves. #00855B is the lightest value at the brand's own hue and saturation that still clears 4.5:1 as body text, at 4.66:1, which is 43% of the prose's weight — clearly below it, still unmistakably the brand, and full saturation so it reads as an accent rather than as stained ink.
 
-The dark page needs the same rank and cannot get it the same way. Walking the lightness down does almost nothing there: a saturated cyan holds its luminance, so L45 still measures 10.47:1 against the page where L81 measures 14.6:1, and by the time it dims it has stopped looking like the brand. Alpha is what works, because compositing toward the page drops saturation and lightness together — the mint at 60% is 6.0:1, which is 47% of the dark prose's 12.81:1. It is the same operation that made the ink, pointed at the page instead of at the prose.
+The dark page needs the same rank and cannot get it the same way. Walking the lightness down does almost nothing there: a saturated cyan holds its luminance, so L45 still measures 10.47:1 against the page where L81 measures 14.6:1, and by the time it dims it has stopped looking like the brand. Alpha is what works, because compositing toward the page drops saturation and lightness together — the cyan at 60% is 6.0:1, which is 47% of the dark prose's 12.81:1. It is the same operation that made the ink, pointed at the page instead of at the prose.
 
-brand-3 stays the raw mint in dark mode alone. It is a button's background rather than text, and the ink on 60% mint reads 3.69:1 where the ink on full mint reads 8.96:1 — a field wants to be solid.
+brand-3 stays the raw cyan in dark mode alone. It is a button's background rather than text, and the ink on 60% cyan reads 3.69:1 where the ink on full cyan reads 8.96:1 — a field wants to be solid.
 
 brand-2 is set equal to brand-1 on purpose. VitePress spends it on hover states, and a link here does not change on hover, or on visit — the theme never styled :visited at all, and browsers restrict what it may change in any case. Making the two variables equal turns every hover shift into a no-op without a rule to enforce it.
 
@@ -148,8 +148,8 @@ What this does not touch: the warning and danger containers keep their own amber
 */
 
 :root {
-	--fuji-mint:     #9FFFE0;  /* the brand, and never ink on a light page */
-	--fuji-mint-ink: #154739;  /* a word the mark petrified: cyan with the page's ink mixed in */
+	--fuji-cyan:     #9FFFE0;  /* the brand, and never ink on a light page */
+	--fuji-cyan-ink: #154739;  /* a word the mark petrified: cyan with the page's ink mixed in */
 	--fuji-chrome:   #00855B;  /* navigation, which should rank below the prose it serves */
 
 	--vp-c-brand-1: var(--fuji-chrome);
@@ -157,10 +157,10 @@ What this does not touch: the warning and danger containers keep their own amber
 	--vp-c-brand-3: var(--fuji-chrome);   /* button backgrounds carry white text, at 4.66:1 */
 	--vp-c-brand-soft: rgba(159, 255, 224, 0.4);
 
-	--vp-code-bg: var(--fuji-mint);         /* the industrial highlighter mark */
-	--vp-code-color: var(--fuji-mint-ink);  /* and the word it petrified */
-	--vp-code-link-color: var(--fuji-mint-ink);
-	--vp-code-link-hover-color: var(--fuji-mint-ink);
+	--vp-code-bg: var(--fuji-cyan);         /* the industrial highlighter mark */
+	--vp-code-color: var(--fuji-cyan-ink);  /* and the word it petrified */
+	--vp-code-link-color: var(--fuji-cyan-ink);
+	--vp-code-link-hover-color: var(--fuji-cyan-ink);
 }
 
 .dark {
@@ -168,22 +168,22 @@ What this does not touch: the warning and danger containers keep their own amber
 
 	--vp-c-brand-1: var(--fuji-chrome);
 	--vp-c-brand-2: var(--fuji-chrome);
-	--vp-c-brand-3: var(--fuji-mint);     /* the button wants a solid field under its ink */
+	--vp-c-brand-3: var(--fuji-cyan);     /* the button wants a solid field under its ink */
 	--vp-c-brand-soft: rgba(159, 255, 224, 0.16);
 
 	--vp-code-bg: rgba(159, 255, 224, 0.14);
-	--vp-code-color: var(--fuji-mint);
-	--vp-code-link-color: var(--fuji-mint);
-	--vp-code-link-hover-color: var(--fuji-mint);
+	--vp-code-color: var(--fuji-cyan);
+	--vp-code-link-color: var(--fuji-cyan);
+	--vp-code-link-hover-color: var(--fuji-cyan);
 
-	/* the button keeps its mint and changes its text; white on mint is 1.18:1 */
-	--vp-button-brand-text: var(--fuji-mint-ink);
-	--vp-button-brand-hover-text: var(--fuji-mint-ink);
-	--vp-button-brand-active-text: var(--fuji-mint-ink);
+	/* the button keeps its cyan and changes its text; white on cyan is 1.18:1 */
+	--vp-button-brand-text: var(--fuji-cyan-ink);
+	--vp-button-brand-hover-text: var(--fuji-cyan-ink);
+	--vp-button-brand-active-text: var(--fuji-cyan-ink);
 }
 
 /*
-On the light page, a link is the prose it sits in with a mint bar behind the base of its letters, and on hover the bar becomes a full field the shape of a code pill with the same stained ink in it. Nothing moves and nothing animates. On the dark page none of this applies — see the brand essay above for why, and for the scoping that keeps it out.
+On the light page, a link is the prose it sits in with a cyan bar behind the base of its letters, and on hover the bar becomes a full field the shape of a code pill with the same stained ink in it. Nothing moves and nothing animates. On the dark page none of this applies — see the brand essay above for why, and for the scoping that keeps it out.
 
 The bar is a background layer rather than a text decoration, and the reason is the only reason: an underline cannot be wider than the text it underlines, and this one runs 2px past the word at each end, because a felt tip is wider than what it marks and a stroke cut to the exact edge of a word reads as a rule. Everything else about text-decoration was better — the browser positions it from the font's own metrics, and it is four declarations instead of six — so if that overshoot ever stops mattering, the simpler tool is the one to go back to.
 
@@ -220,7 +220,7 @@ html:not(.dark) .vp-doc a {
 	border-radius: 4px;             /* the flood's shape; a code pill's corners */
 	padding: var(--pad) var(--pad); /* above and below like a pill, and at the sides where a pill has 6 */
 
-	background-image: linear-gradient(var(--fuji-mint), var(--fuji-mint));
+	background-image: linear-gradient(var(--fuji-cyan), var(--fuji-cyan));
 	background-repeat: no-repeat;
 	background-position: left var(--inset) bottom var(--lift);
 	background-size: calc(100% - 2 * var(--inset)) var(--stroke);
@@ -246,8 +246,8 @@ html:not(.dark) .vp-doc .header-anchor {
 }
 
 html:not(.dark) .vp-doc a:hover {
-	color: var(--fuji-mint-ink);
-	background-color: var(--fuji-mint);
+	color: var(--fuji-cyan-ink);
+	background-color: var(--fuji-cyan);
 }
 
 /*
@@ -338,11 +338,11 @@ The navigation, marked rather than coloured.
 
 A saturated cyan cannot be type on a white page. #9FFFE0 measures 1.18:1 against white, so as a line or a word it is invisible, and darkening it until it is legible is what turns it into a middle teal — readable, correct, and with none of the smell. The value has no acid in it as ink; it has acid as a field, which is why the code pills and the link marks work and why the cover page works. Area is the thing, not hue.
 
-So the two pieces of navigation that can carry a field get one, and they get exactly the field a code word gets: full-strength mint behind #154739, 4px corners, 6px of horizontal padding with a negative margin cancelling it so nothing shifts sideways.
+So the two pieces of navigation that can carry a field get one, and they get exactly the field a code word gets: full-strength cyan behind #154739, 4px corners, 6px of horizontal padding with a negative margin cancelling it so nothing shifts sideways.
 
 The vertical padding is 4px in the sidebar where the prose pill uses 3px, and the difference is not a taste: VitePress already gives .text a padding of 4px 0, so writing 3px there overrode it and made the marked row two pixels shorter than its neighbours. Every item below it moved a pixel as you clicked around. Matching the figure it replaces means the chip changes the row's colour and nothing else about it. The current page in the sidebar is marked the way a term in the prose is marked, and a prev/next box floods on hover the way a link does. The same pen, used on the furniture.
 
-The outline marker is the third, and it is the case that proves the rule. VitePress draws it 2px wide and 18px tall, straddling the hairline the outline hangs from. A bar that thin cannot be mint, but neither can a bar four times as wide: mint on white is 1.18:1 no matter how much of it there is, and a field only reads as acid when something dark is sitting on it. So the marker is given area — 8px rather than 2, straddling the hairline it hangs on — and the mint, and what it becomes is a soft tab rather than a bright one. The alternative is to mark the active heading itself the way the sidebar's current page is marked, which would be genuinely bright; it is not done here because an outline link is a block element with an ellipsis on it, and a field behind it would fill the column rather than the words. The pager titles go back to the prose's own colour, since the box behind them now does the work.
+The outline marker is the third, and it is the case that proves the rule. VitePress draws it 2px wide and 18px tall, straddling the hairline the outline hangs from. A bar that thin cannot be cyan, but neither can a bar four times as wide: cyan on white is 1.18:1 no matter how much of it there is, and a field only reads as acid when something dark is sitting on it. So the marker is given area — 8px rather than 2, straddling the hairline it hangs on — and the cyan, and what it becomes is a soft tab rather than a bright one. The alternative is to mark the active heading itself the way the sidebar's current page is marked, which would be genuinely bright; it is not done here because an outline link is a block element with an ellipsis on it, and a field behind it would fill the column rather than the words. The pager titles go back to the prose's own colour, since the box behind them now does the work.
 
 On specificity: VitePress's own sidebar rule carries six classes and a scoped attribute, so .VPSidebar is prefixed here to match it and let source order decide. The footer's title rule is weaker and needs no such help.
 */
@@ -351,8 +351,8 @@ On specificity: VitePress's own sidebar rule carries six classes and a scoped at
 	border-radius: 4px;
 	padding: 4px 6px;               /* 4 vertical, not the pill's 3: see the note above */
 	margin: 0 -6px;
-	background-color: var(--fuji-mint);
-	color: var(--fuji-mint-ink);
+	background-color: var(--fuji-cyan);
+	color: var(--fuji-cyan-ink);
 }
 
 .VPDocFooter .pager-link .title {
@@ -360,19 +360,19 @@ On specificity: VitePress's own sidebar rule carries six classes and a scoped at
 }
 
 .VPDocFooter .pager-link:hover {
-	border-color: var(--fuji-mint);
-	background-color: var(--fuji-mint);
+	border-color: var(--fuji-cyan);
+	background-color: var(--fuji-cyan);
 }
 
 .VPDocFooter .pager-link:hover .title,
 .VPDocFooter .pager-link:hover .desc {
-	color: var(--fuji-mint-ink);
+	color: var(--fuji-cyan-ink);
 }
 
 .VPDocAsideOutline .outline-marker {
 	left: -4px;
 	width: 8px;
-	background-color: var(--fuji-mint);
+	background-color: var(--fuji-cyan);
 }
 
 /*
@@ -389,7 +389,7 @@ The two hover rules mirror VitePress's own selector exactly, because it carries 
 }
 
 .VPSidebar .VPSidebarItem.level-1.is-active.is-link > .item > .link:hover .text {
-	color: var(--fuji-mint-ink);
+	color: var(--fuji-cyan-ink);
 }
 
 /* a line of facts under a download or an install command: the face and size code is set in, without the highlighter chip it carries, because a byte count is a fact rather than a token to type. weight 500 for the reason given beside the code rule: plex mono at this size reads lighter than it measures, and regular would look thinner than the hash above it. DownloadLink.vue and DownloadCommand.vue both set it, which is why it is here rather than scoped in either */

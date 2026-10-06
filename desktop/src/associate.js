@@ -31,7 +31,7 @@ What the platforms do, seen rather than read. Windows shows a one-time chooser o
 Two things elsewhere stay in step with this. bundle.fileAssociations stays out of tauri.conf.json, since Info.plist declares the Mac's types by hand, this file registers them with Windows at every launch, and Linux declares none yet. And the uninstaller takes back everything this writes, for the extensions win-setup/registry.js names and under the names this file gives them, Fuji.webp for a ProgID, Software\Fuji for the Capabilities block and fuji.exe under Applications, so a change to how this file names a key is a change to the rules there too. The installer never uninstalls first, so an install over an existing copy leaves every registration, and every choice the user saved in Windows' own screens, as it was.
 */
 
-const documentIcon = 'document-image.ico'//what a picture of every type fuji opens wears in Explorer, beside the executable; fuji's own icon would make a folder of pictures a folder of mint discs
+const documentIcon = 'document-image.ico'//what a picture of every type fuji opens wears in Explorer, beside the executable; fuji's own icon would make a folder of pictures a folder of cyan discs
 const answerNames = ['yes', 'no', 'ask']//the three answers, which are also the three lists in fuji.toml, in the order the file shows them
 
 export const associateAnswers = ref({})//extension to yes, no, or ask; changed only by associateChoose and by following windows

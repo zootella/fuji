@@ -10,7 +10,7 @@ Fuji's words for its own parts:
 - **Light table** — the other way Fuji shows images: one at a time, on a plane the user pans and zooms around. Fuji's code calls it a table.
 - **Flow** — the code that turns a list of file paths into thumbnails: the routing, the sizing, and the arranging.
 - **Tile** — one thumbnail as it sits on the contact sheet: either a `<canvas>` Fuji painted or an `<img>` the engine draws.
-- **Box** — the square one tile is fitted inside, whatever shape the picture is. One of four sizes, and the user picks which.
+- **Beam** — the length every thumbnail is measured against, in CSS pixels; today a picture's longer side is fitted to it, so each tile sits inside a square the beam on each side, whatever shape the picture is. The user picks the beam's length from Small, Medium, Large and XL.
 - **Store** — the one place Fuji keeps a file's bytes and its decoded pixels. It hands them out and takes them back when told, and decides nothing on its own.
 
 A light table's route to the screen is deliberately plain: an `<img>`, sized by two lines of CSS, flipped by hiding one element and showing another. Nothing there needs to be clever. The contact sheet cannot do the same thing. The rest of this is why, and what it does instead.
@@ -31,7 +31,7 @@ That is what the engine cannot work around. It drops an `<img>`'s decoded frame 
 
 What Fuji gets for that is a number it can work out before it opens a file:
 
-| thumbnail size | one thumbnail | two hundred of them |
+| beam | one thumbnail | two hundred of them |
 | --- | --- | --- |
 | Small, 120 px | 150 KB | 30 MB |
 | Medium, 240 px | 600 KB | 120 MB |
@@ -125,9 +125,9 @@ For context on how much headroom that leaves: ImageIO on a current Mac will deco
 
 ## The operating system's route
 
-`thumbnail.rs` calls *ImageIO* on macOS and the *Windows Imaging Component* on Windows — the same libraries Finder and Explorer use for the thumbnails in their own windows. Both take a file path rather than bytes. The library opens and reads the file itself, and the page never holds it.
+`thumbnail.rs` calls *ImageIO* on macOS and the *Windows Imaging Component* on Windows — the same libraries Finder and Explorer use for the thumbnails in their own windows. Both can take a file path or the file's bytes, and Fuji hands them the path. The library opens and reads the file itself, and the page never holds it.
 
-Before either library decodes anything, Fuji checks the file twice. It reads the first 144 bytes, enough for the list of brands an AVIF or HEIC file opens with, and refuses a file whose signature is not the format its extension promised — the same signatures Chromium chooses a decoder by. Then it reads the header and refuses a picture whose raster would not fit in half the machine's physical memory. Those two checks stand here because this is the route where the decoder runs in Fuji's own process; the page route hands the file to the web engine, which decodes inside its sandbox and chooses its decoder by the bytes, exactly as it does for a light table.
+Before either library decodes anything, Fuji reads the header through it and refuses a picture whose raster would not fit in half the machine's physical memory. That check stands here because this is the route where the decoder runs in Fuji's own process; the page route hands the file to the web engine, which decodes inside its sandbox and chooses its decoder by the bytes, exactly as it does for a light table.
 
 On macOS the body is short, because ImageIO does the whole job in one call given three options: the longest side to scale to, a flag to render a thumbnail from the full image rather than handing back whatever small preview the file may have embedded, and a flag to apply the file's EXIF orientation. Then Fuji draws the result into a bitmap context of the color space it wants. That draw is where [Core Graphics](https://developer.apple.com/documentation/coregraphics) does the color management. One loop afterwards undoes the *premultiplied alpha* a drawing context produces: colors pre-scaled by their own transparency, which have to be divided back out before the pixels mean what `ImageData` expects.
 
@@ -226,13 +226,13 @@ Three things can go wrong between the file and the tile: the wrong size, the wro
 
 ### Fit
 
-The longer side goes to the box, and Fuji never enlarges a picture:
+The longer side goes to the beam, and Fuji never enlarges a picture:
 
 ```js
-let scale = Math.min(box / size.x, box / size.y, 1)
+let scale = Math.min(beam / size.x, beam / size.y, 1)
 ```
 
-A square picture lands exactly on the box, a wide one hits the limit on width alone, and a picture already smaller than the box keeps its own size. **Fuji crops nothing** — every tile shows a whole picture, and the rows come out ragged because of it. The box is one of four named sizes: Small, Medium, Large and XL, at 120, 240, 360 and 480 CSS pixels. All four are settings, so Medium means whatever the user says it means.
+A square picture lands exactly on the beam, a wide one hits the limit on width alone, and a picture already smaller than the beam keeps its own size. **Fuji crops nothing** — every tile shows a whole picture, and the rows come out ragged because of it. The beam is one of four named lengths: Small, Medium, Large and XL, at 120, 240, 360 and 480 CSS pixels. All four are settings, so Medium means whatever the user says it means.
 
 ### One backing pixel
 
