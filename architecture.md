@@ -7,7 +7,7 @@ It says what fuji does, not what it might. It is the only architecture document:
 ```
 App.vue
 └── Shell.vue            the window: settings, reveal, window events, which view is showing
-    ├── Sheet.vue        v-show   one sheet: a scroll of buckets over one folder
+    ├── Sheet.vue        v-show   one sheet: a page of buckets, a window onto the walk, with Previous and Next
     │   ├── Bucket.vue            a capped number of images, all from one folder
     │   │   └── TestFlow.vue      the flow that sizes and arranges them, and routes each file to a decoder
     │   └── BucketMemory.vue      beneath the last bucket: the machine's memory, fuji's processes, and what the thumbnails cost
@@ -16,7 +16,8 @@ App.vue
         ComicTable.vue            another table, whenever it is written
         PreviewTable.vue          the picture a double-click opened, alone, before any other table
                 ↓ both import, neither knows the other exists
-        the model                 folder, sort, ordered list, current path, which view is showing
+        the model                 folder, sort, ordered list, current path, which view is showing; the table's folder
+        the walk                  walk.js: every image on the volume as one list, listed a folder at a time; the sheet's page
                 ↓
         the cache                 path → pixels, bounded
                 ↓

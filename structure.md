@@ -6,7 +6,7 @@ What the parts of fuji are called, how many there are of each, and which ones th
 
 ## The two things the user looks at
 
-**The Sheet shows a folder. A Table shows one image.** That is the whole top-level split, and everything below is a refinement of it.
+**The Sheet shows a page of the walk, buckets of thumbnails from wherever on the volume it is. A Table shows one image.** That is the whole top-level split, and everything below is a refinement of it. `walk.js` is the list the Sheet walks, every image on the volume in one order, and `bucket.md` says what a page of it is.
 
     Sheet     one of them
     Tables    several of them, one showing at a time

@@ -17,21 +17,26 @@ The promise this file keeps is that the pages come out the same as they would fr
 
 What a press costs is listings, one readdir per folder touched, never a scan. A step touches the folder itself, its parent to find a sibling, and the folders passed through, which is bounded by the depth of the tree and the number of imageless folders in the way, never by the size of the disk. Nothing is cached: a folder is listed every time it is asked about, several times in one press, once to count its images, once to cut each bucket from it and once to look past it, because a readdir reads the kernel's own caches rather than the disk, a press is a thing a user does a few times an hour, and a listing never remembered is never stale. For a folder of a few thousand pictures that is tens of milliseconds a press; a folder of a hundred thousand would make it seconds, and the answer then is a memo that lives for one press, not a cache that lives for the walk.
 
-The look-ahead is what makes a press instant, and the buttons wait for it. Once a page is on screen, this file finds the page after it and the page before it in the background, one listing at a time, and each button is enabled only once the look-ahead has found where its page starts, or disabled for good when it has found there is none. So a press never lists anything: the folders and the ranges of the next buckets are known, and only the thumbnails remain to load, which is the work the user actually asked for. It also means two presses can never overlap, since the second cannot happen until the first page is on screen and its own look-ahead has answered; while that runs the buttons say which folder the walk is in. The one thing that can still interrupt work in flight is a different folder dropped on the sheet, which starts a new walk, and a counter handed to each piece of work is how a look-ahead for a walk that has gone notices and stops.
+The look-ahead is what makes a press instant, and the buttons wait for it. Once a page is on screen, this file finds the page after it and the page before it in the background, one listing at a time, and each button is enabled only once the look-ahead has found where its page starts, or disabled for good when it has found there is none. So a press never lists anything: the folders and the ranges of the next buckets are known, and only the thumbnails remain to load, which is the work the user actually asked for. It also means two presses can never overlap, since the second cannot happen until the first page is on screen and its own look-ahead has answered. The one thing that can still interrupt work in flight is a different folder dropped on the sheet, which starts a new walk, and a counter handed to each piece of work is how a look-ahead for a walk that has gone notices and stops.
 
-Two things are known to hurt, and this version meets them honestly rather than cleverly. Imageless regions: walking forward out of a home folder reaches Library, tens of thousands of folders holding almost no pictures, and each costs a readdir before the next bucket appears; walkLooking says which folder the walk is in while that happens, and the look-ahead means it mostly happens before the press rather than after. The worst of it is the tail of the volume: past the last image the look-ahead has to walk to the very end to learn that Next has nowhere to go, so the button stays at looking for as long as that takes, and the top of the volume is the same for Previous. A skip list is the next version, and it is policy rather than mechanism, which is why it is not this one. Unreadable folders: a readdir that fails, under another user's home or where the system refuses, is logged once and passed through as empty. One more thing is not this file's: a listed image that then fails to render. The walk's ranges are the listing's, so a bucket says Images 41 through 60 whatever rendered, shows the thumbnails that did, and should say how many did not; that is the bucket's caption, and rescanning to hide a failure would be complexity for nothing.
+Two things are known to hurt, and this version meets them honestly rather than cleverly. Imageless regions: walking forward out of a home folder reaches Library, tens of thousands of folders holding almost no pictures, and each costs a readdir before the next bucket appears; the buttons stay disabled while that happens and the look-ahead means it mostly happens before the press rather than after, and the memory report and the log say how many folders were listed and how long they took, once it is done; no folder is named anywhere, since the names are the user's. The worst of it is the tail of the volume: past the last image the look-ahead has to walk to the very end to learn that Next has nowhere to go, so Next stays disabled for as long as that takes, and the top of the volume is the same for Previous. A skip list is the next version, and it is policy rather than mechanism, which is why it is not this one. Unreadable folders: a readdir that fails, under another user's home or where the system refuses, is logged once and passed through as empty. One more thing is not this file's: a listed image that then fails to render. The walk's ranges are the listing's, so a bucket says Images 41 through 60 whatever rendered, shows the thumbnails that did, and should say how many did not; that is the bucket's caption, and rescanning to hide a failure would be complexity for nothing.
 
 What hooking this up changes, when it is hooked up: the sheet renders walkPage instead of slicing the model's list, with Previous above the first bucket and Next between the last bucket and the memory report; the bucket and the flow take listing entries rather than bare paths, because the captions' date and size come from the entry and the walk's buckets are from many folders; the sheet calls walkRefresh when it comes back on screen, since the bucket counts are settings and the page re-cuts to them; and the table still flips within one folder, listed by the model as today, which is the one place the sheet and the table no longer share a list.
 */
 
 export const walkPage = shallowRef([])//the buckets on screen, in list order, each {folder, index, first, total, files}: where in the folder's images it starts, counted from 0 and from 1, how many the folder has, and the listing entries it shows
-export const walkLooking = ref('')//the folder being listed right now, for a line by the buttons while a press or the look-ahead works the disk; blank when idle
 export const walkPreviousState = ref('none')//what the Previous button is: 'looking' while the look-ahead works behind the page, 'ready' once it has found where the previous page starts, and 'none' when there is nothing before this page
 export const walkNextState = ref('none')//the same for Next
+export const walkListed = ref({count: 0, milliseconds: 0})//what the disk was asked since the last start or press: how many folders were listed and how long those listings took together, the page's own cut and the look-ahead both; published every walkPublishEvery milliseconds while listings run, and once more, exactly, when they stop
 
 let walkFirst = null//the position of the page's first bucket, {folder, index}, or null before a walk starts or on an empty volume
 let walkAhead = []//the positions of the next page's buckets, once the look-ahead has found them; the button's state says whether it has
 let walkBehind = []//the same for the previous page
+let walkCount = 0; let walkMilliseconds = 0//the running totals behind walkListed, kept plain and published after each listing
+let walkPages = 0//how many pages this run has shown, which is how the log's rows tell one page from the next without naming a folder
+let walkCutWith = null//the bucket counts the page on screen was cut with, so a refresh under the same counts can leave the page and its known neighbors standing
+const walkPublishEvery = 250//milliseconds between updates of walkListed while listings run: each update is a text change and a layout on the main thread, which per listing would be a fair share of a listing's own cost
+let walkPublished = 0//when it was last published
 let walkGeneration = 0//goes up with every start, press and refresh, and a copy goes with each piece of work, so a look-ahead or a page being cut for a walk that has since gone sees the number moved on at its next await and stops
 
 /// Start a walk at a folder, showing its first bucket and what follows; the folder itself may hold no images, and the walk then begins at the first folder after it that does
@@ -58,8 +63,9 @@ export async function walkPrevious() {
 /// Cut the page again from where it starts, under the bucket counts as they are now; the sheet calls this when it comes back on screen, since the settings panel may have changed them
 export async function walkRefresh() {
 	if (!walkFirst) return
-	let generation = ++walkGeneration
 	let {images, buckets} = _walkSettings()
+	if (walkCutWith && walkCutWith.images == images && walkCutWith.buckets == buckets) return//nothing to re-cut: the sheet comes back from the table many times an hour, and re-cutting the same page would run the look-ahead again through everything it already walked
+	let generation = ++walkGeneration
 	let first = {folder: walkFirst.folder, index: Math.floor(walkFirst.index / images) * images}//back onto the grid the folder's start lays down, which is where every bucket boundary is
 	await _walkShow(generation, await _walkPositionsAfter(first, buckets))
 }
@@ -67,10 +73,12 @@ export async function walkRefresh() {
 function _walkSettings() { return {images: settings.bucket.images, buckets: settings.sheet.buckets} }//read at every press rather than once, so a change in the settings panel is the next page's
 
 async function _walkShow(generation, positions) {//the page from its positions, cut from their folders' listings; then the look-ahead, both ways, for the press after this one
+	walkCount = 0; walkMilliseconds = 0; walkListed.value = {count: 0, milliseconds: 0}//a fresh count for this page and its look-ahead; a start's own listings before this point are not counted, since they found where to begin rather than the page
 	let page = await Promise.all(positions.map(position => _walkBucket(position)))//one listing per bucket, asked again; the essay says why that is fine
 	if (generation != walkGeneration) return//a new walk owns the page now, checked after the last await so this one never lands on top of it
 	walkFirst = positions[0] || null
 	walkPage.value = page
+	walkCutWith = _walkSettings()
 	walkAhead = []; walkBehind = []
 	walkPreviousState.value = walkFirst ? 'looking' : 'none'; walkNextState.value = walkFirst ? 'looking' : 'none'//both buttons wait for the look-ahead, and an empty volume has neither
 	_walkLook(generation).catch(error => log(`walk: looking ahead, ${error}`))//not awaited: the page is on screen and this works the disk behind it
@@ -85,6 +93,8 @@ async function _walkLook(generation) {//find every bucket of the next page and o
 	let behind = walkFirst ? await _walkPositionsBefore(walkFirst, count) : []
 	if (generation != walkGeneration) return
 	walkBehind = behind; walkPreviousState.value = behind.length > 0 ? 'ready' : 'none'
+	_walkPublish(true)//the final numbers, now that the walk is idle
+	if (walkFirst) log(`walk: page ${++walkPages}, listed ${walkCount} folders in ${Math.round(walkMilliseconds)} ms for the page and its look-ahead, ${ahead.length ? 'next ready' : 'nothing after'}, ${behind.length ? 'previous ready' : 'nothing before'}`)//one row per page once both directions are known, which is what a walkabout leaves to read back when the log is recording. No folder is named, here or in the row below: the log is read by people and sessions the folders are none of, and a count and a time are the whole question
 }
 
 async function _walkPositionsAfter(first, count) {//up to count positions from this one on, this one first, as many as the list has; none from a null position, which is the bottom
@@ -160,16 +170,24 @@ function _walkParent(folder) {//the folder above, or blank at the top of the vol
 }
 
 async function _walkList(folder) {//a folder's listing, images sorted as the list orders them and subfolders sorted by name, asked of the disk every time; a folder that cannot be read is logged and passed through as empty
-	walkLooking.value = folder
+	let began = performance.now()
 	let listing
 	try {
 		listing = await listDirectory(folder)
 		listing.images.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)//the Alphabet sort's own order, by path within one folder; when fuji has a second sort the model should order these, as it orders the table's folder
 		listing.folders.sort()//by name, since every path here shares the parent; the sorts never apply to folders
 	} catch (error) {
-		log(`walk: could not list ${folder}, ${error}`)
+		log(`walk: could not list a folder, ${error}`)//the error says why, like permission denied, and never which; the folder is the user's
 		listing = {images: [], folders: []}
 	}
-	walkLooking.value = ''
+	walkCount++; walkMilliseconds += performance.now() - began
+	_walkPublish(false)
 	return listing
+}
+
+function _walkPublish(done) {//put the count and the time on the page, on a clock while listings run and once more, exactly, when they stop
+	let now = performance.now()
+	if (!done && now - walkPublished < walkPublishEvery) return
+	walkPublished = now
+	walkListed.value = {count: walkCount, milliseconds: Math.round(walkMilliseconds)}
 }

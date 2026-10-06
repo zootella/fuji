@@ -1,7 +1,6 @@
 <script setup>//every thumbnail sized by a fit, and the tiles flow like words; the pixels come from the operating system or from the page, decided per file
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import parse from 'path-browserify'
 import {cacheNeed, cacheRelease} from '../cache.js'
 import {governorRun} from '../governor.js'
 import {settings, settingsThumbnailBeam} from '../settings.js'
@@ -10,10 +9,9 @@ import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logBucket} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
 import {xy, platform, sayDay, sayDimensions, saySize4, middleDot, backize} from './library.js'
 import {fileTypesEnabled} from '../fileTypes.js'
-import {modelFile} from '../model.js'//what the folder's listing knows about each path, for the caption
 
 /*
-The one flow, and the whole of how a path becomes a tile. A bucket hands this its paths. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw is left out, counted in the bucket's caption. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
+The one flow, and the whole of how a file becomes a tile. A bucket hands this its files, the listing's entries, which carry the name, the size and the modified time the caption reads. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw is left out, counted in the bucket's caption. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
 Every tile is sized the same way whatever its route: from the picture's own size, by the fit thumbnail.fit names, which the settings panel sets, through flowFit and fit.js. A page tile has that size once its decode resolves, an img tile once the engine has loaded it, and a native tile from Rust, which sends it back beside the pixels after running the same fit to choose how large to render. The flow itself is wrap, which places tiles left to right like words, and its name names no fit, since the fit is the user's to choose.
 
@@ -32,26 +30,27 @@ const flowGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb
 const flowPlatform = platform()//mac, windows or linux, read once, which is how this flow reads each type's imageNative and imageWeb lists in fileTypes.js
 
 const props = defineProps({
-	paths: {type: Array, required: true},//already in the model's order, and never from two folders
+	files: {type: Array, required: true},//the listing's entries, in the walk's order, and never from two folders
 })
 const emit = defineEmits(['bytes', 'refused'])//what this bucket's canvases cost so far, sent up as each one is sized, and how many of its files could not be shown, sent up as each is refused, both for the bucket's caption
 
-const flowTiles = ref(props.paths.map(path => tileFor(path)))//one small reactive object per path, built once; a load or a refusal changes one tile
+const flowTiles = ref(props.files.map(file => tileFor(file)))//one small reactive object per path, built once; a load or a refusal changes one tile
 const flowCanvases = new Map()//path to its canvas element, kept by the refs in the template
 let flowClosed = false//the bucket is going away, so every tile still in line returns as it is let in
 let flowHeld = []//the paths this flow holds a store reference on, which are the img tiles; released on unmount, since an img needs its url as long as it shows
 let flowBytes = 0//what this bucket's canvases cost; the imgs are the engine's and small
 let flowRefused = 0
 
-function tileFor(path) {//the kind of tile a path gets on this platform, from its extension alone
-	let entry = fileTypesEnabled[parse.extname(path).toLowerCase()]
+function tileFor(file) {//the kind of tile a file gets on this platform, from its extension alone
+	let path = file.path
+	let entry = fileTypesEnabled[file.extension]//lowercased by the listing
 	let native = entry?.imageNative.includes(flowPlatform)
 	let web = entry?.imageWeb.includes(flowPlatform)
 	let kind = 'refused'//nothing on this platform can draw it, which flowFill counts with the files that fail
 	if (web && entry.contactSheet == 'img') kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
 	else if (native) kind = 'native'//a canvas the operating system fills, preferred wherever it can
 	else if (web) kind = 'page'//a canvas the page fills
-	return {path, kind, url: '', css: null, file: modelFile(path), natural: null}//file is the listing's entry, with the name, the size and the modified time, already in hand; natural is the picture's own size, once a route reports it. kind turns to placeholder when a render or a decode fails; url is an img tile's, once the store has it, and css its size once the engine has loaded it
+	return {path, kind, url: '', css: null, file, natural: null}//file is the listing's entry, with the name, the size and the modified time, which the caption reads; natural is the picture's own size, once a route reports it. kind turns to refused when a render or a decode fails; url is an img tile's, once the store has it, and css its size once the engine has loaded it
 }
 
 onMounted(() => { flowFill().catch(error => logTrouble('TestFlow: filling a bucket', error)) })//the top gate for this bucket: anything that escapes a tile's work lands here, loudly
@@ -70,7 +69,7 @@ async function flowFill() {//ask for every tile at once, each in the line of the
 		...native.map(tile => governorRun('rust computation', () => flowNative1(tile))),
 		...page.map(tile =>   governorRun('web computation',  () => flowPage1(tile))),//keeps its place through the store's read under disk, so at most four page tiles hold a whole file and its decode at once; governor.js says why this one caller holds two lines
 	])
-	if (!flowClosed) logBucket({index: props.paths.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
+	if (!flowClosed) logBucket({index: props.files.length, render: Math.round(performance.now() - began), bytes: flowBytes, note: `${native.length} native, ${page.length} page, ${imgs.length} img, ${flowRefused} refused`})
 }
 
 function flowRefuse(tile, why) {//the file leaves the bucket, its caption counts one more, and a row says which file and why; nothing is tried twice
@@ -136,9 +135,10 @@ function flowImg(tile) {//a gif or an svg: the store's url, no decode; flowImgLo
 		.catch(error => logTrouble('TestFlow: loading an img thumbnail', error))//the store answers a bad file with entry.error, so this catches only a store that broke
 }
 
-function flowImgLoad(tile, event) {//an img tile, sized by the fit once the engine knows its picture's size; until then, and for an svg with no size of its own, the css in myImg holds it to the beam's square
+function flowImgLoad(tile, event) {//an img tile, sized by the fit once the engine knows its picture's size: a gif's own, an svg's width and height, or an svg's viewBox when it has no width and height, which is what WebKit reports then; and the beam's square should it report no size at all, which nothing has yet
 	let natural = xy(event.target.naturalWidth, event.target.naturalHeight)
 	if (natural.x > 0 && natural.y > 0) { tile.natural = natural; tile.css = flowFit(natural).css }
+	else tile.css = xy(flowBeam, flowBeam)
 }
 
 function flowDetails(tile) {//the caption's second line: the day the file was last modified, its size, and the size the picture shows at, each left out until it is known, so a missing one never leaves a divider standing alone
@@ -208,7 +208,7 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 
 <!-- every tile names its path in data-path, on the cell that holds the picture and its caption, which is how the sheet knows which one was double-clicked without a handler on each. items-start so a short cell keeps its own height instead of stretching to the tallest in its row; the spacing is in myFlow, beside the outline it makes room for -->
 <div class="myFlow flex flex-wrap items-start" :style="{'--beam': flowBeam + 'px'}">
-	<template v-for="tile in flowTiles" :key="tile.path"><div v-if="tile.kind != 'refused'" class="myCell flex flex-col" :data-path="tile.path"><!-- a refused file has no cell at all, so the rows close over it; the caption above the bucket says how many -->
+	<template v-for="tile in flowTiles" :key="tile.path"><div v-if="tile.kind != 'refused'" class="myCell flex flex-col" :data-path="tile.path" :style="tile.css ? {width: tile.css.x + 'px'} : null"><!-- a refused file has no cell at all, so the rows close over it; the caption above the bucket says how many. The cell takes the img's width as its own rather than from the img, because WebKit does not re-lay out a shrink-to-fit flex item when its img goes from no intrinsic size to an explicit one: an svg with a viewBox and no width or height lays out at 0 by 0 under the cap, the cell at 0 wide, and when the fit's size goes on the img it grows and the cell does not, so the drawing hangs over the next cell and the caption, as wide as the cell, is nothing. Measured 2026-10-06 on the Mac mini in a WKWebView with the flow's own structure: the cell stayed at 0 a frame later with the img sized, and laid out at once with its own width set. A canvas never meets this, since its size changes through its attributes, which WebKit treats as an intrinsic change -->
 		<canvas v-if="tile.kind == 'native' || tile.kind == 'page'"
 			:ref="el => el ? flowCanvases.set(tile.path, el) : flowCanvases.delete(tile.path)"
 			class="myTile" width="0" height="0"
@@ -249,7 +249,7 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 	white-space: pre; overflow: hidden; /* one line, cut off at the tile's right edge where the tile is narrower than the words; pre rather than nowrap, which also never wraps but keeps every space, so a filename shows its spaces as they are */
 	mask-image: linear-gradient(to right, black calc(100% - 2px), transparent); /* and melted over the last 2 css pixels, so a letter cut in half fades out rather than looking broken; on the line's box rather than the overflow, so a short line ending right there fades a little too, which is the price of doing it without script */
 }
-.myImg { /* an img tile until flowImgLoad has sized it by the fit, and for good if its picture has no size of its own */
+.myImg { /* an img tile until flowImgLoad has sized it, which is the moment between the url and the load */
 	max-width: var(--beam); /* only ever shrinks: a square lands on the beam, a wide one hits the limit on width alone, and an image already smaller keeps its own size */
 	max-height: var(--beam);
 }

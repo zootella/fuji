@@ -1,7 +1,6 @@
 <script setup>//a bucket of thumbnails, all from one folder, arranged by the flow
 
 import {ref, computed} from 'vue'
-import parse from 'path-browserify'
 import TestFlow from './TestFlow.vue'
 import {backize, middleDot, saySize4} from './library.js'
 
@@ -9,7 +8,8 @@ import {backize, middleDot, saySize4} from './library.js'
 //there is one flow, so this names it directly; a register and a prop come back when there is a second one to choose between
 
 const props = defineProps({
-	paths: {type: Array, required: true},//already in the model's order, and never from two folders
+	folder: {type: String, required: true},//the one folder every file here is in
+	files: {type: Array, required: true},//the listing's entries for the images this bucket shows, in the walk's order, each with its path, name, size and modified time
 	first: {type: Number, required: true},//where this bucket starts in the folder, counting from 1
 	total: {type: Number, required: true},//how many images the folder holds, shown or not
 })
@@ -19,8 +19,8 @@ const emit = defineEmits(['bytes'])//the bytes, passed up for the sheet's total 
 function bucketBytesSet(bytes) { bucketBytes.value = bytes; emit('bytes', bytes) }//kept for the caption and passed up
 
 const bucketCaption = computed(() => {//the folder the bucket's images are in, which of the folder's images they are, how many of those could not be shown, and what its thumbnails cost, like /Users/name/Pictures · Images 1 through 20 of 35 (2 did not load) · 11 MB
-	let folder = backize(parse.dirname(props.paths[0]))//one folder per bucket, so the first image's says it for all; written as the platform's file manager writes it
-	let last = props.first + props.paths.length - 1
+	let folder = backize(props.folder)//written as the platform's file manager writes it
+	let last = props.first + props.files.length - 1
 	let range = `Images ${props.first} through ${last} of ${props.total}`
 	if (props.first == last) range = `Image ${last} of ${props.total}`//a bucket holding one image, which the plural would make read oddly
 	if (bucketRefused.value > 0) range += ` (${bucketRefused.value} did not load)`//so a bucket showing fewer thumbnails than its range, or none, says why
@@ -33,7 +33,7 @@ const bucketCaption = computed(() => {//the folder the bucket's images are in, w
 <!-- no border, no background: a bucket is a boundary fuji needs and the user is not meant to notice -->
 <div>
 	<div class="myBucketCaption mySans">{{bucketCaption}}</div>
-	<TestFlow :paths="props.paths" @bytes="bucketBytesSet" @refused="bucketRefused = $event" />
+	<TestFlow :files="props.files" @bytes="bucketBytesSet" @refused="bucketRefused = $event" />
 </div>
 
 </template>

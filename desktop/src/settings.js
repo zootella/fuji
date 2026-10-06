@@ -38,8 +38,8 @@ const settingsSchema = [
 	}, {
 		section: 'sheet',
 		key: 'buckets',
-		factory: 3,
-		comment: `how many buckets the contact sheet holds, so this times the images in a bucket is the most thumbnails ${brandName} ever has at once; for now that is also how much of a folder the sheet shows, from the first in the current order, and the rest is not shown`,
+		factory: 10,
+		comment: `how many buckets a page of the contact sheet holds, so this times the images in a bucket is the most thumbnails ${brandName} ever has at once; Previous and Next move the page along every image on the disk, a page at a time`,
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'sort',
@@ -49,8 +49,8 @@ const settingsSchema = [
 	}, {
 		section: 'bucket',
 		key: 'images',
-		factory: 20,
-		comment: 'how many images one bucket holds. A bucket never mixes two folders, and the sheet scrolls over buckets rather than over the thumbnails themselves, so that one day it can walk a whole drive in constant memory',
+		factory: 200,
+		comment: 'how many images one bucket holds. A bucket never mixes two folders, and the sheet scrolls over buckets rather than over the thumbnails themselves, which is what lets it walk a whole drive in constant memory; a bucket large enough to hold a typical folder whole makes every bucket on a page a different folder',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'thumbnail',
@@ -61,7 +61,7 @@ const settingsSchema = [
 	}, {
 		section: 'thumbnail',
 		key: 'beam',
-		factory: 'Medium',
+		factory: 'Small',
 		comment: 'which of the beam lengths below every thumbnail is measured against; one choice for the whole sheet, so changing it changes every bucket at once',
 		check: value => settingsThumbnailBeams.includes(value),
 	}, {

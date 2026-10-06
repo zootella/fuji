@@ -16,6 +16,7 @@ const props = defineProps({
 	bytes: {type: Number, required: true},//what their canvases cost, summed from every bucket's own total
 	beam: {type: String, required: true},//the beam's name and the fit's, so the numbers sit beside the choices that made them
 	fit: {type: String, required: true},
+	listed: {type: Object, required: true},//{count, milliseconds}: how many folders the walk listed for this page and its look-ahead, and how long those listings took together
 })
 
 const memoryRoot = ref(null)//this box, which the observer watches
@@ -42,6 +43,7 @@ const memoryNames = {//what each process is, for its row, by rust's kind: the th
 	browser: 'Browser process', utility: 'Utility process', 'sandbox helper': 'Sandbox helper', plugin: 'Plugin process', 'plugin broker': 'Plugin broker',
 }
 function sayKind(kind) { return memoryNames[kind] || kind }
+function sayMilliseconds(ms) { return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s` }//milliseconds under a second, and seconds to a tenth from there, since the number is read against a wait
 
 //what each row is and how it is counted, shown to the left of the table for the row the pointer is over; keyed by the fixed rows' names here, the platform's own names for its breakdown rows, and rust's kinds for the processes
 const memoryIntro = `What this computer has, what is in use, what ${brandName} takes of that, and what the thumbnails take of ${brandName}, each as a share of the one outside it. Every row under ${brandName} is one process: a Tauri program is a Rust process holding the window, a web renderer the engine runs the page in, and the engine's GPU process, with a browser process and helpers on Windows. Point at a row to read what it is and how it is counted.`
@@ -71,6 +73,7 @@ const memoryHints = {
 	'plugin broker': `A WebView2 plugin process, read as its private working set.`,
 	thumbnails: `What the thumbnails on this contact sheet cost, counted by ${brandName} itself: every thumbnail is a canvas ${brandName} sized, its width times its height in screen pixels times four bytes, summed over every bucket. Exact, and the only number here ${brandName} counts rather than asks the system for. These bytes live in the web renderer or the GPU process above, never in the Rust process, which only passes each thumbnail through.`,
 	counts: `How many buckets the sheet holds and how many thumbnails are in them, with the thumbnail size and the fit chosen in settings. Change those in settings, press S to come back, and watch the rows above follow.`,
+	listed: `What the walk asked of the disk for this page: how many folders it listed to cut these buckets and to find the pages before and after them, and how long those listings took added together, not how long the page took to show. Every folder the walk passes through costs one listing, so a stretch of the disk with few pictures reads as many folders here, and this is the number that says whether a cache of listings would be worth having.`,
 }
 const memoryHint = ref(memoryIntro)//what the explanation on the left says: the row under the pointer, or the introduction
 function memoryPoint(event) { let row = event.target.closest('[data-hint]'); if (row) memoryHint.value = memoryHints[row.dataset.hint] || memoryIntro }//one listener on the table, finding the row from whichever cell the pointer is over; the gaps between cells belong to no row and leave the last one showing
@@ -91,6 +94,7 @@ function memoryLeave() { memoryHint.value = memoryIntro }
 		<div v-for="p in memory.processes" :key="p.pid" class="contents" :data-hint="p.kind"><span></span><span>{{sayKind(p.kind)}}</span><span class="myMemoryBytes">{{saySize4(p.bytes)}}</span><span>pid {{p.pid}}</span></div>
 		<div class="contents" data-hint="thumbnails"><span class="myMemoryBreak">Thumbnails</span><span class="myMemoryBreak">All of them</span><span class="myMemoryBytes myMemoryBreak">{{saySize4(props.bytes)}}</span><span class="myMemoryBreak">{{sayShare(props.bytes, memoryOuter, `${brandName} takes`)}}</span></div>
 		<div class="contents" data-hint="counts"><span></span><span class="col-span-3">{{props.buckets}} buckets, {{props.thumbnails}} thumbnails, {{props.beam}}, {{props.fit.replace(/Fit$/, '')}}</span></div>
+		<div class="contents" data-hint="listed"><span class="myMemoryBreak">Walk</span><span class="myMemoryBreak">{{props.listed.count}} folders listed</span><span class="myMemoryBytes myMemoryBreak">{{sayMilliseconds(props.listed.milliseconds)}}</span><span class="myMemoryBreak">for this page and its look-ahead</span></div>
 	</div>
 	<div v-else>Reading memory</div>
 </div>
