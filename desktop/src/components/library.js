@@ -11,7 +11,7 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {diskRead, diskReadDir, diskPeek} from '../disk.js'//our rust modules
+import {diskRead, diskReadDir, diskPeek, diskWalk} from '../disk.js'//our rust modules
 import {panelResolution} from '../panel.js'
 import {brandName} from '../brand.js'
 import {fileTypesEnabled} from '../fileTypes.js'
@@ -64,6 +64,10 @@ export async function listFolder(folder) {//the image files in one folder, in wh
 export async function peekFolder(folder) {//how many images a folder holds and which subfolders it has, as paths, from one readdir in rust that stats nothing and answers a count and names rather than a record per file: what a walk needs to pass through a folder it will never show, and to count the buckets of one it will. The count follows the rule _listImages applies to a full listing, hidden names left out, symlinks neither files nor folders, and the extensions fileTypesEnabled lists, so a folder counts here exactly what it lists there; disk.rs says the same beside its half of the rule
 	let peek = await diskPeek(folder, Object.keys(fileTypesEnabled))
 	return {images: peek.files, folders: peek.folders.map(name => parse.join(folder, name))}
+}
+export async function walkFolders(folder, forward, want, examine) {//the next folders after this one in sorted preorder, or before it, that hold an image fuji shows, up to want of them from at most examine folders read, each as {folder, images}, with where the walk stopped and whether the volume ended: one call into rust walks the stretch with the stack the textbook iterator has, so a thousand imageless folders cost a thousand directory reads and one trip across the bridge. The same rule as peekFolder for what counts, since it is the same reading of a folder underneath
+	let walk = await diskWalk(folder, forward, Object.keys(fileTypesEnabled), want, examine)
+	return {found: walk.found.map(f => ({folder: f.path, images: f.files})), stopped: walk.stopped, done: walk.done, examined: walk.examined, refused: walk.refused}
 }
 function _listImages(folder, contents) {//the entries of a readdir that are image files fuji shows, each with its path, extension and mime beside what rust gave; peekFolder above counts by the same rule in rust, and the two must agree
 	let files = contents.filter(f => f.is_file && !f.is_dir && !f.is_symlink)//only include files
