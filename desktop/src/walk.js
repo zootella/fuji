@@ -15,7 +15,7 @@ The list is defined, and then never built. The definition: a folder contributes 
 
 The promise this file keeps is that the pages come out the same as they would from an implementation that scanned the whole drive into that list first and then cut it, for any arrangement of files and folders, from any start, after any sequence of presses. It holds because everything is derived from local facts that never depend on where the walk came from: a folder's own listing, sorted, and its parent's listing, sorted, and bucket boundaries anchored at each folder's start. The bucket after a position is the next bucket of the same folder if there is one, otherwise the first bucket of the next folder with images, and the next folder in preorder is the first subfolder, or else the next sibling by name, or else the parent's next sibling, climbing until one is found or the root runs out. The bucket before a position is the mirror image, and its one step with any thought in it is the folder before this one: if this folder has an earlier sibling, it is that sibling's deepest last descendant, reached by stepping into the last subfolder until a folder has none; if it has no earlier sibling, it is the parent itself, whose own images come before all of its subfolders. Both directions compute the same neighbor from the same two listings, so each undoes the other, and a folder the filter would not list, like a dot-folder the user opened on purpose, still has well defined neighbors, since siblings are found by comparing names rather than by looking the folder up among them.
 
-What a press costs is listings, one readdir per folder touched, never a scan. A step touches the folder itself, its parent to find a sibling, and the folders passed through, which is bounded by the depth of the tree and the number of imageless folders in the way, never by the size of the disk. Two kinds of listing, and the difference is the whole cost. To pass through a folder, or to count its buckets, the walk asks Rust for a glance, disk_peek: one directory read, no stat per entry, and an answer of one number and the subfolders' names. To cut a bucket that will be on the page it asks for the full listing, with each file's name, size and modified time for the captions, which is a stat per entry and a record per entry across the bridge. The first walk over this Mac, on 2026-10-06, met a browser cache folder of forty-nine thousand files next to a folder of four pictures, and the full listing of it took seconds for a folder that would never be shown; a glance at it is one call. Nothing is cached: a folder is glanced at every time it is asked about, several times in one press, because a readdir reads the kernel's own caches rather than the disk, a press is a thing a user does a few times an hour, and a listing never remembered is never stale.
+What a press costs is listings, one readdir per folder touched, never a scan. A step touches the folder itself, its parent to find a sibling, and the folders passed through, which is bounded by the depth of the tree and the number of imageless folders in the way, never by the size of the disk. Two kinds of listing, and the difference is the whole cost. To pass through a folder, or to count its buckets, the walk asks Rust for a glance, disk_peek: one directory read, no stat per entry, and an answer of one number and the subfolders' names. To cut a bucket that will be on the page it asks for the full listing, with each file's name, size and modified time for the captions, which is a stat per entry and a record per entry across the bridge. The first walk over this Mac, on 2026-10-06, met a browser cache folder of forty-nine thousand files next to a folder of four pictures, and the full listing of it took seconds for a folder that would never be shown; a glance at it is one call. A glance is remembered for the length of one press and its look-ahead, and then forgotten. The iterator without the stack glances at a parent once for each of its subfolders it steps through, which is nothing for a folder of twenty and everything for a folder of nine thousand: the first walk over this Mac met one under Caches, nine thousand glances each answering nine thousand names, and spent fifty seconds on a step the disk could have answered in five. Within a press the memo makes that parent one glance; across presses nothing is kept, because a readdir reads the kernel's own caches rather than the disk, a press is a thing a user does a few times an hour, and a listing never remembered is never stale.
 
 The look-ahead is what makes a press instant, and the buttons wait for it. Once a page is on screen, this file finds the page after it and the page before it in the background, one listing at a time, and each button is enabled only once the look-ahead has found where its page starts, or disabled for good when it has found there is none. So a press never lists anything: the folders and the ranges of the next buckets are known, and only the thumbnails remain to load, which is the work the user actually asked for. It also means two presses can never overlap, since the second cannot happen until the first page is on screen and its own look-ahead has answered. The one thing that can still interrupt work in flight is a different folder dropped on the sheet, which starts a new walk, and a counter handed to each piece of work is how a look-ahead for a walk that has gone notices and stops.
 
@@ -23,6 +23,11 @@ Two things are known to hurt, and this version meets them honestly rather than c
 
 How the sheet uses this: it renders walkPage, with a bar of Previous and Next at each end of the page; the bucket and the flow take listing entries rather than bare paths, because the captions' date and size come from the entry and the walk's buckets are from many folders; the sheet calls walkRefresh when it comes back on screen, which re-cuts the page only when the bucket counts in settings have changed; and the table still flips within one folder, the one a double-click lists for it through the model, which is the one place the sheet and the table no longer share a list.
 */
+
+//the two numbers in this file, each with its defense, since neither is a law
+
+const walkGlancesMax = 20000//how many glances the per-press memo keeps before dropping the oldest. The memo exists for one case: stepping through a parent's subfolders glances at the parent once per step, so the parent's glance has to stay in the memo for as long as its children are being stepped through, and the children's own glances arrive in between and push it toward the back. So the number must exceed the most subfolders any one folder has, plus the glances taken under them along the way. The most seen is 8,971, one folder under this Mac's Library/Caches, with the next largest at 372, so 20,000 is twice the worst case seen with room for its children's children. Larger buys nothing until a folder has more than twenty thousand direct subfolders, and the cost of this many is a few megabytes of names, which an old 4 GB machine can carry; smaller would start re-glancing the big parent once per cap's worth of steps, which is still linear, so the number is a margin rather than a cliff. It is needed at all because a press's reach is unbounded: the last press before the end of a volume walks to the very end to learn that Next has nowhere to go, and on a drive of half a million folders the memo would otherwise hold them all
+const walkPublishEvery = 250//milliseconds between updates of walkListed while listings run. Each update is a text change and a layout on the page's main thread, the same thread the table's frames run on, and a glance at a small folder is about half a millisecond, so publishing per listing would spend a fair share of the walk on the readout itself. A quarter second is about as fast as a person can read a changing number anyway, and the count is a diagnostic rather than a frame-critical readout, so it is published on that clock and once more, exactly, when the listings stop; faster would cost frames for no one, and slower would make the box look stuck during a long press
 
 export const walkPage = shallowRef([])//the buckets on screen, in list order, each {folder, index, first, total, files}: where in the folder's images it starts, counted from 0 and from 1, how many the folder has, and the listing entries it shows
 export const walkPreviousState = ref('none')//what the Previous button is: 'looking' while the look-ahead works behind the page, 'ready' once it has found where the previous page starts, and 'none' when there is nothing before this page
@@ -35,7 +40,7 @@ let walkBehind = []//the same for the previous page
 let walkCount = 0; let walkMilliseconds = 0//the running totals behind walkListed, kept plain and published after each listing
 let walkPages = 0//how many pages this run has shown, which is how the log's rows tell one page from the next without naming a folder
 let walkCutWith = null//the bucket counts the page on screen was cut with, so a refresh under the same counts can leave the page and its known neighbors standing
-const walkPublishEvery = 250//milliseconds between updates of walkListed while listings run: each update is a text change and a layout on the main thread, which per listing would be a fair share of a listing's own cost
+const walkGlances = new Map()//folder to its glance, for the length of one press and its look-ahead: filled as the walk glances, read instead of asking again, and emptied when the look-ahead settles, so a parent is glanced once however many of its subfolders a press steps through, and no glance outlives the press that took it
 let walkPublished = 0//when it was last published
 let walkGeneration = 0//goes up with every start, press and refresh, and a copy goes with each piece of work, so a look-ahead or a page being cut for a walk that has since gone sees the number moved on at its next await and stops
 
@@ -74,6 +79,7 @@ function _walkSettings() { return {images: settings.bucket.images, buckets: sett
 
 async function _walkShow(generation, positions) {//the page from its positions, cut from their folders' listings; then the look-ahead, both ways, for the press after this one
 	walkCount = 0; walkMilliseconds = 0; walkListed.value = {count: 0, milliseconds: 0}//a fresh count for this page and its look-ahead; a start's own listings before this point are not counted, since they found where to begin rather than the page
+	walkGlances.clear()//and fresh glances: the press keeps what it learns only until its look-ahead settles
 	let page = await Promise.all(positions.map(position => _walkBucket(position)))//one listing per bucket, asked again; the essay says why that is fine
 	if (generation != walkGeneration) return//a new walk owns the page now, checked after the last await so this one never lands on top of it
 	walkFirst = positions[0] || null
@@ -93,6 +99,7 @@ async function _walkLook(generation) {//find every bucket of the next page and o
 	let behind = walkFirst ? await _walkPositionsBefore(walkFirst, count) : []
 	if (generation != walkGeneration) return
 	walkBehind = behind; walkPreviousState.value = behind.length > 0 ? 'ready' : 'none'
+	walkGlances.clear()//the press is over, and the next one asks the disk afresh
 	_walkPublish(true)//the final numbers, now that the walk is idle
 	if (walkFirst) log(`walk: page ${++walkPages}, listed ${walkCount} folders in ${Math.round(walkMilliseconds)} ms for the page and its look-ahead, ${ahead.length ? 'next ready' : 'nothing after'}, ${behind.length ? 'previous ready' : 'nothing before'}`)//one row per page once both directions are known, which is what a walkabout leaves to read back when the log is recording. No folder is named, here or in the row below: the log is read by people and sessions the folders are none of, and a count and a time are the whole question
 }
@@ -168,9 +175,10 @@ function _walkParent(folder) {//the folder above, or blank at the top of the vol
 	return parent == folder ? '' : parent
 }
 
-async function _walkPeek(folder) {//a glance at a folder, how many images it holds and its subfolders sorted by name, asked of the disk every time through the call that stats nothing; a folder that cannot be read is logged and passed through as empty
+async function _walkPeek(folder) {//a glance at a folder, how many images it holds and its subfolders sorted by name, through the call that stats nothing: from this press's memo when it has one, else asked of the disk and remembered; a folder that cannot be read is logged and passed through as empty
+	let peek = walkGlances.get(folder)
+	if (peek) return peek
 	let began = performance.now()
-	let peek
 	try {
 		peek = await peekFolder(folder)
 		peek.folders.sort()//by name, since every path here shares the parent; the sorts never apply to folders
@@ -179,6 +187,8 @@ async function _walkPeek(folder) {//a glance at a folder, how many images it hol
 		peek = {images: 0, folders: []}
 	}
 	_walkListed(began)
+	walkGlances.set(folder, peek)
+	if (walkGlances.size > walkGlancesMax) walkGlances.delete(walkGlances.keys().next().value)//the oldest, since a map keeps insertion order
 	return peek
 }
 
