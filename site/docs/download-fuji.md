@@ -42,6 +42,8 @@ The instructions are in four parts. For each system, the first part gives the st
 
 The check is performed by [Gatekeeper](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web), and Apple documents these steps in [Open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac). The **Open Anyway** button remains available for about an hour after the refusal; if it has disappeared, double-click Fuji again to bring it back. Control-clicking Fuji and choosing Open, the older method of bypassing this dialog, no longer works on macOS Sequoia or later, as Apple's page [Safely open apps on your Mac](https://support.apple.com/en-us/102445) describes.
 
+The Mac app is signed with Fuji's own certificate, not one from Apple, naming Fuji Desktop and nothing else. Since every release carries the same certificate, macOS knows each one as the same app, so a permission you give Fuji, like access to your Downloads folder, carries over to the next version.
+
 ### macOS: turning the check off for every program
 
 The setting is [Allow applications from](https://support.apple.com/guide/mac-help/change-privacy-security-settings-on-mac-mchl211c911f/mac), in System Settings under **Privacy & Security**, in the **Security** section. It offers two choices, **App Store** and **App Store & Known Developers**. A third choice, **Anywhere**, stops the check for every program. macOS hides it until you run one command in Terminal, after which it appears in the menu and can be chosen:
@@ -97,7 +99,7 @@ if ((Get-FileHash fuji_setup.exe).Hash -eq '000000000000000000000000000000000000
 
 The macOS and Windows commands do the same three things. They save `fuji_setup.dmg` or `fuji_setup.exe` in your _Downloads_ folder. They compute the file's SHA-256 hash and make sure it is correct. Lastly, they open the file, same as a double-click. On macOS the disk image appears, and you drag Fuji into _Applications_. On Windows the setup wizard begins. Neither system shows its warning, because that warning is triggered by a mark browsers add to files they download, and a file fetched by <code>curl</code> carries none.
 
-## Why Fuji is not signed
+## Why Fuji is not signed by Apple or Microsoft
 
 Fuji is a multimedia file manager designed with privacy and precision in mind. The project is dedicated to open source and the open web, and takes security seriously. Both commitments lead to the same principle: the person who owns a computer should control what runs on it, and Fuji is built so that you do.
 

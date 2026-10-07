@@ -36,6 +36,7 @@ $ pnpm installer    build the installer, all the way through the app to the dmg 
 $ pnpm reveal       open the file manager on that installer, to run it as a user would
 $ pnpm hash         stage and hash what is already built, building nothing
 $ pnpm upload       send what is already staged to the production server
+$ pnpm certificate  find, make, or import the Mac's signing identity
 
 $ cd site
 $ pnpm local        run the site here, in development mode with hot reload
@@ -210,6 +211,8 @@ rustc 1.88.0 (6b00bc388 2025-06-23)
 $ cargo --version
 cargo 1.88.0 (873a06493 2025-05-10)
 ```
+
+On the Mac that publishes, import the signing certificate. `pnpm certificate` says whether the login keychain holds the identity `tauri.conf.json` names, and `pnpm certificate import <backup.p12>` brings the original onto a new Mac; the signing essay in `scripts.js` says why there's only ever one. `pnpm installer` signs with it, while `pnpm local` and `pnpm compile` don't sign and don't need it.
 
 ## Setup Windows 10
 

@@ -32,7 +32,7 @@
 			"icons/icon.ico"
 		],
 		"macOS": {
-			"signingIdentity": "-"
+			"signingIdentity": "Fuji Desktop"
 		},
 		"linux": {
 			"deb": {"desktopTemplate": "desktop-entry.hbs"},

@@ -106,6 +106,7 @@ pnpm installer    # build the installer, all the way through the app to the dmg 
 pnpm reveal       # open the file manager on that installer, to run it as a person would
 pnpm hash         # stage and hash what is already built, building nothing
 pnpm upload       # send what is already staged to the production server
+pnpm certificate  # find, make, or import the Mac's signing identity
 ```
 **Each command stops where its name says**, which is the whole point of naming them this way: `compile` never makes an installer, `installer` never hashes, `hash` never builds, `upload` never builds. Publishing is `installer`, `hash`, `upload`, then a commit, since the sidecars are tracked. A name means the same thing on every machine while doing different work underneath, so nothing has to be remembered per platform.
 
@@ -153,7 +154,7 @@ That is the third arrangement, and the two it replaced are worth knowing. **Copy
 
 ### The Root Script
 
-**One file at the monorepo root, `scripts.js`, holds the whole build pipeline**, reached by a verb: `reveal`, `hash`, `upload-installer`, `upload-site`, `icons-collect`. Nothing runs it directly — the package.json scripts above are the names a person types.
+**One file at the monorepo root, `scripts.js`, holds the whole build pipeline**, reached by a verb: `reveal`, `hash`, `upload-installer`, `upload-site`, `icons-collect`, `certificate`. Nothing runs it directly — the package.json scripts above are the names a person types.
 
 It was four scripts across both workspaces until September 2026; the essay at the top of `scripts.js` says why they became one. The `platforms` table there now holds the bundle folder, the filename suffix, the published name and the file-manager command together, and is the only place any of them is said.
 
@@ -267,7 +268,7 @@ The modules, by what each one answers: the disk (`disk.rs`), the folder tree in 
 
 The linux containers do not use that list. They pass `--bundles deb` or `--bundles deb,rpm` on the command line instead, which overrides it for that run only — so the linux specifics stay in the `linux` workspace and what the mac and windows builds are told to make never changed.
 
-`bundle.macOS.signingIdentity` is `-`, the pseudo-identity that seals the app with an ad-hoc signature and no certificate. It changes which Gatekeeper dialog a downloaded copy meets, from "damaged" with no way through to "could not verify" with an Open Anyway button, and nothing else; the essay under the targets table in `scripts.js` says why, and the download page says what a user does. Windows and the linux containers ignore it. Every mac installer build now tries to notarize after signing, finds no credentials, and says so, which is expected: fuji does not sign with a Developer ID by choice, and the download page says why, so do not propose it.
+`bundle.macOS.signingIdentity` is `Fuji Desktop`, a self-signed certificate of fuji's own held in the login keychain of the Mac that publishes, which `pnpm certificate` finds, makes once, or imports from its backup. To Gatekeeper it reads as an ad-hoc seal did, "could not verify" with an Open Anyway button rather than "damaged" with no way through; what it adds is a designated requirement every release meets, so a privacy permission the user grants survives an update. The essay under the targets table in `scripts.js` says why, and the download page says what a user does. Windows and the linux containers ignore it. Every mac installer build now tries to notarize after signing, finds no credentials, and says so, which is expected: fuji does not sign with a Developer ID by choice, and the download page says why, so do not propose it.
 
 **Fuji makes its own dmg, and Tauri makes only the app inside it.** `bundle.targets` leaves `dmg` out, and `pnpm installer` runs `desktop/dmg.js` after `tauri build`, which hands the layout to dmgbuild through `uvx` at a pinned version — so the Mac that builds the installer needs uv, and no other machine does. dmgbuild writes Finder's `.DS_Store` directly into an image Finder never sees, so a build steals no focus, takes about five seconds, and comes out the same whatever Finder is showing; the essay atop `dmg.js` says what this replaced. The window a Mac user meets is the jinbocho street scene from `src-tauri/dmg/jinbocho.jpg`, 800 CSS pixels square and shown whole, with Fuji.app and the Applications link centered in its two halves; the picture is a 1600-pixel JPEG tagged at 144 dpi, which is how one file serves an sRGB panel and a Retina one alike, and its source and every candidate that lost live outside the repository. The numbers in `dmg.js` were measured on the Sequoia Mac mini against a checkerboard in the picture's place.
 
