@@ -16,6 +16,7 @@ The plugins are the other half of the surface. Registering one here does not dec
 
 mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
 mod disk;//and disk.rs: file commands, thin wrappers over std::fs
+mod find;//and find.rs: finding things in the folder tree, many folders read in one call through the disk's glance
 mod fit;//and fit.rs: the fits, the arithmetic fit.js has too, which a native thumbnail's size is chosen by
 mod launch;//and launch.rs: launch services, the mac's record of which application opens which kind of file
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
@@ -63,11 +64,11 @@ pub fn run() {
 			tauri::generate_handler![
 				disk::disk_readdir, //functions we've written in disk.rs
 				disk::disk_peek,
-				disk::disk_walk,
 				disk::disk_stat,
 				disk::disk_read,
 				disk::disk_write,
 				disk::disk_copy,
+				find::find_folders,//and in find.rs
 				desktop::desktop_exit_hold,//and in desktop.rs
 				log::log_start,//and in log.rs
 				log::log_append,

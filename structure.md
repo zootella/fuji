@@ -6,7 +6,7 @@ What the parts of fuji are called, how many there are of each, and which ones th
 
 ## The two things the user looks at
 
-**The Sheet shows a page of the walk, buckets of thumbnails from wherever on the volume it is. A Table shows one image.** That is the whole top-level split, and everything below is a refinement of it. `walk.js` is the list the Sheet walks, every image on the volume in one order, and `bucket.md` says what a page of it is.
+**The Sheet shows a page of the pager, buckets of thumbnails from wherever on the volume it is. A Table shows one image.** That is the whole top-level split, and everything below is a refinement of it. `pager.js` is the list the Sheet pages through, every image on the volume in one order, and `bucket.md` says what a page of it is.
 
     Sheet     one of them
     Tables    several of them, one showing at a time
@@ -86,7 +86,7 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
 ## Where the rest is written down
 
     architecture.md    the four layers, and where a value or a view belongs
-    bucket.md            the box of thumbnails the sheet scrolls over, and the walk it makes possible
+    bucket.md            the box of thumbnails the sheet scrolls over, and the pager it makes possible
     fits.md            the beam and the fits: how big each thumbnail is, and the rules that measure it
     dates.md           which date fuji shows for a file, and how it is written
     theme.md           the colors fuji's interface is drawn in, copied from Zed's themes

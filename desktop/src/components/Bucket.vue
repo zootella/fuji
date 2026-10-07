@@ -9,7 +9,7 @@ import {backize, middleDot, saySize4} from './library.js'
 
 const props = defineProps({
 	folder: {type: String, required: true},//the one folder every file here is in
-	files: {type: Array, required: true},//the listing's entries for the images this bucket shows, in the walk's order, each with its path, name, size and modified time
+	files: {type: Array, required: true},//the listing's entries for the images this bucket shows, in the pager's order, each with its path, name, size and modified time
 	first: {type: Number, required: true},//where this bucket starts in the folder, counting from 1
 	total: {type: Number, required: true},//how many images the folder holds, shown or not
 })

@@ -50,7 +50,7 @@ const settingsSchema = [
 		section: 'bucket',
 		key: 'images',
 		factory: 200,
-		comment: 'how many images one bucket holds. A bucket never mixes two folders, and the sheet scrolls over buckets rather than over the thumbnails themselves, which is what lets it walk a whole drive in constant memory; a bucket large enough to hold a typical folder whole makes every bucket on a page a different folder',
+		comment: 'how many images one bucket holds. A bucket never mixes two folders, and the sheet scrolls over buckets rather than over the thumbnails themselves, which is what lets it page through a whole drive in constant memory; a bucket large enough to hold a typical folder whole makes every bucket on a page a different folder',
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'thumbnail',

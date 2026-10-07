@@ -14,7 +14,7 @@ Each says where it came from, since some are the user's and some are a session's
 
 **Priority in the governor**, letting a tile the user can see go ahead of one they cannot. A session's suggestion, written into `governor.js`'s essay and not yet adopted.
 
-**More buckets, pages, and the walk through a whole drive.** The sheet shows `sheet.buckets` buckets from the start of one folder today, and nothing past them. `bucket.md` owns this.
+**More buckets, pages, and paging through a whole drive.** The sheet shows `sheet.buckets` buckets from the start of one folder today, and nothing past them. `bucket.md` owns this.
 
 **The look-ahead, and a database of what fuji has seen**, below. The user's idea, and deliberately much later.
 

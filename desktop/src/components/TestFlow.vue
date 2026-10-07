@@ -30,7 +30,7 @@ const flowGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb
 const flowPlatform = platform()//mac, windows or linux, read once, which is how this flow reads each type's imageNative and imageWeb lists in fileTypes.js
 
 const props = defineProps({
-	files: {type: Array, required: true},//the listing's entries, in the walk's order, and never from two folders
+	files: {type: Array, required: true},//the listing's entries, in the pager's order, and never from two folders
 })
 const emit = defineEmits(['bytes', 'refused'])//what this bucket's canvases cost so far, sent up as each one is sized, and how many of its files could not be shown, sent up as each is refused, both for the bucket's caption
 

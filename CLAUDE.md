@@ -186,7 +186,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what the page can ask Rust to do. Each module opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
 
-The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`window.rs`), the files the operating system handed fuji (`open.rs`), the display (`panel.rs`), where this copy of the program is (`paths.rs`), the Windows registry (`registry.rs`), the Mac's record of which application opens which kind of file (`launch.rs`), the operating system's thumbnailer (`thumbnail.rs`), the machine's memory and what fuji's processes take of it (`memory.rs`), the log and the text written at exit (`log.rs`, `desktop.rs`), and the Mac's menu bar, dock and trackpad (`menu.rs`, `dock.rs`, `touch.rs`).
+The modules, by what each one answers: the disk (`disk.rs`), the folder tree in find's order, many folders per call (`find.rs`), fuji's windows (`window.rs`), the files the operating system handed fuji (`open.rs`), the display (`panel.rs`), where this copy of the program is (`paths.rs`), the Windows registry (`registry.rs`), the Mac's record of which application opens which kind of file (`launch.rs`), the operating system's thumbnailer (`thumbnail.rs`), the machine's memory and what fuji's processes take of it (`memory.rs`), the log and the text written at exit (`log.rs`, `desktop.rs`), and the Mac's menu bar, dock and trackpad (`menu.rs`, `dock.rs`, `touch.rs`).
 
 **Important Architecture Notes**:
 - File I/O uses synchronous `std::fs` calls inside `#[command(async)]`, so they run on Tauri's thread pool rather than the thread that runs the window; `disk_read()` loads entire files into memory (suitable for images, not large files). `lib.rs` has the rule for which commands are async
@@ -204,7 +204,7 @@ The modules, by what each one answers: the disk (`disk.rs`), fuji's windows (`wi
 - `TestFlow.vue` — how a path becomes a thumbnail
 - `DiamondTable.vue` — the quiver, and why a flip shows first and loads last
 - `model.js`, `settings.js`, `cache.js` — what the user is looking at, the one schema for `fuji.toml`, and the store of pictures
-- `walk.js` — every image on the volume as one list, never built, and the sheet's page as a window onto it
+- `pager.js` — every image on the volume as one list, never built, and the sheet's page as a window onto it
 - `associate.js` — file associations, starting from the values the design follows
 
 **Each Rust module with commands has a JavaScript file of the same name in `src/`** that wraps them for the page, one function per command, forwardizing a path where it crosses. `components/library.js` holds the small pure helpers, `forwardize`, `backize` and `xy` among them. `fileTypes.js` is the one table of every extension fuji knows and what each part of fuji does with it on each platform.

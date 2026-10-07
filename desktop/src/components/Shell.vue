@@ -4,7 +4,6 @@ import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {open as openDialog} from '@tauri-apps/plugin-dialog'//the picker behind File, Open; the plugin is registered in lib.rs and granted in capabilities/default.json
-import {walkaboutStart} from '../walkabout.js'//temporary: the walk's measuring harness, which runs only when its start file exists
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
@@ -98,7 +97,6 @@ onMounted(async () => {
 	await revealWindow()
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
-	walkaboutStart().catch(error => logTrouble('shell: the walkabout', error))//temporary, and a no-op without its start file
 	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble(`shell: registering what ${brandName} can open`, error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
 
 	window.addEventListener('keydown', onKey)
