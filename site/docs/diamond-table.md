@@ -45,7 +45,7 @@ The geometry does the rest. A picture shaped like your screen fills the screen e
 
 ## Zoom
 
-`Ctrl` and the wheel zooms, a step a notch, and so do `+` and `-`, with or without `Ctrl`. For a smooth zoom, hold the right button and drag up to come in or down to go out; 200 pixels of drag doubles the picture, and dragging back to where you started puts it back as it was.
+`Ctrl` and the wheel zooms, a step a notch, and so do `+` and `-`, with or without `Ctrl`. For a smooth zoom, hold the right button and drag up to come in or down to go out; a hundred pixels of drag is one notch of the wheel, and dragging back to where you started puts it back as it was. The [Zoom page](./zoom.html) has the curve both follow.
 
 The keys and the wheel zoom about the center of the screen, not the center of the picture. Pan until the part you care about is in the middle, then zoom, and it stays in the middle while the rest of the picture grows around it or shrinks toward it. A viewer that zooms about the picture's center sends the part you were looking at sliding off toward the edge with every step, and you chase it back. The right drag is the exception, on purpose: it zooms about the point where you pressed the button, so you can put the pointer on a detail anywhere on the screen and pull it toward you.
 

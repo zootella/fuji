@@ -100,8 +100,8 @@ const settingsSchema = [
 	}, {
 		section: 'zoom',
 		key: 'drag',
-		factory: 200,
-		comment: 'how many css pixels a right drag travels up to double the image, or down to halve it; it zooms about the point where the drag began, and dragging back there restores what you had',
+		factory: 100,
+		comment: 'how many css pixels a right drag travels to zoom one notch, the same notch the wheel and + or - zoom, a little under one and a half times; up zooms in and down out, six notches are exactly ten times, and dragging back to where the drag began restores what you had. It zooms about the point where the drag began',
 		check: value => value > 0,
 	}, {
 		section: 'gamma',

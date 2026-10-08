@@ -1,18 +1,18 @@
 # Zoom
 
-Four ways to zoom on the light table: the wheel and the keys by notches, a right drag smoothly, and the number keys straight to a round number. One rule makes them feel right: the keys and the wheel zoom about the center of the screen, and a right drag zooms about the point you grabbed.
+Three zooms on the light table, on one curve. The discrete zoom is the wheel and the keys, a notch at a time; the drag zoom is a right drag, smoothly through the notches; and the number keys go straight to a round number. One rule makes them feel right: the keys and the wheel zoom about the center of the screen, and a right drag zooms about the point you grabbed.
 
 | do this | to |
 | --- | --- |
 | `Ctrl` and the **mouse wheel** | zoom in and out, a notch at a time |
 | `+` and `-` | zoom in and out, a notch a press; `=` is `+` without the shift, and `Ctrl` with any of them works too |
-| **right drag** up or down | zoom smoothly: up to come in, down to go out, 200 pixels of drag to double or halve |
+| **right drag** up or down | zoom smoothly: up to come in, down to go out, a hundred pixels of drag to a notch |
 | `1` to `6` | exactly that many screen pixels per picture pixel; `1` is actual size |
 | `F` | the whole picture on the screen |
 | `W` | the picture's width across the screen |
 | `Space` | the picture sized to the diamond, centered |
 
-The wheel alone flips to the next picture, and `Shift` with the wheel is gamma, so hold `Ctrl` to zoom. A notch is a little under one and a half times, six notches are exactly ten times, and the curve that gives is below. The 200 pixels of a right drag are `zoom.drag` in `fuji.toml`.
+The wheel alone flips to the next picture, and `Shift` with the wheel is gamma, so hold `Ctrl` to zoom. A notch is a little under one and a half times, six notches are a decade, exactly ten times, and the curve that gives is below. The hundred pixels of drag that make a notch are `zoom.drag` in `fuji.toml`.
 
 ## Where the zoom holds still
 
@@ -24,19 +24,25 @@ Every zoom holds one point of the picture still and grows or shrinks everything 
 
 ## What a notch is
 
-`+`, `-` and each notch of the wheel multiply the picture's size by the sixth root of ten, about 1.468. The notches compound, so three in make the picture a little over three times larger, √10, and six in make it exactly ten times larger; six back out return it to exactly where it was, because a root of ten undoes itself. The right drag is the same curve read off the mouse, two times per 200 pixels of height, so the two controls agree: a notch is about half a doubling, and two notches are a little more than a 200-pixel drag.
+Discrete zoom and drag zoom are one curve. A notch multiplies the picture's size by the sixth root of ten, about 1.468, and six notches are a decade, exactly ten times:
+
+<div class="equation">
+<math display="block"><mi>z</mi><mo>=</mo><msub><mi>z</mi><mn>0</mn></msub><mo>·</mo><msup><mn>10</mn><mfrac><mi>t</mi><mn>6</mn></mfrac></msup></math>
+</div>
+
+where *z* is screen pixels per picture pixel, *z*₀ is the size before, and *t* is a number of notches. The discrete zoom counts them: `+`, `-` and the wheel set *t* to 1 or −1 a press. The drag zoom measures them: *t* is the height of the pointer above where the button went down, divided by a hundred pixels, so a hundred pixels of drag is a notch, six hundred is a decade, and a drag can stop at any fraction of a notch between. Three notches in, by key or by drag, make the picture √10 larger, a little over three times; six back out return it to exactly where it was, because a root of ten undoes itself. Since the two are the same curve at different speeds, a notch is about half a doubling, and a doubling is 181 pixels of drag.
 
 A notch never lands on a round number on its own. From `1`, the notches go 1.47, 2.15, 3.16, 4.64, 6.81, 10. That is what the number keys are for.
 
 ## The number keys
 
-`1` to `6` are the fourth way, and the only one that goes straight to a round number. Press `2` and every pixel of the picture is drawn on a two-by-two block of the screen's, `3` on three-by-three, and so on to `6`, about the center of the screen like the other keys, so the part in the middle stays in the middle. `1` is actual size, one picture pixel to one screen pixel, which is how a picture looks in the program that made it. The main row and the number pad both work.
+`1` to `6` are the third zoom, and the only one that goes straight to a round number. Press `2` and every pixel of the picture is drawn on a two-by-two block of the screen's, `3` on three-by-three, and so on to `6`, about the center of the screen like the other keys, so the part in the middle stays in the middle. `1` is actual size, one picture pixel to one screen pixel, which is how a picture looks in the program that made it. The main row and the number pad both work.
 
 They matter for small pictures. An icon, a sprite, a GIF drawn pixel by pixel in 1996: `F` would blow it up to fill the screen at some awkward ratio, and `4` shows it four times its size with every pixel a clean square, which is the one zoom where the picture's own pixels line up with the screen's. That lining up is what the `R` key on the [Ben Day page](./ben-day.html) is for.
 
 ## ACDSee's ladder, and the curve inside it
 
-The curve under Fuji's wheel is the one inside ACDSee's ladder. [ACDSee](https://www.acdsee.com/) was the picture viewer of the first multimedia decade, [first sold over bulletin boards in November 1994 for fifteen dollars](https://en.wikipedia.org/wiki/ACDSee) and written by David S. Hooper, and ACD Systems still sells it today. ACDSee 32 version 2.3, from 1998, zooms by a ladder of fixed sizes, a rung a notch. Its rungs above actual size, and beside them the same six notches in Fuji from `1`:
+The curve under Fuji's discrete zoom is the one inside ACDSee's ladder. [ACDSee](https://www.acdsee.com/) was the picture viewer of the first multimedia decade, [first sold over bulletin boards in November 1994 for fifteen dollars](https://en.wikipedia.org/wiki/ACDSee) and written by David S. Hooper, and ACD Systems still sells it today. ACDSee 32 version 2.3, from 1998, zooms by a ladder of fixed sizes, a rung a notch. Its rungs above actual size, and beside them the same six notches in Fuji from `1`:
 
 | notches in | ACDSee | Fuji | ACDSee is |
 | :-: | --: | --: | --: |
@@ -54,7 +60,7 @@ After one notch a picture 200 pixels wide is 300 pixels wide in ACDSee and 294 i
 <math display="block"><msub><mi>z</mi><mi>k</mi></msub><mo>=</mo><mi>round</mi><mo>(</mo><msup><mn>10</mn><mfrac><mi>k</mi><mn>6</mn></mfrac></msup><mo>)</mo><mspace width="3em" /><msub><mi>z</mi><mrow><mi>k</mi><mo>+</mo><mn>6</mn></mrow></msub><mo>=</mo><mn>10</mn><mo>·</mo><msub><mi>z</mi><mi>k</mi></msub></math>
 </div>
 
-Six steps to a decade, each a little under one and a half, the sixth root of ten; three steps is √10, about 3.16. The bare curve passes through 1 and 10 and misses every rung between, and the rounding is a choice a person made: a geometric spacing pulled onto numbers a person can say, the same move as the engineer's 1, 2, 5 series with 1.5, 3 and 7 filled in.
+Six notches to a decade, each a little under one and a half, the sixth root of ten; three notches is √10, about 3.16. The bare curve passes through 1 and 10 and misses every rung between, and the rounding is a choice a person made: a geometric spacing pulled onto numbers a person can say, the same move as the engineer's 1, 2, 5 series with 1.5, 3 and 7 filled in.
 
 The rounding is a small move. ACDSee's rungs weave above and below Fuji's curve, two above, two below, two on it, and the farthest strays less than eight percent, about a fifth of one step. Seen from one rung to the next, the gaps come out 1.5, 1.33, 1.5, 1.67, 1.4 and 1.43 instead of 1.468 every time: uneven by a sixth of a step at most, and every one of them reads to the eye as about one and a half.
 
@@ -93,7 +99,7 @@ The rounding is a small move. ACDSee's rungs weave above and below Fuji's curve,
 
 The straight line is Fuji's curve, which on this chart is the zero every rung is measured from; each dot is one of ACDSee's rungs, placed by how far its round number sits from Fuji's; the dashed lines are ten percent either way, and no rung reaches them.
 
-Fuji's wheel follows the curve and leaves the rounding out. A notch is the sixth root of ten from wherever the picture is, so Fuji lands on ACDSee's 1 and 10 exactly and passes within eight percent of every rung between, and it does the same from any size at all, after a drag or `F` or a number key, with no nearest rung to find first. The round numbers that ACDSee's rounding reached for are the number keys, which reach them exactly. ACDSee's ladder had a curve inside it all along, and Fuji's wheel is that curve. That is the homage a good list deserves.
+Fuji's discrete zoom follows the curve and leaves the rounding out. A notch is the sixth root of ten from wherever the picture is, so Fuji lands on ACDSee's 1 and 10 exactly and passes within eight percent of every rung between, and it does the same from any size at all, after a drag or `F` or a number key, with no nearest rung to find first. The drag zoom rides the same curve between the notches, a hundred pixels to each. The round numbers that ACDSee's rounding reached for are the number keys, which reach them exactly. ACDSee's ladder had a curve inside it all along, and Fuji's zoom is that curve. That is the homage a good list deserves.
 
 ## The zoom stays when you flip
 
