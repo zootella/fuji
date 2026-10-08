@@ -488,7 +488,8 @@ Without this the only rule landing on an adopted image was tailwind's own img{ma
 	display: none; /* every image starts hidden; cardShow shows one at a time */
 }
 .myCard.myRaster :deep(.myImage) {
-	image-rendering: pixelated; /* the r key: nearest neighbor from image pixels to the card's backing pixels, so at a whole ratio every image pixel is a block of its own color. Only with the class, so the rule above is untouched and a card without it draws exactly as before; pixelated rather than crisp-edges, because it is the value both engines fuji ships on support. Reached with :deep() for the reason the essay above gives, and scoped to the card, so no thumbnail can ever match it */
+	image-rendering: crisp-edges; /* the fallback, kept by an engine that does not know the line below; the same nearest neighbor under its other name */
+	image-rendering: pixelated; /* the r key: nearest neighbor from image pixels to the card's backing pixels, so at a whole ratio every image pixel is a block of its own color, and the value every engine fuji ships on takes, which is why it comes last. Only with the class, so the rule above is untouched and a card without it draws exactly as before. Reached with :deep() for the reason the essay above gives, and scoped to the card, so no thumbnail can ever match it */
 }
 
 .myDry, .myDry * { /* on the div with this class and everything deep inside it */
