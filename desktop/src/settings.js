@@ -99,12 +99,6 @@ const settingsSchema = [
 		check: value => Number.isInteger(value) && value >= 1,
 	}, {
 		section: 'zoom',
-		key: 'step',
-		factory: 1.25,
-		comment: 'how much one press of + or - grows or shrinks the image',
-		check: value => value > 1,
-	}, {
-		section: 'zoom',
 		key: 'drag',
 		factory: 200,
 		comment: 'how many css pixels a right drag travels up to double the image, or down to halve it; it zooms about the point where the drag began, and dragging back there restores what you had',

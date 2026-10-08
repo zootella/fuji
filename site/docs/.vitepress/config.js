@@ -161,6 +161,7 @@ export default defineConfig({
 				items: [
 					{ text: 'Download Fuji', link: '/download-fuji' },
 					{ text: 'Diamond Table', link: '/diamond-table' },
+					{ text: 'Zoom', link: '/zoom' },
 				],
 			},
 			{
@@ -168,6 +169,7 @@ export default defineConfig({
 				items: [
 					{ text: 'Thumbnails', link: '/thumbnails' },
 					{ text: 'Gamma', link: '/gamma' },
+					{ text: 'Ben Day', link: '/ben-day' },
 					{ text: 'File Types', link: '/file-types' },
 				],
 			},

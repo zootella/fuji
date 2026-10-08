@@ -31,6 +31,7 @@ drag                        arrows    Pan
 Ctrl + mouse wheel             +|-    Zoom around frame center
 Shift + drag up|down                  Zoom around drag start
                                1-6    Set 1x-6x raster to CSS pixels
+                                 R    [R]aster pixels as blocks, or smoothed
 
                                  G    Gamma on and off
 Shift + mouse wheel      Shift +|-    Gamma more and less

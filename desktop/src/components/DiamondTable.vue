@@ -3,7 +3,7 @@
 import {ref, watch, onBeforeUnmount} from 'vue'
 import {
 xy, xySnap, raf, errorImageData,
-sayGroupDigits, saySize4, sayDay, sayDimensions, middleDot, backize,
+saySize4, sayDay, sayDimensions, middleDot, thinSpace, backize,
 } from './library.js'//our javascript library
 import {modelList, modelPath, modelOpen, modelIndex, modelStand, modelFile} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
@@ -11,6 +11,7 @@ import {cacheFootprint} from '../cache.js'//for the hud line saying what the sto
 import {log, logFlip, logTrouble} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
 import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
 import {gamma, gammaStep, gammaDrag} from '../gamma.js'//the lens the shell draws every picture through, which shift with the wheel or a right drag here sets
+import {raster, rasterToggle} from '../raster.js'//whether the card shows a picture's own pixels as blocks, which r toggles here and nothing else reads
 
 //                       _   
 //   _____   _____ _ __ | |_ 
@@ -55,6 +56,7 @@ async function onKey(e) {
 	//a letter, a digit or space acts only with control and command up, so a chord like command w or command q on the mac, on its way to the menu, does not act on the picture first; the shell has already dropped anything with alt
 	if      (!Ctrl && key == 'q') { log('table: q does nothing yet') }
 	else if (!Ctrl && key == 'i') { toggleInformation() }
+	else if (!Ctrl && key == 'r') { rasterToggle() }//[r]aster: the card's picture as blocks of its own pixels, or smoothed as before; raster.js says what each is
 	else if (Ctrl && key == 's') { log('table: ctrl+s does nothing yet')
 		e.preventDefault()//tell the browser not to show the file save dialog box
 	}
@@ -138,8 +140,9 @@ function zoom(diamond, anchor) {//set the diamond's width plus height, holding t
 	quiverA.space = xy(anchor, '+', xy(xy(quiverA.space, '-', anchor), '*', k))//anchor to diamond center, scaled, and put back on the anchor
 	quiver()
 }
-function zoomStep(direction) {//the keys and the wheel: one step in or out about the frame's center, so an image centered there stays put, and one off center drifts further out on the way in and back toward the center on the way out, which means zooming out always brings a lost image home
-	zoom(quiverA.diamond * (direction ? settings.zoom.step : 1 / settings.zoom.step), xy(frameSize(), '/', 2))
+const zoomNotch = 10 ** (1 / 6)//what one notch of the wheel or one press of + or - multiplies the picture by: the sixth root of ten, about 1.468, so six notches are exactly ten times and six back are exactly home. It is the curve under ACDSee 32's zoom, whose rungs, 1, 1.5, 2, 3, 5, 7, 10, are this curve rounded to round numbers; fuji follows the curve and leaves the rounding out, since the number keys are the way to an exact ratio. The Zoom page on fuji's site has the measurement and the equation. A constant rather than a setting, because a number here means nothing to a reader of fuji.toml, and a notch is meant to feel the same for everyone
+function zoomStep(direction) {//the keys and the wheel: one notch in or out about the frame's center, so an image centered there stays put, and one off center drifts further out on the way in and back toward the center on the way out, which means zooming out always brings a lost image home
+	zoom(quiverA.diamond * (direction ? zoomNotch : 1 / zoomNotch), xy(frameSize(), '/', 2))
 }
 function zoomNatural(n) {//the number keys: the card at exactly n css pixels per natural pixel, so the img stretches each source pixel across an n by n block, smoothed as ever. The math runs the other way here, the card first and the diamond around it: the card is natural times n, and the diamond is that card's width plus height, which quiver() divides back out exactly. About the frame's center, like the step keys
 	zoom(n * (quiverA.natural.x + quiverA.natural.y), xy(frameSize(), '/', 2))
@@ -378,31 +381,40 @@ function toggleInformation() {
 	updateInformation()//it built nothing while it was hidden, so fill it now rather than showing whatever it last said
 	settings.hud.information = showHud3Ref.value; settingsChanged()//the setting records where the user left this hud, not just where it started
 }
-function updateInformation() {
+function updateInformation() {//the information hud: the zoom, the card, what loading and flipping cost, what the store holds, the two lenses on one line, and the caption's two lines last, so the hud reads whole with the caption off
 	if (!showHud3Ref.value) return//a hidden hud builds no string and touches no ref, so measuring with it off measures fuji rather than fuji plus a readout
-	let s = 'no image loaded'
-	if (here?.error) s = `${here.path}\ncould not be shown: ${here.error}`//the card is showing the error placeholder, so name the file and what it said rather than claiming nothing is loaded
+	let lines = []
+	if (here?.error) lines.push(`could not be shown: ${here.error}`)//the card is showing the error placeholder, so say what the decoder said; the caption lines below name the file
 	else if (here?.img && quiverC?.card2) {
 		let f = cacheFootprint()//the store's running totals, free to read because they are kept rather than walked
-s = `${here.path}
-natural ${here.img.naturalWidth} width x ${here.img.naturalHeight} height, ${saySize4(here.blobBytes)} (${sayGroupDigits(here.blobBytes)} bytes)
-displayed ${quiverC.card2.x} width x ${quiverC.card2.y} height (CSS pixels, not backing)
-${Math.round(here.loaded - here.requested)}ms disk + ${Math.round(here.rendered - here.loaded)}ms render, to load this one
-flip ${flipMs}ms (${flipFrames} frames) = ${storeMs}ms store + ${paintMs}ms paint
-cache ${f.count} images, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`
-	}
-	s += `\ngamma ${gamma.value == 1 ? '1, off' : gamma.value.toFixed(2)}`//at the end of every reading, loaded or not, because it is a lens over the whole window rather than a fact about one picture
-	hud3Ref.value = s
+		let scale = quiverA.diamond / (quiverA.natural.x + quiverA.natural.y)//css pixels per picture pixel, the number every zoom sets; from quiver a, which is never rounded
+		lines.push(
+			`zoom ${sayRatio(scale)} css pixels per picture pixel, ${sayRatio(scale * window.devicePixelRatio)} backing`,//the second is the ratio the engine paints at, which is the same number here and twice it on a retina mac
+			`card ${sayDimensions(xy(+sayRatio(quiverC.card2.x), +sayRatio(quiverC.card2.y)))} css pixels`,//to three places, since a card snapped to the backing grid at 150 percent sits on a third of a css pixel
+			`load ${sayMs(here.loaded - here.requested)} disk + ${sayMs(here.rendered - here.loaded)} decode`,
+			`flip ${sayMs(flipMs)}, ${flipFrames} frames: ${sayMs(storeMs)} store + ${sayMs(paintMs)} paint`,
+			`store ${f.count} pictures, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`,
+		)
+	} else lines.push('no picture loaded')
+	lines.push(`${gamma.value == 1 ? 'Gamma OFF' : `Gamma ${gamma.value.toFixed(2)}`} ${middleDot} ${raster.value ? 'Rasterized' : 'Smooth'}`)//on every reading, loaded or not, because both are lenses over the card rather than facts about the picture on it; the words the user chose, Gamma OFF or Gamma 1.22, and Rasterized or Smooth
+	if (here) lines.push(captionText())//the same two lines the caption shows, so a user who keeps the caption off still has the file in the hud
+	hud3Ref.value = lines.join('\n')
 }
-function updateCaption() {//the caption below the card: the picture's full path, the day it was last modified, its size and its dimensions, the line the contact sheet writes under a thumbnail with the path in place of the name, since there is room for it here
-	if (!showCaptionRef.value || !here) return
+function sayRatio(n) { return String(Math.round(n * 1000) / 1000) }//a ratio to three places with the zeros dropped, so a number key reads 2 and a notch 2.154
+function sayMs(n) { return `${Math.round(n)}${thinSpace}ms` }//a duration, with the thin space between a number and its unit that saySize4 uses
+function captionText() {//the caption's two lines: the picture's full path as the platform writes it, then the day it was last modified, its size and its dimensions, the line the contact sheet writes under a thumbnail with the path in place of the name. Read by the caption and by the hud, so the two never differ
 	let file = modelFile(here.path)//the listing's entry, with the modified time and the size; false for a picture outside the listed folder, which then shows its path and dimensions alone
 	let parts = []
 	if (file) parts.push(sayDay(file.mtime), saySize4(file.size))
 	if (here.img) parts.push(sayDimensions(xy(here.img.naturalWidth, here.img.naturalHeight)))//none for the error placeholder, whose dimensions are nobody's
-	captionRef.value = `${backize(here.path)}\n${parts.filter(part => part).join(` ${middleDot} `)}`//two lines, as under a thumbnail: the path, then the details
+	return `${backize(here.path)}\n${parts.filter(part => part).join(` ${middleDot} `)}`
+}
+function updateCaption() {//the caption below the card
+	if (!showCaptionRef.value || !here) return
+	captionRef.value = captionText()
 }
 watch(gamma, updateInformation)//the keys, the wheel and the drag all change it, and neither goes through the quiver, which is what refreshes this hud for everything else
+watch(raster, updateInformation)//and r, which changes a class on the card and nothing in the quiver
 
 //  _              
 // | |_ __ _  __ _ 
@@ -431,10 +443,11 @@ let here = null//the store's entry for the image on the card, which is where the
 	@pointerup="onUp" @pointercancel="onUp" @lostpointercapture="onUp"
 >
 
-	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card -->
+	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card. myRaster while r has the picture showing its own pixels as blocks, which the one rule below reads; without it the card and its picture are styled exactly as they always were -->
 	<div
 		ref="cardRef"
 		class="myCard myShadow myDry myWillChangeTransform bg-well"
+		:class="{myRaster: raster}"
 	>
 
 		<!-- the images the card shows are the store's own elements, put here by cardShow; this one is only for a file fuji could not read -->
@@ -470,6 +483,9 @@ Without this the only rule landing on an adopted image was tailwind's own img{ma
 	top: 0; left: 0; width: 100%; height: 100%;
 	object-fit: fill; /* stretch to all four edges; script will set the aspect ratio of the card to match the image's natural dimensions */
 	display: none; /* every image starts hidden; cardShow shows one at a time */
+}
+.myCard.myRaster :deep(.myImage) {
+	image-rendering: pixelated; /* the r key: nearest neighbor from image pixels to the card's backing pixels, so at a whole ratio every image pixel is a block of its own color. Only with the class, so the rule above is untouched and a card without it draws exactly as before; pixelated rather than crisp-edges, because it is the value both engines fuji ships on support. Reached with :deep() for the reason the essay above gives, and scoped to the card, so no thumbnail can ever match it */
 }
 
 .myDry, .myDry * { /* on the div with this class and everything deep inside it */
