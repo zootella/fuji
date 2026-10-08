@@ -3,7 +3,7 @@
 import {ref} from 'vue'
 import {settings, settingsSet, settingsThumbnailBeams} from '../settings.js'
 import {fitNames, fitDescriptions} from '../fit.js'
-import {brandName, brandStem} from '../brand.js'
+import {brandName} from '../brand.js'
 import {platform} from './library.js'
 import SettingsFileTypes from './SettingsFileTypes.vue'
 
@@ -23,7 +23,7 @@ function beamCommit() { settingsSet('thumbnail', 'beam', beam.value) }//the shee
 const fit = ref(settings.thumbnail.fit)//how every thumbnail is sized against that beam, one of the fits fit.js lists
 function fitCommit() { settingsSet('thumbnail', 'fit', fit.value) }//the same way
 
-const faces = ref(settings.font.faces)//which fonts, the ones fuji carries or the system's; the buttons offer only what the setting takes, so it never needs putting back
+const faces = ref(settings.font.faces)//which fonts, system, bundled or retro; the buttons offer only what the setting takes on this platform, so it never needs putting back
 const systemFaces = {windows: ['Segoe UI', 'Consolas'], mac: ['San Francisco', 'SF Mono']}[platform()]//what the system's fonts are, proportional and fixed-width, named where every computer of that kind has the same ones; a linux desktop chooses its own, so there the choice names none
 function facesCommit() {
 	if (settingsSet('font', 'faces', faces.value)) emit('faces')//the root is the shell's, so it puts the new faces there
@@ -48,6 +48,31 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 <template>
 
 <div class="mySettings myMono w-full h-full overflow-y-auto p-8">
+	<!-- a specimen of the caption face, apart from the panel's fixed-width type, at the top so the title bar is right above it, in the strongest text color so a screenshot compares renderers rather than inks: the letters that give a typeface away, the pangram for every shape, AVATAR and Wavy Tofu for the spacing between pairs, QGRSJ for the letters faces differ on most, Il1 O0 rn m for the ones easiest to confuse, and .txt because a caption is a file name; the same characters as the name of the text file in the test folder, for a line of Explorer's to be set against. Then a second line of the kind the contact sheet shows, a path, a date, a size and dimensions, with a middle dot between and a multiplication sign; and a label above each pair, in the same face, saying which it is. First the pair as it is, a bare mySans drawn in whichever face the setting names, which changes when a Typography button is pressed. Then a spike, to be removed: the same pair set directly in the scoped styles below, each isolated from the setting, the system face as the control, then Inter and Verdana each sized two ways, by the x-height ratio and by whole css pixels, to compare before choosing -->
+	<div class="mySans mb-8 text-strong">
+		<p>1 live, on the setting</p>
+		<p>Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
+		<p>C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
+		<div class="mySpikeGap"></div>
+		<p class="mySpikeSystem">2 system, the control</p>
+		<p class="mySpikeSystem">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
+		<p class="mySpikeSystem">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
+		<div class="mySpikeGap"></div>
+		<p class="mySpikeInter">3 Inter by ratio, 0.55</p>
+		<p class="mySpikeInter">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
+		<p class="mySpikeInter">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
+		<p class="mySpikeInterPx">4 Inter in pixels, 12</p>
+		<p class="mySpikeInterPx">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
+		<p class="mySpikeInterPx">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
+		<div class="mySpikeGap"></div>
+		<p class="mySpikeVerdana">5 Verdana by ratio, 0.48</p>
+		<p class="mySpikeVerdana">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
+		<p class="mySpikeVerdana">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
+		<p class="mySpikeVerdanaPx">6 Verdana in points, 8, which is 10.67 px</p>
+		<p class="mySpikeVerdanaPx">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
+		<p class="mySpikeVerdanaPx">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
+	</div>
+
 	<h1 class="mb-8 text-strong">Settings</h1>
 
 	<label class="flex items-center gap-4">
@@ -78,7 +103,8 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 		<span class="w-48">Typography</span>
 		<div role="radiogroup" aria-label="Typography"><!-- radio buttons rather than a list, so every choice and what it gives are in view without a click; the panel scrolls when it grows -->
 			<label class="flex items-center gap-2"><input type="radio" name="faces" value="system" v-model="faces" @change="facesCommit" /><span>System fonts<template v-if="systemFaces">: <i>{{systemFaces[0]}}</i>, with <i>{{systemFaces[1]}}</i></template></span></label><!-- the words in one span, so the flex row holds the button and them as two items, rather than putting its gap around every name -->
-			<label class="mt-1 flex items-center gap-2"><input type="radio" name="faces" :value="brandStem" v-model="faces" @change="facesCommit" /><span>{{brandName}} fonts: <i>Inter</i>, with <i>IBM Plex Mono</i></span></label>
+			<label class="mt-1 flex items-center gap-2"><input type="radio" name="faces" value="bundled" v-model="faces" @change="facesCommit" /><span>{{brandName}} fonts: <i>Inter</i>, with <i>IBM Plex Mono</i></span></label>
+			<label v-if="platform() != 'linux'" class="mt-1 flex items-center gap-2"><input type="radio" name="faces" value="retro" v-model="faces" @change="facesCommit" /><span>Retro fonts: <i>Verdana</i>, vibing the 2000s Web</span></label><!-- with IBM Plex Mono for the fixed-width text, left out of the label; Verdana is the system's rather than carried, and Windows and the Mac install it where Linux does not, so there the button is not offered and the setting's check turns the word away -->
 		</div>
 	</div>
 
@@ -94,12 +120,6 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 	<SettingsFileTypes ref="fileTypes" class="mt-12" />
 
 	<p class="mt-12">Press S to return to the contact sheet</p>
-
-	<!-- a sample of the root's text, apart from the panel's fixed-width type, so the fonts choice above can be seen changing it: first a line whose letters give a typeface away, the pangram for every shape, AVATAR and Wavy Tofu for the spacing between pairs, QGRSJ for the letters faces differ on most, and Il1| O0 rn m for the ones easiest to confuse; then the words of File Explorer's ribbon, to set beside it on Windows. Here until fuji has text of its own in that face -->
-	<div class="mySans mt-12">
-		<p>Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1| O0 rn m</p>
-		<p class="mt-2 flex gap-4"><span>File</span><span>Home</span><span>Share</span><span>View</span><span>Picture Tools</span></p>
-	</div>
 </div>
 
 </template>
@@ -109,6 +129,12 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 	background-color: var(--color-paper); /* the sheet's, since this takes the sheet's place in the same window */
 	color: var(--color-ink); /* which every section and popup inside inherits, along with the type myMono gives it */
 }
+.mySpikeGap       { height: 1rlh } /* one row of the caption face, empty */
+.mySpikeSystem    { font: menu; line-height: 1rlh }
+.mySpikeInter     { font: menu; line-height: 1rlh; font-family: Inter, system-ui, sans-serif; font-size-adjust: 0.55 }
+.mySpikeInterPx   { font: menu; line-height: 1rlh; font-family: Inter, system-ui, sans-serif; font-size: 12px }
+.mySpikeVerdana   { font: menu; line-height: 1rlh; font-family: Verdana, sans-serif;         font-size-adjust: 0.48 }
+.mySpikeVerdanaPx { font: menu; line-height: 1rlh; font-family: Verdana, sans-serif;         font-size: 8pt }
 .myBox {
 	color: var(--color-strong);
 	background-color: var(--color-surface);

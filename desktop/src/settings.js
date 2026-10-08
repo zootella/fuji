@@ -3,7 +3,7 @@ import {parse as parseToml} from 'smol-toml'//parseToml, so the name parse stays
 import parse from 'path-browserify'
 import {diskRead, diskWrite} from './disk.js'
 import {desktopExitHold} from './desktop.js'
-import {forwardize} from './components/library.js'
+import {forwardize, platform} from './components/library.js'//platform for the one setting whose choices depend on it
 import {logTrouble, sayTrouble} from './log.js'//for a line after startup; the ones from during the load are handed back to the shell instead, because the file being read is the one that says whether fuji keeps a log at all
 import {brandName, brandStem} from './brand.js'
 import {fitNames} from './fit.js'
@@ -158,8 +158,8 @@ const settingsSchema = [
 		section: 'font',
 		key: 'faces',
 		factory: 'system',
-		comment: `which fonts ${brandName} sets its text in. ${brandStem} uses the two ${brandName} carries, Inter with IBM Plex Mono for the fixed-width text, so it looks the same on every computer. system uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas on Windows, and San Francisco with SF Mono on a mac. The fixed-width text is every hud and panel, and the caption beneath a picture; the settings panel changes this too`,
-		check: value => ['system', brandStem].includes(value),
+		comment: `which fonts ${brandName} sets its text in. system uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas on Windows, and San Francisco with SF Mono on a mac. bundled uses the two ${brandName} carries, Inter with IBM Plex Mono for the fixed-width text, so it looks the same on every computer. retro is Verdana, which Windows and macs install, with IBM Plex Mono again; linux does not have it, so there retro goes back to system. The fixed-width text is every hud and panel; the other face is the caption beneath each thumbnail; the settings panel changes this too`,
+		check: value => ['system', 'bundled', ...(platform() == 'linux' ? [] : ['retro'])].includes(value),//retro only where Verdana is installed with the system, which a linux desktop cannot promise
 	}, {
 		section: 'appearance',
 		key: 'mode',

@@ -42,7 +42,7 @@ A letter is written to a specific reader — usually a Claude Code session on th
 
 - **`argon/argon.md`**, in a folder with its program `argon.rs` and the `Cargo.toml` that builds it — to the Raspberry Pi 4B: build and run an Argon2id speed test, check that its keys match the Mac mini's, and add the results. Written 2026-09-23.
 
-- **`win2mac.md`** — from the Windows box to the Mac: the `R` key on the diamond table, built and smoke tested at 100 percent, and the four things only a Retina Mac can answer about it: whether WKWebView repaints on the class flip, what `pixelated` gives at a ratio of 2, what the panel does to the blocks on the MacBook Air, and what it does at a fractional ratio. Written 2026-10-08.
+- **`win2mac.md`** — from the Windows box to the Mac: the `R` key on the diamond table, built and smoke tested at 100 percent, and the four things only a Retina Mac can answer about it: whether WKWebView repaints on the class flip, what `pixelated` gives at a ratio of 2, what the panel does to the blocks on the MacBook Air, and what it does at a fractional ratio. And a second subject: the fonts setting as system, bundled and retro, the root never changing, with a spike at the top of the settings panel that shows the caption face six ways, and the one decision the Mac is asked to weigh in on, pixels in place of the x-height ratios. Written 2026-10-08.
 
 - **`win2linux.md`** — from the Windows box to Linux: the watchdog in `window_first`, and the one check that matters there, that the watchdog sees WebKitGTK's page load and so leaves a working window alone. Written 2026-09-28.
 

@@ -1,4 +1,4 @@
-# From the Windows box to the Mac: the R key, and the Ben Day page
+# From the Windows box to the Mac: the R key, the Ben Day page, and the three fonts
 
 Written 2026-10-08 on the Windows 10 box, at 1920 by 1200 and 100 percent, where CSS, backing and panel pixels are one grid. This is a letter rather than a document of record: read it, do what it asks, then delete it and leave what you found in the code and in `site/docs/ben-day.md`. The feature is built in its first form and smoke tested here, and the rest of it needs a Retina Mac.
 
@@ -34,3 +34,20 @@ The Ben Day page carries only finished sections, by the user's rule, so it names
 Each decision, once built, becomes a finished section on the page, written the way the `R` key's is. The Ben Day page is the document of record; `contents.md` lists it under what has moved to the site.
 
 When this letter has been answered, delete it, and leave the answers in `ben-day.md` and in comments beside the code they describe.
+
+## A second subject: the three fonts, and a spike at the top of the settings panel
+
+Also 2026-10-08, later the same day, and a separate conversation when you get there. The fonts setting grew from two choices to three and was restructured underneath, and the settings panel carries a spike at its top so the two of us can look at the same lines on two machines. Everything about it is in the fonts essay in `index.css`; this section says only what the Mac has to look at and why.
+
+**What landed.** `font.faces` in `fuji.toml` is `system`, `bundled` or `retro`, and the shell puts that word on the root as `data-faces`. The root is `font: menu` on every choice and never changes. The caption face is one rule, `.mySans { font: menu; line-height: 1rlh }`, with a variant per choice that changes the family and, for now, the drawn size through `font-size-adjust`, 0.55 for Inter and 0.48 for Verdana. Retro is Verdana as the system installs it with Plex again, offered on Windows and the Mac and turned away on Linux. The three choices were compared against File Explorer here and the system face matches it to the pixel on every word of letters; the measurement is in the `font: menu` essay.
+
+**Why the Mac has to look, with the mechanism for each.** None of these is "untested on the Mac"; each names a thing that is different there.
+
+- **`font-size-adjust` has never been exercised in fuji on WebKit.** Chromium here draws it; WebKit has had it since Safari 16.4, and if it ignored the number Inter would draw at the root's 13, which is what the Mac showed before today, so even the failure is quiet. Look at the panel's top: the live pair should match pair 3 on bundled and pair 5 on retro, and never pair 4 or 6.
+- **Verdana's Mac copy through Core Text has never been seen in fuji.** The size was judged here against Segoe at 12. On the Mac the control is San Francisco at 13, which is a larger face, so Verdana will sit further under it than it does here. That is the era showing rather than a mistake, but you are the one to say so.
+- **The bundled choice no longer sets the root to Inter at 13.** Inter is drawn on San Francisco's line, `1rlh`, rather than its own, a fraction of a pixel apart. The one place that could show is the caption under a thumbnail, whose rule gives each line `min-height: 1lh`.
+- **Your `fuji.toml` holds `faces = "fuji"`,** the old word. The check turns it away with one log line and draws the system face until you pick in the panel once.
+
+**The decision the spike is for.** The ratios work, but a pixel number is simpler and is how the web sets these faces, so the plan is to replace the two adjusts with `font-size: 12px` for Inter and `font-size: 8pt` for Verdana, 10.67 css pixels, the size the 2000s wrote. Here those are near twins of the ratios: Inter 12 against 12.1, Verdana 10.67 against 10.6. On the Mac the ratios give 13.1 and 11.4, so the pixel numbers are where the Mac's picture changes, Inter a pixel under San Francisco and Verdana a little over two. Pairs 4 and 6 at the top of the panel are those two sizes, isolated from the setting; pairs 3 and 5 are the ratios, pair 2 is the system control and pair 1 is the live caption face on whatever the setting says. Look at 4 and 6 beside 2 and say whether they hold up against San Francisco the way they do against Segoe. A screenshot of the panel's top brought back here would settle it on both machines at once. If they do, the switch is two rules in `index.css`, the spike's numbers already match, and the essay's arithmetic paragraph becomes a sentence each.
+
+When that is decided and built, the spike comes out of `SettingsPanel.vue` and the live pair with it, or stays as the one specimen if a sample of the caption face still earns its place there, and this section goes with the rest of the letter.
