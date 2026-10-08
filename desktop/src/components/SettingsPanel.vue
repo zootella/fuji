@@ -64,29 +64,29 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 <div class="mySettings myMono w-full h-full overflow-y-auto p-8">
 	<!-- a specimen of the caption face, apart from the panel's fixed-width type, at the top so the title bar is right above it, in the strongest text color so a screenshot compares renderers rather than inks: the letters that give a typeface away, the pangram for every shape, AVATAR and Wavy Tofu for the spacing between pairs, QGRSJ for the letters faces differ on most, Il1 O0 rn m for the ones easiest to confuse, and .txt because a caption is a file name; the same characters as the name of the text file in the test folder, for a line of Explorer's to be set against. Then a second line of the kind the contact sheet shows, a path, a date, a size and dimensions, with a middle dot between and a multiplication sign; and a label above each pair, in the same face, saying which it is. First the pair as it is, a bare mySans drawn in whichever face the setting names, which changes when a Typography button is pressed. Then a spike, to be removed: the same pair set directly in the scoped styles below, each isolated from the setting, the system face as the control, then Inter and Verdana each sized two ways, by the x-height ratio and by whole css pixels, to compare before choosing -->
 	<div ref="specimen" class="mySans mb-8 text-strong">
-		<p data-spike="1">1. width: {{spikeWidths[1]}} css pixels</p>
+		<p data-spike="1">1 live, width: {{spikeWidths[1]}} css pixels</p>
 		<p>Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
 		<p>C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
 		<div class="mySpikeGap"></div>
-		<p class="mySpikeSystem" data-spike="2">2. width: {{spikeWidths[2]}} css pixels</p>
+		<p class="mySpikeSystem" data-spike="2">2 system, width: {{spikeWidths[2]}} css pixels</p>
 		<p class="mySpikeSystem">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
 		<p class="mySpikeSystem">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
 		<div class="mySpikeGap"></div>
-		<template v-if="false"><!-- hidden for the moment, to compare the pixel pairs alone -->
-		<p class="mySpikeInter" data-spike="3">3. width: {{spikeWidths[3]}} css pixels</p>
+		<template v-if="false"><!-- hidden for the moment -->
+		<p class="mySpikeInter" data-spike="3">3 Inter by ratio, width: {{spikeWidths[3]}} css pixels</p>
 		<p class="mySpikeInter">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
 		<p class="mySpikeInter">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
 		</template>
-		<p class="mySpikeInterPx" data-spike="4">4. width: {{spikeWidths[4]}} css pixels</p>
+		<p class="mySpikeInterPx" data-spike="4">4 Inter 13 px, width: {{spikeWidths[4]}} css pixels</p>
 		<p class="mySpikeInterPx">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
 		<p class="mySpikeInterPx">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
 		<div class="mySpikeGap"></div>
-		<template v-if="false"><!-- hidden for the moment, to compare the pixel pairs alone -->
-		<p class="mySpikeVerdana" data-spike="5">5. width: {{spikeWidths[5]}} css pixels</p>
+		<template v-if="false"><!-- hidden for the moment -->
+		<p class="mySpikeVerdana" data-spike="5">5 Verdana by ratio, width: {{spikeWidths[5]}} css pixels</p>
 		<p class="mySpikeVerdana">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
 		<p class="mySpikeVerdana">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
 		</template>
-		<p class="mySpikeVerdanaPx" data-spike="6">6. width: {{spikeWidths[6]}} css pixels</p>
+		<p class="mySpikeVerdanaPx" data-spike="6">6 Verdana 12 px, width: {{spikeWidths[6]}} css pixels</p>
 		<p class="mySpikeVerdanaPx">Sphinx of black quartz, judge my vow. AVATAR Wavy Tofu QGRSJ 0123456789 Il1 O0 rn m.txt</p>
 		<p class="mySpikeVerdanaPx">C:\Users\Name\Desktop · 2026-Oct-8 · 4589 KB · 464 × 698</p>
 	</div>
@@ -150,7 +150,7 @@ defineExpose({onKey, onFocus})//the calls of the shell's this view has a use for
 .mySpikeGap       { height: 1rlh } /* one row of the caption face, empty */
 .mySpikeSystem    { font: menu; line-height: 1rlh }
 .mySpikeInter     { font: menu; line-height: 1rlh; font-family: Inter, system-ui, sans-serif; font-size-adjust: 0.55 }
-.mySpikeInterPx   { font: menu; line-height: 1rlh; font-family: Inter, system-ui, sans-serif; font-size: 12px }
+.mySpikeInterPx   { font: menu; line-height: 1rlh; font-family: Inter, system-ui, sans-serif; font-size: 13px }
 .mySpikeVerdana   { font: menu; line-height: 1rlh; font-family: Verdana, sans-serif;          font-size-adjust: 0.48 }
 .mySpikeVerdanaPx { font: menu; line-height: 1rlh; font-family: Verdana, sans-serif;          font-size: 12px }
 .myBox {
