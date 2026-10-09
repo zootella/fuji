@@ -3,12 +3,12 @@
 import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
-import {dialogOpen} from '../dialog.js'//the picker behind File, Open, the system's own, which rust puts up
+import {dialogOpen} from '../dialog.js'//the system's open box, which rust puts up
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
-import {menuText, menuWaiting} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, and which item a new window was made to answer
+import {menuText, menuWaiting, menuEnable} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, which item a new window was made to answer, and which Edit items are lit
 import {modelStart, modelPath, modelFolder, modelOpenFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is, and a folder this window was made for is listed here before any view starts
-import {diskStat} from '../disk.js'//whether a path handed to fuji or chosen with File, Open… is a folder, which decides the view it opens on
+import {diskStat} from '../disk.js'//whether a path handed to fuji or chosen in the open box is a folder, which decides the view it opens on
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
@@ -128,7 +128,7 @@ onMounted(async () => {
 	})
 	unlistenResized = await w.onResized(() => reportTrouble(recordSheet))//the sheet's size, into settings as the user changes it
 	unlistenFocus = await w.onFocusChanged(event => {
-		if (event.payload) menuTitle()//the one menu bar serves every window, so the window coming to the front says where its own View item goes
+		if (event.payload) { menuTitle(); editLit = {}; editMenu() }//the one menu bar serves every window, so the window coming to the front says where its own View item goes, and all over again which Edit items it can answer
 		reportTrouble(() => activeView()?.onFocus?.(event.payload))//a window event like the rest, handed to the view showing; the preview closes on losing it
 	})
 	reportTrouble(async () => activeView()?.onFocus?.(await w.isFocused()))//and once now, since the focus arrived with the reveal, before there was anyone listening for it
@@ -157,12 +157,9 @@ watch(showing, value => touchBlock(value == 'Table').catch(error => logTrouble('
 watch([showing, whichTable], menuTitle, {immediate: true})
 
 async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these five down, because the page already knows how to do all of them
-	if (id == 'menu-open') {
-		let chosen = await dialogOpen()//every file and, on the Mac, every folder, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter
-		if (chosen) await openChosen(chosen)
-	}
+	if (id == 'menu-open') await openAsk({files: true, folders: true})//the Mac's one Open…, for either
 	else if (id == 'menu-fullscreen') await toggleView()//fuji's own fullscreen rather than macOS's, which is the table: the essay above fullscreenSet says why there are two and how they keep out of each other's way
-	else if (id == 'menu-about') { await showView('Settings'); settingsRef.value?.showAbout() }//About Fuji, from the application menu or Help: the settings panel with its About section scrolled into view, in place of the panel macOS would assemble from Info.plist; from the fullscreen table this is the same road s takes
+	else if (id == 'menu-about') { await showView('Settings'); settingsRef.value?.showAbout() }//About Fuji, from the application menu: the settings panel with its About section scrolled into view, in place of the panel macOS would assemble from Info.plist; from the fullscreen table this is the same road s takes
 	else if (id == 'menu-settings') await showView('Settings')//Settings… in the application menu, the road s takes from the sheet
 	else if (id == 'menu-help') await processOpen(`https://${urlHelp}`)//Fuji Help: the site's help address, in the system's browser, which forwards to the operator's manual; the help panel on h is the checklist inside the window, and separate
 }
@@ -171,6 +168,16 @@ function menuTitle() {//tell the menu bar what this window's View item should re
 	let title = showing.value == 'Table' && whichTable.value != 'Preview' ? 'Show Contact Sheet' : 'Show Light Table'
 	menuText('menu-fullscreen', title).catch(error => logTrouble('shell: titling the View item', error))
 }
+
+//the Edit menu's items start gray, and the window in front lights each while something in it can answer. The page decides rather than AppKit because a selection of files on the sheet will one day light Copy, which only the page knows
+let editLit = {}//what this window last told the menu bar, so only a change crosses to rust
+function editMenu() {
+	let typing = typedInto(document.activeElement)
+	let selected = (document.getSelection()?.toString() ?? '') != ''
+	let want = {Undo: typing, Redo: typing, Cut: typing && selected, Copy: selected, Paste: typing, 'Select All': typing}
+	for (let [item, enabled] of Object.entries(want)) if (editLit[item] != enabled) { editLit[item] = enabled; menuEnable('Edit', item, enabled).catch(error => logTrouble('shell: lighting the Edit menu', error)) }
+}
+for (let name of ['focusin', 'focusout', 'selectionchange']) document.addEventListener(name, () => { if (document.hasFocus()) editMenu() })//the moments the answer can change; a window behind says nothing, since the menu bar is the front window's
 function helpToggle() {
 	helpShowing.value = !helpShowing.value
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
@@ -192,7 +199,11 @@ async function viewOpen(path) {//a picture dropped on the window, for the view o
 	if (showing.value == 'Settings') await showView('Sheet')//the settings panel opens nothing, so the sheet comes back to take it
 	await activeView()?.onDrop?.(path)
 }
-async function openChosen(path) {//a path chosen with File, Open…: a folder on the contact sheet, and a picture on the table, as a double-clicked thumbnail brings it there
+async function openAsk(choose) {//the system's open box, and what it answers shown, from the mac's menu bar and from the empty sheet on every platform
+	let chosen = await dialogOpen(choose)//deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter
+	if (chosen) await openChosen(chosen)
+}
+async function openChosen(path) {//a path chosen in the open box: a folder on the contact sheet, and a picture on the table, as a double-clicked thumbnail brings it there
 	if ((await diskStat(path)).is_dir) {
 		await sheetRef.value.folderOpen(path)//the sheet starts its pages at the folder, behind a table or the settings as readily as on screen
 		return showView('Sheet')
@@ -382,7 +393,7 @@ async function closeWindow() {//close the window as the red button or the × wou
 </script>
 <template>
 
-<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" />
+<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @open="choose => reportTrouble(() => openAsk(choose))" />
 <SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->

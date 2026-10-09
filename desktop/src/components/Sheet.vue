@@ -1,13 +1,15 @@
 <script setup>//the contact sheet: a page of buckets of thumbnails, a window onto the pager's list, with Previous and Next to move it along the volume
 
-import {ref, computed, reactive, watch, onMounted} from 'vue'
+import {ref, computed, reactive, watch} from 'vue'
 import parse from 'path-browserify'
-import {documentDir, downloadDir} from '@tauri-apps/api/path'
+import {documentDir, desktopDir, downloadDir} from '@tauri-apps/api/path'
 import {modelFolder, modelOpen, modelOpenFolder, modelStand} from '../model.js'
 import {pagerBuckets, pagerRead, pagerPreviousState, pagerNextState, pagerStart, pagerNext, pagerPrevious, pagerRefresh} from '../pager.js'
 import {forwardize} from './library.js'
 import {logTrouble} from '../log.js'
 import {settings} from '../settings.js'
+import {brandName, urlHelp} from '../brand.js'
+import {processOpen} from '../process.js'
 import Bucket from './Bucket.vue'
 import BucketMemory from './BucketMemory.vue'
 
@@ -33,7 +35,7 @@ function start() {//the shell calls this each time this view comes on screen: re
 	if (modelFolder.value && modelFolder.value != sheetOpened) { sheetOpened = modelFolder.value; pagerStart(modelFolder.value).catch(error => logTrouble(`sheet: starting from ${modelFolder.value}`, error)) }
 	else pagerRefresh().catch(error => logTrouble('sheet: refreshing the page', error))
 }
-const emit = defineEmits(['table', 'settings'])//a double-clicked thumbnail, for the shell to show the table fullscreen, and s, for the settings panel in this same window; which view is showing is the shell's, so this only asks
+const emit = defineEmits(['table', 'settings', 'open'])//a double-clicked thumbnail, for the shell to show the table fullscreen, s, for the settings panel in this same window, and the open box, which the shell puts up; which view is showing is the shell's, so this only asks
 function onKey(e) {
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('settings')//a temporary way in, until fuji has a better place for one
 }
@@ -58,31 +60,31 @@ function next() { pagerNext().catch(error => logTrouble('sheet: the next page', 
 function sayPager(state, name, where) { return state == 'none' ? where : name }//the words on a button: its name, disabled until its page is known, or that the list ends here; no progress, which is the log's and the memory report's to say
 const sheetPrevious = computed(() => sayPager(pagerPreviousState.value, '‹ Previous', 'the top of the disk'))//the words for each button, read by the bar at each end of the page
 const sheetNext = computed(() => sayPager(pagerNextState.value, 'Next ›', 'the end of the disk'))
-const sheetFolders = ref([])//{name, path} for each folder the empty sheet offers to open, found once when it is made; one the platform cannot name is left out
-onMounted(async () => {
-	let found = []
-	for (let [name, ask] of [['Documents', documentDir], ['Downloads', downloadDir]]) {
-		try { found.push({name, path: forwardize(await ask())}) }
-		catch (error) { logTrouble(`sheet: finding the ${name} folder`, error) }//tauri asks the platform, which can have no answer for a folder the user has removed or never had
-	}
-	sheetFolders.value = found
-})
-async function folderOpen(path) {//a folder clicked on the empty sheet or chosen with File, Open…, opened as a drop of one of its pictures would open it, standing on its first
+const sheetHelp = `https://${urlHelp}`
+async function folderAsk(ask) {
+	try { await folderOpen(forwardize(await ask())) }
+	catch (error) { logTrouble('sheet: finding a folder', error) }//tauri asks the platform, which can have no answer for a folder the user has removed or never had
+}
+async function folderOpen(path) {//a folder clicked on the empty sheet or chosen in the open box, opened as a drop of one of its pictures would open it, standing on its first
 	try { await modelOpenFolder(path); sheetOpened = modelFolder.value; await pagerStart(modelFolder.value) }
 	catch (error) { logTrouble(`sheet: opening ${path}`, error) }//a folder that cannot be read leaves the sheet as it was
 }
 function onResize() {}//and nothing to remeasure: the wrapping is the engine's job, and this view measures nothing, which is what lets it stay mounted
 
-defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's File, Open… chose
+defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's open box chose
 
 </script>
 <template>
 
 <!-- display none destroys the layout box and the scroll position with it, so leaving and returning starts at the top; that is the behaviour wanted for now -->
 <div ref="sheetRoot" class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick">
-	<div v-if="!pagerBuckets.length" class="myEmpty myMono w-full h-full flex flex-col items-center justify-center gap-2">
-		<p>contact sheet - drop a picture here to open its folder</p>
-		<p v-if="sheetFolders.length">or open <template v-for="(folder, i) in sheetFolders" :key="folder.path"><template v-if="i > 0"> or </template><button class="underline cursor-pointer" @click="folderOpen(folder.path)">{{folder.name}}</button></template></p><!-- buttons rather than links, since each one does something here rather than going somewhere -->
+	<div v-if="!pagerBuckets.length" class="myEmpty myMono w-full h-full flex items-center justify-center">
+		<div class="flex flex-col gap-[1lh]"><!-- Windows and Linux have no menu bar, so until fuji has a toolbar the welcome is their way to the open box and the help -->
+			<p>{{brandName}}</p>
+			<p>A multimedia file manager designed<br>with privacy and precision in mind</p>
+			<p>Browse <button @click="folderAsk(desktopDir)">Desktop</button>, <button @click="folderAsk(documentDir)">Documents</button>, <button @click="folderAsk(downloadDir)">Downloads</button>,<br>choose a <button @click="emit('open', {files: false, folders: true})">folder</button>, or open a <button @click="emit('open', {files: true, folders: false})">file</button>.</p>
+			<p>S key for settings and options,<br>H key for quick help,<br>and web-based <a :href="sheetHelp" @click.prevent="processOpen(sheetHelp)">User Guide</a>.</p>
+		</div>
 	</div>
 	<template v-else>
 		<div class="myPagerBar"><!-- the same pair at each end of the page, so a neighbor is a click away from wherever the scroll is; each button is disabled while the pager is still finding its page, and for good at the top or the end -->
@@ -107,6 +109,10 @@ defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every
 }
 .myEmpty {
 	color: var(--color-faint);
+}
+.myEmpty :is(button, a) { /* the welcome's buttons and its link, which the reset leaves bare: underlined, with the hand */
+	text-decoration: underline;
+	cursor: pointer;
 }
 .myPagerBar { /* the two buttons side by side across the width of the buckets, with the flow's own margin around them */
 	display: flex; gap: 8px; margin: 8px;

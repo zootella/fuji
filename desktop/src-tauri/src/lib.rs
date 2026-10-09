@@ -27,11 +27,13 @@ mod memory;//and memory.rs: how much memory the machine has and is using, and wh
 #[cfg(target_os = "macos")]//the whole module is macos-only: it calls tauri menu methods that do not exist on other targets, and a menu belongs along the top of the screen only here
 mod menu;//and menu.rs: the menu bar
 #[cfg(not(target_os = "macos"))]
-mod menu {//off the mac there is no menu bar, so the two commands the page has for it answer at once and change nothing: the page calls them on every platform, and this is the degenerate case
+mod menu {//off the mac there is no menu bar, so the commands the page has for it answer at once and change nothing: the page calls them on every platform, and this is the degenerate case
 	#[tauri::command]
 	pub fn menu_text(_id: String, _text: String) -> Result<(), String> { Ok(()) }
 	#[tauri::command]
 	pub fn menu_waiting() -> String { String::new() }
+	#[tauri::command]
+	pub fn menu_enable(_menu: String, _item: String, _enabled: bool) -> Result<(), String> { Ok(()) }
 }
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
 mod panel;//and panel.rs: how many pixels the main display really has
@@ -97,6 +99,7 @@ pub fn run() {
 				touch::touch_block,//and in touch.rs
 				menu::menu_text,//and in menu.rs, or its stand-in off the mac
 				menu::menu_waiting,
+				menu::menu_enable,
 				window::window_frame,//and in window.rs
 				window::window_frame_set,
 				window::window_fullscreen_leave,
