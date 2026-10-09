@@ -52,7 +52,7 @@ async function onKey(e) {
 	let Ctrl = e.ctrlKey || e.metaKey
 	let key = e.key
 
-	//q, ctrl+s and ctrl+0 are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
+	//q and ctrl+s are stubs on purpose: the key map is decided and the behaviour is not, so the branches exist to be filled rather than rediscovered
 	//a letter, a digit or space acts only with control and command up, so a chord like command w or command q on the mac, on its way to the menu, does not act on the picture first; the shell has already dropped anything with alt
 	if      (!Ctrl && key == 'q') { log('table: q does nothing yet') }
 	else if (!Ctrl && key == 'i') { toggleInformation() }
@@ -74,7 +74,6 @@ async function onKey(e) {
 	else if (!Ctrl && key == 'f')                           { dimensionFit() }//the whole image inside the frame, one side meeting it exactly
 	else if (!Ctrl && key == 'w')                           { dimensionWidth() }//the image's width meeting the frame's exactly, its height overflowing or falling short
 	else if (!Ctrl && /^[1-6]$/.test(key)) { zoomNatural(Number(key)) }//the number keys 1 to 6, main row or number pad, which arrive as the same key: exactly that many css pixels per natural pixel. 7, 8 and 9 are left unused, since past 6x the other zooms serve
-	else if (key == '0' && Ctrl) {}//ttd august, browser convention to reset zoom to 100%, maybe same as fuji d
 }
 function onWheel(e) {
 	e.preventDefault()//tell the browser not to scroll

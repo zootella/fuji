@@ -38,7 +38,7 @@ The backing → panel squish is invisible to every web API, and it happens to ev
 
 The panel figure, 2560 × 1664, comes from the earlier code-reading audit, which replicated `panel.rs`'s heuristic in C on the MacBook; it was not re-measured in this session. That heuristic — enumerate every display mode and keep the tallest by pixel height — is right *only* because it passes null options to `CGDisplayCopyAllDisplayModes`. With `kCGDisplayShowDuplicateLowResolutionModes` the list gains the scaled modes' backing stores and the winner becomes 3420 × 2224, which is exactly the wrong answer. The null is load-bearing.
 
-`panel.rs` is rightly unused by the thumbnail pipeline. A canvas can only address the backing store, so pixels prepared for the panel would be resampled twice on the way down. It exists for a different promise — that "100%" on a table can one day mean one image pixel on one light — and its only caller today is diagnostics.
+`panel.rs` is rightly unused by the thumbnail pipeline. A canvas can only address the backing store, so pixels prepared for the panel would be resampled twice on the way down. It exists for a different promise — that a key on the table can one day put one image pixel on one light — and its only caller today is diagnostics.
 
 ## Windows, in two units
 
@@ -62,7 +62,7 @@ That was confirmed by measuring twice, because at 100% every model predicts the 
 
 At 150% the CSS screen separates from the other two and `1280 × 1.5 = 1920`, `800 × 1.5 = 1200` exactly, while **`backingScreen` and `panelScreen` stay equal to each other**. Two units, and `panel.rs` agrees with Tauri rather than departing from it. The last row was named `physicalScreen` when it was measured.
 
-**That last agreement is the real difference from the Mac.** There, "Tauri reports the backing store, not the panel" is the load-bearing fact, and `monitor.size` and `panel_resolution()` disagree — 3420 × 2224 against 2560 × 1664. Here they are the same number, and `GetSystemMetrics(SM_CXSCREEN)` is telling the truth because the process is DPI aware and the display runs at its native resolution. One consequence is that `ctrl+0` — the "100%" promise `panel.rs` exists for — is arithmetically trivial on Windows: one image pixel on one light is just `devicePixelRatio`, with nothing to survive afterwards.
+**That last agreement is the real difference from the Mac.** There, "Tauri reports the backing store, not the panel" is the load-bearing fact, and `monitor.size` and `panel_resolution()` disagree — 3420 × 2224 against 2560 × 1664. Here they are the same number, and `GetSystemMetrics(SM_CXSCREEN)` is telling the truth because the process is DPI aware and the display runs at its native resolution. One consequence is that the promise `panel.rs` exists for, one image pixel on one light, is arithmetically trivial on Windows: it needs only `devicePixelRatio`, with nothing to survive afterwards.
 
 **The assumption this rests on, stated as an assumption.** All of it holds while the display is set to its native resolution. A user who picks a lower resolution to make things bigger — a common and incorrect fix for "it's too small", because the resolution is older and better known than "Change the size of text, apps, and other items" — gets the monitor's own scaler, or the graphics card's, stretching the backing grid onto the panel, which restores a third step. That step happens in the display hardware rather than in the compositor, and it is invisible to every API named above, so `panel.rs` then reports the backing grid rather than the panel. Fuji assumes it away, and neither detects it nor adjusts for it.
 
@@ -248,9 +248,7 @@ Three things that only matter to someone driving fuji from outside, all met whil
 
 ## What the MacBook is still needed for
 
-Three things can only be settled on a Retina, wide-gamut Mac, so they wait for the next visit rather than travelling.
-
-**`ctrl+0`, and the first real use of `panel_resolution()`.** `DiamondTable.vue` carries the stub — `else if (key == '0' && Ctrl) {}` with a `ttd` on it — for the browser convention of resetting zoom to 100%. Everything else in fuji stops at the backing store, but "100%" is the one promise that reaches past it: on this panel it means sizing the image so that one image pixel survives the 342 → 256 squish and lands on one light. That is the computation no 1:1:1 machine can check, and it is why `panel.rs` exists at all.
+Two things can only be settled on a Retina, wide-gamut Mac, so they wait for the next visit rather than travelling.
 
 **Whether the engine still snaps the way it does now.** The fix in `flowSnap` rests on observed WKWebView behaviour — a canvas box rounded to whole CSS pixels — not on anything a specification guarantees. A macOS or Safari update is a reason to re-run the odd-and-even measurement below; it takes about ten minutes and the answer is a single percentage.
 
