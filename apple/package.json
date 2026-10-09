@@ -1,0 +1,13 @@
+{
+	"name": "apple",
+	"description": "The mac release signed with an Apple Developer ID and notarized, and the console that watches it",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"console": "node --env-file-if-exists=../.env console.js"
+	},
+	"dependencies": {
+		"@inquirer/core": "^12.0.4"
+	}
+}

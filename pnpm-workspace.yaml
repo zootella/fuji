@@ -17,3 +17,8 @@ packages:
   # through docker rather than on a linux box. It has no dependencies of its own, because
   # everything it does is orchestrate containers and the toolchains live inside those
   - linux
+
+  # The mac release that goes through Apple, signed with a Developer ID and notarized, and
+  # the console that watches it. Everything that depends on Apple's program lives here, so
+  # the self-signed release in desktop never needs it
+  - apple

@@ -1,4 +1,4 @@
-import {execFile, execFileSync} from 'node:child_process'
+import {execFile, execFileSync, spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {homedir, tmpdir} from 'node:os'
@@ -221,7 +221,18 @@ function hashOne(name, version, demanded) {
 	hash, size, filename — and the hash whole, because a cropped hash cannot check a download. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Nothing is padded: every package fuji builds is a few megabytes, so the byte counts are the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
 	*/
 	console.log(`${sidecar.sha256}  ${sidecar.bytes} bytes  ${published}`)
+	if (name == 'dmg' && !isNotarized(destination)) warnUnnotarized(published)
 	return true
+}
+
+//whether a dmg carries the notarization ticket desktop/notarize.js staples to it. one without is either the fallback signed with Fuji Desktop alone, or a pnpm installer build staged by mistake, and only the person publishing knows which
+function isNotarized(path) {
+	return spawnSync('xcrun', ['stapler', 'validate', path], {stdio: 'ignore'}).status == 0
+}
+
+function warnUnnotarized(file) {//loud, and never a refusal, because the fallback the essay atop desktop/notarize.js describes ships exactly this
+	console.log(`\n🍎👮🚓👮‍♀️⛓️ ${file} is not notarized: a downloaded copy meets the dialog saying Apple could not verify ${brandName} is free of malware`)
+	console.log(`🍎👮🚓👮‍♀️⛓️ publish from pnpm notarize instead, unless this is the Fuji Desktop fallback\n`)
 }
 
 /*
@@ -320,6 +331,7 @@ function uploadInstaller() {
 	//the package before its sidecar, every time, so the page never fetches a hash for a file still arriving
 	for (let one of sending) { send(one.stage, one.file); send(one.stage, one.sidecarName) }
 	console.log(`sent     ${sending.length} package${sending.length == 1 ? '' : 's'} and ${sending.length} sidecar${sending.length == 1 ? '' : 's'}`)
+	for (let one of sending) if (one.name == 'dmg' && !isNotarized(join(one.stage, one.file))) warnUnnotarized(one.file)//last, so it is the final thing on the screen
 }
 
 function send(folder, name) {//copy one file into the downloads directory as the restricted account
