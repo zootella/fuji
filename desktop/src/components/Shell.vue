@@ -7,7 +7,8 @@ import {dialogOpen} from '../dialog.js'//the picker behind File, Open, the syste
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {menuText, menuWaiting} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, and which item a new window was made to answer
-import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
+import {modelStart, modelPath, modelFolder, modelOpenFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is, and a folder this window was made for is listed here before any view starts
+import {diskStat} from '../disk.js'//whether a path handed to fuji or chosen with File, Open… is a folder, which decides the view it opens on
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
@@ -79,6 +80,14 @@ onMounted(async () => {
 	} catch (error) {
 		notices.push(sayTrouble(`shell: asking what ${brandName} was opened with`, error))//the same reasoning as above: nothing here is worth leaving the window hidden for
 	}
+	let openedFolder = ''//a folder rather than a picture, which this window was made for when File, Open… chose one with no window open; it opens on the contact sheet, so the launch goes on as an ordinary one
+	if (opened.length) {
+		try {
+			if ((await diskStat(opened[0])).is_dir) { openedFolder = opened[0]; opened = [] }
+		} catch (error) {
+			notices.push(sayTrouble(`shell: asking whether ${opened[0]} is a folder`, error))//and again; the path goes on as a picture, which the preview shows or turns away
+		}
+	}
 	let waiting = ''//Settings…, About or Fuji Help, when one was chosen from the mac's menu bar while fuji had no window and this window was made to answer it; blank for every other window
 	try {
 		waiting = await menuWaiting()
@@ -99,6 +108,7 @@ onMounted(async () => {
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
 	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
+	if (openedFolder) await modelOpenFolder(openedFolder).catch(error => logTrouble(`shell: opening ${openedFolder}`, error))//listed now and shown later: the sheet's start, after the reveal, finds a folder it did not open and starts its pages there
 	await nextTick()//let vue place the right view before the window appears
 	await reportTrouble(() => placeWindow(w, opened[0]))//before the reveal, so the window first appears where it will stay. Only the first picture, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
 	if (waiting && waiting != 'menu-help') await reportTrouble(() => menuChose(waiting))//before the reveal too, so the window first appears with the settings or their About section up, rather than as a sheet that then changes
@@ -148,8 +158,8 @@ watch([showing, whichTable], menuTitle, {immediate: true})
 
 async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these five down, because the page already knows how to do all of them
 	if (id == 'menu-open') {
-		let chosen = await dialogOpen()//every file, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter. Choosing something fuji cannot show is harmless — the model lists the folder and stands on the first picture in it
-		if (chosen) await viewOpen(chosen)//the same road a dropped file takes, and a double-clicked one ends on the same call: three ways in, one road after that
+		let chosen = await dialogOpen()//every file and, on the Mac, every folder, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter
+		if (chosen) await openChosen(chosen)
 	}
 	else if (id == 'menu-fullscreen') await toggleView()//fuji's own fullscreen rather than macOS's, which is the table: the essay above fullscreenSet says why there are two and how they keep out of each other's way
 	else if (id == 'menu-about') { await showView('Settings'); settingsRef.value?.showAbout() }//About Fuji, from the application menu or Help: the settings panel with its About section scrolled into view, in place of the panel macOS would assemble from Info.plist; from the fullscreen table this is the same road s takes
@@ -178,9 +188,18 @@ async function facesShow() {//put the page's text in the fonts the settings name
 
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
-async function viewOpen(path) {//a picture dropped on the window or chosen with File, Open, for the view on screen to show; optional, because a view answers only the calls it has a use for
+async function viewOpen(path) {//a picture dropped on the window, for the view on screen to show; optional, because a view answers only the calls it has a use for
 	if (showing.value == 'Settings') await showView('Sheet')//the settings panel opens nothing, so the sheet comes back to take it
 	await activeView()?.onDrop?.(path)
+}
+async function openChosen(path) {//a path chosen with File, Open…: a folder on the contact sheet, and a picture on the table, as a double-clicked thumbnail brings it there
+	if ((await diskStat(path)).is_dir) {
+		await sheetRef.value.folderOpen(path)//the sheet starts its pages at the folder, behind a table or the settings as readily as on screen
+		return showView('Sheet')
+	}
+	if (showing.value == 'Table') return activeView()?.onDrop?.(path)//a table on screen opens it as it opens a dropped picture
+	await sheetRef.value.onDrop(path)//the sheet lists the picture's folder for the table and starts its pages there, as a drop on it would
+	await showView(modelPath.value == path ? 'Table' : 'Sheet')//a picture fuji shows comes up on the table, which shows whatever the model stands on; a file fuji cannot show leaves the sheet on its folder
 }
 
 function onKey(e) {

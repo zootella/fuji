@@ -109,7 +109,7 @@ pub(crate) fn glance(path: &Path, wanted: &HashSet<String>) -> std::io::Result<(
 }
 
 /// POSIX-like `stat(2)` metadata
-//one caller in the page, associate.js, which asks only whether a path is there; a listing carries a folder's sizes and modified times without one of these per file
+//the page asks it whether a path is there, and whether one handed to fuji is a folder; a listing carries a folder's sizes and modified times without one of these per file
 #[command]
 pub async fn disk_stat(path: String) -> Result<FileStat, String> {
 	run_blocking(move || {

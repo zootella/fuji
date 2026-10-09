@@ -19,7 +19,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-dialog = "2" # for its Rust half alone, the system's file dialogs dialog.rs puts up; the page is granted none of it
+tauri-plugin-dialog = "2" # for its Rust half alone, the system's open box dialog.rs puts up off the Mac, where AppKit's is called directly; the page is granted none of it
 open = { version = "5", features = ["shellexecute-on-windows"] } # opens a file or an address with the program the system has for it, for process.rs: ShellExecuteEx on windows, which the feature turns on in place of a powershell process, /usr/bin/open on a mac, and xdg-open on linux; the crate Tauri's opener plugin wraps, already in the tree at this version
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

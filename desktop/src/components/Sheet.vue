@@ -67,13 +67,13 @@ onMounted(async () => {
 	}
 	sheetFolders.value = found
 })
-async function folderOpen(path) {//a folder clicked on the empty sheet, opened as a drop of one of its pictures would open it, standing on its first
+async function folderOpen(path) {//a folder clicked on the empty sheet or chosen with File, Open…, opened as a drop of one of its pictures would open it, standing on its first
 	try { await modelOpenFolder(path); sheetOpened = modelFolder.value; await pagerStart(modelFolder.value) }
-	catch (error) { logTrouble(`sheet: opening ${path}`, error) }//a folder that cannot be read leaves the sheet empty, as it was
+	catch (error) { logTrouble(`sheet: opening ${path}`, error) }//a folder that cannot be read leaves the sheet as it was
 }
 function onResize() {}//and nothing to remeasure: the wrapping is the engine's job, and this view measures nothing, which is what lets it stay mounted
 
-defineExpose({start, onKey, onResize, onDrop})//the same calls every view answers
+defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's File, Open… chose
 
 </script>
 <template>
