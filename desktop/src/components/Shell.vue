@@ -159,9 +159,9 @@ watch([showing, whichTable], menuTitle, {immediate: true})
 async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these five down, because the page already knows how to do all of them
 	if (id == 'menu-open') await openAsk({files: true, folders: true})//the Mac's one Open…, for either
 	else if (id == 'menu-fullscreen') await toggleView()//fuji's own fullscreen rather than macOS's, which is the table: the essay above fullscreenSet says why there are two and how they keep out of each other's way
-	else if (id == 'menu-about') { await showView('Settings'); settingsRef.value?.showAbout() }//About Fuji, from the application menu: the settings panel with its About section scrolled into view, in place of the panel macOS would assemble from Info.plist; from the fullscreen table this is the same road s takes
+	else if (id == 'menu-about') { await showView('Settings'); settingsRef.value?.showAbout() }//About Fuji, from the application menu: the settings panel with its About section scrolled into view, in place of the panel macOS would assemble from Info.plist; from the fullscreen table as well, which showView leaves for the window on the way
 	else if (id == 'menu-settings') await showView('Settings')//Settings… in the application menu, the road s takes from the sheet
-	else if (id == 'menu-help') await processOpen(`https://${urlHelp}`)//Fuji Help: the site's help address, in the system's browser, which forwards to the operator's manual; the help panel on h is the checklist inside the window, and separate
+	else if (id == 'menu-help') await processOpen(`https://${urlHelp}`)//Fuji Help: the site's help address, in the system's browser, which forwards to wherever help lives on the site; the help panel on h is the checklist inside the window, and separate
 }
 
 function menuTitle() {//tell the menu bar what this window's View item should read

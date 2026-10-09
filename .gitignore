@@ -109,7 +109,7 @@ desktop/release/*
 # Private planning and notes
 # ----------------------------------------------------------------------------
 
-# "hide" as a dot-separated part of a file or folder name stays out of the public repository, so an idea can live in the tree before it is adopted. It covers deploy scripts too — a workspace's upload.hide.sh names a real destination, so the name carries its own reason for being hidden rather than needing a rule of its own
+# "hide" as a dot-separated part of a file or folder name stays out of the public repository, so an idea can live in the tree before it is adopted, and the name carries its own reason for being hidden rather than needing a rule of its own
 hide
 hide.*
 *.hide
