@@ -18,7 +18,7 @@ The Windows flows seen passing on 2026-10-01, each read in the registry and in `
 
 ## The contact sheet's chips and the launch
 
-Today the sheet shows only the pictures in a folder. Soon it may list every file, so the user has the context of where they are: a file fuji cannot draw shows as a chip, the extension alone in a box, like `[.txt]`, and a double-click on one becomes a launch, the operating system opening it with its own default exactly as Explorer or Finder would. Fuji never has to understand a file to be the place a user finds it. The launch needs the opener plugin's open-path permission, scoped with thought, since it is a way to start any program the system associates with any file fuji lists. Neither the chip's look nor the launch is built; today a file nothing can draw gets the placeholder.
+Today the sheet shows only the pictures in a folder. Soon it may list every file, so the user has the context of where they are: a file fuji cannot draw shows as a chip, the extension alone in a box, like `[.txt]`, and a double-click on one becomes a launch, the operating system opening it with its own default exactly as Explorer or Finder would. Fuji never has to understand a file to be the place a user finds it. The launch is the command that already opens a file or an address the way a double-click would, and it wants thought, since it is a way to start any program the system associates with any file fuji lists. Neither the chip's look nor the launch is built; today a file nothing can draw gets the placeholder.
 
 ## A User Guide page to write
 

@@ -42,7 +42,7 @@ export const fitDescriptions = {//what each fit holds constant, for the settings
 	DiamondFit: 'width plus height the same for every picture, as on the light table',
 	AreaFit:    'the area the same for every picture',
 	ScaleFit:   'one scale for everything, so big pictures are big and small ones small',
-	LogFit:     'like Scale, with the differences shrunk by a square root',
+	LogFit:     'like scale, with the differences shrunk by a square root',
 }
 
 /*

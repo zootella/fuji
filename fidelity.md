@@ -4,7 +4,7 @@ Whether a picture arrives on the screen with its pixels and its colors intact. F
 
 Everything below was measured on hardware. Where a claim comes from reading the code rather than from a measurement, it says so, and where something remains untested it is listed at the end rather than quietly assumed. The audit found one defect, and fixing it is the change that came out of the day.
 
-`canvas.md` says what a canvas can hold and why a thumbnail is made where it is; the thumbnail pipeline document on the site is what `TestFlow.vue` does, and carries the geometry and color findings below in their settled form; `performance.md` says what any of it costs. This file says whether it is *right*.
+The thumbnail pipeline document on the site is what `TestFlow.vue` does, and carries the geometry and color findings below in their settled form. This file says whether it is *right*.
 
 ## The machine, in three units
 
@@ -157,7 +157,7 @@ Two distinct clusters per hue, in equal counts, on both views. **Display P3 surv
 
 ### The ask is right
 
-Established by the earlier code-reading audit and unchanged by anything measured since. `TestFlow.vue` asked Rust for `flowBeam × window.devicePixelRatio` as the longest side in backing pixels, sized each canvas bitmap to what came back, and derived the CSS size back down by the same `devicePixelRatio`. Since 2026-10-05 the page sends a fit instead, Rust converts the fit's CSS size to backing pixels by the same `devicePixelRatio`, and the page sizes the tile from the picture's own size, which `fits.md` describes. The page route computes `detail = min(devicePixelRatio, 1 / scale)` and so never allocates more canvas pixels than the file actually has. The worry that fuji asked for thumbnails sized in CSS pixels on a Retina screen was unfounded.
+Established by the earlier code-reading audit and unchanged by anything measured since. `TestFlow.vue` asked Rust for `flowBeam × window.devicePixelRatio` as the longest side in backing pixels, sized each canvas bitmap to what came back, and derived the CSS size back down by the same `devicePixelRatio`. Since 2026-10-05 the page sends a fit instead, Rust converts the fit's CSS size to backing pixels by the same `devicePixelRatio`, and the page sizes the tile from the picture's own size. The page route computes `detail = min(devicePixelRatio, 1 / scale)` and so never allocates more canvas pixels than the file actually has. The worry that fuji asked for thumbnails sized in CSS pixels on a Retina screen was unfounded.
 
 ### One backing pixel
 

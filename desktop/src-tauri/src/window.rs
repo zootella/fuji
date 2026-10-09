@@ -44,8 +44,8 @@ static WINDOW_ARRIVED: AtomicBool = AtomicBool::new(false);//whether a page in t
 static WINDOW_LAUNCHED: OnceLock<SystemTime> = OnceLock::new();//when this copy started, which window_flurry compares with the stamp
 fn window_label() -> String { format!("window-{}", WINDOW_COUNT.fetch_add(1, Ordering::Relaxed) + 1) }//counted rather than reused, so a label never names two windows even after one closes; capabilities/default.json grants to window-*
 
-/// Make a hidden window for these pictures, for its page to place and reveal
-pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
+/// Make a hidden window for these pictures, for its page to place and reveal, and answer its label, for a caller with something else to hold for it
+pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<String> {
 	let label = window_label();
 	open::open_hold(app, &label, paths);//before the window exists, so its page finds them the moment it mounts and asks
 	let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
@@ -55,7 +55,7 @@ pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<()> {
 		.on_page_load(|_, _| window_arrived())//the one sign a window really came, since build answers before anything is tried
 		.build()?;
 	window_browser_keys_off(&window);
-	Ok(())
+	Ok(label)
 }
 
 /// Make fuji's first window, unless something has already made one, which is how a launch produces exactly one window however it was started

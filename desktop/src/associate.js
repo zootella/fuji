@@ -1,6 +1,6 @@
 import {ref} from 'vue'
 import parse from 'path-browserify'
-import {openUrl} from '@tauri-apps/plugin-opener'//granted for ms-settings:defaultapps and nothing else, in capabilities/default.json
+import {processOpen} from './process.js'//Windows' Default apps settings, opened as a double-click would
 import {diskStat} from './disk.js'
 import {registryGet, registrySet, registryDelete, registryNotify, registryOpens} from './registry.js'
 import {launchOpens, launchSet} from './launch.js'
@@ -97,7 +97,7 @@ function ours(extension) {//the system would open this extension with this very 
 }
 
 export async function associateFinish() {//open windows' Default apps, the one place a saved choice can change: at fuji's own page on windows 11, and at its first page on windows 10, which ignores the name
-	await openUrl(`ms-settings:defaultapps?registeredAppUser=${encodeURIComponent(brandName)}`)//the name fuji registered under, escaped as Microsoft asks
+	await processOpen(`ms-settings:defaultapps?registeredAppUser=${encodeURIComponent(brandName)}`)//the name fuji registered under, escaped as Microsoft asks
 }
 
 let running = Promise.resolve()//the last pass queued, so the next waits for it: a focus can arrive while a choice is still writing

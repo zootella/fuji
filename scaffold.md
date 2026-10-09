@@ -9,7 +9,7 @@ The target stack: Tauri 2.11.x (npm packages and Rust crates on the same minor �
 ## Ground rules (read these first)
 
 - **Git**: run read-only git commands freely; all mutating git commands — add, commit, push, pull — are the user's alone. When it's time to commit, end your response with one line: 📌 followed by the suggested commit message in boldface.
-- **Style**: the user's style guide governs all code. Fuji carries a copy at style.md — get a copy into the new repo early and read it before writing code. One rule matters even before you read it: `ttd` comments are the user's alone — never add, reword, or delete one.
+- **Style**: the user's style guide governs all code. Ask the user for a copy, get it into the new repo early, and read it before writing code. One rule matters even before you read it: `ttd` comments are the user's alone — never add, reword, or delete one.
 - **Private files**: names with "hide" as a dot-separated part (`hide/`, `*.hide`, `hide.*`, `*.hide.*`) are gitignored private planning docs, in fuji and in any repo adopting the same convention.
 - **Public docs say "the user"**, never the user's name.
 
@@ -30,7 +30,7 @@ If scaffolding inside an existing pnpm workspace: confirm the workspace's pnpm-w
 
 ## 3. Align versions to fuji
 
-Set package.json to fuji's current versions (snapshot: vite ^8.2.2, @vitejs/plugin-vue ^6.0.8, vue ^3.5.41, @tauri-apps/api ^2.11.1, @tauri-apps/cli ^2.11.4, @tauri-apps/plugin-opener ^2.5.4). Do not add @tauri-apps/plugin-fs: fuji removed it and wrote disk.rs instead, which is the module section 7 below prepares to receive. Then `pnpm install`.
+Set package.json to fuji's current versions (snapshot: vite ^8.2.2, @vitejs/plugin-vue ^6.0.8, vue ^3.5.41, @tauri-apps/api ^2.11.1, @tauri-apps/cli ^2.11.4). Do not add @tauri-apps/plugin-fs: fuji removed it and wrote disk.rs instead, which is the module section 7 below prepares to receive. Then `pnpm install`.
 
 On the Rust side, keep the scaffold's Cargo.toml shape and `edition = "2021"` (deliberate — matches Tauri's template; fuji stayed there too), and run a full `cargo update`. Two lessons fuji learned the hard way:
 
@@ -52,7 +52,7 @@ pnpm add -D tailwindcss @tailwindcss/vite
 ## 5. Config conventions
 
 - tauri.conf.json: `beforeDevCommand: "pnpm dev"`, `beforeBuildCommand` pointing at the vite build script — pnpm, never another package manager.
-- Plugins and capabilities: register only plugins the app actually uses, and grant granular permissions, never the blanket `:default` sets. The house pattern (see fuji's lib.rs and capabilities/default.json): plugin-dialog with `dialog:allow-open` and `dialog:allow-save` only (no message/ask/confirm — fake native dialogs are a social-engineering primitive, and the app's own UI lives in the page), and plugin-opener with `opener:allow-reveal-item-in-dir` only (URL opening arrives later, with a scoped allowlist, attached to the feature that needs it). Tauri validates permission identifiers at build time, so a typo fails loudly.
+- Plugins and capabilities: grant the page no plugin. capabilities/default.json holds Tauri's core set and the calls the page makes on its own window, and nothing else; anything past the window, an address opened in the browser, a file opened with its program, the system's file dialog, is a Rust command the page calls, which may use a plugin's Rust half without granting the page any of it. Tauri validates permission identifiers at build time, so a typo fails loudly.
 - Replace the scaffold's `"csp": null` with fuji's tested policy: `"default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob:"`. Rationale: these apps' webviews load only the bundled frontend and never navigate; all networking lives in the Rust core. CSP is the second wall behind Vue's template escaping — add nothing to it without a reason written next to it. Leave `devCsp` unset (dev stays unrestricted for HMR; the policy guards what ships). Verify on the built app: Tauri injects the policy into the binary's embedded HTML, and failure is loud — blocked IPC means the UI can't reach Rust, blocked img-src means images don't render.
 - Scripts, following fuji's package.json: names chosen so each says where it stops — `local` (tauri dev), `compile` (--no-bundle, the quickest compile-and-link proof), `installer` (everything, through the app to the installer), `reveal` (open the file manager on it), `hash` (stage and hash what is built, building nothing), `upload` (send what is staged); plus `dev` and `vite-build`, which tauri.conf.json names as its before-commands. Everything past calling tauri or vite lives in one `scripts.js` at the monorepo root, reached by a verb, because the facts those steps share cross the workspace boundary. A script cannot be named `run` — pnpm's builtin shadows it. Deliberately no cleanup scripts: those were yarn-classic-era crutches, pnpm doesn't need clean reinstalls — and no script ever deletes the tracked lockfiles.
 - Router: decide by the app's nature, and revisit as the app grows. A many-screened app — lists, detail views, settings, the shape of a management console — earns vue-router: the route table is its table of contents. A single-space immersive app switches modes with plain Vue (`v-if` or `<component :is>` on a mode ref) — two or three modes sharing live state don't need URL serialization, history, or guards, and routers unmount components by default, which fights kept-alive state. If a router is adopted in a tauri app, use hash mode: history-mode paths expect a server to answer on reload, and a tauri bundle has none. Neither choice is dogma — an app that grows enough screens converts, with a reason attached.
@@ -76,10 +76,10 @@ Until then, the scaffold just needs to be structurally ready: the standard lib.r
 
 ## 8. The application icon
 
-The scaffold ships a correct default icon, and the first thing anybody does is replace it. That replacement is where two traps live, both of them measured and written up in fuji's `icon.md` — read it before running the generator, not after.
+The scaffold ships a correct default icon, and the first thing anybody does is replace it. That replacement is where two traps live, both of them measured and written up in fuji's icon notes — read them before running the generator, not after.
 
 **Use a CLI new enough to have the alpha fix.** `tauri icon` before `@tauri-apps/cli` 2.9.3 leaves a grey fringe on every curved edge, on every platform. The target stack above is well past that, so this only bites a project pinned older, or one whose icons were generated once and never regenerated — the second case is the one that catches people, because upgrading the CLI does not touch committed output.
 
 **macOS needs padding the generator will never add.** Apple's grid is an 824 body on a 1024 canvas, about 80.5%; `tauri icon` fills the canvas edge to edge, and every version of it does. An icon generated from one shared source is roughly a quarter too big in the Dock beside everything else. Windows wants close to the opposite, so a single padded source is not the fix either.
 
-Fuji's answer is a second source file and one line of config: `app-icon-mac.svg` identical to the shared artwork but inset to the grid, generated into `src-tauri/icons/mac/` where the shared run cannot overwrite it, with `bundle.icon` pointing at that `.icns`. One `pnpm icons` script runs both. Copy the shape if it fits; `icon.md` has the reasoning, the measurements, and what fourteen shipping applications do.
+Fuji's answer is a second source file and one line of config: `app-icon-mac.svg` identical to the shared artwork but inset to the grid, generated into `src-tauri/icons/mac/` where the shared run cannot overwrite it, with `bundle.icon` pointing at that `.icns`. One `pnpm icons` script runs both. Copy the shape if it fits; fuji's icon notes have the reasoning, the measurements, and what fourteen shipping applications do.

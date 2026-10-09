@@ -2,76 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Working agreements
-
-These are the rules a session works under here. They live in this file rather than in any one machine's memory, for the reason the rule about moving between machines gives.
-
-**The user alone runs git commands that change anything.** A session uses git to look — `status`, `log`, `diff`, `show`, `blame` — and never to commit, add, push, checkout, restore, reset, merge, rebase, stash, or tag. Finish the work, leave it in the working tree, say plainly what changed and what a commit would cover, and hand over the message rather than running anything. **A commit is asked for in one line that ends the response: 📌, a space, and the message in bold** — no code block, no `git` command, no `-am`, because the user always runs `git add .` and `git commit -m` by hand, and a code block renders in a color that is harder to read than bold. The message names the code change, not the comments or documents that came with it, and it is complete without being verbose: one line, with a clause for each thread the commit carries, so a small change is a few words and a session's worth of work is a sentence that names every part. The subjects in the log run three to eleven words because most commits are one thing; a commit that is three things gets three clauses rather than the largest one alone. What a message never does is grow a body: the ballooning that this rule exists to stop was five lines of bullet points, not a long subject. Every commit in this repository is the user's own, with a lowercase one-line subject and no body and no trailers, and it stays that way; a commit carrying a `Co-Authored-By` or a session link looks nothing like the rest of the history and has had to be rewritten once already. One consequence is worth stating on its own: **`git checkout <file>` is not an undo.** It discards every uncommitted change to that file, including work that has nothing to do with the mistake being fixed, and it has already cost a finished fix here once. Use the editing tools.
-
-**A diff file is the user's too, and never a session's to write.** A session reads diffs freely — `git diff`, `git show`, and `diff.diff` at the root when it is there — and never creates, refreshes or overwrites one. That file is gitignored, and the user writes it when he wants a change set in front of him; a session that regenerates it has replaced his record with its own idea of what changed, which is the git rule above in a smaller form. And **"let's review the diff" means review the changes it describes**, never audit how it was made or whether it is current. Take the file as the statement of what to look at, and spend the whole turn on whether the code in it is complete and correct — which is the review that was wanted, and the one a session is actually useful for.
-
-**The work moves between machines, and this repository is the only thing they share.** Fuji is cross-platform, and it is developed on several computers that pull and push through git rather than on one. A Mac mini is home base and where most of the work happens, though its display is old and sRGB. A MacBook Air is the Retina and Display P3 machine, visited when something has to be checked against a modern Apple panel. A Windows 10 box, itself old, a Linux desktop and a Raspberry Pi carry the desktop integration each of those systems needs.
-
-**Two machines publish fuji, and linux is not one of them.** Windows builds and sends the exe. The mac sends the dmg it built natively and the four linux packages it built in docker containers, so every linux package comes from one machine against one base image and one lockfile. A linux box can still clone this repository and run `pnpm installer` in `desktop` to build for the machine it is sitting at — that is development and it works — but `scripts.js` refuses to stage or upload from there, and says why.
-
-**So write for a reader who is somewhere else.** A Claude Code session keeps notes of its own, per project folder and per machine, and those do not travel: written on one computer they are invisible on the next, and the session that reads a file is almost never the session that wrote it. Weeks may have passed and many revisions may have landed in between. So anything worth knowing next time goes in a file here rather than in a note only one computer can see; a document says which machine a measurement came from, because the same code gives different numbers on different hardware; and it says what is settled against what is still assumed, since the reader cannot ask the session that found out. `contents.md` lists the design documents and says what each one owns, and separates them from letters, which are addressed to whoever comes next rather than settling a subject. `fidelity.md` is the worked example of all three habits.
-
-**But a note to another machine has to earn its place.** Every change here touches code that runs where this session cannot look, so "untested on Windows" is true of nearly everything and is never by itself worth writing down. A letter or an open item that says only that turns the other computers into a queue of doubt: it costs attention on every visit, it is mostly noise, and it buries the one entry that actually mattered.
-
-The bar is a **specific reason to believe something is likely to be wrong there**, and meeting it means naming the mechanism — a platform API that behaves differently, code behind a `#[cfg]` that has never been compiled for that target, an assumption read out of one platform's source and carried to another, a measurement that cannot be taken here. If no mechanism can be named, the work is simply done, and the next visit to that machine exercises it the way it exercises everything else.
-
-Two habits lower the bar rather than clear it, and both come before writing anything down. **Exercise the other platform's path here wherever it is not gated** — `open_argv` runs on every platform, so launching the binary with a file as an argument on a Mac tests exactly what Explorer does on Windows. And **write for the general case so the other platform runs the same code in a degenerate form** rather than a branch of its own: per-window state with one window in the map needs no Windows testing that one-window-per-process state would have needed.
-
-## Where the work ends up
-
-**Everything this project learns has a permanent home, and a planning document is not one of them.** There are four. `style.md` governs the first three and is the authority on how to write them.
-
-**The code, and the names in it.** The best home for a fact is a name that makes the fact obvious, and a shape that makes the wrong thing hard to write. Reach for that before reaching for prose.
-
-**Comments.** At the end of a line, above a group of lines, above a function — the *why* that the *how* cannot show. They are dense here by design and `style.md` argues for that at length.
-
-**Essays.** A `/* */` block in ordinary prose, for a mechanism that runs through several files where any one site reads as a contradiction on its own. The essay above `fullscreenSet` in `Shell.vue` is the worked example: fuji has two fullscreens on purpose, and every place that touches them looks like a mistake until you have read it.
-
-**The site.** `site/docs/` is the fourth destination and the only one that is not code. It takes long-form writing where a subject carries real research or engineering — measurements, the alternatives weighed and why, pictures of the defect. `site/docs/thumbnails.md` is the worked example: all of it is implemented in the code, but no comment could hold it in one place or with that depth. Use it rarely. Most work does not earn a page, and a page nobody needed is worse than none. `fujis-voice.md` is the guide for writing one: the voice, the three sections, and the habits to avoid.
-
-**All four are written in American English** — color, gray, behavior, center — and so is a session's conversation, since a spelling picked up in chat is the one that lands in the next file.
-
-**A page on the site leads with its result.** It assumes a reader who already knows school algebra and can read a table, so it states the finished equation or finding first, then what each term means, then examples — and does not walk the reader up to it the way a textbook would. `site/docs/gamma.md` is the worked example.
-
-**These four must be short, correct, and well placed.** Everything below is scaffolding for getting there.
-
-**The overviews stay at the level of the whole.** This file, `architecture.md` and `structure.md` give a complete and correct picture of the project, and never an inventory of its parts: not every custom class, not a module's functions, not a command's arguments. A list like that is either updated by hand with every local change or left to drift out of date, and both waste attention. What a part is and does belongs in the code beside it, and one example is enough to show a pattern.
-
-## Planning documents
-
-**They live at the repository root, in markdown, and `contents.md` says what each one owns.** They are where a subject gets decided, and they are written for a reader on another machine who cannot ask the session that wrote them. They are scaffolding, not fixtures: their acreage is meant to be spent.
-
-**A document has three acts, and which one it is in says how to edit it.**
-
-**First act: a whiteboard.** Scraps, notes, half-formed requirements, design ideas, and questions — seeded as they arise, with far more asked than settled. This is where "we should look at the dock menu, is any of it free, and what would a Mac user expect?" goes the moment somebody says it. The document exists so that concern survives the conversation.
-
-**Second act: research, results, and then a plan.** Work the questions and write the answers where the questions were. That usually rewrites the document completely, which is right — and nothing is lost, because the document is the record of what was asked. Then some code: a spike, an experiment in the field, enough to learn whether the ground is firm or the woods are dense. Somewhere in the middle of that, rewrite again, from exploration into a crisp plan of attack, and follow it incrementally. **That second rewrite usually makes the document shorter.** It grew while it was holding questions, possibilities and detailed measurements; those have now been spent on decisions, and all it has to carry is the plan.
-
-**Third act: cleanup, canonization, minimization.** The work has landed. What is left is the loose ends — something else to test, something to decide, something to table, something to forward as a note to the machine that can answer it — and that usually means a little more code and another smoke test. Then the document is minimized. **Most of its acreage is simply deleted**, and what is worth keeping moves to one of the four destinations above. What remains in the file is only the part still open. `thumbnail-open.md` is what that boiling leaves behind, and `contents.md` records which documents became pages on the site instead.
-
-**Roughly nineteen words in twenty go, and that is the expected shape rather than a failure.** The bulk is not being relocated — it is being spent. Almost none of it belongs in the code, because code has to stay tight and fast to read, and a comment earns its place only by making a reader faster. A planning document that has been "moved into comments" wholesale has ruined two things at once.
-
-**But deleting is done with a check, thoroughly and every time, even though it usually finds nothing.** The test is never "this section is about menus, menus are done, delete it" — subject and staleness are different questions, and a finished subject can still be the only place some small thing is written down. Before a section goes, ask three questions of it.
-
-*Is there a detail here that the code does not say and a comment should?* This is the common one, and it is small. Write the comment first, confirm it reads well where it sits, then delete the section.
-
-*Is there a realistic corner case, an untested condition, or a concern nobody has met yet?* Move a note into a document that will survive, or up into a higher-level one that owns the subject, or out to the machine that can answer it. Then delete.
-
-*Is there a path of research and exploration behind a decision, with enough substance that a reader would want the account?* That is the site's case. Propose a page, and delete only once it exists. The thumbnail work is the worked example: pages of measurements, alternatives and dead ends were removed from the planning documents, but only after `site/docs/thumbnails.md` had a good account of them — informative and interesting to somebody arriving later, which is a different job from the notes that produced it.
-
-**Delete the trail.** Not "first we thought this, so we tried that, but it did not work, and we were wrong about the other thing, which is how we got here." Only the working, finished implementation matters, nearly all of the time, and that lives in the code. Write what was decided and briefly why, where the work stands and briefly why, and what is next. A failed attempt earns its place only when the failure is the reason the design is what it is — `cache.md` keeps three of them because each names a constraint the store still has to meet.
-
-**When there is genuinely too much to say, that is the site's job, not the planning document's.** A subject with real innovation behind it — where how we got here is worth an account with measurements and pictures — becomes a page in `site/docs/`. That is the one case where the long version survives, and it survives somewhere a reader would actually look for it.
-
-**Keep them current as the work goes, and replace questions with answers.** A document that has learned something says the answer where it used to ask; it does not keep both. A finished item left sounding open costs a future session real time, because it reads as work to pick up.
-
-**They are not precious the way code is.** A stray passive voice in a comment earns a correction, a review, and a push — the same sentence in a planning document is fine, and loose prose here costs nothing. What they do have to be is complete, correct, and verbose, because they are what a reader has instead of the session.
-
 ## Project Overview
 
 Fuji is a multimedia file manager designed with privacy and precision in mind. It's a Tauri desktop application built with:
@@ -88,7 +18,7 @@ The application lives in the `desktop` workspace. The planning documents and the
 
 The root has no scripts, deliberately. `pnpm install` runs there and installs every workspace; everything else runs from inside the workspace it belongs to, so `cd desktop` comes first. **Throughout this document a path written `src/` or `src-tauri/` is relative to `desktop/`**, which is how the code refers to itself; only paths written from the root, like the build outputs below, carry the `desktop/` prefix.
 
-**The planning documents are listed in `contents.md`**, which says what each one owns and which to read first. Read `structure.md` and `architecture.md` before changing anything structural, and `style.md` before the first edit.
+**The planning documents live at the root under short names, and are found by name**: grep for the subject, or ask git which ones changed most recently. Read `structure.md` and `architecture.md` before changing anything structural.
 
 ## Development Commands
 
@@ -111,12 +41,6 @@ pnpm certificate  # find, make, or import the Mac's signing identity
 **Each command stops where its name says**, which is the whole point of naming them this way: `compile` never makes an installer, `installer` never hashes, `hash` never builds, `upload` never builds. Publishing is `installer`, `hash`, `upload`, then a commit, since the sidecars are tracked. A name means the same thing on every machine while doing different work underneath, so nothing has to be remembered per platform.
 
 Roughly what a release build costs, so a long one does not read as a hang: on the Mac mini about 20 seconds when only the frontend changed and a minute or so when Rust has to compile again; on the Windows 10 box 2m52s cold and about 45 seconds warm, and `pnpm installer` adds about six seconds there for the setup program. The release profile shares nothing with the debug profile `pnpm local` uses, so the first release build after a stretch of dev work compiles everything over again.
-
-**A session builds when there is a reason to, and picks the smallest build that gives it.** Not every turn, and not by habit at the end of a change.
-
-**To know the code is valid**, `cargo check` and `pnpm vite-build` are the cheap answers and usually enough. The build also fails on an import loop among fuji's own files, the rule `architecture.md` states. **To prove the release profile compiles and links**, `pnpm compile` and nothing more — no app folder, no dmg. **To let the user smoke test something that has to be installed**, `pnpm installer`; they then run `pnpm reveal` and drag it in themselves, because installing is theirs. **Otherwise build nothing.**
-
-Building the installer every turn is the habit to avoid: it is the slowest thing here, it produces a file nobody asked for, and it says nothing that `cargo check` did not already say.
 
 ### Frontend Only (for rapid UI iteration)
 ```bash
@@ -175,7 +99,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **The two layers are not coworkers.** Fuji's Rust and its JavaScript do not confer, do not split a problem between them, and do not solve one together. Every Rust command is dumb, atomic and simple; all the orchestration — the sequencing, the routing, the deciding what to call and when — happens in the page. `TestFlow.vue` is the worked example: it decides per file whether a thumbnail comes from the operating system or from the page, runs two loops at different widths, and stops them when a bucket goes away, while the Rust underneath does nothing but answer one question about one file.
 
-**The Rust codebase grows for three reasons and no others: speed, operating-system proximity, and a permission or security necessity.** Never because a task is "mostly Rust" or "involves Rust." When a feature needs both layers, the question is what single dumb thing Rust has to do that JavaScript cannot — write that, and put the rest in the page.
+**The Rust codebase grows for three reasons and no others: speed, operating-system proximity, and a permission or security necessity.** Never because a task is "mostly Rust" or "involves Rust." When a feature needs both layers, the question is what single dumb thing Rust has to do that JavaScript cannot do as well — write that, and put the rest in the page.
 
 **One codebase behaves differently on each platform in exactly one place, and three rules keep it that way.** *Ask the platform question once, where a thing is made, and never where it is used* — `window_build` is the only way a window comes into being, every caller is in `lib.rs`, and nothing downstream ever asks again. *Write for the plural and let the simpler platform be the degenerate case* — paths waiting for a page are keyed by window label everywhere, and Windows runs that map with one entry forever, needing no branch to do it. *Where a rule can be identical for free, make it identical* — settings and the log flush when the last window closes on every platform, not only at a quit. The alternative, per-process on one platform and per-window on another, is what makes every later feature ask which world it is in.
 
@@ -185,9 +109,9 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Rust Backend (desktop/src-tauri/src/)
 
-**Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what the page can ask Rust to do. Each module opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
+**Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what the page can ask Rust to do. No plugin is granted to the page: `capabilities/default.json` holds Tauri's core set and the calls the page makes on its own window, and anything past the window, an address opened in the browser or the system's file dialog, is a command here. Each module opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
 
-The modules, by what each one answers: the disk (`disk.rs`), the folder tree in find's order, many folders per call (`find.rs`), fuji's windows (`window.rs`), the files the operating system handed fuji (`open.rs`), the display (`panel.rs`), where this copy of the program is (`paths.rs`), the Windows registry (`registry.rs`), the Mac's record of which application opens which kind of file (`launch.rs`), the operating system's thumbnailer (`thumbnail.rs`), the machine's memory and what fuji's processes take of it (`memory.rs`), the log and the text written at exit (`log.rs`, `desktop.rs`), and the Mac's menu bar, dock and trackpad (`menu.rs`, `dock.rs`, `touch.rs`).
+The modules, by what each one answers: the disk (`disk.rs`), the folder tree in find's order, many folders per call (`find.rs`), fuji's windows (`window.rs`), the files the operating system handed fuji (`open.rs`), the display (`panel.rs`), where this copy of the program is (`paths.rs`), the Windows registry (`registry.rs`), other programs, handed a file or an address the way a double-click would (`process.rs`), the system's own dialog boxes (`dialog.rs`), the Mac's record of which application opens which kind of file (`launch.rs`), the operating system's thumbnailer (`thumbnail.rs`), the machine's memory and what fuji's processes take of it (`memory.rs`), the log and the text written at exit (`log.rs`, `desktop.rs`), and the Mac's menu bar, dock and trackpad (`menu.rs`, `dock.rs`, `touch.rs`).
 
 **Important Architecture Notes**:
 - File I/O uses synchronous `std::fs` calls inside `#[command(async)]`, so they run on Tauri's thread pool rather than the thread that runs the window; `disk_read()` loads entire files into memory (suitable for images, not large files). `lib.rs` has the rule for which commands are async

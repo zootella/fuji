@@ -2,8 +2,6 @@
 
 What fuji's speed has actually been measured to be, and what those measurements mean. Everything here comes from the log, `log.js` and `log.rs`, writing files during real use on 2026-09-06; nothing in it is reasoned from first principles, and where a cause is still a theory it says so.
 
-`architecture.md` says where things live, `cache.md` says what the store is and why it is dumb, and this file says what any of it costs.
-
 ## The instrument
 
 The log is two functions named `log`, one in `log.js` for the page and one in `log.rs` for Rust, each taking a string and adding it to one text file per run. The page's lines go down to Rust; Rust's are already there; when fuji exits, if the setting says so, Rust writes the file. Every load, every flip and every thumbnail is a row of aligned columns written through the page's `log`, and any other line either side wants kept goes through the same call. It never renders, because the HUD it replaced could not answer honestly — building a string and painting text in the same frame as the image being timed makes the reading part of what it reports. `log.js` carries the essay on why a file and not a console: a console is trapped behind the platform, behind who is looking, behind a development build, behind where fuji is installed, and behind the language, and a file crosses all five.
@@ -42,7 +40,7 @@ On an M2, macOS, WKWebView through Tauri. `1red` earns its place: a 26-megapixel
     2,497,662 bytes    371ms      149 ms/MB
     6,241,142 bytes    904ms      145 ms/MB
 
-Flat and linear in file size, which no SSD is. `cache.md` had predicted this in prose a while before anything measured it.
+Flat and linear in file size, which no SSD is. The store's design had predicted this in prose a while before anything measured it.
 
 **`tauri::ipc::Response` carries the same bytes as an ArrayBuffer.** After, the same files read in 2–15ms — roughly a hundredfold, and no longer meaningfully related to size. Every JS caller already wrapped the result in `new Uint8Array(...)`, which accepts either form, so nothing above `disk.rs` changed.
 
@@ -110,11 +108,11 @@ Holding the whole folder is clearly better than holding three, and the reason is
 
 ## What this means for the design
 
-`architecture.md` wrote the conclusion before there was evidence for it:
+The architecture wrote the conclusion before there was evidence for it:
 
 > **Prefer pixels fuji owns.** An image handed to the page as a data URL on an `img.src` is decoded by the browser, and fuji can neither measure that memory nor free it except by clearing the source. An `ImageBitmap` is an object with a size fuji can account for and a `close()` that releases it. A cache with a real byte budget needs the second kind.
 
-Finding three is that paragraph, measured. The store's `pixelBytes` is an estimate of memory the store does not control, and its retention is a request rather than a guarantee. The sheet took the road that paragraph points down on 2026-09-08, differently than it imagined: its thumbnails are canvases, with pixels from the operating system where the platform allows, and `canvas.md` has the measurements, taken outside the app. The table keeps its `img`, where showing beats drawing.
+Finding three is that paragraph, measured. The store's `pixelBytes` is an estimate of memory the store does not control, and its retention is a request rather than a guarantee. The sheet took the road that paragraph points down on 2026-09-08, differently than it imagined: its thumbnails are canvases, with pixels from the operating system where the platform allows, measured outside the app. The table keeps its `img`, where showing beats drawing.
 
 ## Open
 
@@ -122,7 +120,7 @@ Finding three is that paragraph, measured. The store's `pixelBytes` is an estima
 - **Whether Windows behaves the same.** WebView2 is Chromium and this was all WKWebView. Finding three especially is the sort of thing two engines could differ on.
 - **What a folder of hundreds does.** Everything here is six images. Retention under real pressure is untested.
 - **Whether the first decode can be made honest.** `img.decode()` resolves on a detached element that has never been in a render tree, so the store's `rendered` timestamp records something weaker than "ready to show."
-- **What the sheet costs, from inside the app.** Its thumbnail paths were measured outside it, in `canvas.md`, from a scratch binary and a headless webview. The `thumb` rows have now been read once, on Windows, to answer one question — whether *WIC*'s scaled decode engages, which it does; that measurement is on the site, on the thumbnail pipeline page. What is still unread is everything else those rows hold: what a bucket costs to fill, how the cost is spread across a real folder, and whether several thumbnails in flight is helping or crowding. A reading taken while a folder fills carries the other thumbnails' contention in it, which is the one trap in using them. Bytes are a different matter since 2026-10-06: each bucket's caption ends with what its canvases cost, and the memory report beneath the buckets, `BucketMemory.vue` over `memory.rs`, shows the machine's memory, what is in use, and each of fuji's processes by the number Activity Monitor or Task Manager would show, read every two seconds while it is on screen. That is the process number this file said only those tools could give, now inside fuji, and the milliseconds are still only in the rows.
+- **What the sheet costs, from inside the app.** Its thumbnail paths were measured outside it, from a scratch binary and a headless webview. The `thumb` rows have now been read once, on Windows, to answer one question — whether *WIC*'s scaled decode engages, which it does; that measurement is on the site, on the thumbnail pipeline page. What is still unread is everything else those rows hold: what a bucket costs to fill, how the cost is spread across a real folder, and whether several thumbnails in flight is helping or crowding. A reading taken while a folder fills carries the other thumbnails' contention in it, which is the one trap in using them. Bytes are a different matter since 2026-10-06: each bucket's caption ends with what its canvases cost, and the memory report beneath the buckets, `BucketMemory.vue` over `memory.rs`, shows the machine's memory, what is in use, and each of fuji's processes by the number Activity Monitor or Task Manager would show, read every two seconds while it is on screen. That is the process number this file said only those tools could give, now inside fuji, and the milliseconds are still only in the rows.
 
 ## Reproducing any of this
 

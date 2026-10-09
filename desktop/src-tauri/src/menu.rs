@@ -1,26 +1,32 @@
+use std::sync::Mutex;
 use tauri::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 /*
 Fuji's menu bar, which exists on macOS and nowhere else. Tauri applies a menu of its own under `#[cfg(target_os = "macos")]` when an application sets none, so fuji has always shown a menu it never wrote, and Windows and Linux have shown no menu at all. Setting one here has to stay gated the same way, because off the Mac a menu goes *inside* the window rather than along the top of the screen.
 
 **Why the whole menu is spelled out rather than edited.** Three items had to change, and Tauri's default can only be reached into by position — find the File submenu, insert at index one. That breaks silently on the day Tauri reorders its default, and the failure looks like an item in the wrong menu rather than an error. So fuji writes out every item it shows, and the price is that a future Tauri improvement to the default arrives here by hand.
 
-**What differs from that default, and nothing else does.** File gains New Window and Open…. View's system Toggle Full Screen is replaced by an item of fuji's own, which switches between the contact sheet in a window and the table in fuji's fullscreen, as a double-click does, rather than running macOS's. The Window submenu is registered with AppKit so macOS keeps it filled with the open windows, which Tauri's default never does. Everything else is copied across exactly, the Edit menu's unreachable Cut and Paste included: those are the platform's own items and removing them is a separate decision nobody has taken.
+**What differs from that default is what makes it a Mac menu, and nothing else does.** The application menu has About and Settings… where every Mac application keeps them, Settings… on ⌘, and both fuji's own items: About opens the settings panel with its About section in view instead of the panel macOS assembles from Info.plist, so every platform reads the same words in the same place. File gains New Window and Open…, and its close item says Close, the Mac's word, where muda's default says Close Window. View's system Toggle Full Screen is replaced by an item of fuji's own, which switches between the contact sheet in a window and the table in fuji's fullscreen, as a double-click does, rather than running macOS's, and the page retitles it to name where it goes next, through menu_text below. The Window submenu ends with Bring All to Front and has no close item, as a Mac Window menu does, and it is registered with AppKit so macOS keeps it filled with the open windows, which Tauri's default never does. Help holds Fuji Help, which opens fuji's site in the system's browser, and not About, which is a Windows habit. The Edit menu is copied across exactly, its unreachable Cut and Paste included: those are the platform's own items, muda has no Delete to add beside them, and macOS adds Dictation and Emoji on its own.
 
 **Fuji has two fullscreens and the View menu shows both, which is deliberate and is not this file's subject.** macOS inserts its own *Enter Full Screen* into any menu titled "View", so one item is written here and two appear — worth knowing before somebody hunts for the second one in this file. The essay above `fullscreenSet` in Shell.vue is where that whole subject lives: why there are two, which is for what, and how they are kept from landing on top of each other.
 
-**Rust does one of the three itself and hands the other two to the page.** Making a window is Rust's, because only Rust can make one. Choosing a file and toggling fullscreen are the page's, because the page already does both — a picker ends in the same call a dropped file takes, and fullscreen is the table, which a double-click already switches to. Sending those two down means one implementation of each rather than two, which is the rule in CLAUDE.md about the two layers seen from the menu's side.
+**Rust does one of the six itself and hands the other five to the page.** Making a window is Rust's, because only Rust can make one. Choosing a file, switching views, showing the settings and About, and opening the site are the page's, because the page already does all of them — a picker ends in the same call a dropped file takes, the fullscreen table is what a double-click already switches to, the settings panel is what s already shows and About is its last section, and the site is an address the page already asks Rust to open. Sending those five down means one implementation of each rather than two, which is the rule in CLAUDE.md about the two layers seen from the menu's side.
 
-**The menu is application-wide and a menu item is not.** macOS shows one menu bar however many windows are open, so an item has to act on the window in front. The event below goes to the focused window alone, and to nowhere at all when fuji is resident with no windows.
+**The menu is application-wide and a menu item is not.** macOS shows one menu bar however many windows are open, so an item has to act on the window in front. The event below goes to the focused window alone. When fuji is resident with no windows, Open… and the View item go nowhere, and Settings…, About and Fuji Help bring a window up, the way a click on the dock icon does: one that first appears showing the settings, or with the site opening in front of it. An event cannot reach that window, because its page is not listening yet, so the item waits here under the new window's label until the page asks for it as it mounts: open.rs's rule for a double-clicked picture, delivered to the window made for it, applied to a menu item.
 */
 
 //the ids fuji's own items carry, and the contract between this file and Shell.vue, which matches on these same strings
 pub const MENU_NEW_WINDOW: &str = "menu-new-window";
 pub const MENU_OPEN: &str = "menu-open";
 pub const MENU_FULLSCREEN: &str = "menu-fullscreen";
+pub const MENU_ABOUT: &str = "menu-about";
+pub const MENU_SETTINGS: &str = "menu-settings";
+pub const MENU_HELP: &str = "menu-help";
 
 const MENU_VIEW: &str = "View";//the submenu's title, named once because two things below have to agree on it: the menu fuji builds, and the lookup that finds it again afterwards
+
+static MENU_WAITING: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());//items chosen while no window was open, each beside the label of the window made to answer it; a handful at most, so a list rather than a map
 
 /// Build the menu bar and make it the application's; lib.rs calls this during setup, on macOS only
 pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
@@ -28,12 +34,14 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 		&PredefinedMenuItem::minimize(app, None)?,
 		&PredefinedMenuItem::maximize(app, None)?,
 		&PredefinedMenuItem::separator(app)?,
-		&PredefinedMenuItem::close_window(app, None)?,
+		&PredefinedMenuItem::bring_all_to_front(app, None)?,//the item a Mac Window menu ends with, ahead of the window list macOS fills in; Close belongs to File alone
 	])?;
 
 	let menu = Menu::with_items(app, &[
 		&Submenu::with_items(app, &app.package_info().name, true, &[//the application menu, named brandName, the product name in tauri.conf.json
-			&PredefinedMenuItem::about(app, None, None)?,//the panel macos assembles out of Info.plist, which already carries fuji's name and version
+			&MenuItem::with_id(app, MENU_ABOUT, format!("About {}", app.package_info().name), true, None::<&str>)?,//fuji's own About, the last section of the settings panel, in place of the panel macOS assembles from Info.plist; Apple's wording for the item, with brandName
+			&PredefinedMenuItem::separator(app)?,
+			&MenuItem::with_id(app, MENU_SETTINGS, "Settings…", true, Some("CmdOrCtrl+,"))?,//the Mac's own place and word for it since Ventura, with its shortcut, ahead of Services; the page shows the settings panel, which s already does
 			&PredefinedMenuItem::separator(app)?,
 			&PredefinedMenuItem::services(app, None)?,
 			&PredefinedMenuItem::separator(app)?,
@@ -46,7 +54,7 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 			&MenuItem::with_id(app, MENU_NEW_WINDOW, "New Window", true, Some("CmdOrCtrl+N"))?,
 			&MenuItem::with_id(app, MENU_OPEN, "Open…", true, Some("CmdOrCtrl+O"))?,
 			&PredefinedMenuItem::separator(app)?,
-			&PredefinedMenuItem::close_window(app, None)?,
+			&PredefinedMenuItem::close_window(app, Some("Close"))?,//the Mac's word; muda's default here says Close Window, which is a Windows menu's
 		])?,
 		&Submenu::with_items(app, "Edit", true, &[//tauri's default, kept on purpose. These are the standard macOS commands and they reach the web view, which implements all of them — the page just gives them nothing to do, since every view is select-none and nothing is editable. They wait here for a file manager's Copy and Paste, which will mean files
 			&PredefinedMenuItem::undo(app, None)?,
@@ -58,11 +66,11 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 			&PredefinedMenuItem::select_all(app, None)?,
 		])?,
 		&Submenu::with_items(app, MENU_VIEW, true, &[
-			&MenuItem::with_id(app, MENU_FULLSCREEN, "Toggle Full Screen", true, Some("CmdOrCtrl+Ctrl+F"))?,//fuji's own fullscreen, not the system's, and macOS adds a second item of its own to any menu called View — the essay above fullscreenSet in Shell.vue is the whole subject and worth reading before touching either. ⌃⌘F is the keystroke a mac user already knows, reaching the code a double-click reaches. Spelled this way because muda parses "Cmd" to Modifiers::META and its macos layer only turns Modifiers::SUPER into the command key — so "Ctrl+Cmd+F" silently loses the command and becomes ⌃F. The CmdOrCtrl family is the only spelling that produces command here, which is why the two items above use it
+			&MenuItem::with_id(app, MENU_FULLSCREEN, "Show Light Table", true, Some("CmdOrCtrl+Ctrl+F"))?,//the title the page sets at launch and on every change of view through menu_text below, Show Light Table from the sheet and Show Contact Sheet from the table, because a Mac item names where it takes you rather than saying toggle. It is fuji's own fullscreen, not the system's, and macOS adds a second item of its own to any menu called View — the essay above fullscreenSet in Shell.vue is the whole subject and worth reading before touching either. ⌃⌘F is the keystroke a mac user already knows, reaching the code a double-click reaches. Spelled this way because muda parses "Cmd" to Modifiers::META and its macos layer only turns Modifiers::SUPER into the command key — so "Ctrl+Cmd+F" silently loses the command and becomes ⌃F. The CmdOrCtrl family is the only spelling that produces command here, which is why the two items above use it
 		])?,
 		&windows,
 		&Submenu::with_items(app, "Help", true, &[
-			&PredefinedMenuItem::about(app, None, None)?,
+			&MenuItem::with_id(app, MENU_HELP, format!("{} Help", app.package_info().name), true, Some("CmdOrCtrl+Shift+/"))?,//the first item of every Mac Help menu, on ⌘? as the keycap reads it; macOS puts its search field above. The page opens the site in the system's browser, fuji's manual; the help panel on h is separate. About belongs under the application menu alone
 		])?,
 	])?;
 
@@ -79,7 +87,7 @@ macOS puts a second item into the View menu by itself — *Enter Full Screen*, o
 
 The retitling is not a mechanism of its own: it is part of menu validation. Before a menu opens, AppKit walks its items and asks the responder chain to validate each, and `NSWindow`'s answer for `toggleFullScreen:` both enables that item and rewrites its title. The walk only happens while the menu's `autoenablesItems` is on, and **muda turns it off on every menu and submenu it builds** — reasonably, since muda tracks each item's enabled state itself and automatic enabling would fight it. The collision exists only because macOS adds an item muda knows nothing about, and that is the one item needing validation. So this turns the flag back on, for the View submenu alone, by setting a property on an AppKit object muda handed over — which keeps it in the same safe category as `ns_window()` rather than the category a custom dock menu would need.
 
-**Fuji's own item is not put at risk**, which was worth checking before writing this. AppKit leaves an item enabled when it has an explicit target that responds to its action and that target does not implement `validateMenuItem:`; muda sets each item's target to the item itself with an action it implements, and implements `validateMenuItem:` nowhere. So fuji's Toggle Full Screen stays enabled, and only the system's item — which has no target and so reaches `NSWindow` — is validated and retitled.
+**Fuji's own item is not put at risk**, which was worth checking before writing this. AppKit leaves an item enabled when it has an explicit target that responds to its action and that target does not implement `validateMenuItem:`; muda sets each item's target to the item itself with an action it implements, and implements `validateMenuItem:` nowhere. So fuji's own View item stays enabled, and only the system's item — which has no target and so reaches `NSWindow` — is validated and retitled.
 
 Every way this can fail leaves the label as wrong as it already was and nothing worse: a muda that stops disabling validation makes this a no-op, one that disables it after us puts the stale label back, and a View submenu that cannot be found means doing nothing.
 */
@@ -97,8 +105,34 @@ fn menu_validate_view() {
 pub fn menu_chosen(app: &AppHandle, event: MenuEvent) {
 	let id = event.id().as_ref();
 	if id == MENU_NEW_WINDOW { crate::window::window_open(app, vec![]); return }//only rust can make a window, so this one never reaches the page
-	if id != MENU_OPEN && id != MENU_FULLSCREEN { return }//a predefined item macos handles by itself, and not fuji's business
+	if ![MENU_OPEN, MENU_FULLSCREEN, MENU_ABOUT, MENU_SETTINGS, MENU_HELP].contains(&id) { return }//a predefined item macos handles by itself, and not fuji's business
 
-	let Some(window) = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false)) else { return };//no window in front, which on macOS means fuji is resident with none open; the item has nothing to act on
+	let Some(window) = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false)) else {//no window in front, which on macOS means fuji is resident with none open
+		if ![MENU_ABOUT, MENU_SETTINGS, MENU_HELP].contains(&id) { return }//Open… and the View item act on a window, and there is none to act on
+		match crate::window::window_build(app, vec![]) {//a window, as a click on the dock icon makes, for the item to be answered in
+			Ok(label) => MENU_WAITING.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).push((label, id.to_string())),//held after the window is built and still before its page can ask: menu events and the page's calls both arrive on the main thread, and this has it until it returns
+			Err(e) => crate::log::log(&format!("menu: could not make a window, {e}")),
+		}
+		return
+	};
 	let _ = app.emit_to(window.label(), "menu", id);//to that window alone, because the menu bar is shared and the item is not
+}
+
+/// The item this window was made to answer, chosen while no window was open, taken away as it answers; blank for a window made any other way
+#[tauri::command]
+pub fn menu_waiting(window: WebviewWindow) -> String {
+	let mut waiting = MENU_WAITING.lock().unwrap_or_else(|poisoned| poisoned.into_inner());//take the list even if a previous holder panicked
+	let Some(at) = waiting.iter().position(|(label, _)| label == window.label()) else { return String::new() };
+	waiting.remove(at).1
+}
+
+/// Retitle one of fuji's own items; the page calls this as a window's view changes, because the menu bar cannot see what a window shows, and the View item names where it takes you
+#[tauri::command]
+pub fn menu_text(app: AppHandle, id: String, text: String) -> Result<(), String> {
+	let menu = app.menu().ok_or("no menu bar")?;
+	for kind in menu.items().map_err(|e| e.to_string())? {//the bar is submenus and each holds items, two levels, which is the whole of the menu above; tauri's get looks one level down and no further
+		let Some(submenu) = kind.as_submenu() else { continue };
+		if let Some(item) = submenu.get(id.as_str()).and_then(|k| k.as_menuitem().cloned()) { return item.set_text(text).map_err(|e| e.to_string()) }
+	}
+	Err(format!("no menu item {id}"))
 }

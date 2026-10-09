@@ -8,23 +8,23 @@ Boiled down on 2026-10-04, at the end of a pass that set out to evaluate, simpli
 
 Each says where it came from, since some are the user's and some are a session's suggestions the user has not yet adopted.
 
-**A deadline in the governor.** The answer to a call that never ends: past it, the governor frees the place and fails the caller's promise, while the stuck work finishes or does not on a thread nothing waits for. It would also free the diamond table, whose queue freezes behind one load that never settles. `security.md` has the case and `governor.js` the shape. Raised in conversation with the user during the 2026-10-04 pass, as the answer to the third of the three ways `security.md` says any call can end: never.
+**A deadline in the governor.** The answer to a call that never ends: past it, the governor frees the place and fails the caller's promise, while the stuck work finishes or does not on a thread nothing waits for. It would also free the diamond table, whose queue freezes behind one load that never settles. `governor.js` has the shape. Raised in conversation with the user during the 2026-10-04 pass, as the answer to the third way any call can end: never.
 
 **Fuzzy Logic.** Each governor timing its calls and widening or narrowing itself from four to fit the resource, so a fast internal drive is driven harder than a conference thumb drive. The user's idea; `governor.js` sketches it.
 
 **Priority in the governor**, letting a tile the user can see go ahead of one they cannot. A session's suggestion, written into `governor.js`'s essay and not yet adopted.
 
-**More buckets, pages, and paging through a whole drive.** The sheet shows `sheet.buckets` buckets from the start of one folder today, and nothing past them. `bucket.md` owns this.
+**More buckets, pages, and paging through a whole drive.** The sheet shows `sheet.buckets` buckets from the start of one folder today, and nothing past them.
 
 **The look-ahead, and a database of what fuji has seen**, below. The user's idea, and deliberately much later.
 
-**Two corrections found while rewriting `security.md`**, a session's suggestions and not yet adopted: a top gate in the page that writes every escaped rejection to the log, and a limit on a read checked against the listing's size, so a disk image renamed `.jpg` is not read whole. `security.md` lists both under what to build next.
+**Two corrections**, a session's suggestions and not yet adopted: a top gate in the page that writes every escaped rejection to the log, and a limit on a read checked against the listing's size, so a disk image renamed `.jpg` is not read whole.
 
 ## Later: the look-ahead, and a database of what fuji has seen
 
 **A separate system, and a much later one.** Today fuji reads a file when a visible bucket needs its thumbnail and nothing sooner, and keeps nothing once the bucket goes: fast to first pixels and light on the disk, which is what fuji wants now.
 
-**What it would do.** Peek at the tips of files well ahead of the view — the first bytes for the format, the header for the size, a flag or two such as whether a WebP is animated — and keep what it learns by path in an SQLite database, with each file's size and modification time beside it to tell when it has changed. A bucket could then hold every tile's box before its pixels arrive; a file with no extension could be named by its bytes, the open case in `security.md`; animated WebP could go to an `<img>`; and a page-route file could be checked against the size ceiling. A thumbnail cache on disk, which is how Finder is instant on a folder it has seen, is a store of the same shape over the same paths, so the two may be one database.
+**What it would do.** Peek at the tips of files well ahead of the view — the first bytes for the format, the header for the size, a flag or two such as whether a WebP is animated — and keep what it learns by path in an SQLite database, with each file's size and modification time beside it to tell when it has changed. A bucket could then hold every tile's box before its pixels arrive; a file with no extension could be named by its bytes; animated WebP could go to an `<img>`; and a page-route file could be checked against the size ceiling. A thumbnail cache on disk, which is how Finder is instant on a folder it has seen, is a store of the same shape over the same paths, so the two may be one database.
 
 **The one constraint already known.** It can never stand between a bucket and its first thumbnail. The probe did exactly that — every file on a bucket read before any render began — and the sheet paused and then filled all at once; taking it out made thumbnails appear immediately. Whatever reads ahead runs beside the view, and the view uses what it finds when it is there and does without it when it is not.
 
@@ -45,5 +45,3 @@ Each says where it came from, since some are the user's and some are a session's
 **HEIC and TIFF**, a decision about what fuji claims to open rather than about the pipeline. ImageIO thumbnails a HEIC in about sixteen milliseconds and Windows without the paid codec cannot show one; TIFF is the mirror case, in WIC at the factory and never in Chromium.
 
 **A change of monitor.** Canvases are never remade when a window moves to another screen, so `devicePixelRatio` and the gamut go stale until the sheet rebuilds. Read from the code and never exercised; it needs two screens of different character.
-
-**Elsewhere, so this file does not grow to hold them:** the path scope in Rust is `security.md`'s first wall; what a bucket is to the user is `bucket.md`'s; and what the engines do with a canvas is `canvas.md`'s.

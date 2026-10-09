@@ -93,7 +93,7 @@ defineExpose({look})//for the panel, which hears when the window comes back into
 
 	<div v-for="list in fileLists" :key="list.heading + list.named" class="mt-6"><!-- the whole heading, which no two lists share -->
 		<h3 v-if="list.heading" class="text-strong">{{list.heading}}<template v-if="list.named">'<i>{{list.named}}</i>'</template></h3>
-		<p v-if="list.extensions.length == 0" class="mt-1 text-fainter">none yet</p>
+		<p v-if="list.extensions.length == 0" class="mt-1 text-fainter italic">None yet</p>
 		<div class="flex flex-wrap gap-2 mt-1">
 			<!-- mousedown.prevent keeps the focus where it is, so a click on a chip, which moves or puts away the card itself, does not also tell a pinned card it lost the focus -->
 			<button v-for="extension in list.extensions" :key="extension" type="button" :class="{'text-warn': associateDiffers(extension)}" class="myChip px-2" @mouseenter="chipEnter(extension, $event)" @mouseleave="hoverLeave" @mousedown.prevent @click="chipClick(extension, $event)">{{extension}}</button>

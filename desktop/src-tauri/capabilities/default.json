@@ -14,18 +14,9 @@
 		"core:window:allow-set-decorations",
 		"core:window:allow-set-fullscreen",
 		"core:window:allow-set-simple-fullscreen",
-		"core:window:allow-set-size",
 		"core:window:allow-set-title",
-		"core:window:allow-set-position",
 		"core:window:allow-set-theme",
 		"core:window:allow-show",
-		"core:webview:allow-set-webview-focus",
-		"opener:allow-reveal-item-in-dir",
-		{
-			"identifier": "opener:allow-open-url",
-			"allow": [{"url": "ms-settings:defaultapps*"}]
-		},
-		"dialog:allow-open",
-		"dialog:allow-save"
+		"core:webview:allow-set-webview-focus"
 	]
 }

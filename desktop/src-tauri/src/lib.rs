@@ -5,16 +5,17 @@ The boundary. Everything the page may ask Rust to do is named once in this file,
 
 **A command takes one thing.** A list stays in the page, which calls once per item and owns the order, how many are in flight, and when to stop; so thumbnail_render takes one path and registry_set writes one value. A crossing costs little, and a loop down here is a decision taken away from the page.
 
-**A command that waits runs its body on the blocking pool.** Tauri runs a plain #[command] on the thread that runs the window, one at a time in the order they arrive. So a command that works on the window stays plain — window.rs — because on that thread tauri makes a change at once, where from anywhere else it only queues the change and the command answers before the window has moved. A command that waits, on the disk, the processor or another program — disk.rs, thumbnail.rs, launch.rs, and panel.rs for the xrandr it runs on linux — is an async fn that hands its body to run_blocking below, so a slow read or a decode never holds up a window event or another command's reply, and a panic in it comes back to the page as an error. The rest return at once and are plain. The essay above disk_readdir in disk.rs says why the bodies go to tokio's blocking pool rather than tauri's workers, and what that costs.
+**A command that waits runs its body on the blocking pool.** Tauri runs a plain #[command] on the thread that runs the window, one at a time in the order they arrive. So a command that works on the window stays plain — window.rs — because on that thread tauri makes a change at once, where from anywhere else it only queues the change and the command answers before the window has moved. A command that waits, on the disk, the processor, the user or another program, is an async fn that hands its body to run_blocking below, so a slow read or a decode never holds up a window event or another command's reply, and a panic in it comes back to the page as an error. The rest return at once and are plain. The essay above disk_readdir in disk.rs says why the bodies go to tokio's blocking pool rather than tauri's workers, and what that costs.
 
 **Rust trusts the page, and guards only what the page cannot.** A check here that repeats a decision the page made is a second copy of it, and second copies go stale. The trust rests on three walls around the page: every path it acts on came from the user or was built by fuji itself, never from outside content; untrusted text reaches it only through Vue's escaping interpolation, so it never becomes script; and the Content-Security-Policy in tauri.conf.json keeps foreign script out even if one of those cracks. The walls Rust does hold are the ones that must stand before the page could look: thumbnail.rs refuses a header claiming more memory than the machine has, before any decoder allocates. disk.rs names the next one, for when deleting arrives.
 
-The plugins are the other half of the surface. Registering one here does not decide how much of it the page can reach; capabilities/default.json does, naming individual permissions, so read the two files together. Each grant is narrowed to the feature that needs it: the dialog plugin to the open and save boxes, which File, Open uses, and the opener to revealing a file, which nothing calls yet, and to one url pattern, Windows Settings' Default apps, which the file types in fuji's settings open for the user. A link to anywhere else is refused.
+**The commands are the page's only road past its window.** Tauri's plugins would give it a second one, JavaScript bindings granted in capabilities/default.json with scopes of their own, and fuji grants the page none: that file holds Tauri's core set and the calls the page makes on its own window, and nothing else. So what the page can ask of the machine is read here, in one list written to one rule, and widening it is a Rust change reviewed as code rather than an edit to a policy file. Where a plugin's Rust half does the work well, a command calls it, as dialog.rs calls the dialog plugin's, registered below for that and granted to nobody; process.rs opens an address or a file through the crate Tauri's opener plugin wraps, and needs no plugin at all.
 
 **No window is made here.** Every window comes from the event closure below, under one rule: Ready makes a window if there is none. A double-click on the Mac delivers Opened before Ready, so the picture already has its window; on Windows and Linux Opened never fires, so Ready always makes it. Making a window in setup instead is what once opened two for one double-click, one of them blank.
 */
 
 mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
+mod dialog;//and dialog.rs: the system's own dialog boxes, put up for the page
 mod disk;//and disk.rs: file commands, thin wrappers over std::fs
 mod find;//and find.rs: finding things in the folder tree, many folders read in one call through the disk's glance
 mod fit;//and fit.rs: the fits, the arithmetic fit.js has too, which a native thumbnail's size is chosen by
@@ -25,9 +26,17 @@ mod log;//and log.rs: the log's text, held from both sides and written on the wa
 mod memory;//and memory.rs: how much memory the machine has and is using, and what this process and its web engine's processes take
 #[cfg(target_os = "macos")]//the whole module is macos-only: it calls tauri menu methods that do not exist on other targets, and a menu belongs along the top of the screen only here
 mod menu;//and menu.rs: the menu bar
+#[cfg(not(target_os = "macos"))]
+mod menu {//off the mac there is no menu bar, so the two commands the page has for it answer at once and change nothing: the page calls them on every platform, and this is the degenerate case
+	#[tauri::command]
+	pub fn menu_text(_id: String, _text: String) -> Result<(), String> { Ok(()) }
+	#[tauri::command]
+	pub fn menu_waiting() -> String { String::new() }
+}
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
 mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
+mod process;//and process.rs: other programs, handed a file or an address the way a double-click would
 mod registry;//and registry.rs: the windows registry, read and written for the page
 mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path at a time
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
@@ -56,8 +65,7 @@ pub fn run() {
 	log::log_panics();//before anything can panic, so every panic after this has its place in the log; a line held for the log survives a panic run_blocking catches, and is lost with the rest of the held text in one that ends the process
 	window::window_launch();//first of all, so this copy's launch moment is when it started; window.rs tells a flurry of copies from a deliberate second launch by it
 	tauri::Builder::default()//start building the Tauri application
-		.plugin(tauri_plugin_opener::init())//reveal a file in finder or explorer, and open windows' default apps settings; capabilities grant those two and no other url
-		.plugin(tauri_plugin_dialog::init())//the familiar os open and save dialog boxes; capabilities grant only those two, not message boxes
+		.plugin(tauri_plugin_dialog::init())//for its Rust half, which dialog.rs calls to put up the system's file dialogs; capabilities grant the page none of it
 		.manage(desktop::ExitFiles::default())//shared state any command can reach: text handed down to be written on the way out
 		.manage(open::OpenFiles::default())//and the paths the operating system handed fuji, waiting for the page to be built and ask for them
 		.invoke_handler(//the complete list of what javascript may invoke; a name absent here cannot be called at all
@@ -70,6 +78,7 @@ pub fn run() {
 				disk::disk_copy,
 				find::find_folders,//and in find.rs
 				desktop::desktop_exit_hold,//and in desktop.rs
+				dialog::dialog_open,//and in dialog.rs
 				log::log_start,//and in log.rs
 				log::log_append,
 				launch::launch_opens,//and in launch.rs
@@ -79,12 +88,15 @@ pub fn run() {
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				open::open_files,//and in open.rs
 				paths::paths_executable,//and in paths.rs
+				process::process_open,//and in process.rs
 				registry::registry_get,//and in registry.rs
 				registry::registry_set,
 				registry::registry_delete,
 				registry::registry_notify,
 				registry::registry_opens,
 				touch::touch_block,//and in touch.rs
+				menu::menu_text,//and in menu.rs, or its stand-in off the mac
+				menu::menu_waiting,
 				window::window_frame,//and in window.rs
 				window::window_frame_set,
 				window::window_fullscreen_leave,
@@ -113,7 +125,7 @@ pub fn run() {
 				#[cfg(target_os = "macos")]
 				tauri::RunEvent::Reopen { has_visible_windows, .. } => { if !has_visible_windows { window::window_open(app, vec![]) } }//the dock icon clicked with nothing behind it, which is how a mac user asks a resident application for a window back
 				#[cfg(target_os = "macos")]//this variant exists on every desktop, unlike the two above; what is mac-only is fuji's menu module, which nothing off the mac compiles
-				tauri::RunEvent::MenuEvent(event) => menu::menu_chosen(app, event),//fuji makes a window itself and hands the other two items to the page, which already knows how to do them
+				tauri::RunEvent::MenuEvent(event) => menu::menu_chosen(app, event),//fuji makes a window itself and hands the other five items to the page, which already knows how to do them
 				_ => {}//RunEvent is non-exhaustive, and everything else is somebody else's business
 			}
 		});

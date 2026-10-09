@@ -2,8 +2,6 @@
 
 What fuji's application icon is, what each desktop platform expects one to be, and where the two disagree. Everything below was measured on 2026-09-07 against the files in this repository and against macOS 15.7.4's own applications; nothing is reasoned from first principles, and where something has not been researched yet it says so rather than guessing.
 
-`scaffold.md` says how a project like this one is set up, and this says how it gets its icon.
-
 ## The design, and why it is a bare circle
 
 **A single flat colour, and nothing else.** No border, no gradient, no shadow, no shine. `#9FFFE0` is a cyan that almost smells of photo chemicals, and that association is the whole of the idea — the icon says darkroom without drawing one.
@@ -247,7 +245,7 @@ Applied 2026-09-07, and revised 2026-09-09 when the disc grew off the grid. This
     src-tauri/icons/app-icon-mac.svg    r="446"   the same disc drawn for the dock
     src-tauri/icons/app-icon-tile.svg   r="338"   and drawn for the Start menu tile
 
-That is the entire difference between them: one number each. `structure.md`'s rule about a family sharing a leading noun is why they are `app-icon-mac` and `app-icon-tile` rather than `mac-app-icon` and `tile-app-icon`.
+That is the entire difference between them: one number each. The house rule that a family shares a leading noun is why they are `app-icon-mac` and `app-icon-tile` rather than `mac-app-icon` and `tile-app-icon`.
 
 **Three destinations, so none can overwrite another, and a scratch tree behind each of the extra runs.**
 

@@ -37,6 +37,6 @@ None of this changes the decision. It is why the date under a thumbnail will som
 
 - **Local time.** A JavaScript `Date` made from the milliseconds, read with its local getters, so a file modified at 23:30 UTC is still that day for a user to the west of Greenwich.
 - **Fuji's own month names**, a three-letter English list, `Sep` among them, rather than `Intl`'s, so the caption reads the same on every machine whatever its language.
-- **Thin spaces around the month**, U+2009, written as `${thinSpace}` in the code, the rule `style.md` now states.
+- **Thin spaces around the month**, U+2009, written as `${thinSpace}` in the code, the house rule for a character that looks like another.
 - **No time of day.**
 - **Nothing at all for a file with no modified time**, which the listing reports as 0, rather than a day in 1970.

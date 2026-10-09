@@ -147,8 +147,7 @@ export default defineConfig({
 		// holds the papers: each runs from the history of pictures, sound and personal computing into
 		// how fuji builds the thing and what was measured to decide it, ordered from the most engineering
 		// to the most historical, and the heading names the attention to detail they share rather than
-		// the form. About is the vibe. fujis-voice.md at the root says what each section
-		// is for and how it grows. One of the pages is a stub carrying only its title.
+		// the form. About is the vibe. One of the pages is a stub carrying only its title.
 		//
 		// A fourth section, Examples, held VitePress's two starter pages and a Code Examples page of
 		// real fuji source that the site's type and colors were judged against. All three are deleted

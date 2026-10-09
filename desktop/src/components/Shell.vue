@@ -3,16 +3,18 @@
 import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
-import {open as openDialog} from '@tauri-apps/plugin-dialog'//the picker behind File, Open; the plugin is registered in lib.rs and granted in capabilities/default.json
+import {dialogOpen} from '../dialog.js'//the picker behind File, Open, the system's own, which rust puts up
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
+import {menuText, menuWaiting} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, and which item a new window was made to answer
 import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
-import {brandName} from '../brand.js'//for the log lines that say what it did
+import {brandName, urlHelp} from '../brand.js'//for the log lines that say what it did, and the address Fuji Help opens
+import {processOpen} from '../process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenLeave} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, and to leave fullscreen without showing a hidden window
 import HelpPanel from './HelpPanel.vue'
@@ -77,6 +79,12 @@ onMounted(async () => {
 	} catch (error) {
 		notices.push(sayTrouble(`shell: asking what ${brandName} was opened with`, error))//the same reasoning as above: nothing here is worth leaving the window hidden for
 	}
+	let waiting = ''//Settings…, About or Fuji Help, when one was chosen from the mac's menu bar while fuji had no window and this window was made to answer it; blank for every other window
+	try {
+		waiting = await menuWaiting()
+	} catch (error) {
+		notices.push(sayTrouble('shell: asking what the menu bar chose', error))//and again
+	}
 	showing.value = opened.length ? 'Table' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, and every other launch on the contact sheet, since the sheet is the view that lives in a window
 	whichTable.value = settings.view.table
 	helpShowing.value = settings.hud.help//on at the factory, so a new user is greeted by it
@@ -93,8 +101,10 @@ onMounted(async () => {
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
 	await reportTrouble(() => placeWindow(w, opened[0]))//before the reveal, so the window first appears where it will stay. Only the first picture, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
+	if (waiting && waiting != 'menu-help') await reportTrouble(() => menuChose(waiting))//before the reveal too, so the window first appears with the settings or their About section up, rather than as a sheet that then changes
 
 	await revealWindow()
+	if (waiting == 'menu-help') reportTrouble(() => menuChose(waiting))//after the reveal, so the browser opens in front of the window rather than behind it
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	activeView()?.start?.()
 	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble(`shell: registering what ${brandName} can open`, error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
@@ -107,7 +117,10 @@ onMounted(async () => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => viewOpen(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji
 	})
 	unlistenResized = await w.onResized(() => reportTrouble(recordSheet))//the sheet's size, into settings as the user changes it
-	unlistenFocus = await w.onFocusChanged(event => reportTrouble(() => activeView()?.onFocus?.(event.payload)))//a window event like the rest, handed to the view showing; the preview closes on losing it
+	unlistenFocus = await w.onFocusChanged(event => {
+		if (event.payload) menuTitle()//the one menu bar serves every window, so the window coming to the front says where its own View item goes
+		reportTrouble(() => activeView()?.onFocus?.(event.payload))//a window event like the rest, handed to the view showing; the preview closes on losing it
+	})
 	reportTrouble(async () => activeView()?.onFocus?.(await w.isFocused()))//and once now, since the focus arrived with the reveal, before there was anyone listening for it
 })
 let unlistenFileDrop, unlistenMenu, unlistenResized, unlistenFocus//will hold the unsubscribe functions set above and called below
@@ -130,14 +143,24 @@ watch([showing, modelPath, modelFolder], () => {
 //a trackpad or a magic mouse reaches the page as a stream of wheel events, and a table would read every one as a flip; rust drops them before the page sees them while a table is showing, and lets them through while the sheet is, because the sheet scrolls by them. Immediate, so the window has said which before it is revealed; touch.rs is the whole of it, and does nothing off the mac
 watch(showing, value => touchBlock(value == 'Table').catch(error => logTrouble('shell: blocking touch', error)), {immediate: true})
 
-async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these two down, because the page already knows how to do both
+//the View item in the mac's menu bar names where it takes you, which is the choice toggleView makes: the contact sheet from a table, and the light table from the sheet, the settings or the preview. Read from the view rather than from fuji's fullscreen, so a table in a macOS Space reads right too; off the mac the call does nothing
+watch([showing, whichTable], menuTitle, {immediate: true})
+
+async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these five down, because the page already knows how to do all of them
 	if (id == 'menu-open') {
-		let chosen = await openDialog({multiple: false, directory: false})//every file, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter. Choosing something fuji cannot show is harmless — the model lists the folder and stands on the first picture in it
-		if (chosen) await viewOpen(forwardize(chosen))//the same road a dropped file takes, and a double-clicked one ends on the same call: three ways in, one road after that
+		let chosen = await dialogOpen()//every file, deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter. Choosing something fuji cannot show is harmless — the model lists the folder and stands on the first picture in it
+		if (chosen) await viewOpen(chosen)//the same road a dropped file takes, and a double-clicked one ends on the same call: three ways in, one road after that
 	}
 	else if (id == 'menu-fullscreen') await toggleView()//fuji's own fullscreen rather than macOS's, which is the table: the essay above fullscreenSet says why there are two and how they keep out of each other's way
+	else if (id == 'menu-about') { await showView('Settings'); settingsRef.value?.showAbout() }//About Fuji, from the application menu or Help: the settings panel with its About section scrolled into view, in place of the panel macOS would assemble from Info.plist; from the fullscreen table this is the same road s takes
+	else if (id == 'menu-settings') await showView('Settings')//Settings… in the application menu, the road s takes from the sheet
+	else if (id == 'menu-help') await processOpen(`https://${urlHelp}`)//Fuji Help: the site's help address, in the system's browser, which forwards to the operator's manual; the help panel on h is the checklist inside the window, and separate
 }
 
+function menuTitle() {//tell the menu bar what this window's View item should read
+	let title = showing.value == 'Table' && whichTable.value != 'Preview' ? 'Show Contact Sheet' : 'Show Light Table'
+	menuText('menu-fullscreen', title).catch(error => logTrouble('shell: titling the View item', error))
+}
 function helpToggle() {
 	helpShowing.value = !helpShowing.value
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
@@ -242,7 +265,7 @@ async function placeWindow(w, path) {//put the hidden window where it will first
 	await w.setDecorations(false); previewFramed = true
 }
 
-async function toggleView() {//the View menu's Toggle Full Screen: the table fullscreen or the sheet in a window, and from the preview on into the table
+async function toggleView() {//fuji's own item in the View menu, Show Light Table or Show Contact Sheet: the table fullscreen or the sheet in a window, and from the preview on into the table
 	if (whichTable.value == 'Preview') {
 		if (previewPath) return previewExpand(previewPath)
 		whichTable.value = settings.view.table//a preview whose picture would not load has nothing to hand over, so the table behind the sheet is the usual one
@@ -251,7 +274,7 @@ async function toggleView() {//the View menu's Toggle Full Screen: the table ful
 }
 async function showView(name) {//show the sheet or the settings in a window, or the current table fullscreen; the sheet and the table stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
 	if (showing.value == name) return
-	if (name == 'Sheet' && previewFramed) return sheetFromPreview()
+	if (name != 'Table' && previewFramed) return sheetFromPreview(name)//the sheet's window after a preview, with the sheet in it or the settings, which the menu bar can ask for from the preview or from the table it opened onto
 	if (name != 'Table' && showing.value != 'Table') {//the sheet and the settings trading places in the one window, which keeps its size, so nothing needs covering
 		showing.value = name
 		await nextTick()//the arriving view is on the page, and the panel has been made
@@ -280,7 +303,7 @@ async function previewExpand(path) {//the preview was clicked: the diamond table
 		cacheRelease(path, 'Shell')
 	}
 }
-async function sheetFromPreview() {//the first sheet after a preview: the window goes away and comes back as an ordinary one, because the user never took the preview or the table for a window, and a window appearing where the preview was would say it had been one all along
+async function sheetFromPreview(view) {//the first sheet after a preview, or the settings in the sheet's window: the window goes away and comes back as an ordinary one, because the user never took the preview or the table for a window, and a window appearing where the preview was would say it had been one all along
 	let w = getCurrentWindow()
 	await w.hide()
 	if (fullscreenOurs) { await windowFullscreenLeave(); fullscreenOurs = false }//without fullscreenSet's wait for the resize, which a hidden window cannot be relied on to deliver; nothing measures until the window is back
@@ -290,7 +313,7 @@ async function sheetFromPreview() {//the first sheet after a preview: the window
 	if (frame) await windowFrameSet(frame)//the frame first and the title bar after, for the reason placeWindow gives
 	await w.setDecorations(true)
 	if (frame) await windowFrameSet(frame)//and the frame again, now that the title bar is there to measure: the mac keeps the content when a title bar arrives and grows the frame up around it, 28 css pixels taller than asked, measured on the Mac mini 2026-09-30, while windows keeps the frame and is asked here for the one it already has
-	showing.value = 'Sheet'
+	showing.value = view
 	await nextTick()
 	activeView()?.start?.()
 	await maximizeSheet(w)

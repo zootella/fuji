@@ -2,7 +2,7 @@
 
 Fuji is four layers: a **shell** that owns the window, one **sheet**, a **settings panel** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
 
-It says what fuji does, not what it might. It is the only architecture document: `structure.md` names the parts and says how many there are of each, `style.md` governs how code is written, `scaffold.md` how the project is set up, `cache.md` and `performance.md` cover images and what they cost, and where all of them are silent, decide and write it down here.
+It says what fuji does, not what it might, and where a question about structure has no answer yet, decide it and write it down here.
 
 ```
 App.vue
@@ -41,7 +41,7 @@ App.vue
 
 **A table is named for what makes it different, not for what they all are.** They are all light tables, which is why none of them is called one: `DiamondTable` is the one that keeps a diamond, and the next is the one that keeps whatever it keeps instead.
 
-**The sheet scrolls over buckets, not over thumbnails.** A bucket holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every bucket at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it. `bucket.md` carries what a bucket is for, and the thumbnail pipeline document on the site how the flow gets its pixels.
+**The sheet scrolls over buckets, not over thumbnails.** A bucket holds a capped number of images from one folder and hands them to a flow, which decides sizing, arrangement, loading, and what is held. One flow governs every bucket at once, and it belongs to the sheet rather than the model, because arranging thumbnails is the only thing that consumes it.
 
 **A double-click moves between the sheet and the current table, and they swap with `v-show`.** A double-clicked thumbnail opens its picture on the table, and a double-click on the table goes back to the sheet. That switch is frequent and has to be instant with nothing reloading, which is what staying mounted means. Both keep their scroll, their pan, their decoded images, and their DOM.
 
@@ -125,10 +125,10 @@ The shell and its views are real: the sheet, the settings panel, the diamond tab
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 
-`AlphabetSort` is one sort of the eight `sort.md` plans, and it is javascript's own `sort()` kept deliberately. There is one flow, `TestFlow`, named by `Bucket.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of the experiment `bucket.md` records, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
+`AlphabetSort` is one of the planned sorts, and it is javascript's own `sort()` kept deliberately. There is one flow, `TestFlow`, named by `Bucket.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of an experiment, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
 
 There is no router and no store library. `App.vue` renders the one view directly and `main.js` titles the page and mounts the app, and does nothing else.
 
 ## The cache, in one paragraph
 
-`cache.js` is a store that holds a blob, one object url over it, and a decoded `<img>` per path, and does nothing clever: views `need` and `release` by name, and nothing is ever freed except on command. `flipCache.js` is the diamond table's policy over it, holding a window of `flip.back` and `flip.forward` images around the one on screen. The table shows **the store's own element**, adopted into its card — pointing an element of its own at the same picture costs the whole decode again, which is a mistake fuji made once and measured. `cache.md` carries the reasoning, the numbers, and the three designs that failed before this one.
+`cache.js` is a store that holds a blob, one object url over it, and a decoded `<img>` per path, and does nothing clever: views `need` and `release` by name, and nothing is ever freed except on command. `flipCache.js` is the diamond table's policy over it, holding a window of `flip.back` and `flip.forward` images around the one on screen. The table shows **the store's own element**, adopted into its card — pointing an element of its own at the same picture costs the whole decode again, which is a mistake fuji made once and measured.

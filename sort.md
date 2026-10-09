@@ -1,6 +1,6 @@
 # Sorts
 
-The order fuji shows a folder in. One value, chosen in the sheet, used by every table — `architecture.md` says why it lives in the model rather than in either.
+The order fuji shows a folder in. One value, chosen in the sheet, used by every table — so it lives in the model, below both of them, rather than in either.
 
 This file has two halves. The first is prior art: how Windows and macOS actually sort and date files, researched rather than remembered, because fuji is going to reproduce some of it and deliberately depart from the rest. The second is the plan. `Alphabet` is written; the other seven are not.
 
@@ -105,7 +105,7 @@ Almost never the one the filesystem is most confident about.
 
     Alphabet   Mac   Windows   Smart   Modified   Created   Size   Shuffled
 
-**Enumerated values are Title Case throughout fuji**, so a named member of a set is recognizable on sight: `Alphabet` is a member, `alphabet` would be a variable holding one. This extends `style.md`, which covers `camelCase` and bans `ALL_CAPITALS` but does not yet speak to enumerations.
+**Enumerated values are Title Case throughout fuji**, so a named member of a set is recognizable on sight: `Alphabet` is a member, `alphabet` would be a variable holding one.
 
 A separate boolean reverses whichever order is chosen. Reverse is not a member — every order has both directions, Shuffled included.
 
@@ -155,7 +155,7 @@ The chosen sort is one value in the model, persisted through `fuji.toml`. The se
 
 ## Open
 
-- **There are two different "smart" ideas in the notes.** This file describes Smart as a name order. `roadmap.hide.md` describes smart as a *date* order with numbered-sequence grouping, for the brochure feature. They may be two members, and if so the name order needs its own word.
+- **There are two different "smart" ideas in the notes.** This file describes Smart as a name order. The user's private notes describe smart as a *date* order with numbered-sequence grouping, for the brochure feature. They may be two members, and if so the name order needs its own word.
 - **How faithful should Mac and Windows be, and should the names say so?** Neither target is fixed: Microsoft reserves the right to change its results, and Apple's answer depends on the user's language.
 - **What `Smart` does with tied digit runs** — `page1` against `page01` — which is the hole both shells left and the reason this sort exists.
 - **What `Created` does where the filesystem has no answer:** sort those to one end, fall back to Modified, or refuse.

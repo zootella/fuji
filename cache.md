@@ -22,7 +22,7 @@ There is a second reason for restraint, and it has nothing to do with layering. 
 
 **Above is the rendering engine.** Google has had something like a thousand engineers on Chromium for over a decade, much of it aimed squarely at making pictures appear quickly, because their business depends on it. WebKit is not far behind. Image decoding, raster caches, texture upload, and what to discard under memory pressure are all decided in there, by people who have measured far more than fuji ever will.
 
-**Both of those have already overruled us once each.** The read that looked like slow disk was fuji's own IPC turning bytes into JSON, and the operating system was never the problem. The window that held eleven decoded images held eleven elements whose pixels the engine dropped on its own schedule, and no policy fuji writes can change that. `performance.md` has both, with numbers.
+**Both of those have already overruled us once each.** The read that looked like slow disk was fuji's own IPC turning bytes into JSON, and the operating system was never the problem. The window that held eleven decoded images held eleven elements whose pixels the engine dropped on its own schedule, and no policy fuji writes can change that.
 
 **So the honest posture is humility.** Any cleverness here is a guess about the behaviour of two systems fuji can only observe from outside, and the guess has been wrong more often than right so far. Write the smallest thing that could work, measure it in the running app, keep what the measurement defends, and take out what it does not. A strategy that cannot be shown to help is not neutral — it is complexity paid for with nothing, sitting in the path of the two systems that were doing fine without it.
 
@@ -85,7 +85,7 @@ This is the triad grown up: same job, no fixed three. The half of the triad that
 
 **A reference carries a label, not just a count.** `need(path, holder)` and `release(path, holder)`, where the holder is the view and what it is holding for. The cost is a string; the return is that a leak has a name. Three thousand entries and a number tells you fuji is holding 3.2 GB, which is a mystery. The same three thousand with labels tell you the sheet is holding four hundred thumbnails it stopped showing four minutes ago, which is a bug report.
 
-**A release that was never needed** — or one more release than there were needs — is an exact programmer error, and it throws, carrying the path and the holder. This is the guard family from `style.md`: a mistake caught at the boundary the moment it happens rather than corrupting quietly below. It is the one thing the store refuses to be relaxed about, because it is the one mistake the store can be certain of without knowing anything about views.
+**A release that was never needed** — or one more release than there were needs — is an exact programmer error, and it throws, carrying the path and the holder. It is a guard in the house style's sense: a mistake caught at the boundary the moment it happens rather than corrupting quietly below. It is the one thing the store refuses to be relaxed about, because it is the one mistake the store can be certain of without knowing anything about views.
 
 **Everything softer than that belongs above.** An earlier iteration had the store decide that a gigabyte was too much, or that five minutes untouched looked like a leak, and say so. Both were taken out: a threshold is a judgement, a judgement needs to know what the user is doing, and that is the same knowledge an eviction policy would need — the knowledge this whole design keeps out of the middle. A store that complains is one short step from a store that tidies up, and a store that tidies up hides the bug it was built to expose.
 
@@ -117,7 +117,7 @@ Suppose the honest answer to all of the above is that fuji cannot beat the page 
 
 ## What the measurements said
 
-`performance.md` carries everything the running app has measured, with the numbers and the reasoning. What follows is the bench that came before it, kept because two of its lines are still the reason the store holds elements at all — and because one of them was wrong in a way worth remembering.
+What follows is the bench that came before the running app measured itself, kept because two of its lines are still the reason the store holds elements at all — and because one of them was wrong in a way worth remembering.
 
 The bench itself is gone. It lived in `experiment.js`, it ran on every launch, and it left a 26-megapixel decode attached to the document and three object urls unrevoked, which means every measurement fuji took while it existed was taken under a handicap nobody had noticed. Deleted 2026-09-06; `log.js` asks the better question anyway, which is what a flip costs in the running app rather than what a decode costs on a bench.
 

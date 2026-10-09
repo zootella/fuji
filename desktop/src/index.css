@@ -61,7 +61,7 @@ Every color fuji paints is named here, for the job it does, and the templates an
 	--color-ink:      light-dark(#525252, #a3a3a3);/* text: the settings panel's */
 	--color-strong:    light-dark(#000000, #ffffff);/* text that stands out from ink: a heading, a label, what a box holds */
 	--color-faint:     #737373;                     /* text that steps back: the empty sheet's line, a way back; the middle gray, the same in both */
-	--color-fainter:   light-dark(#a3a3a3, #525252);/* text further back still: an empty list's none yet, and the caption under a picture */
+	--color-fainter:   light-dark(#a3a3a3, #525252);/* text further back still: an empty list's None yet, the way back to the sheet at the foot of the settings panel, and the caption under a picture */
 	--color-warn:      light-dark(#ff4f00, #fbbf24);/* for something to know or to do: international orange on white, and on black the amber fuji has always had */
 	--color-brand:     #9fffe0;                     /* fuji's cyan, the icon's own color, the same in both: the frame of the thumbnail under the pointer. On white it measures 1.18 to 1, pale for a line, and the site's deep shade of it, #154739, is the one to reach for if a light window ever needs it stronger */
 	--color-surface:   light-dark(#f5f5f5, #171717);/* the face of a box or a card */

@@ -172,6 +172,8 @@ Everything else reads those two files. Tauri names every build from them. The Ru
 
 After a rename, search `desktop`, `linux` and `scripts.js` for the old name, leaving out `node_modules`, `target` and `dist`. What turns up should be comments, the prose of `linux/README.md`, and the sidecars of past releases in the two `release` folders, which a fork deletes rather than renames. The website is separate: it says Fuji in its own words, and spells the published installer names out in its own code.
 
+Two addresses go with the names, both written bare, with no scheme. **`urlHome`** is the site, `fujidesktop.app`, read from `bundle.homepage`. **`urlHelp`** is where Fuji Help in the Help menu sends a person, `fujidesktop.app/help`. That's a page on the site, `site/docs/help/index.md`, which forwards to wherever help lives. A copy of the app in the field may never update, so it keeps this address for good, and the site decides where it leads. Both are set in `desktop/src/brand.js`, and a fork whose help lives somewhere else writes its own address there.
+
 ### The Windows installer
 
 On Windows, Fuji's installer is a small program of its own, in `desktop/win-setup/`, rather than one Tauri makes. A user double-clicks `fuji.exe`, and about a second later Fuji is running, with nothing shown in between. It installs for the current user alone, into `%LOCALAPPDATA%\Fuji`, writes one Start menu shortcut and the entry Settings lists under Apps, and starts Fuji. The same program, saved beside Fuji as `uninstall.exe`, is the uninstaller.

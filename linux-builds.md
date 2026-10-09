@@ -190,7 +190,7 @@ Five of this document's open questions were closed by building the thing, and th
 
 **Submit to Flathub.** The bundle Fuji publishes installs from a file; Flathub wants a manifest its own build farm reads, and that manifest does not exist. `inside-flatpak.sh` was written to be the specification for one — its permissions are exactly what a manifest's `finish-args` would say — so the work is transcription plus submission rather than research.
 
-**What a Pi would actually do with Fuji.** `thumbnail.rs` rejects on Linux, so every raster file there takes the page route — the slower of the two by a wide margin according to `canvas.md`. The 3 ARM people in Room 1 are also the people on the weakest hardware taking the most expensive path. Nobody has run Fuji on a Pi, and the arm64 `.deb` is built and published for a machine nothing here has measured.
+**What a Pi would actually do with Fuji.** `thumbnail.rs` rejects on Linux, so every raster file there takes the page route — the slower of the two by a wide margin. The 3 ARM people in Room 1 are also the people on the weakest hardware taking the most expensive path. Nobody has run Fuji on a Pi, and the arm64 `.deb` is built and published for a machine nothing here has measured.
 
 ## Sources
 
