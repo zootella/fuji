@@ -1,6 +1,6 @@
 # ============================================================================
 # .gitignore for this pnpm monorepo
-# Workspaces: desktop (Tauri), and site (VitePress) when it arrives
+# Workspaces: desktop (Tauri), site (VitePress), linux and apple
 # One file at the root covers every workspace; there are no nested ignore files
 # ============================================================================
 
@@ -56,7 +56,7 @@ vite.config.ts.timestamp-*
 coverage/
 
 # ----------------------------------------------------------------------------
-# VitePress (site workspace, arriving)
+# VitePress (site workspace)
 # ----------------------------------------------------------------------------
 
 # dist is covered above, but name it here too, so that editing another
@@ -104,6 +104,23 @@ desktop/src-tauri/icons/.tile
 # desktop/release/ would silently match nothing.
 desktop/release/*
 !desktop/release/*.json
+
+# ----------------------------------------------------------------------------
+# Apple (apple workspace)
+# ----------------------------------------------------------------------------
+
+# one folder per application the waiting room builds, holding the signed app, its dmg, Apple's
+# answers and the log of what happened to it. the published dmg's sidecar is tracked
+# in desktop/release like any other, and these stay on the mac that publishes
+apple/applications/
+
+# ----------------------------------------------------------------------------
+# The build log
+# ----------------------------------------------------------------------------
+
+# a line for every step any workspace takes on this machine, as it starts and as it ends,
+# which build-log.js writes and describes. each machine keeps its own
+/build-log.txt
 
 # ----------------------------------------------------------------------------
 # Private planning and notes

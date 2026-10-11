@@ -19,6 +19,6 @@ packages:
   - linux
 
   # The mac release that goes through Apple, signed with a Developer ID and notarized, and
-  # the console that watches it. Everything that depends on Apple's program lives here, so
+  # the waiting room it is made from. Everything that depends on Apple's program lives here, so
   # the self-signed release in desktop never needs it
   - apple

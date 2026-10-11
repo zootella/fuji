@@ -14,12 +14,13 @@ Made with
 
 ### Workspaces
 
-This repository is a pnpm monorepo: the application, the website, and the Linux packaging. The planning documents stay at the root.
+This repository is a pnpm monorepo: the application, the website, the Linux packaging, and the Mac release through Apple. The planning documents stay at the root.
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri
 ./site              the website and documentation, made with VitePress
 ./linux             Fuji's Linux packages, built on a Mac through Docker
+./apple             the Mac release, signed with a Developer ID and notarized by Apple
 ```
 
 ### Scripts
@@ -37,6 +38,7 @@ $ pnpm reveal       open the file manager on that installer, to run it as a user
 $ pnpm hash         stage and hash what is already built, building nothing
 $ pnpm upload       send what is already staged to the production server
 $ pnpm certificate  find, make, or import the Mac's signing identity
+$ pnpm notarize     build the installer signed with the Developer ID and notarized by Apple
 
 $ cd site
 $ pnpm local        run the site here, in development mode with hot reload
@@ -47,13 +49,17 @@ $ cd linux
 $ pnpm build        build the Linux packages in Docker containers
 $ pnpm hash         stage them and write the sidecars, building nothing
 $ pnpm upload       send what is staged to the production server
+
+$ cd apple
+$ pnpm waiting-room build, notarize, hash and upload the Mac release, a key each
 ```
 
 Common flows through the desktop commands include:
 
 - **local / compile** — work on a feature that doesn't involve desktop integration, and check the release build.
 - **installer / reveal** — install Fuji the way a user does, and test file associations, the installed icon, and anything else that needs a real install.
-- **installer / hash / upload / commit & push** — publish a release, then commit. Git tracks the sidecars.
+- **installer / hash / upload / commit & push** — publish a release from Windows, then commit. Git tracks the sidecars. On the Mac this is the fallback, signed with Fuji's own certificate rather than Apple's.
+- **notarize / hash / upload / commit & push** — publish the Mac release, signed with a Developer ID and notarized by Apple, then commit.
 
 And through the site commands, there is really only one:
 
@@ -67,9 +73,13 @@ And through the Linux commands:
 
 - **build / hash / upload / commit & push** — the same shape as a desktop release, with the same three steps and the same reason for their being three.
 
+And through the Apple waiting room, a key each:
+
+- **b / n / h / u / commit & push** — build, notarize, hash and upload the Mac release, then commit. `./apple/README.md` is the guide, setting up a Mac included.
+
 `pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI. `icon.md` explains why that second case is easy to forget.
 
-The JavaScript behind these commands is in one file, `scripts.js`, at the root, and each command passes it a verb. All three workspaces reach it because they share facts: the published name of every artifact, where each one is built, and the file manager command for each platform. Those live in one table there. The Linux workspace has a second file, `linux/build.js`, which drives the containers — `scripts.js` publishes and does not build, and that one builds and does not publish.
+The JavaScript behind these commands is in one file, `scripts.js`, at the root, and each command passes it a verb. Every workspace reaches it because they share facts: the published name of every artifact, where each one is built, and the file manager command for each platform. Those live in one table there. The Linux workspace has a second file, `linux/build.js`, which drives the containers — `scripts.js` publishes and does not build, and that one builds and does not publish. Every step of a build or a publish also writes a line to `build-log.txt` at the root as it starts and as it ends, through `build-log.js` beside `scripts.js`, so each machine keeps its own record of what it built and sent, and when.
 
 ### Linux packages
 
@@ -94,7 +104,7 @@ Three rather than one because each leaves behind a different kind of thing. `bui
 
 ### Publishing
 
-**Two machines publish Fuji.** Windows builds and sends the exe. The Mac sends the dmg it built natively, and the four Linux packages it built in Docker containers — the ARM `.deb`, the x86-64 `.deb`, the `.rpm` and the Flatpak — so every Linux package comes from one machine, one base image and one lockfile rather than from a shelf of borrowed computers.
+**Two machines publish Fuji.** Windows builds and sends the exe. The Mac sends the dmg it built natively and had notarized through the apple workspace, and the four Linux packages it built in Docker containers — the ARM `.deb`, the x86-64 `.deb`, the `.rpm` and the Flatpak — so every Linux package comes from one machine, one base image and one lockfile rather than from a shelf of borrowed computers.
 
 Linux is not a publishing machine, deliberately. You can clone this repository on Ubuntu or Raspberry Pi OS and run `pnpm installer` in `desktop` to build Fuji for the machine you're sitting at, which is development and works. Staging and uploading from there is refused, with a sentence saying why.
 

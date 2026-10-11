@@ -2,6 +2,7 @@ import {execFileSync} from 'node:child_process'
 import {cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs'
 import {basename, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {buildStep} from '../build-log.js'
 
 /*
 Fuji's linux packages, built on a mac through docker.
@@ -188,7 +189,7 @@ The verbs package.json passes. build-images and stage are here for factoring rat
 Not named `prepare`, which was the first choice and is a trap: npm and pnpm treat prepare as a lifecycle script and run it on every install. A `prepare` here would mean that cloning this repository and running pnpm install tried to build ten gigabytes of docker images, and failed the install outright on a machine where docker was not running.
 */
 const commands = {
-	'build':        () => build(process.argv[3]),
+	'build':        () => buildStep('linux', process.argv[3] || '-', '', () => { build(process.argv[3]); return {value: '-', words: 'the packages in linux/release'} }),
 	'build-images': () => buildImages(),
 	'stage':        () => stageSource(),
 }

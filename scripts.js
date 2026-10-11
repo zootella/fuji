@@ -4,22 +4,25 @@ import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileS
 import {homedir, tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {buildStep} from './build-log.js'
 
 /*
-The publishing pipeline for all three workspaces, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri, vitepress or docker is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect, certificate.
+The publishing pipeline for every workspace, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri, vitepress or docker is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect, certificate.
 
-**This file publishes; it does not build.** The desktop workspace builds with tauri and, for the installers, its own dmg.js on the mac and win-setup.js on windows; the linux workspace builds in containers, and both then call in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
+**This file publishes; it does not build.** The desktop workspace builds with tauri and, for the installers, its own dmg.js on the mac and win-setup.js on windows; the linux workspace builds in containers, and the apple workspace builds and notarizes the mac release, and each then calls in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
 
 Two machines publish fuji. Windows sends the exe. The mac sends the dmg it built natively and the four linux packages it built in docker. So a command means the same thing everywhere while doing different work underneath: `pnpm hash` is one package in desktop on windows and four in linux on the mac, and nobody has to remember which computer they are sitting at. What differs is passed as --source by the workspace that asked.
 
 One file rather than one per workspace, because the facts worth keeping in one place cross the workspace boundary. The published name is the clearest case: the build writes Fuji_0.1.0_aarch64.dmg, which is right for a build directory and wrong for a download link, so hash stages it as fuji.dmg and a link in a page survives the next version. That name is written by the build side and shipped by the site side, and when these were separate scripts each spelled it out for itself. The targets table below is now the only place any of it is said.
 
-Living at the root also settles the working-directory question by force rather than by discipline. Both workspaces call this file, each from its own folder, so nothing here can be relative to wherever node started; every path is built from this file's own location. The scripts this replaced each had their own answer to that, every one of them correct only because pnpm happened to run it from the right place.
+Living at the root also settles the working-directory question by force rather than by discipline. Every workspace calls this file, each from its own folder, so nothing here can be relative to wherever node started; every path is built from this file's own location. The scripts this replaced each had their own answer to that, every one of them correct only because pnpm happened to run it from the right place.
 
 It imports node builtins and nothing else, and has to: the root package.json has no dependencies, and node_modules belongs to the workspaces below it.
+
+Its one companion at the root is build-log.js, which keeps the build log and says times the way the pipeline says them. That is a file of its own so the scripts that build can import it, dmg.js, win-setup.js, linux/build.js and the apple workspace's two, while this file stays something that is only ever run, never imported.
 */
 
-//every path is built from this file's own location, never from the working directory, because both workspaces call this file and each calls it from its own folder
+//every path is built from this file's own location, never from the working directory, because every workspace calls this file, each from its own folder
 const root = fileURLToPath(new URL('.', import.meta.url))
 const configurationFile = join(root, 'desktop/src-tauri/tauri.conf.json')//the file that named the bundle
 const manifestFile = join(root, 'desktop/src-tauri/Cargo.toml')          //and the crate's, which named the executable
@@ -68,15 +71,15 @@ const targets = {
 }
 
 /*
-The app inside the dmg is signed with a certificate of fuji's own, asked for by one line: signingIdentity "Fuji Desktop" under bundle.macOS in tauri.conf.json. That file cannot hold a comment, so the line is explained here, beside the pipeline that ships what it produces.
+pnpm installer signs the app inside the dmg with a certificate of fuji's own, asked for by one line: signingIdentity "Fuji Desktop" under bundle.macOS in tauri.conf.json. That file cannot hold a comment, so the line is explained here, beside the pipeline that ships what it produces. The dmg fuji publishes is signed with a Developer ID and notarized instead, by the apple workspace, and this is the fallback kept working beside it, so a release never has to depend on Apple; apple/README.md says why both exist.
 
 Without a signing identity, tauri skips signing, and the app leaves with only the stamp the linker puts on every arm64 executable: nothing seals the bundle, Info.plist is not bound, and codesign --verify reports "code has no resources but signature indicates they must be present". A browser quarantines whatever it downloads, and at the first launch of a quarantined app Gatekeeper reads a signature that fails to verify as corruption. The dialog says "Fuji is damaged and can't be opened. You should move it to the Trash", under a caution triangle, with no button that proceeds. That is what a presenter met on a Mac Studio running Tahoe on 2026-09-23, and it reproduced on the Sequoia mini the next morning from a Chrome download. It had never shown up in development because nothing there quarantines: a dmg built here and dragged in, or fetched with curl, carries no quarantine attribute, and Gatekeeper never looks.
 
-With an identity, tauri runs codesign over the executable and then the bundle, with hardened runtime. The seal verifies, so Gatekeeper can read what the app is, an unnotarized app from no known developer, and shows the dialog it has for that: "Apple could not verify Fuji is free of malware", with Done and Move to Trash, and for about an hour afterwards an Open Anyway button under Privacy & Security in System Settings. So this moves fuji from a dialog that calls the file broken and offers no way in to the one every unnotarized app gets, and the download page describes the way through. Only a Developer ID certificate from Apple and notarization take that dialog away, which fuji declines on purpose — the download page says why; Gatekeeper trusts no other certificate, so to it fuji's own reads exactly as the identity "-" did, an ad-hoc seal with nobody's name on it. Tauri does try to notarize after signing, finds no credentials, and logs a warning — expected in every mac installer build.
+With an identity, tauri runs codesign over the executable and then the bundle, with hardened runtime. The seal verifies, so Gatekeeper can read what the app is, an unnotarized app from no known developer, and shows the dialog it has for that: "Apple could not verify Fuji is free of malware", with Done and Move to Trash, and for about an hour afterwards an Open Anyway button under Privacy & Security in System Settings. So this moves fuji from a dialog that calls the file broken and offers no way in to the one every unnotarized app gets, which has a way through. Only a Developer ID certificate from Apple and notarization take that dialog away, which is what the apple workspace does; Gatekeeper trusts no other certificate, so to it fuji's own reads exactly as the identity "-" did, an ad-hoc seal with nobody's name on it. Tauri does try to notarize after signing, finds no credentials, and logs a warning — expected in every pnpm installer build, since notarizing is the apple workspace's.
 
-What the certificate changes is who macOS thinks fuji is from one release to the next. A seal records a designated requirement, the rule a later copy must meet to count as the same program, and macOS keeps each permission the user grants, like access to the Downloads folder, against that rule. An ad-hoc seal's rule is the hash of that one build, so every release was a stranger, and asked for the Downloads folder again. A certificate's rule is the bundle identifier signed by that certificate, which every release meets, so a permission given once stays given.
+What the certificate changes is who macOS thinks fuji is from one release to the next. A seal records a designated requirement, the rule a later copy must meet to count as the same program, and macOS keeps each permission the user grants, like access to the Downloads folder, against that rule. An ad-hoc seal's rule is the hash of that one build, so every release was a stranger, and asked for the Downloads folder again. A certificate's rule is the bundle identifier signed by that certificate, which every release meets, so a permission given once stays given. A Developer ID's rule names Apple's team rather than one certificate, so moving the published release from Fuji Desktop to the Developer ID cost each user one permission, once, and going back to the fallback would cost one more.
 
-So the certificate is made once, ever, and every release from every mac is signed with that one. It's self-signed, and holds the name Fuji Desktop and nothing else: no email, no organization, no place, because each signed app carries it where anyone can read it with codesign -dvvv. It's state on the mac that publishes rather than in this repository, the key and certificate in the login keychain, where codesign finds them by name and signs without the certificate being trusted. From the desktop folder:
+So the certificate is made once, ever, and every pnpm installer on every mac signs with that one. It's self-signed, and holds the name Fuji Desktop and nothing else: no email, no organization, no place, because each signed app carries it where anyone can read it with codesign -dvvv. It's state on the mac that publishes rather than in this repository, the key and certificate in the login keychain, where codesign finds them by name and signs without the certificate being trusted. From the desktop folder:
 
 	pnpm certificate                                                 say whether this mac has the identity
 	pnpm certificate make ~/Desktop/fuji-code-signing.p12            once, ever: make the identity and a password-protected backup
@@ -84,7 +87,7 @@ So the certificate is made once, ever, and every release from every mac is signe
 
 Make writes the backup to keep somewhere safe off the mac, with its password, and import is how a new computer takes over publishing without users being asked again. Either way, the first pnpm installer afterward stops at a dialog asking for the mac's login password so codesign can use the key; Always Allow there is what lets every later build sign without asking. A lost backup means a new certificate, which costs each user one more round of permission prompts and nothing worse. A fork names its own identity here and in tauri.conf.json and makes its own certificate, or goes back to "-".
 
-Windows is untouched by this and has the same story in its own words: an installer with no certificate meets SmartScreen's "Windows protected your PC", and Run anyway sits behind More info. Neither dialog is about the bytes; the sidecar's hash is. Version 0.1.0 was published unsealed on 2026-09-22 and sealed after, and only the sidecar's date tells the two apart.
+Windows is untouched by this and has the same story in its own words: an installer with no certificate meets SmartScreen's "Windows protected your PC", and Run anyway sits behind More info. Neither dialog is about the bytes; the sidecar's hash is. Version 0.1.0 was published unsealed on 2026-09-22, sealed after, and notarized from 2026-10-09, and only the sidecar's date tells the three apart.
 */
 
 /*
@@ -203,36 +206,40 @@ function hashOne(name, version, demanded) {
 	let published = target.publish
 	let destination = join(stage, published)
 
-	//copy first, then measure what landed, so every number describes the file the site will ship. a container's output is already sitting in the staging folder under its published name, and copying a file onto itself is both pointless and an error
-	if (join(built.folder, built.file) != destination) copyFileSync(join(built.folder, built.file), destination)
-	let bytes = readFileSync(destination)//whole file into memory; a package is a few megabytes and streaming would buy nothing
+	let {notarized} = buildStep('hash', published, `${built.file}, ${version} ${built.arch}`, () => {
+		//copy first, then measure what landed, so every number describes the file the site will ship. a container's output is already sitting in the staging folder under its published name, and copying a file onto itself is both pointless and an error
+		if (join(built.folder, built.file) != destination) copyFileSync(join(built.folder, built.file), destination)
+		let bytes = readFileSync(destination)//whole file into memory; a package is a few megabytes and streaming would buy nothing
 
-	let sidecar = {
-		file: published,
-		version,
-		arch: built.arch,
-		bytes: bytes.length,
-		sha256: createHash('sha256').update(bytes).digest('hex'),
-		date: new Date().toISOString().slice(0, 10),//iso, because the home page sorts these as text to find the earliest build
-	}
-	writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
+		let sidecar = {
+			file: published,
+			version,
+			arch: built.arch,
+			bytes: bytes.length,
+			sha256: createHash('sha256').update(bytes).digest('hex'),
+			date: new Date().toISOString().slice(0, 10),//iso, because the home page sorts these as text to find the earliest build
+		}
+		writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
 
-	/*
-	hash, size, filename — and the hash whole, because a cropped hash cannot check a download. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Nothing is padded: every package fuji builds is a few megabytes, so the byte counts are the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
-	*/
-	console.log(`${sidecar.sha256}  ${sidecar.bytes} bytes  ${published}`)
-	if (name == 'dmg' && !isNotarized(destination)) warnUnnotarized(published)
+		/*
+		hash, size, filename — and the hash whole, because a cropped hash cannot check a download. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Nothing is padded: every package fuji builds is a few megabytes, so the byte counts are the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
+		*/
+		console.log(`${sidecar.sha256}  ${sidecar.bytes} bytes  ${published}`)
+		let notarized = name != 'dmg' || isNotarized(destination)
+		return {value: sidecar.sha256, words: name == 'dmg' ? (notarized ? 'notarized' : 'not notarized') : '', notarized}
+	})
+	if (!notarized) warnUnnotarized(published)//after the step's last line, so it is the final thing on the screen
 	return true
 }
 
-//whether a dmg carries the notarization ticket desktop/notarize.js staples to it. one without is either the fallback signed with Fuji Desktop alone, or a pnpm installer build staged by mistake, and only the person publishing knows which
+//whether a dmg carries the notarization ticket the apple workspace staples to it. one without is either the fallback signed with Fuji Desktop alone, or a pnpm installer build staged by mistake, and only the person publishing knows which
 function isNotarized(path) {
 	return spawnSync('xcrun', ['stapler', 'validate', path], {stdio: 'ignore'}).status == 0
 }
 
-function warnUnnotarized(file) {//loud, and never a refusal, because the fallback the essay atop desktop/notarize.js describes ships exactly this
+function warnUnnotarized(file) {//loud, and never a refusal, because the fallback apple/README.md describes ships exactly this
 	console.log(`\n🍎👮🚓👮‍♀️⛓️ ${file} is not notarized: a downloaded copy meets the dialog saying Apple could not verify ${brandName} is free of malware`)
-	console.log(`🍎👮🚓👮‍♀️⛓️ publish from pnpm notarize instead, unless this is the Fuji Desktop fallback\n`)
+	console.log(`🍎👮🚓👮‍♀️⛓️ pnpm notarize and then pnpm hash put a notarized one in its place, unless this is the Fuji Desktop fallback\n`)
 }
 
 /*
@@ -296,12 +303,15 @@ function uploadSite() {//ship the built site, mirroring so a file dropped from t
 	server = readServer()
 
 	//--delete is load-bearing: without it every previous deploy's hashed assets accumulate on the server forever. it is also the reason the installers live in a directory this cannot reach
-	execFileSync('rsync', [
-		'-avz', '--delete',
-		built + '/',//trailing slash: copy the contents, not the directory itself
-		`${server.siteUser}@${server.host}:${server.sitePath}`,
-		'-e', `ssh -p ${server.port}`,//rsync spells the port inside the ssh command, lowercase -p
-	], {stdio: 'inherit'})
+	buildStep('upload', 'site', '', () => {
+		execFileSync('rsync', [
+			'-avz', '--delete',
+			built + '/',//trailing slash: copy the contents, not the directory itself
+			`${server.siteUser}@${server.host}:${server.sitePath}`,
+			'-e', `ssh -p ${server.port}`,//rsync spells the port inside the ssh command, lowercase -p
+		], {stdio: 'inherit'})
+		return {value: '-', words: 'the site, mirrored'}
+	})
 }
 
 //Ship what this machine staged: every package it makes, and the sidecar beside each. Named with no arguments this is one file on windows and five on the mac, and the same word means "this machine's work" in both places — which is the whole reason a command is not named per platform.
@@ -322,14 +332,17 @@ function uploadInstaller() {
 		}
 		let sidecar = JSON.parse(readFileSync(join(stage, sidecarName), 'utf8'))
 		checkSidecar(name, stage, sidecar, sidecarName, version)
-		sending.push({name, stage, file: sidecar.file, sidecarName})
+		sending.push({name, stage, file: sidecar.file, sidecarName, sha256: sidecar.sha256})
 	}
 	if (!sending.length) throw new Error('nothing staged to upload — run pnpm hash first')
 
 	server = readServer()
 	reportTransport()
 	//the package before its sidecar, every time, so the page never fetches a hash for a file still arriving
-	for (let one of sending) { send(one.stage, one.file); send(one.stage, one.sidecarName) }
+	for (let one of sending) buildStep('upload', one.file, '', () => {
+		send(one.stage, one.file); send(one.stage, one.sidecarName)
+		return {value: one.sha256, words: 'and ' + one.sidecarName}
+	})
 	console.log(`sent     ${sending.length} package${sending.length == 1 ? '' : 's'} and ${sending.length} sidecar${sending.length == 1 ? '' : 's'}`)
 	for (let one of sending) if (one.name == 'dmg' && !isNotarized(join(one.stage, one.file))) warnUnnotarized(one.file)//last, so it is the final thing on the screen
 }

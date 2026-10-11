@@ -1,8 +1,9 @@
-import {spawnSync} from 'node:child_process'
-import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
+import {spawn} from 'node:child_process'
+import {mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {buildLog, readSha256} from '../build-log.js'
 
 /*
 The mac installer, made without Finder.
@@ -32,6 +33,9 @@ const here    = fileURLToPath(new URL('.', import.meta.url))
 const tauri   = join(here, 'src-tauri')
 const bundled = join(tauri, 'target/release/bundle')//tauri leaves Fuji.app in macos/ here, and this puts the dmg in dmg/ beside it, where hash in scripts.js looks
 
+const configuration = JSON.parse(readFileSync(join(tauri, 'tauri.conf.json'), 'utf8'))
+const brandName     = configuration.productName//the name people read, which tauri names the .app with and this names the dmg and its volume; brand.js says how it and brandStem are used
+
 const dmgbuild     = 'dmgbuild@1.6.7'                     //pinned together, for the reason the essay gives
 const dependencies = ['ds_store==1.3.3', 'mac_alias==2.2.3']
 
@@ -45,20 +49,15 @@ const layout = {
 	applications: {x: 600, y: 400},
 }
 
-function main() {
-	if (process.platform != 'darwin') return//a dmg is the mac's alone; windows and linux finish with tauri build
-
-	let configuration = JSON.parse(readFileSync(join(tauri, 'tauri.conf.json'), 'utf8'))
-	let brandName = configuration.productName//the name people read, which tauri names the .app with and this names the dmg and its volume; brand.js says how it and brandStem are used
+//the name a dmg of version takes, which hash in scripts.js reads the version and architecture back out of
+export function dmgFile(version) {
 	let arch = {arm64: 'aarch64', x64: 'x64'}[process.arch]//spelled the way tauri spells it, since hash reads the architecture out of the filename and into the published sidecar
 	if (!arch) throw new Error('no dmg architecture for ' + process.arch)
-	let file = `${brandName}_${configuration.version}_${arch}.dmg`
+	return `${brandName}_${version}_${arch}.dmg`
+}
 
-	//empty the folder first, so a dmg from an earlier version never gives hash two candidates. a copy still mounted in Finder is safe: it keeps reading the old file, and opening the new one mounts it beside, as Fuji 1
-	let folder = join(bundled, 'dmg')
-	rmSync(folder, {recursive: true, force: true})
-	mkdirSync(folder, {recursive: true})
-
+//wrap the app at app in a dmg written to file, with dmgbuild's output going to output, which is anything spawn takes for a stream. pnpm installer wraps the app tauri just built, and the apple workspace wraps a copy it keeps, so this takes both paths rather than knowing either. a bottom gate: dmgbuild failing comes back as a result, never an exception
+export async function dmgMake({app, file, output}) {
 	//the settings in the json form dmgbuild reads, which is appdmg's, in a private temporary folder so two builds at once never share a file
 	let scratch = mkdtempSync(join(tmpdir(), 'dmg-'))
 	let settings = join(scratch, 'settings.json')
@@ -70,22 +69,38 @@ function main() {
 		'compression-level': 9,//zlib's best, about six percent smaller than hdiutil's default for this app
 		'window':            layout.window,
 		'contents': [
-			{type: 'file', path: join(bundled, `macos/${brandName}.app`), ...layout.app},
-			{type: 'link', path: '/Applications',                         ...layout.applications},
+			{type: 'file', path: app,             ...layout.app},
+			{type: 'link', path: '/Applications', ...layout.applications},
 		],
 	}, null, '\t'))
 
-	console.log(`bundling ${file} with ${dmgbuild}`)
 	//uvx takes its own options before the tool and hands everything after it to the tool. --no-hidpi copies the picture as it is: without it, an @2x file beside jinbocho.jpg would make dmgbuild combine the two into a tiff, and the one 144 dpi jpeg already serves both kinds of panel
-	let run = spawnSync('uvx', [
-		...dependencies.flatMap(dependency => ['--with', dependency]), dmgbuild,
-		'--no-hidpi', '-s', settings, brandName, join(folder, file),
-	], {stdio: 'inherit'})
+	let made = await new Promise(resolve => {
+		let child = spawn('uvx', [
+			...dependencies.flatMap(dependency => ['--with', dependency]), dmgbuild,
+			'--no-hidpi', '-s', settings, brandName, file,
+		], {stdio: ['ignore', output, output]})
+		child.on('error', e => resolve({success: false, outcome: e.code == 'ENOENT' ? 'uvx is not on the path; the mac installer needs uv — brew install uv' : e.message}))
+		child.on('close', code => resolve(code == 0 ? {success: true} : {success: false, outcome: `dmgbuild exited ${code}`}))
+	})
 	rmSync(scratch, {recursive: true, force: true})
-	if (run.error && run.error.code == 'ENOENT') throw new Error('uvx is not on the path; the mac installer needs uv — brew install uv')
-	if (run.error) throw run.error
-	if (run.status != 0) throw new Error(`dmgbuild exited ${run.status}`)
-	console.log('finished ' + join(folder, file))
+	return made
 }
 
-try { main() } catch (e) { console.error('🚧 Error:', e); process.exitCode = 1 }
+async function main() {
+	if (process.platform != 'darwin') return//a dmg is the mac's alone; windows and linux finish with tauri build
+	let file = dmgFile(configuration.version)
+
+	//empty the folder first, so a dmg from an earlier version never gives hash two candidates. a copy still mounted in Finder is safe: it keeps reading the old file, and opening the new one mounts it beside, as Fuji 1
+	let folder = join(bundled, 'dmg')
+	rmSync(folder, {recursive: true, force: true})
+	mkdirSync(folder, {recursive: true})
+
+	buildLog('dmg', 'started', file, '-', `with ${dmgbuild}, of the app tauri just signed with Fuji Desktop`)
+	let made = await dmgMake({app: join(bundled, `macos/${brandName}.app`), file: join(folder, file), output: 'inherit'})
+	if (!made.success) { buildLog('dmg', 'failed', file, '-', made.outcome); process.exitCode = 1; return }
+	buildLog('dmg', 'finished', file, readSha256(join(folder, file)), 'in the bundle folder, where pnpm hash finds it')
+}
+
+//only when run, so the apple workspace can import dmgMake without making a dmg. said with realpath rather than import.meta.main, which node before 22.18 lacks, and would skip this in silence and leave the last build's dmg for hash to find
+if (process.argv[1] && realpathSync(process.argv[1]) == fileURLToPath(import.meta.url)) main().catch(e => { console.error('🚧 Error:', e); process.exitCode = 1 })

@@ -6,6 +6,14 @@
   </head>
 
   <body>
+    <!--
+    the one page every window loads; main.js mounts the app here, and everything on screen is drawn from there.
+
+    this comment is also the place to change fuji without changing what it does. a build with nothing changed signs to the
+    same code hash, which the apple workspace takes as the release already made, so trying the whole release pipeline again
+    takes a build that differs: edit the time below and build. vite keeps this comment in the page, and tauri packs the page
+    into the app, which a comment in javascript or rust would not survive to do. last changed for that 2026-Oct-11 Sun 12:22 PM
+    -->
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

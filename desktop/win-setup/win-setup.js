@@ -4,6 +4,7 @@ import {dirname, join, relative} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {parse as parseToml} from 'smol-toml'
 import {uninstallInstructions} from './registry.js'
+import {buildLog, readSha256} from '../../build-log.js'
 
 /*
 The Windows installer, made from the pieces Windows already has.
@@ -28,6 +29,7 @@ function say(line) { console.log(line) }
 function main() {
 	if (process.platform != 'win32') return//the exe is windows' alone; the mac finishes with dmg.js
 	let started = Date.now()
+	buildLog('exe', 'started', '-', '-', 'of the program tauri just built')
 
 	//the facts, from the files that already hold them: the product name, version, identifier, publisher, and resources from tauri's configuration, and the crate's name from Cargo.toml, which is the executable's
 	let configuration = JSON.parse(readFileSync(join(tauri, 'tauri.conf.json'), 'utf8'))
@@ -108,6 +110,7 @@ function main() {
 	mkdirSync(bundled, {recursive: true})
 	writeFileSync(join(bundled, file), Buffer.concat([stub, cabinet, trailer]))
 	say(`finished ${join(bundled, file)}, ${megabytes(stub.length + cabinet.length + trailer.length)} MB in ${seconds(started)} s`)
+	buildLog('exe', 'finished', file, readSha256(join(bundled, file)), 'in the bundle folder, where pnpm hash finds it')
 }
 
 //every file under a folder, as paths relative to it with backslashes, which is how the cabinet and the setup program spell them
@@ -131,4 +134,4 @@ function megabytes(bytes) { return (bytes / 1048576).toFixed(1) }
 function kilobytes(bytes) { return (bytes / 1024).toFixed(0) }
 function seconds(since) { return ((Date.now() - since) / 1000).toFixed(1) }
 
-try { main() } catch (e) { console.error('🚧 Error:', e.message || e); process.exitCode = 1 }
+try { main() } catch (e) { buildLog('exe', 'failed', '-', '-', e.message || String(e)); console.error('🚧 Error:', e.message || e); process.exitCode = 1 }
