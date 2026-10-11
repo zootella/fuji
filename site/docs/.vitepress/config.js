@@ -170,6 +170,7 @@ export default defineConfig({
 					{ text: 'Gamma', link: '/gamma' },
 					{ text: 'Ben Day', link: '/ben-day' },
 					{ text: 'File Types', link: '/file-types' },
+					{ text: 'List and Tree', link: '/list-and-tree' },
 				],
 			},
 			{
