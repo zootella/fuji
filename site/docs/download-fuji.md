@@ -13,7 +13,7 @@ Arch Linux and its relatives have no package of their own. The Flatpak runs on a
 
 ## Getting past Windows and macOS warnings
 
-Both systems ask you to confirm the first run of a program downloaded through a browser. A browser marks every file it downloads, and that mark is what triggers the question. A copy you fetch with the command line below, or build from source, carries no mark and opens without one.
+Both systems ask you to confirm the first run of a program downloaded through a browser. A browser marks every file it downloads, and that mark triggers the question. A copy you fetch with the command line below, or build from source, carries no mark and opens without one.
 
 ### macOS: installing and running Fuji
 
@@ -27,13 +27,13 @@ Both systems ask you to confirm the first run of a program downloaded through a 
 2. [Microsoft Defender SmartScreen](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) displays a blue screen with the message **Windows protected your PC. Microsoft Defender SmartScreen prevented an unrecognized app from starting.** Click **More info**, then click **Run anyway**.
 3. Nothing else appears: the installer puts Fuji in place, adds it to the Start menu, and starts it, in about a second. Running a newer installer later updates Fuji the same way, and keeps the file types you chose to open with it.
 
-If a Windows 11 computer instead displays a message from [Smart App Control](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions), with no **Run anyway** button, that feature has to be turned off before the installer can run. It is in the Windows Security app under **App & browser control**, and on earlier builds of Windows 11, turning it off lasts until Windows is reinstalled.
+If a Windows 11 computer instead displays a message from [Smart App Control](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions), with no **Run anyway** button, you have to turn that feature off before the installer can run. It is in the Windows Security app under **App & browser control**, and on earlier builds of Windows 11, turning it off lasts until Windows is reinstalled.
 
-## Alternatively: Get Fuji using the command line
+## Get Fuji from the command line
 
-As an alternative to downloading through your browser and then encountering all these hurdles, you can get Fuji using your command line. This method has the added benefit of automatically checking the hash! These steps work without needing an administrator account.
+You can also fetch Fuji from the command line, which skips the warnings above and checks the hash for you. Neither command needs an administrator account.
 
-**macOS:** Click search in the upper right, and type **Terminal**. Copy and paste the command below, and hit the **Return** key. Two spaces follow the hash value; this is necessary for the command to work.
+**macOS:** Click search in the upper right, and type **Terminal**. Copy and paste the command below, and hit the **Return** key. Keep the two spaces after the hash; the check needs them.
 
 <DownloadCommand file="fuji.dmg">
 
@@ -58,17 +58,17 @@ if ((Get-FileHash fuji_setup.exe).Hash -eq '000000000000000000000000000000000000
 
 </DownloadCommand>
 
-The macOS and Windows commands do the same three things. They save `fuji_setup.dmg` or `fuji_setup.exe` in your _Downloads_ folder. They compute the file's SHA-256 hash and make sure it is correct. Lastly, they open the file, same as a double-click. On macOS the disk image appears, and you drag Fuji into _Applications_. On Windows the installer puts Fuji in place and starts it. Neither system shows its warning, because that warning is triggered by a mark browsers add to files they download, and a file fetched by <code>curl</code> carries none.
+The macOS and Windows commands do the same three things. They save `fuji_setup.dmg` or `fuji_setup.exe` in your _Downloads_ folder. They compute the file's SHA-256 hash and make sure it is correct. Then they open the file, as a double-click would. On macOS the disk image appears, and you drag Fuji into _Applications_. On Windows the installer puts Fuji in place and starts it. Neither system shows its warning, because the warning comes from a mark browsers add to files they download, and a file fetched by <code>curl</code> carries none.
 
-## Even better: Build Fuji yourself
+## Build Fuji yourself
 
-Fuji is open source, and the [repository](https://github.com/zootella/fuji) has what each platform needs to build it — the toolchains, the commands, and where the output lands. Building from source is also the only way to get a copy for an architecture no release covers.
+Fuji is open source, and the [repository](https://github.com/zootella/fuji) has what each platform needs to build it: the toolchains, the commands, and where the output lands. Building from source is also the only way to get a copy for an architecture no release covers.
 
 Open source also means Fuji can go further than its settings do. Clone the repository, have a coding agent add the feature you want or change how Fuji behaves, and build a copy that is yours.
 
 ## Which file, and for what
 
-**macOS.** `fuji.dmg` is built for Apple silicon — the M-series machines. There is no Intel build. Open the disk image and drag Fuji into your Applications folder.
+**macOS.** `fuji.dmg` is built for Apple silicon, the M-series machines. There is no Intel build. Open the disk image and drag Fuji into your Applications folder.
 
 **Windows.** `fuji.exe` is the *installer*, for 64-bit Intel and AMD processors, and running it installs Fuji with no questions and then starts it. It is not the application itself, which the installer unpacks and puts where Windows expects it.
 
@@ -76,7 +76,7 @@ Open source also means Fuji can go further than its settings do. Clone the repos
 
 **Fedora, RHEL, Rocky, AlmaLinux.** `fuji.x86_64.rpm` is the package for those and their relatives, for 64-bit Intel and AMD.
 
-**Any distribution at all, on a 64-bit Intel or AMD machine.** `fuji.x86_64.flatpak` is a Flatpak bundle, which carries its own libraries and runs in a sandbox, so it does not care what your distribution ships — though it does still care what processor you have, and this one is not for a Raspberry Pi. Download it and install it with `flatpak install ./fuji.x86_64.flatpak`. It is the only one of these that works on an immutable system like SteamOS on the Steam Deck, or Bazzite, where the root filesystem is read-only and an ordinary package cannot be installed at all.
+**Any distribution at all, on a 64-bit Intel or AMD machine.** `fuji.x86_64.flatpak` is a Flatpak bundle, which carries its own libraries and runs in a sandbox, so it does not care what your distribution ships. It does still care what processor you have, and this one is not for a Raspberry Pi. Download it and install it with `flatpak install ./fuji.x86_64.flatpak`. It is the only one of these that works on an immutable system like SteamOS on the Steam Deck, or Bazzite, where the root filesystem is read-only and an ordinary package cannot be installed at all.
 
 Fuji reads the folders you point it at, so the Flatpak asks for access to your filesystem. Your software center will say so when you install it, and it is the same access the other packages have without asking.
 

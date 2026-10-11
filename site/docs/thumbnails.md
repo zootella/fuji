@@ -13,21 +13,21 @@ Fuji's words for its own parts:
 - **Beam** — the length every thumbnail is measured against, in CSS pixels; today a picture's longer side is fitted to it, so each tile sits inside a square the beam on each side, whatever shape the picture is. The user picks the beam's length from Small, Medium, Large and XL.
 - **Store** — the one place Fuji keeps a file's bytes and its decoded pixels. It hands them out and takes them back when told, and decides nothing on its own.
 
-A light table's route to the screen is deliberately plain: an `<img>`, sized by two lines of CSS, flipped by hiding one element and showing another. Nothing there needs to be clever. The contact sheet cannot do the same thing. The rest of this is why, and what it does instead.
+A light table's route to the screen is plain: an `<img>`, sized by two lines of CSS, flipped by hiding one element and showing another. The contact sheet cannot do the same thing. The rest of this page is why, and what it does instead.
 
 ## Why a contact sheet cannot do what a light table does
 
-That second file is the one to keep in mind. Six megabytes of JPEG becomes 6240 × 4160 × 4 bytes once a decoder undoes the compression, which is a hundred and four megabytes of raster for one picture. Two hundred of those on screen at once would be twenty gigabytes.
+The second file above, six megabytes of JPEG, becomes 6240 × 4160 × 4 bytes once a decoder undoes the compression, which is a hundred and four megabytes of raster for one picture. Two hundred of those on screen at once would be twenty gigabytes.
 
-The obvious answer, letting the engine worry about it, is better than it sounds. Both engines decode a large picture small when they know it will be painted small, called *subsampling*. Chromium decodes a JPEG at a half, a quarter or an eighth of its size for a small paint. WebKit subsamples by a rule of its own: the level for a draw is the power of two nearest the reduction, and the deepest level allowed is the first at which the frame falls under five million pixels, so a 6240 by 4160 raster is decoded at a quarter of its width, 1560 by 1040, and a 4000 by 3000 one at a half. An `<img>` thumbnail is therefore far smaller than a full decode in both engines, and a wall of images that scrolls is the most ordinary thing on the web — the engines have spent twenty years making it work.
+The obvious answer, letting the engine worry about it, is better than it sounds. Both engines decode a large picture small when they know it will be painted small, called *subsampling*. Chromium decodes a JPEG at a half, a quarter or an eighth of its size for a small paint. WebKit subsamples by a rule of its own: the level for a draw is the power of two nearest the reduction, and the deepest level allowed is the first at which the frame falls under five million pixels, so a 6240 by 4160 raster is decoded at a quarter of its width, 1560 by 1040, and a 4000 by 3000 one at a half. An `<img>` thumbnail is therefore far smaller than a full decode in both engines, and a wall of images that scrolls is the most ordinary thing on the web. The engines have spent twenty years making it work.
 
-So the case for doing it ourselves is not about the number of bytes. **It is about who owns them.**
+So the case for Fuji doing the work itself is about who owns the bytes, not how many there are.
 
-An `<img>`'s decoded pixels are the engine's to keep or to drop, on a byte budget it does not publish. Under that budget the engine holds a hidden picture's decoded frame, and showing it again takes about fifteen milliseconds. Over the budget the engine throws the frame away, and showing that same picture again means reading and decoding the file from scratch, a quarter of a second for a large one. The budget covers everything else the page is holding as well. Fuji cannot ask what it is, cannot ask how much of it is spent, and the engine tells it nothing when it drops a frame — so the only move Fuji has is to hold less and hope that is enough.
+An `<img>`'s decoded pixels are the engine's to keep or to drop, on a byte budget it does not publish. Under that budget the engine holds a hidden picture's decoded frame, and showing it again takes about fifteen milliseconds. Over the budget the engine throws the frame away, and showing that same picture again means reading and decoding the file from scratch, a quarter of a second for a large one. The budget covers everything else the page is holding as well. Fuji cannot ask what it is, cannot ask how much of it is spent, and the engine tells it nothing when it drops a frame, so the only move Fuji has is to hold less and hope that is enough.
 
-A canvas works the other way round. Its size is set in backing pixels, the grid the operating system draws the screen in, and when Fuji sets one to 480 by 320 the engine allocates 480 × 320 × 4 bytes — 600 kilobytes — and gives Fuji a surface to paint on. Those bytes become the only copy of that thumbnail in the process: Fuji draws the picture in, then releases the file it came from, so nothing in the page points at the original any more.
+A canvas works the other way round. Its size is set in backing pixels, the grid the operating system draws the screen in, and when Fuji sets one to 480 by 320 the engine allocates 480 × 320 × 4 bytes, 600 kilobytes, and gives Fuji a surface to paint on. Those bytes become the only copy of that thumbnail in the process: Fuji draws the picture in, then releases the file it came from, so nothing in the page points at the original any more.
 
-That is what the engine cannot work around. It drops an `<img>`'s decoded frame only because it can decode the file again when the picture comes back on screen; here it would have nothing to decode. So the 600 kilobytes stand for exactly as long as the canvas element stands. They go when the element goes — when the user scrolls that stretch of the contact sheet away and Fuji tears the tile down, or when Fuji quits — and nothing else frees them, however hard the machine is squeezed for memory.
+That is what the engine cannot work around. It drops an `<img>`'s decoded frame only because it can decode the file again when the picture comes back on screen; here it would have nothing to decode. So the 600 kilobytes stand for exactly as long as the canvas element stands. They go when the element goes: when the user scrolls that stretch of the contact sheet away and Fuji tears the tile down, or when Fuji quits. Nothing else frees them, however hard the machine is squeezed for memory.
 
 What Fuji gets for that is a number it can work out before it opens a file:
 
@@ -40,7 +40,7 @@ What Fuji gets for that is a number it can work out before it opens a file:
 
 For an image three units wide by two tall, on a Retina Mac, where a [`devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) of 2 makes each CSS pixel two backing pixels across. On Windows at 150% the same numbers are a little over half of these.
 
-Two hundred Medium thumbnails come to a hundred and twenty megabytes where two hundred full decodes would be twenty gigabytes. The saving is not really the point, since the engine was never going to hold twenty gigabytes either; the point is that Fuji knows the figure. So **every raster thumbnail in Fuji is a canvas**, whichever route made its pixels, and Fuji adds their bytes up as it goes. That turns "how much is the contact sheet holding" from a question about the engine's internals into a number Fuji can print.
+Two hundred Medium thumbnails come to a hundred and twenty megabytes where two hundred full decodes would be twenty gigabytes. The saving itself matters less than it looks, since the engine was never going to hold twenty gigabytes either. What matters is that Fuji knows the figure. So **every raster thumbnail in Fuji is a canvas**, whichever route made its pixels, and Fuji adds their bytes up as it goes. That turns "how much is the contact sheet holding" from a question about the engine's internals into a number Fuji can print.
 
 ## The fork
 
@@ -97,21 +97,21 @@ A file that nothing on the platform can draw, or that its decoder refuses, is le
 
 ### Fuji shows a GIF or an SVG in an img
 
-Fuji sends a GIF to an `<img>` because only an `<img>` animates: a picture that bounces in a browser should bounce on the contact sheet too. Drawing one into a canvas would get its first frame — a perfectly good thumbnail, and what most file managers show — but we would rather show the thing itself. A contact sheet of two hundred animations sounds expensive. It is not: an animation runs only while it is actually in view, so a wall of GIFs costs only the handful on screen.
+Fuji sends a GIF to an `<img>` because only an `<img>` animates: a picture that bounces in a browser should bounce on the contact sheet too. Drawing one into a canvas would get its first frame, a perfectly good thumbnail and what most file managers show, but Fuji would rather show the thing itself. A contact sheet of two hundred animations sounds expensive, and it is not: an animation runs only while it is in view, so a wall of GIFs costs only the handful on screen.
 
 Fuji sends an SVG to the same element because an SVG has no pixels to own. The engine parses it and paints it sharp at whatever size the CSS gives, and an SVG without intrinsic dimensions gives a canvas nothing to scale a drawing to, so it cannot go the other way at all.
 
-An `<img>` shows an SVG as an image rather than as a document: its scripts never run, it loads nothing from outside itself, it receives no events, and the element clips it, so it cannot draw over its neighbours however its coordinates are written. That is what makes it safe to show one this way, and why Fuji never shows one inline in its own document, where those scripts would run as Fuji.
+An `<img>` shows an SVG as an image rather than as a document: its scripts never run, it loads nothing from outside itself, it receives no events, and the element clips it, so it cannot draw over its neighbors however its coordinates are written. That makes it safe to show one this way, and it is why Fuji never shows one inline in its own document, where those scripts would run as Fuji.
 
 ### The native lists
 
-| platform | thumbnailer | formats we send it |
+| platform | thumbnailer | formats Fuji sends it |
 | --- | --- | --- |
 | macOS | [ImageIO](https://developer.apple.com/documentation/imageio) | JPEG, PNG, WebP, AVIF, BMP |
 | Windows | [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec) | JPEG, PNG |
 | Linux | — | none |
 
-Each list is short and conservative, and Fuji never goes past it. Windows gets JPEG and PNG because WIC's decoders for both have shipped in every version of Windows since XP and are its most exercised code. macOS gets the formats we have run ImageIO against and watched decode. A format off a column's list goes to the page whatever that machine might have been able to do, because **we do not probe for codecs** — the routing table is a decision we made and can read, not a capability negotiation whose result changes from machine to machine.
+Each list is short and conservative, and Fuji never goes past it. Windows gets JPEG and PNG because WIC's decoders for both have shipped in every version of Windows since XP and are its most exercised code. macOS gets the formats ImageIO has decoded in testing. A format off a column's list goes to the page whatever that machine might have been able to do, because Fuji does not probe for codecs: the routing table is a decision written down in the code, and a capability negotiation would give a different answer on every machine.
 
 The page route is the only one of the two that works on all three platforms, which is why it is the one that has to keep working.
 
@@ -121,19 +121,19 @@ The formats Fuji opens at all are a shorter list than any of the decoders undern
 .jpg  .jpeg  .jpe  .jfif  .png  .gif  .bmp  .webp  .avif  .svg
 ```
 
-For context on how much headroom that leaves: ImageIO on a current Mac will decode some sixty types, including thirty-odd camera raw formats; WIC on a stock Windows install handles JPEG, PNG, GIF, BMP, TIFF, ICO, JPEG-XR and DDS, with WebP, AVIF and HEIC arriving as store extensions. Chromium's own decoders cover JPEG, PNG, GIF, WebP, BMP, ICO, AVIF and JPEG XL. The two platforms come out opposite. On macOS the native side is the more capable one and the web side adds only SVG; on Windows it is the other way round for the web-born formats, until the codec packs are installed.
+The decoders underneath have far more range. ImageIO on a current Mac will decode some sixty types, including thirty-odd camera raw formats; WIC on a stock Windows install handles JPEG, PNG, GIF, BMP, TIFF, ICO, JPEG-XR and DDS, with WebP, AVIF and HEIC arriving as store extensions. Chromium's own decoders cover JPEG, PNG, GIF, WebP, BMP, ICO, AVIF and JPEG XL. The two platforms come out opposite. On macOS the native side is the more capable one and the web side adds only SVG; on Windows it is the other way round for the web-born formats, until the codec packs are installed.
 
 ## The operating system's route
 
-`thumbnail.rs` calls *ImageIO* on macOS and the *Windows Imaging Component* on Windows — the same libraries Finder and Explorer use for the thumbnails in their own windows. Both can take a file path or the file's bytes, and Fuji hands them the path. The library opens and reads the file itself, and the page never holds it.
+`thumbnail.rs` calls *ImageIO* on macOS and the *Windows Imaging Component* on Windows, the same libraries Finder and Explorer use for the thumbnails in their own windows. Both can take a file path or the file's bytes, and Fuji hands them the path. The library opens and reads the file itself, and the page never holds it.
 
 Before either library decodes anything, Fuji reads the header through it and refuses a picture whose raster would not fit in half the machine's physical memory. That check stands here because this is the route where the decoder runs in Fuji's own process; the page route hands the file to the web engine, which decodes inside its sandbox and chooses its decoder by the bytes, exactly as it does for a light table.
 
 On macOS the body is short, because ImageIO does the whole job in one call given three options: the longest side to scale to, a flag to render a thumbnail from the full image rather than handing back whatever small preview the file may have embedded, and a flag to apply the file's EXIF orientation. Then Fuji draws the result into a bitmap context of the color space it wants. That draw is where [Core Graphics](https://developer.apple.com/documentation/coregraphics) does the color management. One loop afterwards undoes the *premultiplied alpha* a drawing context produces: colors pre-scaled by their own transparency, which have to be divided back out before the pixels mean what `ImageData` expects.
 
-On Windows the body is long, because WIC is a pipeline of separate objects, each initialised over the last: a decoder over the file path, its first frame, a scaled decode through the codec's own [source transform](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/nn-wincodec-iwicbitmapsourcetransform) where it offers one, the [Fant scaler](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/ne-wincodec-wicbitmapinterpolationmode) for the rest of the way, a flip-rotator for the EXIF orientation that *WIC* leaves to the caller, a color transform from the file's profile to sRGB, and a format converter to straight-alpha RGBA. Nothing runs until the final `CopyPixels`, which pulls the whole pipeline.
+On Windows the body is long, because WIC is a pipeline of separate objects, each initialized over the last: a decoder over the file path, its first frame, a scaled decode through the codec's own [source transform](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/nn-wincodec-iwicbitmapsourcetransform) where it offers one, the [Fant scaler](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/ne-wincodec-wicbitmapinterpolationmode) for the rest of the way, a flip-rotator for the EXIF orientation that *WIC* leaves to the caller, a color transform from the file's profile to sRGB, and a format converter to straight-alpha RGBA. Nothing runs until the final `CopyPixels`, which pulls the whole pipeline.
 
-That flip-rotator takes one set of flags for both operations, so which it applies first decides the answer, and it applies the flip. Six of EXIF's eight cases carry a rotation or a flip but not both and read the same either way; only 5 and 7, the mirrored diagonals, carry both, and a flip then a quarter turn differs from a quarter turn then that flip by a half turn. Verified on Windows 10, 2026-09-13, with eight JPEGs authored one per case, each storing the raster its own orientation turns upright — so a correct thumbnailer shows all eight the same way up, and nobody has to judge what upright looks like. It found 5 and 7 inverted, which is now fixed and re-run.
+That flip-rotator takes one set of flags for both operations, so which it applies first decides the answer, and it applies the flip. Six of EXIF's eight cases carry a rotation or a flip but not both and read the same either way; only 5 and 7, the mirrored diagonals, carry both, and a flip then a quarter turn differs from a quarter turn then that flip by a half turn. Verified on Windows 10, 2026-09-13, with eight JPEGs authored one per case, each storing the raster its own orientation turns upright, so a correct thumbnailer shows all eight the same way up and nobody has to judge what upright looks like. The test found 5 and 7 inverted; the fix is in, and the test passes.
 
 Either way one buffer comes back. Its bytes, by offset:
 
@@ -144,29 +144,29 @@ Either way one buffer comes back. Its bytes, by offset:
 12-    straight-alpha RGBA, top row first, 4 bytes a pixel
 ```
 
-One buffer rather than a structured result, because Tauri serializes a `Vec<u8>` crossing its bridge into a JSON array — one decimal number per byte, written on one side and parsed on the other. We measured that at about a hundred and fifty milliseconds per megabyte, flat and linear in file size, which no disk is. As an `ArrayBuffer` the same bytes cross in single-digit milliseconds.
+One buffer rather than a structured result, because Tauri serializes a `Vec<u8>` crossing its bridge into a JSON array, one decimal number per byte, written on one side and parsed on the other. That was measured at about a hundred and fifty milliseconds per megabyte, flat and linear in file size, which no disk is. As an `ArrayBuffer` the same bytes cross in single-digit milliseconds.
 
 The clock is not the only difference. Both libraries perform a *scaled decode*: a **baseline** JPEG comes out at an eighth of its size by skipping most of the inverse transform, and baseline is the ordinary case, so **the full-size raster never exists**. And the work runs on Tauri's thread pool, so it never touches the thread that runs the window.
 
 ## The page's route
 
-For everything else — WebP, AVIF and BMP on Windows, everything on Linux — the page does it. The store reads the file through Rust, wraps the bytes in a blob, makes an object URL, points an element at it and decodes it. The flow then draws that element down into the canvas and releases it, so the store can drop the bytes, the URL and the full-size decode the moment the canvas has the pixels.
+For everything else, WebP, AVIF and BMP on Windows and everything on Linux, the page does it. The store reads the file through Rust, wraps the bytes in a blob, makes an object URL, points an element at it and decodes it. The flow then draws that element down into the canvas and releases it, so the store can drop the bytes, the URL and the full-size decode the moment the canvas has the pixels.
 
-On macOS nothing takes this route at all: every raster extension Fuji opens is on that platform's native list. Emptying that list is the only way to reach it on a Mac, and that is how we test it.
+On macOS nothing takes this route at all: every raster extension Fuji opens is on that platform's native list. Emptying that list is the only way to reach it on a Mac, and that is how the page route gets tested there.
 
 Four images at a time, the same as the native route. Each one is a full decode held in memory and a draw on the main thread, so four large photographs at once is a few hundred megabytes for a moment, which a present-day desktop has to spare.
 
 ### Why the page halves instead of drawing once
 
-A single [`drawImage`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage) from a full-size decode into a small canvas comes out rough on the Mac: fine repeating texture in a 6240 by 4160 raster turns to jaggies at 240 CSS pixels, where Safari shows the same file smooth as an `<img>`. Two engine behaviours cause it, and they compound.
+A single [`drawImage`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage) from a full-size decode into a small canvas comes out rough on the Mac: fine repeating texture in a 6240 by 4160 raster turns to jaggies at 240 CSS pixels, where Safari shows the same file smooth as an `<img>`. Two engine behaviors cause it, and they compound.
 
 *Core Graphics*' high interpolation reads a fixed footprint of source pixels around each output pixel. At twenty-six to one, that leaves most of the picture unread, and pixels that are never read alias. Chromium's `high` is a chain of successive halvings sampled with a cubic filter, which does read everything, and is why the same one-pass draw looks fine on Windows.
 
 And WebKit hands `drawImage` a subsampled frame only when it has to decode one. A frame already decoded at full size counts as good enough for any smaller request, and the store's [`decode()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/decode) produces exactly that frame, so the engine hands `drawImage` all twenty-six million pixels, where it hands Safari's `<img>`, which never calls `decode()`, a sixteenth of them.
 
-So the page route halves through scratch canvases until the last draw is within two to one, the ratio at which a fixed footprint is an honest average of the source. Every step sets [`imageSmoothingQuality`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/imageSmoothingQuality) to `high`; the default, `low`, reads only the four nearest source pixels and would alias even at that ratio.
+So the page route halves through scratch canvases until the last draw is within two to one, the ratio at which a fixed footprint is a true average of the source. Every step sets [`imageSmoothingQuality`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/imageSmoothingQuality) to `high`; the default, `low`, reads only the four nearest source pixels and would alias even at that ratio.
 
-[`createImageBitmap`](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap) looks like the purpose-built tool here — ask it for `resizeWidth` and `resizeQuality` and it decodes straight to the size wanted — and on Chromium it is. WebKit has the code and does not ship the options, so on macOS it returns a full-size bitmap: a whole second copy of a large raster, allocated for nothing, then scaled by the same `drawImage` that could have done the job alone. So Fuji does not use it.
+[`createImageBitmap`](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap) looks like the purpose-built tool here: ask it for `resizeWidth` and `resizeQuality` and it decodes straight to the size wanted, and on Chromium it is. WebKit has the code and does not ship the options, so on macOS it returns a full-size bitmap: a whole second copy of a large raster, allocated for nothing, then scaled by the same `drawImage` that could have done the job alone. So Fuji does not use it.
 
 ## Speed
 
@@ -183,7 +183,7 @@ Six large JPEGs, all progressive, 0.4 to 6.2 MB on disk:
 | 2455 × 3068 | 73 | 123 | 74 | 80 |
 | 3299 × 2199 | 57 | 106 | 59 | 64 |
 
-Two cautions about that table. The native column does not track raster size, because these six differ in bytes as much as in pixels; nothing here explains the ordering and we have not chased it. And all six are progressive JPEGs. A scaled decode saves least on those, because every scan has to be entropy-decoded before any scaling helps, so this table understates the native route's advantage on ordinary baseline JPEGs.
+Two cautions about that table. The native column does not track raster size, because these six differ in bytes as much as in pixels; nothing here explains the ordering, and the question is open. And all six are progressive JPEGs. A scaled decode saves least on those, because every scan has to be entropy-decoded before any scaling helps, so this table understates the native route's advantage on ordinary baseline JPEGs.
 
 The same six re-saved as baseline JPEGs at web sizes, which is most of what a folder actually holds:
 
@@ -194,13 +194,13 @@ The same six re-saved as baseline JPEGs at web sizes, which is most of what a fo
 
 For web-sized pictures both routes are fast and the native one is about three times quicker on the clock. A folder of two hundred fills in a few seconds either way and nobody drops a frame.
 
-For rasters this large the picture changes. Native is three to twenty-five times faster. The number that decided the design is the next one: the halving costs the main thread fifty to two hundred and twenty milliseconds per image. That is a dropped frame or a dozen, per picture, while a folder of large images fills. The cost comes from the intermediate canvases forcing the engine to finish each step before the next one reads it; a lone draw into a canvas costs the main thread nothing, because the engine defers it.
+For rasters this large the picture changes. Native is three to twenty-five times faster. The halving costs the main thread fifty to two hundred and twenty milliseconds per image, and that number decided the design. That is a dropped frame or a dozen, per picture, while a folder of large images fills. The cost comes from the intermediate canvases forcing the engine to finish each step before the next one reads it; a lone draw into a canvas costs the main thread nothing, because the engine defers it.
 
-**Responsiveness ranks above total time.** A person who waits a second for a folder while Fuji stays completely responsive is far better off than one who waits the same second while Fuji stutters. The native route costs the main thread nothing at all, because the decode runs on a pool thread and the page receives only small pixels. That, more than the multiplier, is why the operating system goes first wherever we let it.
+**Responsiveness ranks above total time.** A person who waits a second for a folder while Fuji stays completely responsive is far better off than one who waits the same second while Fuji stutters. The native route costs the main thread nothing at all, because the decode runs on a pool thread and the page receives only small pixels. That, more than the multiplier, is why the operating system goes first wherever Fuji lets it.
 
 ### Windows, and whether the scaled decode is real there
 
-Every number above is an Apple M2. The Windows native route had never been timed at all, and the question worth asking there was not how fast it is but whether it is doing what the code thinks: the scaled decode sits behind two conditions that fail silently, the codec offering [`IWICBitmapSourceTransform`](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/nn-wincodec-iwicbitmapsourcetransform) at all and `GetClosestSize` returning something smaller than the frame. If either fails, the Fant scaler reduces from the full raster and nothing says so.
+Every number above is an Apple M2. The Windows native route had never been timed at all, and the question there was whether it does what the code thinks, more than how fast it is: the scaled decode sits behind two conditions that fail silently, the codec offering [`IWICBitmapSourceTransform`](https://learn.microsoft.com/en-us/windows/win32/api/wincodec/nn-wincodec-iwicbitmapsourcetransform) at all and `GetClosestSize` returning something smaller than the frame. If either fails, the Fant scaler reduces from the full raster and nothing says so.
 
 Measured on a Windows 10 box, Intel UHD Graphics 630, 2026-09-13, against a 6000 × 4500 baseline JPEG:
 
@@ -210,15 +210,15 @@ Measured on a Windows 10 box, Intel UHD Graphics 630, 2026-09-13, against a 6000
 | *WIC* asked for a scaled decode to 240 px | 62 ms |
 | Fuji's own `thumb` row for that file, decoded alone | 65 ms |
 
-**It engages.** Fuji's cost sits on the scaled figure and nowhere near the full one. The first two rows come from *WPF*'s `BitmapDecoder`, which wraps the same *WIC*, with `DecodePixelWidth` set or not and the pixels copied out to force the work — a way of asking the library the question directly rather than inferring it from the application.
+**It engages.** Fuji's cost sits on the scaled figure and nowhere near the full one. The first two rows come from *WPF*'s `BitmapDecoder`, which wraps the same *WIC*, with `DecodePixelWidth` set or not and the pixels copied out to force the work, a way of asking the library the question directly rather than inferring it from the application.
 
-Worth recording because a more obvious experiment gives the wrong answer. Timing a JPEG against a PNG of identical dimensions looks like the natural control, since *WIC*'s PNG codec cannot scale and must reduce from the full raster — but the two come out within a few milliseconds of each other, and that is not evidence of anything. A scaled decode skips the inverse DCT and the upsampling; it cannot skip the Huffman pass, which reads every coefficient in the file. That pass is most of the 62 ms, and the PNG's inflate-and-unfilter is most of its own cost. Two large unavoidable costs of similar size, hiding the saving between them.
+A more obvious experiment gives the wrong answer. Timing a JPEG against a PNG of identical dimensions looks like the natural control, since *WIC*'s PNG codec cannot scale and must reduce from the full raster, but the two come out within a few milliseconds of each other, and that is not evidence of anything. A scaled decode skips the inverse DCT and the upsampling; it cannot skip the Huffman pass, which reads every coefficient in the file. That pass is most of the 62 ms, and the PNG's inflate-and-unfilter is most of its own cost. Two large unavoidable costs of similar size, hiding the saving between them.
 
 Thumbnails on the contact sheet are made several at a time, so a reading taken while a folder fills carries the others' contention in it. The figure above is one image alone in a folder.
 
 ### Where this document stops
 
-The costs above are per picture, and they are what this document is about. How many thumbnails should be in flight at once, in what order, what a contact sheet ought to be holding while the user scrolls, and whether finished thumbnails belong on disk are different questions with different answers, and Fuji's are still moving. The one thing that follows directly from the numbers above: the native route can run several at a time at no cost to the window, because each is a pool thread that never touches the page, while every page-route thumbnail is a full decode held in memory and a draw on the one thread that also has to keep the window responsive. Fuji lets four of each through at a time today.
+The costs above are per picture, and they are what this document is about. How many thumbnails should be in flight at once, in what order, what a contact sheet ought to be holding while the user scrolls, and whether finished thumbnails belong on disk are different questions with different answers, and Fuji's are still moving. One thing follows directly from the numbers above: the native route can run several at a time at no cost to the window, because each is a pool thread that never touches the page, while every page-route thumbnail is a full decode held in memory and a draw on the one thread that also has to keep the window responsive. Fuji lets four of each through at a time today.
 
 ## Fidelity
 
@@ -232,7 +232,7 @@ The longer side goes to the beam, and Fuji never enlarges a picture:
 let scale = Math.min(beam / size.x, beam / size.y, 1)
 ```
 
-A square picture lands exactly on the beam, a wide one hits the limit on width alone, and a picture already smaller than the beam keeps its own size. **Fuji crops nothing** — every tile shows a whole picture, and the rows come out ragged because of it. The beam is one of four named lengths: Small, Medium, Large and XL, at 120, 240, 360 and 480 CSS pixels. All four are settings, so Medium means whatever the user says it means.
+A square picture lands exactly on the beam, a wide one hits the limit on width alone, and a picture already smaller than the beam keeps its own size. **Fuji crops nothing**: every tile shows a whole picture, and the rows come out ragged because of it. The beam is one of four named lengths: Small, Medium, Large and XL, at 120, 240, 360 and 480 CSS pixels. All four are settings, so Medium means whatever the user says it means.
 
 ### One backing pixel
 
@@ -246,7 +246,7 @@ css.x = round(480 × 0.5) = 240 → 240 × 2 = 480 = bitmap  matches
 css.y = round(269 × 0.5) = 135 → 135 × 2 = 270 ≠ 269     one short
 ```
 
-The long axis is the box times `devicePixelRatio` by construction, so it always matches. The short axis is whatever the thumbnailer computed for the aspect ratio, and that is odd about half the time — so on a Retina panel **half of all native-route thumbnails** would sit in a box one backing pixel taller or wider than they have pixels for, and the compositor would resample every row.
+The long axis is the box times `devicePixelRatio` by construction, so it always matches. The short axis is whatever the thumbnailer computed for the aspect ratio, and that is odd about half the time, so on a Retina panel **half of all native-route thumbnails** would sit in a box one backing pixel taller or wider than they have pixels for, and the compositor would resample every row.
 
 That resample is not a soft edge. The phase between source and destination rows drifts from zero at one end of the picture to a full pixel at the other, passing through exactly half a pixel in the middle, where every output row is the mean of two source rows.
 
@@ -261,7 +261,7 @@ Sized to the picture, the odd tile decays from clean alternating rows at the top
 
 The even tile is the control, and its two figures are not a result: its geometry is the same under both rules, and the 0.11% against the 0.00% comes from two different kinds of screen capture rather than from anything on the page.
 
-**Fractional CSS does not fix this**, though it looks as though it should. Giving the element a height of `backing / devicePixelRatio` un-rounded is legal, and the engine honours it exactly: `style 134.5px`, `computed 134.5px`, a layout rectangle of 134.5. The odd tile still reads 90.74% intermediate. Padding the bitmap instead, against a whole-pixel CSS height, drops it to zero. A fractional CSS box does not buy a backing-pixel-exact blit in WebKit.
+**Fractional CSS does not fix this**, though it looks as though it should. Giving the element a height of `backing / devicePixelRatio` un-rounded is legal, and the engine honors it exactly: `style 134.5px`, `computed 134.5px`, a layout rectangle of 134.5. The odd tile still reads 90.74% intermediate. Padding the bitmap instead, against a whole-pixel CSS height, drops it to zero. A fractional CSS box does not buy a backing-pixel-exact blit in WebKit.
 
 **So Fuji sizes each canvas to the box the compositor will use**, rather than to the picture, and puts the picture in the corner of it:
 
@@ -273,31 +273,31 @@ function flowSnap(side, have) {
 }
 ```
 
-That tolerance, `have + backingPerCss`, separates two cases. A thumbnail shrunk to fit misses its box by at most one backing pixel of rounding, and taking that sliver buys a one-to-one blit for every row — so Fuji takes it, and repeats the picture's last row and column into it, making the seam the picture's own color rather than a transparent line. A picture *smaller* than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an `<img>` would; that one keeps the pixels it has.
+That tolerance, `have + backingPerCss`, separates two cases. A thumbnail shrunk to fit misses its box by at most one backing pixel of rounding, and taking that sliver buys a one-to-one blit for every row, so Fuji takes it, and repeats the picture's last row and column into it, making the seam the picture's own color rather than a transparent line. A picture *smaller* than the box misses it by far more than that and is meant to, since the fit leaves such a picture at its own size and the engine enlarges it the way an `<img>` would; that one keeps the pixels it has.
 
-Two things follow. The rule is a **no-op where a CSS pixel is one backing pixel**, so an ordinary monitor behaves exactly as before. And it is a **no-op on the page route**, where the canvas is derived from the CSS size and the two cannot disagree — the native route is the only place where a bitmap arrives from outside and the CSS size has to be recovered from it by division.
+Two things follow. The rule is a **no-op where a CSS pixel is one backing pixel**, so an ordinary monitor behaves exactly as before. And it is a **no-op on the page route**, where the canvas is derived from the CSS size and the two cannot disagree. The native route is the only place where a bitmap arrives from outside and the CSS size has to be recovered from it by division.
 
 One platform difference works out differently. On macOS `devicePixelRatio` is only ever 1 or 2, so a whole-CSS box is always a whole number of backing pixels and Fuji can always size a canvas to it exactly. Windows offers 125%, 150% and 175%, where it is fractional and a whole-CSS box lands on a fraction of a backing pixel: at 150%, a box of 135 CSS pixels is 202.5 backing pixels, and a canvas can be 202 or 203 but not 202.5. Windows has one pixel unit fewer than macOS, and pays for the simpler model with worse arithmetic.
 
 Measured on a Windows 10 box at 1920 × 1200, 2026-09-13, across four runs covering all three of Windows' fractional scales, by the method above: PNGs authored at exactly the size the thumbnailer returns, carrying one-pixel black and white rows, read back off the screen rather than out of the canvas. Roughly a quarter of the tiles were resampled.
 
-`flowSnap`'s arithmetic is correct at every scale — each canvas came back the size the rule predicts, confirmed from the log's own `bytes` column. What separates the tiles that resample from the ones that do not is harder, and only one part of it is firm.
+`flowSnap`'s arithmetic is correct at every scale: each canvas came back the size the rule predicts, confirmed from the log's own `bytes` column. What separates the tiles that resample from the ones that do not is harder, and only one part of it is firm.
 
 **How far the canvas misses its box matters more than which side it misses on.** A miss of a quarter of a backing pixel was almost always clean; a miss of a half or three quarters resampled far more often, and that holds whether the canvas is over or under. This is the finding the flooring experiment below rests on, and it is why the rule rounds rather than floors: rounding bounds the miss at half a backing pixel in either direction, and nothing can do better than that, because the box is not a whole number of backing pixels and no canvas can sit on it.
 
-**Where a tile sits matters as well, and that part is not characterized.** A tile's place on the backing grid depends on every row above it, since row heights accumulate in halves and quarters at a fractional scale. At 150% the rows began at 45, 310.5 and 579 backing pixels and every failure was in the middle one; at 125% they began at 38, 315.5, 595.5 and 878, and every failure was in the two fractional ones. That looks like a rule and is not one — across the four runs it has exceptions in both directions, tiles on a fractional row that stayed clean and tiles on a whole row that did not, and no model built from one run has survived a fresh set of files.
+**Where a tile sits matters as well, and that part is not characterized.** A tile's place on the backing grid depends on every row above it, since row heights accumulate in halves and quarters at a fractional scale. At 150% the rows began at 45, 310.5 and 579 backing pixels and every failure was in the middle one; at 125% they began at 38, 315.5, 595.5 and 878, and every failure was in the two fractional ones. That looks like a rule and is not one: across the four runs it has exceptions in both directions, tiles on a fractional row that stayed clean and tiles on a whole row that did not, and no model built from one run has survived a fresh set of files.
 
-**What follows is that the resampling that remains is a layout problem rather than a canvas one.** At a fractional scale, a layout on whole CSS pixels cannot keep landing on the backing grid, and nothing about how a thumbnail is sized can put a row there. That is a property of laying a grid out in CSS pixels on a fractionally scaled display, not something the thumbnail pipeline does to itself.
+**The resampling that remains is a layout problem, not a canvas one.** At a fractional scale, a layout on whole CSS pixels cannot keep landing on the backing grid, and nothing about how a thumbnail is sized can put a row there. That is a property of laying a grid out in CSS pixels on a fractionally scaled display, not something the thumbnail pipeline does to itself.
 
 The failure is the same one the Retina measurement found, and it looks identical: down a resampled tile the luma walks from a clean 248/8 at the top toward a flat 128/128 at the midpoint, the phase drifting a full pixel across the picture.
 
-<img src="./images/thumbnail-resample-175.png" alt="Two thumbnails side by side, each a test pattern of alternating one-pixel black and white rows. The left one holds crisp stripes from top to bottom. The right one is crisp at the top and bottom but fades to flat grey through its middle." width="420" height="207" style="image-rendering:pixelated;max-width:100%">
+<img src="./images/thumbnail-resample-175.png" alt="Two thumbnails side by side, each a test pattern of alternating one-pixel black and white rows. The left one holds crisp stripes from top to bottom. The right one is crisp at the top and bottom but fades to flat gray through its middle." width="420" height="207" style="image-rendering:pixelated;max-width:100%">
 
-Two tiles from one contact sheet at 175%, cropped from a screen capture at their exact size. Both files are the same test pattern of alternating one-pixel black and white rows, and both thumbnails were made by the same code in the same run; the green band is a marker the test images carry so each tile can be identified. Neither canvas sits exactly on its box, because at this scale none can. The left one is a **quarter** of a backing pixel over its box — 205 against 204.75 — and every row was blitted one to one anyway. The right one is a **half** over — 207 against 206.5 — and every row was resampled. That is the whole of the difference, and it is why the size of the miss is what the rule above turns on.
+Two tiles from one contact sheet at 175%, cropped from a screen capture at their exact size. Both files are the same test pattern of alternating one-pixel black and white rows, and both thumbnails were made by the same code in the same run; the green band is a marker the test images carry so each tile can be identified. Neither canvas sits exactly on its box, because at this scale none can. The left one is a **quarter** of a backing pixel over its box, 205 against 204.75, and every row was blitted one to one anyway. The right one is a **half** over, 207 against 206.5, and every row was resampled. That is the entire difference, and the rule above turns on the size of the miss.
 
-Read the right tile from the top down and the phase drifts a full pixel across it: aligned and crisp at the top, half a pixel out and flat grey through the middle where each output row is the mean of two source rows, then a whole row out and crisp again at the bottom — where it is also inverted, the black rows landing where the left tile's white ones do. Sampled down one column, its luma walks 11, 60, 110, 134, 184, 233 while the left tile holds 0 all the way.
+Read the right tile from the top down and the phase drifts a full pixel across it: aligned and crisp at the top, half a pixel out and flat gray through the middle where each output row is the mean of two source rows, then a whole row out and crisp again at the bottom, where it is also inverted, the black rows landing where the left tile's white ones do. Sampled down one column, its luma walks 11, 60, 110, 134, 184, 233 while the left tile holds 0 all the way.
 
-**This picture only works at its own size.** Alternating one-pixel rows turn to grey under any resampling at all, so a browser scaling this image down renders both halves grey and shows nothing. If both tiles look the same here, the page is not displaying it one to one. That fragility is the subject rather than an inconvenience with the illustration: it is the same arithmetic, and it is why a thumbnail a single backing pixel out looks soft rather than merely smaller.
+**This picture only works at its own size.** Alternating one-pixel rows turn to gray under any resampling at all, so a browser scaling this image down renders both halves gray and shows nothing. If both tiles look the same here, the page is not displaying it one to one. That fragility is the subject rather than an inconvenience with the illustration: it is the same arithmetic, and it is why a thumbnail a single backing pixel out looks soft rather than merely smaller.
 
 ### Why it rounds, and the alternative that was tried
 
@@ -313,11 +313,11 @@ It was built, measured at 175% against the same eleven files, and it is worse. *
 | 210 × 206 | 207 | resampled | 206 | clean |
 | 210 × 207 | 207 | resampled | 206 | clean |
 
-The reasoning was wrong in a way worth recording, because it is the kind of wrong that reads as sound. Every clean undershoot in the earlier runs was short by exactly a quarter of a backing pixel — that is simply what rounding produces, and the sample contained no other magnitude. Flooring produces undershoots of a half and three quarters, and those resample as readily as an overshoot does. **How far a canvas misses its box matters more than which side it misses on**, and rounding is what keeps the miss under half a backing pixel in either direction.
+The reasoning was wrong in a way that reads as sound. Every clean undershoot in the earlier runs was short by exactly a quarter of a backing pixel, because that is what rounding produces, and the sample held no other magnitude. Flooring produces undershoots of a half and three quarters, and those resample as readily as an overshoot does. **How far a canvas misses its box matters more than which side it misses on**, and rounding is what keeps the miss under half a backing pixel in either direction.
 
 So `flowSnap` rounds, and the tiles that still resample belong to the row-position problem rather than to any choice about canvas size.
 
-**What can be claimed for Windows now** is no longer "no worse than before". It is that `flowSnap` is correct everywhere it can reach and that rounding is the right rule there, that roughly a quarter of tiles at fractional scaling are resampled regardless, and that the remedy for those is a layout question rather than a canvas-sizing one — nothing about how a canvas is sized can put a row on the backing grid.
+**What can be claimed for Windows now** is no longer "no worse than before". It is that `flowSnap` is correct everywhere it can reach and that rounding is the right rule there, that roughly a quarter of tiles at fractional scaling are resampled regardless, and that the remedy for those is a layout question rather than a canvas-sizing one: nothing about how a canvas is sized can put a row on the backing grid.
 
 ### Color
 
@@ -325,13 +325,13 @@ A canvas is sRGB unless the page asks for something else, and `drawImage` conver
 
 Fuji's answer has three parts, each in a different layer.
 
-**The page asks the screen, not the engine.** The [`color-gamut`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/color-gamut) media query reports what the display can show, and Fuji creates every canvas in that space. Asking the engine by name instead would be a feature check: Chromium accepts `display-p3` everywhere, and WebKit compiles that value only into its Apple builds, so on WebKitGTK the value does not exist and passing it throws. Asking the screen sidesteps the question — a wide-gamut panel gets a wide canvas, an ordinary screen gets the sRGB canvas it always had, and the engine that has no such value is never asked for one.
+**The page asks the screen, not the engine.** The [`color-gamut`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/color-gamut) media query reports what the display can show, and Fuji creates every canvas in that space. Asking the engine by name instead would be a feature check: Chromium accepts `display-p3` everywhere, and WebKit compiles that value only into its Apple builds, so on WebKitGTK the value does not exist and passing it throws. Asking the screen sidesteps the question: a wide-gamut panel gets a wide canvas, an ordinary screen gets the sRGB canvas it always had, and the engine that has no such value is never asked for one.
 
 **Rust converts and then says what it converted to.** `thumbnail.rs` draws each thumbnail into a bitmap context of the space the page asked for, and reports in the twelve-byte header which space it actually delivered. macOS delivers what it was asked for; WIC on Windows answers sRGB whatever is asked, because it has no Display P3 context without a profile file, and the header says so.
 
 **The page tags the pixels with what the header said**, so a wide-gamut canvas converts Windows' always-sRGB pixels rather than reading them as wide values.
 
-Measured with three PNGs authored so that *Core Graphics* performed every conversion and nobody typed a value in by hand. Each halved image has a primary that lies outside sRGB on the left, and the *sRGB* primary expressed in P3 coordinates on the right — the same physical color, one in gamut and one out. On a correct pipeline the halves differ visibly; if anything clamps, they become identical.
+Measured with three PNGs authored so that *Core Graphics* performed every conversion and nobody typed a value in by hand. Each halved image has a primary that lies outside sRGB on the left, and the *sRGB* primary expressed in P3 coordinates on the right, the same physical color, one in gamut and one out. On a correct pipeline the halves differ visibly; if anything clamps, they become identical.
 
 | image | what Rust returned | canvas read as `display-p3` | canvas read as `srgb` |
 | --- | --- | --- | --- |
@@ -343,26 +343,26 @@ Every value matches the file exactly. The sRGB readings are the confirmation rat
 
 The control runs the other way, and it matters as much: Fuji must *convert* an sRGB file into P3 coordinates rather than reinterpret it as P3, or every ordinary image on the contact sheet would come out oversaturated. It converts correctly both ways.
 
-Captured from the screen rather than read back from the canvas, the contact sheet shows two distinct clusters per hue in equal counts, and the sRGB control lands on the same value as the P3 file's in-gamut half — two different encodings of one physical color arriving at the same value. If anything in the chain reinterpreted where it should convert, or converted where it should reinterpret, that is the pair that would come apart. Running the same three images through the page route instead produced values identical to the native route, to the last unit, which means WebKit's `<img>` decode preserves the wide gamut and `drawImage` into a P3 canvas preserves it too.
+Captured from the screen rather than read back from the canvas, the contact sheet shows two distinct clusters per hue in equal counts, and the sRGB control lands on the same value as the P3 file's in-gamut half, two different encodings of one physical color arriving at the same value. If anything in the chain reinterpreted where it should convert, or converted where it should reinterpret, that is the pair that would come apart. Running the same three images through the page route instead produced values identical to the native route, to the last unit, which means WebKit's `<img>` decode preserves the wide gamut and `drawImage` into a P3 canvas preserves it too.
 
-**On Windows the equivalent question is narrower, and it is answered.** *WIC* has no Display P3 context to draw into without a profile file, so it converts to sRGB and says so in the header whatever the page asked for — which means the only thing to check there is whether a file carrying a profile arrives converted at all, or whether its profile is quietly ignored. It arrives converted. Measured on Windows 10 on 2026-09-13 by a differential, which is the shape this test wants on any machine with a monitor profile installed, because a screen capture will not return the values the page painted and no single reading can be trusted against a number.
+**On Windows the equivalent question is narrower, and it is answered.** *WIC* has no Display P3 context to draw into without a profile file, so it converts to sRGB and says so in the header whatever the page asked for. The only thing to check there is whether a file carrying a profile arrives converted at all, or whether its profile is ignored. It arrives converted. Measured on Windows 10 on 2026-09-13 by a differential, which is the shape this test wants on any machine with a monitor profile installed, because a screen capture will not return the values the page painted and no single reading can be trusted against a number.
 
-Windows ships `sRGB Color Space Profile.icm`. Swapping the offsets its tag table gives `rXYZ` and `gXYZ` produces a valid profile that says the red channel sits at green's chromaticity. Two PNGs were written with byte-identical pixels — thirds of `(200,0,0)`, `(0,200,0)`, `(0,0,200)` — one carrying that profile in an `iCCP` chunk and one carrying nothing:
+Windows ships `sRGB Color Space Profile.icm`. Swapping the offsets its tag table gives `rXYZ` and `gXYZ` produces a valid profile that says the red channel sits at green's chromaticity. Two PNGs were written with byte-identical pixels, thirds of `(200,0,0)`, `(0,200,0)`, `(0,0,200)`, one carrying that profile in an `iCCP` chunk and one carrying nothing:
 
 | | left third | middle | right third |
 | --- | --- | --- | --- |
 | no profile | `191,0,0` | `62,200,0` | `20,9,204` |
 | swapped profile | `62,200,0` | `191,0,0` | `20,9,204` |
 
-Red and green trade places exactly as the profile says they should, and blue is the control that did not move because `bXYZ` was never touched. Neither row holds the authored numbers, because the capture passes through the machine's own monitor profile — which is why the evidence is the two rows against each other rather than either row against `(200,0,0)`.
+Red and green trade places exactly as the profile says they should, and blue is the control that did not move because `bXYZ` was never touched. Neither row holds the authored numbers, because the capture passes through the machine's own monitor profile, which is why the evidence is the two rows against each other rather than either row against `(200,0,0)`.
 
 ## What is still open
 
-We left every one of these alone on purpose.
+Each of these is open.
 
 - **Reading ahead.** The rows reflow as a contact sheet fills, because Fuji learns a picture's size only when its thumbnail arrives. A later system may read the first bytes and headers of files well ahead of the view and keep what it learns, by path, in a database on disk, so a tile could hold its box before its pixels land. It can never delay the first thumbnail to do it.
 - **Animated WebP** is a still on the native route. Sending it to an `<img>` the way Fuji sends a GIF means knowing it is animated before its tile is chosen, which is a job for that reading ahead.
-- **A size ceiling on the page route.** The ceiling stands in front of the operating system's decoder, so the page route — all of Linux, and BMP, WebP and AVIF on Windows — hands the engine the whole file as a light table does, and the engine's sandbox is what contains a picture claiming an impossible size.
-- **Tile position at a fractional scale**, which is what the Windows measurement above turned the old `flowSnap` question into. Sizing a canvas is settled and rounding is the right rule; what is not settled is placing a row on the backing grid, and that is a layout problem rather than a canvas one. It needs whoever next takes on how the contact sheet lays its rows out, and nothing about how a thumbnail is sized can substitute for it.
-- **A Display P3 file on a wide-gamut Windows panel.** The profile path works, per the measurement above, but *WIC* converts everything to sRGB because it has no wide-gamut context to draw into without a profile file. So a Display P3 photograph loses its out-of-gamut colors before the page ever sees the pixels, and the header honestly reports sRGB. On an ordinary Windows screen nothing is lost; on a wide-gamut one this is the gap, and closing it means giving *WIC* a profile file to make that context from.
+- **A size ceiling on the page route.** The ceiling stands in front of the operating system's decoder, so the page route, all of Linux and BMP, WebP and AVIF on Windows, hands the engine the whole file as a light table does, and the engine's sandbox is what contains a picture claiming an impossible size.
+- **Tile position at a fractional scale**, which is where the Windows measurement above left the old `flowSnap` question. Sizing a canvas is settled and rounding is the right rule; what is not settled is placing a row on the backing grid, and that is a layout problem rather than a canvas one. It needs whoever next takes on how the contact sheet lays its rows out, and nothing about how a thumbnail is sized can substitute for it.
+- **A Display P3 file on a wide-gamut Windows panel.** The profile path works, per the measurement above, but *WIC* converts everything to sRGB because it has no wide-gamut context to draw into without a profile file. So a Display P3 photograph loses its out-of-gamut colors before the page ever sees the pixels, and the header reports sRGB. On an ordinary Windows screen nothing is lost; on a wide-gamut one this is the gap, and closing it means giving *WIC* a profile file to make that context from.
 - **A change of monitor.** Fuji never remakes a canvas when a window moves to a different screen, so the `devicePixelRatio` and the gamut it was made for both go stale until the contact sheet rebuilds.
