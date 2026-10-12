@@ -46,14 +46,14 @@ fetch mpv-0.41.0       https://github.com/mpv-player/mpv/archive/refs/tags/v0.41
 
 # one package: skipped if its marker is in the prefix, otherwise built in its source folder and marked
 step() { local name=$1; shift; if [ -f $prefix/.$name ]; then echo "== $name already built"; return; fi; echo "== $name"; local started=$(date +%s); ( cd $src/$name && "$@" ); touch $prefix/.$name; echo "== $name done in $(( $(date +%s) - started )) s"; }
-mesonic() { rm -rf build; meson setup build --prefix=$prefix --buildtype=release "$@" && ninja -C build -j$jobs install; }
+meson_build() { rm -rf build; meson setup build --prefix=$prefix --buildtype=release "$@" && ninja -C build -j$jobs install; }
 
 build_zlib() { ./configure --prefix=$prefix --static && make -j$jobs && make install; }
-build_freetype() { mesonic --default-library=static -Dzlib=system -Dharfbuzz=disabled -Dpng=disabled -Dbrotli=disabled -Dbzip2=disabled -Dtests=disabled; }
-build_fribidi() { mesonic --default-library=static -Ddocs=false -Dbin=false -Dtests=false; }
-build_harfbuzz() { mesonic --default-library=static -Dfreetype=enabled -Dglib=disabled -Dgobject=disabled -Dcairo=disabled -Dchafa=disabled -Dicu=disabled -Dgdi=disabled -Ddirectwrite=disabled -Dtests=disabled -Ddocs=disabled -Dintrospection=disabled -Dutilities=disabled; }
+build_freetype() { meson_build --default-library=static -Dzlib=system -Dharfbuzz=disabled -Dpng=disabled -Dbrotli=disabled -Dbzip2=disabled -Dtests=disabled; }
+build_fribidi() { meson_build --default-library=static -Ddocs=false -Dbin=false -Dtests=false; }
+build_harfbuzz() { meson_build --default-library=static -Dfreetype=enabled -Dglib=disabled -Dgobject=disabled -Dcairo=disabled -Dchafa=disabled -Dicu=disabled -Dgdi=disabled -Ddirectwrite=disabled -Dtests=disabled -Ddocs=disabled -Dintrospection=disabled -Dutilities=disabled; }
 build_libass() { ./configure --prefix=$prefix --disable-shared --enable-static --disable-fontconfig --enable-directwrite --disable-libunibreak && make -j$jobs && make install; }
-build_libplacebo() { mesonic --default-library=static -Dvulkan=disabled -Dvk-proc-addr=disabled -Dopengl=enabled -Dd3d11=disabled -Dglslang=disabled -Dshaderc=disabled -Dlcms=disabled -Dlibdovi=disabled -Dunwind=disabled -Dxxhash=disabled -Ddemos=false -Dtests=false; }
+build_libplacebo() { meson_build --default-library=static -Dvulkan=disabled -Dvk-proc-addr=disabled -Dopengl=enabled -Dd3d11=disabled -Dglslang=disabled -Dshaderc=disabled -Dlcms=disabled -Dlibdovi=disabled -Dunwind=disabled -Dxxhash=disabled -Ddemos=false -Dtests=false; }
 build_ffmpeg() {
 	./configure --prefix=$prefix --pkg-config-flags=--static --enable-static --disable-shared --disable-debug --disable-doc --disable-programs \
 		--disable-autodetect --enable-zlib --enable-d3d11va --enable-dxva2 \
@@ -61,7 +61,7 @@ build_ffmpeg() {
 		&& make -j$jobs && make install
 }
 build_mpv() {
-	mesonic --default-library=shared -Dprefer_static=true \
+	meson_build --default-library=shared -Dprefer_static=true \
 		-Dcplayer=false -Dlibmpv=true -Dgpl=true -Dbuild-date=false -Dmanpage-build=disabled -Dtests=false \
 		-Dwin32-threads=enabled -Dwasapi=enabled -Dgl-win32=enabled -Ddirect3d=enabled -Dzlib=enabled \
 		-Dlua=disabled -Djavascript=disabled -Diconv=disabled -Dcdda=disabled -Dcplugins=disabled -Ddvbin=disabled -Ddvdnav=disabled -Djpeg=disabled -Dlcms2=disabled -Dlibarchive=disabled -Dlibavdevice=disabled -Dlibbluray=disabled -Drubberband=disabled -Duchardet=disabled -Dvapoursynth=disabled -Dzimg=disabled -Dsdl2-gamepad=disabled -Dwin32-smtc=disabled \
