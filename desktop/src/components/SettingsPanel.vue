@@ -3,10 +3,10 @@
 import {ref} from 'vue'
 import {settings, settingsSet, settingsThumbnailBeams} from '../settings.js'
 import {fitNames, fitDescriptions} from '../fit.js'
-import {brandName, brandVersion, urlHome} from '../brand.js'
+import {brandName} from '../brand.js'
 import {platform} from './library.js'
-import {processOpen} from '../process.js'//the site in the system's browser, rather than in the web view
 import SettingsFileTypes from './SettingsFileTypes.vue'
+import SettingsAbout from './SettingsAbout.vue'
 
 //the shell trades this with the sheet when either asks with s, and makes it fresh each time, so every box starts from the settings as they are now. A change reaches the settings object the moment the user commits it, and the file when fuji closes, as every setting does; settings.js checks it against the one schema, so nothing here repeats what a valid value is. A section with a life of its own, like the file types, is a component of its own, and a setting that is one box stays here
 
@@ -37,13 +37,13 @@ function modeCommit() {
 
 const fileTypes = ref(null)//the file types section, which asks the system again when told
 const about = ref(null)//the About section at the end, which the Mac's menu item scrolls into view
-const homeLink = `https://${urlHome}`//the site, https://fujidesktop.app, both where the link goes and its words
-function showAbout() { about.value?.scrollIntoView({block: 'start'}) }//the panel's root scrolls, so this scrolls it
+function showAbout() { about.value?.show() }//the section scrolls itself into the panel's view
 function onFocus(focused) { if (focused) fileTypes.value?.look() }//the shell hands this view the window's focus events while it is showing; coming back from the system's own settings is when a default is most likely to have changed
 
-const emit = defineEmits(['sheet', 'faces', 'theme'])//s, for the contact sheet back; which view is showing is the shell's, so this only asks. And faces and theme, when the fonts or the appearance change
+const emit = defineEmits(['sheet', 'audio', 'faces', 'theme'])//s, for the contact sheet back, and a, for the audio panel; which view is showing is the shell's, so this only asks. And faces and theme, when the fonts or the appearance change
 function onKey(e) {
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('sheet')//a keystroke in the box never gets here, since the shell leaves a form field its own keys
+	if (e.key == 'a' && !e.ctrlKey && !e.metaKey) emit('audio')
 }
 
 defineExpose({onKey, onFocus, showAbout})//the calls of the shell's this view has a use for
@@ -89,12 +89,7 @@ defineExpose({onKey, onFocus, showAbout})//the calls of the shell's this view ha
 
 	<SettingsFileTypes ref="fileTypes" class="mt-12" />
 
-	<div ref="about" class="mt-12"><!-- at the end, where About Fuji in the Mac's application menu brings the panel scrolled to; the system's own About panel is gone, so this is the one place fuji says its version -->
-		<h2 class="mb-2 text-strong">About {{brandName}}</h2>
-		<p>{{brandName}} {{brandVersion}}</p>
-		<p class="mt-2"><a :href="homeLink" class="underline" @click.prevent="processOpen(homeLink)">{{homeLink}}</a></p><!-- the system's browser opens it rather than the web view navigating away from fuji -->
-		<svg class="my-8 fill-brand" width="360" height="360" viewBox="0 0 360 360" :aria-label="brandName"><circle cx="180" cy="180" r="180" /></svg><!-- fuji's mark: the disc that is the application icon, the site's favicon and the README's banner, at the README's size, 360 CSS pixels across; in the brand color by its palette name, which is the same in light and dark. Twice the panel's usual space above and below, the disc's alone, so the line after it sets none of its own -->
-	</div>
+	<SettingsAbout ref="about" class="mt-12" /><!-- a section of its own, since it asks the parts for their versions as it appears -->
 
 	<p class="text-fainter italic">Press S to return to the contact sheet</p>
 </div>

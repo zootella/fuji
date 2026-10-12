@@ -35,7 +35,7 @@ To explore, once libmpv plays at all: the same big modern file through both rout
 Each of fuji's six packages has to carry libmpv or depend on it, and the answer is different in each.
 
 - **Windows.** `zhongfly`'s `mpv-dev-lgpl` builds are the source the existing plugin uses; a single `libmpv-2.dll` carrying FFmpeg and libplacebo inside it. Bundled through Tauri's resources. Size to measure — the dll is tens of megabytes, against an installer that is two today.
-- **Mac.** Homebrew's mpv is built for the player and not necessarily lgpl; the dmg would carry a dylib of our own build, or a prebuilt one, plus whatever it links. Universal or arm64-only follows whatever the app is.
+- **Mac.** Homebrew's mpv is built for the player and not necessarily lgpl; the dmg carries it today, with the 47 libraries under it, gathered by `frameworks.js` and rewritten to find each other inside the bundle, and whether it stays that way or becomes one library built our own way is the video spike's question. Universal or arm64-only follows whatever the app is.
 - **Linux, deb and rpm.** Depend on the distribution's package — `libmpv2` on Debian 12 is 0.35, on Ubuntu 24.04 0.37 — which keeps the packages small and puts the codec licensing on the distribution, where it already is. The client API is versioned and has been ABI-stable across those releases, but the minimum version fuji needs is a question, and Debian 12's 0.35 predates `gpu-next` as the default. The build containers on the Mac would need `libmpv-dev` in the image.
 - **Flatpak.** The freedesktop runtime has an ffmpeg-full extension but no mpv, so the flatpak bundles libmpv, built in the container from the same source as everything else.
 
@@ -43,7 +43,7 @@ Whether the lgpl build configuration loses anything fuji wants is a question for
 
 ## The binding and the commands
 
-The Rust bindings to libmpv have a history of going stale; the contributor to the Tauri discussion who suggested libmpv called them lacking. The client API is small — create, set option, command, observe property, wait event — and the render API smaller, so a bindgen of `client.h` and `render.h` inside fuji may be the honest choice over a crate. To check before deciding: `libmpv2` on crates.io and its state, and `tauri-plugin-libmpv` at 0.3.2 from November 2025, MPL-2.0, Windows tested, Linux embedding not working, Mac untested, and dependent on a wrapper library of its own.
+The Rust bindings to libmpv have a history of going stale; the contributor to the Tauri discussion who suggested libmpv called them lacking. The client API is small — create, set option, command, observe property, wait event — and the render API smaller, so fuji declares the functions it calls by hand in `mpv.rs`, against `client.h`, with no crate and no bindgen; the render API's declarations join them when a frame is drawn.
 
 The commands fuji would expose have to pass the `lib.rs` test: describable without naming a fuji feature. A player is stateful, so this is a handle per window rather than one atomic call, and the shape is probably three commands — open a file into the window's player, send it one mpv command with its arguments, and read one property — with mpv's events forwarded up as Tauri events, and one more that places the player's view at a rectangle. The page owns the controls, the sequencing and what plays when, exactly as `TestFlow.vue` owns the thumbnail loops. Audio output is mpv's, on every platform, and nothing to build.
 

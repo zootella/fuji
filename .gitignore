@@ -84,6 +84,7 @@ target/
 # ----------------------------------------------------------------------------
 
 # desktop/src-tauri/target/ is already covered by target/ above
+desktop/src-tauri/tauri.macos.conf.json
 desktop/src-tauri/WixTools/
 desktop/src-tauri/gen/
 desktop/src-tauri/binaries/

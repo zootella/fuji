@@ -32,7 +32,8 @@
 			"icons/icon.ico"
 		],
 		"macOS": {
-			"signingIdentity": "Fuji Desktop"
+			"signingIdentity": "Fuji Desktop",
+			"hardenedRuntime": false
 		},
 		"linux": {
 			"deb": {"desktopTemplate": "desktop-entry.hbs"},

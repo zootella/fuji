@@ -17,9 +17,29 @@ libmpv linked into fuji and carried by every package, with no frame ever drawn, 
 
 The same six with the library inside is the measurement. The dll alone is tens of megabytes against an installer under four, but the installer compresses what it carries, so the installer is the number and not the dll. The deb and the rpm are meant to depend on the distribution's libmpv rather than carry it, so they should not grow at all; the flatpak carries it and will.
 
-**Startup and memory.** Time from launch to the first window painted, and fuji's memory at rest with a folder on the sheet and no sound ever played, before and after, on each machine, through the log and the memory command fuji already has. The answer turns on whether the library is mapped at launch, as a library linked at build time is, or opened on the first play. The spike measures whichever it builds and says which, and if the first costs something a collector who never plays a video would notice, tries the second.
+**Startup and memory.** The log's first two lines, written by the shell at every launch: the launch timed whole from the operating system starting the process, through the loader, main and the page, to the first frame; and the footprint of each of fuji's processes two seconds later, before anything is opened. The loader's share is the one a linked library adds to. The answer turns on whether the library is mapped at launch, as a library linked at build time is, or opened on the first play. The spike measures whichever it builds and says which, and if the first costs something a collector who never plays a video would notice, tries the second.
 
-**The Mac pipeline.** How long the release takes from a build to a published dmg with the library in the bundle, against today's, and whether minutes become an hour. And what the library asks of the pipeline: every binary in the bundle under the same signature, and the library found at a path inside the bundle rather than the path it was built at.
+The baseline, before the library, on the Mac mini on 2026-10-12: the release app in the bundle folder, launched by double-click, with the binary at 12,810,576 bytes. The first launch after a build is the cold one, where macOS validates and assesses the new executable before main; the two after it are the warm ones, and the number to compare against.
+
+| launch | to main | main to page | page to first frame | to first frame | host at rest |
+| --- | --- | --- | --- | --- | --- |
+| cold, first after the build | 467 | 386 | 137 | 990 | 21,957,248 |
+| warm | 30 | 274 | 100 | 404 | 21,776,896 |
+| warm | 42 | 269 | 102 | 413 | 21,580,480 |
+
+Milliseconds, and the host's footprint in bytes; web content sat near 26 MB and the gpu process near 15 MB in every run, and neither should move with the library.
+
+After, the same day and the same way, with libmpv and the 47 libraries under it linked at build time and carried in the bundle, so the loader maps all 48 before main: the binary at 12,901,120 bytes and the dmg at 32,834,062, against 5,559,271 before.
+
+| launch | to main | main to page | page to first frame | to first frame | host at rest |
+| --- | --- | --- | --- | --- | --- |
+| cold, first after the build | 506 | 296 | 105 | 907 | 23,284,736 |
+| warm | 85 | 232 | 97 | 414 | 22,268,800 |
+| warm | 87 | 238 | 95 | 420 | 24,234,944 |
+
+So the loader's share of a warm launch went from about 36 ms to about 86 ms, some 50 ms for 48 libraries, and the first frame still arrived at about 410 ms, within the run-to-run noise of the baseline. The host's footprint at rest grew by one to two megabytes, and the web engine's processes did not move. Web content and the gpu process sat where they were. That is the cost of linking at launch on this machine; loading on the first play would remove it, and whether 50 ms and two megabytes are worth that is a decision, not a measurement.
+
+**The Mac pipeline.** How long the release takes from a build to a published dmg with the library in the bundle, against today's, and whether minutes become an hour. And what the library asks of the pipeline: every binary in the bundle under the same signature, and the library found at a path inside the bundle rather than the path it was built at. One question the fallback build already answered: the hardened runtime's library validation refused the 48 libraries under the self-signed identity, which has no Team ID, so the fallback signs without the hardened runtime now and the apple build alone turns it on, where the Developer ID gives every binary one Team ID. The open question is the notarized app at launch under the runtime's other rules, LuaJIT among the 48 being one that compiles code as it runs; the notarized app is launched from the bundle folder and its log read before anything is staged.
 
 ## The extension cluster
 
@@ -31,17 +51,19 @@ Questions: What does a double-click on an enabled video file do while nothing dr
 
 A view that plays sound and never a picture, from audio files and from video files alike. It plays through libmpv with its video switched off, so the spike exercises the library linked and shipped, the binding, the commands, the events coming back up, and the page's controls, with no native view and no pixels anywhere. Audio output is mpv's on every platform, and nothing to build. The page owns what it shows and what plays when.
 
-For the spike it is a view in the shell and not a window, so that window and process management wait: `a` on the sheet goes to Fuji Audio and `a` there goes back to the sheet, the way `c` goes between settings and the sheet, and `a` on settings goes to Fuji Audio and then back to the sheet. Where it belongs for real, a window of its own or not, and how it opens then, from the sheet, from the table or from the operating system handing fuji a file, is designed once the library and the builds are known.
+For the spike it is a view in the shell and not a window, so that window and process management wait: `a` on the sheet goes to Fuji Audio and `a` there goes back to the sheet, the way `s` goes between settings and the sheet, and `a` on settings goes to Fuji Audio and then back to the sheet. That much is built, in `AudioPanel.vue`, and the view shows one line, the library's version with its client api and FFmpeg's, which is how the link was proven; nothing plays yet. Where it belongs for real, a window of its own or not, and how it opens then, from the sheet, from the table or from the operating system handing fuji a file, is designed once the library and the builds are known.
 
-Questions: What does the view show, and which keys does it answer? One player for everything, or one per file? Does a video file opened there play its sound while the sheet goes on underneath?
+Next, the sound: a player started for the window with the options the page chooses, video off among them; one command that sends it one mpv command with its arguments, one that reads one property as text, and one that stops it; a dropped file loaded and played, with play and stop on the page and nothing more; and the test file, a Creative Commons track in a folder under Downloads on the Mac mini, named in chat. Events coming back up wait, and the view reads the position itself while it shows.
+
+Questions: Which keys does it answer? One player for everything, or one per file? Does a video file opened there play its sound while the sheet goes on underneath?
 
 ## Shipping and the binding
 
-Both are decided by doing. The spike takes the first route that gets the library into the build on each machine, the prebuilt lgpl dll on Windows, a dylib inside the bundle on the Mac, the distribution's package in the deb and rpm containers and a build of our own in the flatpak's, and writes what it took where it took it, in the build scripts and the Rust. The binding, a crate or a bindgen of mpv's two headers, is settled the same way, by whichever links first on all three.
+Shipping is decided by doing. The spike takes the first route that gets the library into the build on each machine, the prebuilt lgpl dll on Windows, Homebrew's tree inside the bundle on the Mac, the distribution's package in the deb and rpm containers and a build of our own in the flatpak's, and writes what it took where it took it, in the build scripts and the Rust. The binding is settled: declarations written by hand in `mpv.rs` against mpv's client header, seven of them today, with no crate and no bindgen, since fuji calls a handful of functions whose signatures the API's second major version fixed.
 
 ## The Mac first
 
-Here, where the pipeline question lives and the dylib is the hardest of the three to source. Homebrew's libmpv links the spike, and it comes with FFmpeg and dozens of dylibs of its own, every one of which a shipped bundle has to carry, rewrite to find each other inside the bundle, and sign. That is the pipeline measurement, and it may be the argument for one self-contained library built our own way, which is what the Windows prebuilt already is.
+Here, where the pipeline question lives and the dylib is the hardest of the three to source. Built: Homebrew's libmpv links the spike, and `frameworks.js` gathers it with the 47 libraries under it, FFmpeg's among them, rewrites each copy to find its siblings inside the bundle, signs each, and hands Tauri the list, so the fallback build carries the tree and launches; the numbers above are from it. Left here: the pipeline measurement, and whether 48 libraries from Homebrew are the argument for one self-contained library built our own way, which is what the Windows prebuilt already is.
 
 ## Windows
 

@@ -35,6 +35,13 @@ mod menu {//off the mac there is no menu bar, so the commands the page has for i
 	#[tauri::command]
 	pub fn menu_enable(_menu: String, _item: String, _enabled: bool) -> Result<(), String> { Ok(()) }
 }
+#[cfg(target_os = "macos")]//the library links on the mac alone for now; the video spike brings it to the other two
+mod mpv;//and mpv.rs: the media library, libmpv, which plays sound and later video
+#[cfg(not(target_os = "macos"))]
+mod mpv {//off the mac nothing links yet, so the one command the page has answers that the library is missing rather than failing the build
+	#[tauri::command]
+	pub async fn mpv_version() -> Result<String, String> { Err("the media library is not linked on this platform yet".into()) }
+}
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
 mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
@@ -42,6 +49,7 @@ mod process;//and process.rs: other programs, handed a file or an address the wa
 mod registry;//and registry.rs: the windows registry, read and written for the page
 mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path at a time
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
+mod uptime;//and uptime.rs: how long this process has been running, since the operating system started it and since main began
 mod window;//and window.rs: making windows, placing them, and how long the process outlives them
 
 //the body of a command that waits, run on tokio's blocking pool inside an autorelease pool, and answered as a value however it ends: what the body returned, or an error if it panicked. The essay above disk_readdir in disk.rs says why every waiting command goes through here, and what it costs, and the one below why every body gets a pool
@@ -86,6 +94,7 @@ pub fn run() {
 				launch::launch_opens,//and in launch.rs
 				launch::launch_set,
 				memory::memory_report,//and in memory.rs
+				mpv::mpv_version,//and in mpv.rs, or its stand-in off the mac
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				open::open_files,//and in open.rs
@@ -97,10 +106,12 @@ pub fn run() {
 				registry::registry_notify,
 				registry::registry_opens,
 				touch::touch_block,//and in touch.rs
+				uptime::uptime_process,//and in uptime.rs
 				menu::menu_text,//and in menu.rs, or its stand-in off the mac
 				menu::menu_waiting,
 				menu::menu_enable,
-				window::window_frame,//and in window.rs
+				window::window_engine,//and in window.rs
+				window::window_frame,
 				window::window_frame_set,
 				window::window_fullscreen_leave,
 			]

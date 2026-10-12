@@ -12,6 +12,8 @@ App.vue
     │   │   └── TestFlow.vue      the flow that sizes and arranges them, and routes each file to a decoder
     │   └── BucketMemory.vue      beneath the last bucket: the machine's memory, fuji's processes, and what the thumbnails cost
     ├── SettingsPanel.vue v-if    what a user changes from inside fuji, in the sheet's window
+    │   └── SettingsAbout.vue     the About section: fuji's parts and their versions, asked of each part
+    ├── AudioPanel.vue    v-if    plays sound and never a picture, in the sheet's window like the settings panel
     └── DiamondTable.vue :is      one of several tables: one image, sized to a diamond
         ComicTable.vue            another table, whenever it is written
         PreviewTable.vue          the picture a double-click opened, alone, before any other table
@@ -23,7 +25,9 @@ App.vue
                 ↓
         disk.js → disk.rs
         thumbnail.js → thumbnail.rs   beside the cache, for the sheet only: the operating system's thumbnailer
-        memory.js → memory.rs         for the report alone: the machine's memory and what fuji's processes take
+        memory.js → memory.rs         for the report and the log's line at rest: the machine's memory and what fuji's processes take
+        mpv.js → mpv.rs               for the audio panel: the media library, libmpv
+        uptime.js → uptime.rs         for the log's launch line: how long the process has been running, by the system's clock and main's
         find.js → find.rs             for the pager alone: the next folders holding an image, a stretch of the tree per call
 ```
 
@@ -51,7 +55,9 @@ App.vue
 
 ## The settings panel
 
-**The settings panel is the third kind of view, and it lives in the sheet's window.** Which view is showing has three values: the sheet, the settings panel, or a table. The sheet and the panel share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. The panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches it until fuji has a better way in.
+**The settings panel is the third kind of view, and it lives in the sheet's window.** Which view is showing has four values: the sheet, the settings panel, the audio panel, or a table. The sheet and the panels share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. A panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches each until fuji has a better way in.
+
+**The audio panel is the fourth kind, made like the settings panel.** It plays sound and never a picture, from audio files and video files alike, through the media library, and it is a view in the sheet's window for now so that the library and the builds could be worked on before fuji's windows are; whether it becomes a window of its own is decided after.
 
 **A setting reaches a view by being read when that view comes on screen.** The shell hands every view `start()` each time it appears, and the sheet is never showing while the panel is, so a view reads what it depends on as it arrives and nothing has to watch a setting change. That is what lets the settings object stay plain, as the section on settings below says.
 
@@ -121,7 +127,7 @@ A module is already a singleton that outlives every component, `ref` already mak
 
 ## What is built today
 
-The shell and its views are real: the sheet, the settings panel, the diamond table, and the preview, which is short on purpose, with no flip, no pan and no zoom. The comic table is a stub. Beneath them the model, the settings file, the cache and its flip policy, the log, and the operating system's thumbnailer are real too. `CLAUDE.md` lists the files and what each holds, and changes with them; this section changes only when a layer or a kind of view does.
+The shell and its views are real: the sheet, the settings panel, the diamond table, and the preview, which is short on purpose, with no flip, no pan and no zoom. The audio panel is real as a view and reaches the media library, which answers its version; it plays nothing yet. The comic table is a stub. Beneath them the model, the settings file, the cache and its flip policy, the log, and the operating system's thumbnailer are real too. `CLAUDE.md` lists the files and what each holds, and changes with them; this section changes only when a layer or a kind of view does.
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 

@@ -120,7 +120,7 @@ fn window_flurry(file: &File) -> bool {
 
 /// Note the moment this copy started; the run calls this before anything else, so a machine busy starting fifteen copies still records when each began rather than when tauri got round to it
 pub fn window_launch() { window_launched(); }
-fn window_launched() -> SystemTime { *WINDOW_LAUNCHED.get_or_init(SystemTime::now) }
+pub(crate) fn window_launched() -> SystemTime { *WINDOW_LAUNCHED.get_or_init(SystemTime::now) }//pub for uptime.rs, which reads it as main's own clock
 
 //a page has begun to load, so the web engine is up: the first window came, and the next copy can take its turn
 fn window_arrived() {
@@ -171,6 +171,10 @@ fn window_browser_keys_off(window: &WebviewWindow) {
 }
 #[cfg(not(target_os = "windows"))]
 fn window_browser_keys_off(_window: &WebviewWindow) {}//the web views on macOS and Linux have no browser shortcut keys to turn off
+
+/// The version of the web engine that draws fuji's windows, as the platform reports it: WebKit's on the Mac, the WebView2 runtime's on Windows, and WebKitGTK's on Linux. The page names the engine, since which one it is never changes on a platform
+#[command]
+pub fn window_engine() -> Result<String, String> { tauri::webview_version().map_err(|e| e.to_string()) }//the error is wry's rather than tauri's, so it is turned into text here as the other modules' are
 
 /// Take the window out of fullscreen without changing whether it is showing, which tao's own way does everywhere but windows
 #[command]

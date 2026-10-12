@@ -10,6 +10,8 @@ import {menuText, menuWaiting, menuEnable} from '../menu.js'//what the page asks
 import {modelStart, modelPath, modelFolder, modelOpenFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is, and a folder this window was made for is listed here before any view starts
 import {diskStat} from '../disk.js'//whether a path handed to fuji or chosen in the open box is a folder, which decides the view it opens on
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
+import {uptimeProcess} from '../uptime.js'//how long the launch took, for the log's line at the first frame
+import {memoryReport} from '../memory.js'//what fuji's processes take at rest, for the log's line a moment after it
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
@@ -21,6 +23,7 @@ import {windowFrame, windowFrameSet, windowFullscreenLeave} from '../window.js'/
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import SettingsPanel from './SettingsPanel.vue'
+import AudioPanel from './AudioPanel.vue'
 import DiamondTable from './DiamondTable.vue'
 import PreviewTable from './PreviewTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -36,7 +39,7 @@ It exists because window events are global and everything else is not. A view's 
 
 There is one sheet and there are several tables, and the two facts are separate: whether the sheet is showing, and which table is behind it. The sheet and the current table swap with v-show and both stay mounted, because that switch is frequent and has to be instant with nothing reloading. Tables swap with each other by :is, which destroys and creates, because a table nobody is using should not be holding decoded images. Adding a table is one entry in the tables object below.
 
-The settings panel is the third kind of view, and it belongs to the sheet's window rather than to the table's fullscreen: s on the sheet brings it and s on the panel goes back. Trading those two changes nothing about the window, so it needs none of the curtain the essay further down describes. The panel comes and goes with v-if, made fresh from the settings each time, because a user visits it rarely and it holds nothing worth keeping.
+The settings panel is the third kind of view, and it belongs to the sheet's window rather than to the table's fullscreen: s on the sheet brings it and s on the panel goes back. Trading those two changes nothing about the window, so it needs none of the curtain the essay further down describes. The panel comes and goes with v-if, made fresh from the settings each time, because a user visits it rarely and it holds nothing worth keeping. The audio panel is the fourth kind, in the same window and made the same way, brought by a from the sheet or the settings and sent back by a.
 
 Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, the shell places it, and the viewport does not report its size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it each time that view comes on screen, and the view does only once whatever must happen only once. The sheet leans on the repeat, rereading the setting the settings panel may have changed while it was hidden.
 
@@ -61,8 +64,9 @@ const tables = {//everything the shell can show in place of a table; view.table 
 
 const sheetRef    = ref(null)
 const settingsRef = ref(null)
+const audioRef    = ref(null)
 const tableRef    = ref(null)
-const showing     = ref('Table')//Sheet, Settings or Table: which kind of view the user is looking at
+const showing     = ref('Table')//Sheet, Settings, Audio or Table: which kind of view the user is looking at
 const whichTable  = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
 const helpShowing = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
 
@@ -116,6 +120,7 @@ onMounted(async () => {
 	await revealWindow()
 	if (waiting == 'menu-help') reportTrouble(() => menuChose(waiting))//after the reveal, so the browser opens in front of the window rather than behind it
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
+	logLaunch()//the first frame is on screen, which is the moment the launch is measured to
 	activeView()?.start?.()
 	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble(`shell: registering what ${brandName} can open`, error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
 
@@ -133,6 +138,21 @@ onMounted(async () => {
 	})
 	reportTrouble(async () => activeView()?.onFocus?.(await w.isFocused()))//and once now, since the focus arrived with the reveal, before there was anyone listening for it
 })
+const restAfter = 2000//milliseconds after the first frame to read fuji's footprint at rest: long enough for the engine to settle, and short enough to come before the user has opened anything on most launches
+function logLaunch() {//two lines at the top of every log. The launch timed whole, from the operating system starting the process through the loader, main and the page to the first frame, which is the one measurement that shows what a library added to the build costs and where; and the footprint a moment later, before anything is opened
+	let frame = performance.now()//the page's own clock at the first frame, read before the crossing below so the crossing is not in the page's share
+	uptimeProcess()
+		.then(age => log(age.process > 0
+			? `launch: first frame ${age.process} ms after the process started, main began at ${age.process - age.main} ms, the page at ${Math.round(age.process - frame)} ms`
+			: `launch: first frame ${age.main} ms after main began; the operating system would not say when the process started`))
+		.catch(error => logTrouble('shell: asking how long the launch took', error))
+	setTimeout(() => {
+		memoryReport()
+			.then(report => log(`rest: ${report.processes.map(p => `${p.kind} ${p.bytes}`).join(', ')}, in bytes, ${restAfter / 1000} s after the first frame`))
+			.catch(error => logTrouble('shell: reading memory at rest', error))
+	}, restAfter)
+}
+
 let unlistenFileDrop, unlistenMenu, unlistenResized, unlistenFocus//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
@@ -193,7 +213,7 @@ async function facesShow() {//put the page's text in the fonts the settings name
 	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted; the setting's own word, system, bundled or retro, which index.css keys its rules on
 }
 
-function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
+function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
 async function viewOpen(path) {//a picture dropped on the window, for the view on screen to show; optional, because a view answers only the calls it has a use for
 	if (showing.value == 'Settings') await showView('Sheet')//the settings panel opens nothing, so the sheet comes back to take it
@@ -393,8 +413,9 @@ async function closeWindow() {//close the window as the red button or the × wou
 </script>
 <template>
 
-<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @open="choose => reportTrouble(() => openAsk(choose))" />
-<SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
+<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @audio="reportTrouble(() => showView('Audio'))" @open="choose => reportTrouble(() => openAsk(choose))" />
+<SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @audio="reportTrouble(() => showView('Audio'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
+<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" /><!-- the fourth kind of view, in the sheet's window like the settings panel, and made fresh each time the same way -->
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
 <div v-if="curtainShowing" class="fixed inset-0 bg-paper"></div><!-- last, so it covers everything while the view and the fullscreen change -->

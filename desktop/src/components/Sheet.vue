@@ -35,9 +35,10 @@ function start() {//the shell calls this each time this view comes on screen: re
 	if (modelFolder.value && modelFolder.value != sheetOpened) { sheetOpened = modelFolder.value; pagerStart(modelFolder.value).catch(error => logTrouble(`sheet: starting from ${modelFolder.value}`, error)) }
 	else pagerRefresh().catch(error => logTrouble('sheet: refreshing the page', error))
 }
-const emit = defineEmits(['table', 'settings', 'open'])//a double-clicked thumbnail, for the shell to show the table fullscreen, s, for the settings panel in this same window, and the open box, which the shell puts up; which view is showing is the shell's, so this only asks
+const emit = defineEmits(['table', 'settings', 'audio', 'open'])//a double-clicked thumbnail, for the shell to show the table fullscreen, s, for the settings panel in this same window, a, for the audio panel the same way, and the open box, which the shell puts up; which view is showing is the shell's, so this only asks
 function onKey(e) {
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('settings')//a temporary way in, until fuji has a better place for one
+	if (e.key == 'a' && !e.ctrlKey && !e.metaKey) emit('audio')//the same, for the audio panel
 }
 async function onDrop(path) {//a picture dropped or opened here: the model lists its folder for the table, and the pager starts at that folder
 	await modelOpen(path)
