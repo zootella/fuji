@@ -4,39 +4,69 @@ Fuji's list and tree, the two views every file manager has beside its icons, and
 
 ## The history section of the article
 
-The article opens with history, and the history is written first, so our own work has its context before anything is designed. The tale it tells is an argument that is still going: that as software on a graphical desktop is built from components, the common ones should look and work the same everywhere, to the benefit of the user, who meets a list in a second program and already knows it from the first, and of the developer, who takes a list off the shelf instead of writing one. The section is where that argument has been fought and what each side built, and it ends on the form the argument takes today, where the code a developer writes becomes the thing the user sees and touches. Every claim links its source inline, Wikipedia and otherwise, on pages that will stay put, and every link is fetched before the page says it. A patent links to its page at Google Patents. A book links to a page where a reader can find the book itself; which page is open.
+Written and on the site, in Craftsmanship after File Types. Open: the page has no first paragraph yet, because the thesis says what Fuji's list and tree are, and that waits for the design below; its last line, "the rest of this page is how," is the promise the design sections keep.
 
-**The section is short.** The research underneath it is deep and broad so that the right subjects get chosen and said correctly, not because the page needs that depth anywhere; the finished section is a fraction of what was learned.
+## How the components get built
 
-Three parts, and the players in each. Whether these are the right players and the right division is the first research question, and the section is written from what turns up rather than from this outline.
+**Incrementally, with `pnpm local` running.** Build a small piece, look at it in the running program, then the next piece, so the work never gets over its skis. Simple all the way through: simple code is shorter, and it tends to run faster.
 
-**The desktop vendors.** Briefly the genesis at Engelbart and Xerox PARC, then the Mac of the System 9 era and before, and Windows' list view and tree view in Win32 from Windows 95 to Windows 11.
+**Tailwind only where it helps.** It is in the stack and this is CSS-heavy work, but the goal is good, simple, extensible components that fit fuji's need, not Tailwind components. Decide from how things go as they are built, and if the components come out simpler without it, or better off away from it, they carry no Tailwind classes at all.
 
-**The cross-platform libraries and initiatives.** The mainstream attempts beyond the operating system vendors, ambitious or well funded, whether or not they found the market they imagined, including the ones that settled into a niche their makers meant as domination. Java Swing ignored the host platform and imagined users wanting one consistent Java look; the Eclipse alternative did the opposite, matching the native look exactly by driving the actual native components. The stories wanted here are real and researched ones of that kind, what a look was modeled on and who ever saw it, written up from the history as it happened.
+**The look: one look, on every platform.** The list and the tree are made of web, set in the system menu font the page already has. Beyond that they do not try to match the native controls pixel for pixel, for two reasons. An imperfect match reads as wrong to a user who knows the real thing, so every miss would be suspect. And matching means matching three looks, Windows, Mac and Linux, with code and selectors for each and a lot of back and forth between machines. So the choice is Swing's, one look consistent across platforms, without Swing's result: the components look good by using the system's own typography correctly and keeping their appearance flat and simple.
 
-**The web generation.** Facebook as the hot young company with the best new graduates, the web as the dominant consumer platform about to be overtaken by mobile, and engineers and designers still after reusability: React and React Native, and components for lists and trees. Then the idea thins out, because the touch interface of a phone is not well served by lists and trees and the components that drive them get less attention. But "the code I write becomes what my user interacts with visually" stays alive in every component library, React, Vue and Svelte, and that ongoing argument about the right way to program the problem is the center of the section.
+**The feel: nothing a desktop user reaches for is missing.** The components have to be complete and robust enough that a native desktop user never finds them limited or incomplete. The failure is a web list that is clearly a web page and not Finder or Explorer, which is fine, but skips the ordinary second-order interactions that make a list feel like a list: control-click to toggle one item in the selection, shift-click to extend it, the arrow keys moving a keyboard focus that is separate from the selection, a name typed to jump to it. A user who sees such a list, thinks "this is like my file manager," tries one of those, and meets nothing, decides the whole thing is incomplete and worse than what they already have. Google Drive's file list is the kind of list meant, whatever its exact keys turn out to be; its own shortcuts page documents a focus that moves under Ctrl with the arrows, so it is not the example for that one. Fuji's list and tree pass the test.
 
-Build up incrementally
-Keep simple
-Use tailwind only if it helps
-Be as feature rich as native but with a clean platform neutral visual look, feel is familiar while appearance is simple and modern
-Light and speedy even with 10k items
-Npm module @zootella/components
+**Light and speedy to many thousands of rows, and tested there.** The way to get there is simple design that lets the web renderer show what it can do, rather than a pile of JavaScript on top that tries to make it fast. Stay out of the renderer's way: a row is a light piece of DOM, never a heavyweight tree of elements, and the components ask the engine for nothing it has to work around. Performance comes from simplicity, and so does the simplicity.
 
-Icons
-Sort
-Update when pointer is away
-Same highlight color as system
-Same dotted keyboard focus as system
-Filter, instant
+**Portable from the start.** They begin as `FujiList` and `FujiTree`, built so that other projects could take them separately. They will probably be Vue components, and even that is open: whether they could be plain HTML, CSS and JavaScript, and ship on npm as `@zootella/components`, is a question to answer as they take shape.
 
-List
-List with Columns
-Tree, with empty folder
-Coolbar, menus like Microsoft 2003
+**Decided 2026-10-11: write them ourselves, and borrow the models.** The search for what already exists, across roughly ninety packages for Vue, React, web components and plain JavaScript, found the behavior in pieces and never in one piece: a columned list and a folder tree with the feel above, for Vue or plain JavaScript, under MIT, with a light row and no look of their own, does not exist. So `FujiList` and `FujiTree` are written here, small and simple, from models that are public and agree with each other: VS Code's three traits of focus, selection and anchor; Headless Tree's five-line click rule; and the ARIA authoring guide's keyboard table, with Finder's and Explorer's documented keys beside it. The one dependency weighed is TanStack's virtualizer, seven and a half kilobytes, against a few hundred lines of our own windowing for fixed-height rows, and a prototype settles it. The traits, the click rules, the keyboard, the type-ahead buffer and the windowing live in plain modules, and the Vue component is the thin layer that binds them, which is what makes them portable.
 
-Media metadata hangs on right margin, this is a really cool idea you had years ago and could now do, Fuji craftsmanship article
-Color coded sizes, 1-4 places, ibibytes
 
-Rename with up down arrow keys
-Shift control selection keyboard focus
+## What the list and the tree do
+
+Written as the user meets them. A row is text first, and everything below comes after that works.
+
+**Icons.** A row shows an icon beside its text: a folder, a picture, a file of some kind. Where the icons come from is open. The first choice is the system's own, the same defaults Finder and Explorer draw for a file of that type, so the row reads as the machine's. The alternative is a bundled set of simple, clean, Lucide-like icons, which would look custom rather than native. How a system icon would reach the page is a question of the same shape the thumbnailer already answered once.
+
+**Sort.** The user clicks a column header and the rows sort by that column. The sort runs on data the rows came with, or through a comparison function the caller plugs in. The design question is who does what, the component, the data or the caller, and the answer has to be simple, extensible, standard and useful. This is the territory the design patterns book of the Swing years mapped, and the work is to go in and come back out without the pile of complexity those designs always seemed to end in.
+
+**Update when the pointer is away.** Chrome's tab strip set the standard: close a tab and the rest could all widen, and they do not until the mouse leaves the strip, so the next click lands where the last one did. A control whose contents move under the pointer turns every click into a chase after a herd of targets, and the experience is awful. So when rows are flowing into a sorted list, say a list sorted by Name with the pointer resting over a patch of A names while more names arrive in bursts over seconds, the rows under the pointer hold still. The list shows that it is stale with a mark beside the sort column's header, an asterisk on the sort, essentially. When the pointer moves away, to that header or anywhere else, the list is free to update, the new rows take their places, and the mark goes.
+
+**The system's highlight color.** A selected row is painted in the system's own selection color, on the Mac and on Windows, and on Linux if that comes easily. With the system's own typography, this is what makes the list read as the machine's rather than a web page's. Swing brought its own selected colors, and looked broken, foreign and undeveloped for it. No browser engine hands a page that color: WebKit, Chromium and WebKitGTK all fix the Highlight and AccentColor keywords to constants against fingerprinting, and Chromium follows the real Windows highlight only in light mode. So the color comes from Rust, through one general command that reads the system's accent or selection color and hands it to the page, with a flat color of fuji's own as the fallback. Both states are matched: the color a focused list uses, and the quieter color it uses when the window or the control does not have focus.
+
+**The system's keyboard focus.** Click a file in Finder or File Explorer with the mouse, then press the up or down arrow, and a second indicator appears, separate from the selection, around the row the keyboard is on. That is the user's feedback for where the keyboard is, and the list and the tree draw it as each platform draws it today: a ring on the Mac, and on Windows the solid two-pixel border with a one-pixel outline that WinUI draws, since the dotted rectangle is Windows 7 guidance and no engine draws it for a page. Whether fuji's own is the engine's ring through `outline-style: auto`, which on Windows is Chromium's ring, or a one-pixel outline fuji draws, is decided when the first row is on screen.
+
+**Filter, instantly.** A list holds hundreds or thousands of rows, and the user presses `Ctrl` `F`, or clicks into the filter box beside the list, and types. With each keystroke, rows that do not match disappear and the rows that do remain, so what is left is just what meets the filter. The matching runs inside the component, on text it already holds, with an off-the-shelf algorithm chosen so that it is lightning quick. It never calls back to whoever supplied the rows with a "do you have this?" question, which could be slow.
+
+
+## The components
+
+Probably three: `FujiList`, the list view; `FujiTree`, the tree view; and `FujiBar`, the toolbar. A menu is a toolbar too, one with text and no icons where every item leads to a submenu, so fuji's menus are `FujiBar` and not a fourth component.
+
+**The list always has columns**, but it is not built that way first. The first version has one column, or none, and exists to prove the foundation: thousands of rows that stay light, and a filter that is lightning quick on them. The benchmark comes before the features. Set up the measurement, a folder of thousands of rows and a clock on the scroll and the filter, get the algorithm underneath right against it, and only then build sort, icons, selection and the rest on top. A thing that is fast with one column and ten thousand rows can grow columns; a thing built the other way round cannot be made fast afterward.
+
+**The tree shows empty folders.** A folder with nothing in it is still a folder, and the tree draws it as one, so a user can see that it is there and that it is empty, rather than wondering where it went.
+
+**The suggested order of work**, each step seen running before the next: the one-column list and its benchmark; the filter; selection and keyboard focus with the system's colors; columns, headers and sort; icons; the tree, which shares everything the list learned and adds expand, collapse and the empty folder; and the bar last, with the menu as its first use.
+
+### The bar, the coolbar, and the 2003 menu
+
+Microsoft's habit, per version of Windows and per version of Office, was to make the next version look different so people would see value in it, and the result over the years was a meandering and worsening design. Two high points stand out from the trail, and the bar copies both.
+
+**The Internet Explorer 3 coolbar, from the mid-1990s.** Its buttons were flat until the pointer floated over one, and then an outline appeared around the button. The user could click the moment the border appeared, without even looking for the pointer, because the border said where the pointer was. That is the hover behavior for `FujiBar`'s buttons: flat at rest, outlined under the pointer, and really, really usable.
+
+**The menus of Microsoft's software around 2003**, Visual Studio 2003 or Office 2003, for their appearance. Click a menu title and the title does not move. A card that is the menu, with its title still at the top, shaped like a skyscraper with a house on top, is set forward, drawn with a simple one-pixel outline, and casts a light shadow on everything behind it. The shape tells the user at once where they are and what they can choose next, and it looks really good. The user has a VM or screenshots to share, and the design is studied from those and copied: the card's shape, the outline, the shadow's weight, and how the open title joins the dropdown without a seam.
+
+**Research areas for the bar**: the coolbar as it shipped, so the hover outline is drawn from the real thing rather than from memory; the 2003 menu from screenshots, measured, so the card's outline, shadow and joined title come out right; what the web gives for the same effects, `box-shadow` for the shadow and a one-pixel border for the outline, and how to draw the house-on-a-skyscraper shape as one outlined card, since a title tab and a dropdown drawn as two boxes show a seam where they meet.
+
+
+## What the components show off
+
+Features that are in the art but rare, and that fuji's list and tree showcase. The first is a section of the List and Tree article in its own right.
+
+**Media details in the margin.** A file manager's grid has Name, Date, Size and Type, and no place for the one more thing a media file knows about itself: an image's dimensions, a song's or a video's runtime, a video's bitrate. Windows answered with a gazillion more columns and a way to customize each folder's view, and that design is a disaster from end to end. The user does not know how to get there. Arriving, they find fifty columns they have never heard of and not the one they need. They add one, and the columns no longer fit the display. When the view is finally right it belongs to that one folder, not to the folder beside it holding the same kinds of files, and the moment they move the files out, the work is useless. It is so high-maintenance that nobody did it. Fuji knows that solution and kept inventing to avoid it, and the article says so, loudly. `FujiList` notes a file's one useful extra detail in the whitespace of a wide column, pinned to the right margin, and the details are hand-picked rather than everything a file could carry, the few fundamentals media files share: runtime for audio and video, dimensions for images and video.
+
+**Sizes, three ways.** One option matches the system, so fuji on Windows says a size exactly as File Explorer does and fuji on the Mac exactly as Finder does, the same text and the same units. The two systems do not agree with each other on what a kilobyte is, which is to be confirmed on each machine as the option is built. The second is `saySize4` as the code already has it, in `library.js`: binary units, up to four places, a thin space before the unit. A palette of color schemes could code the unit like the metals of credit cards, where platinum outranks gold: KB blue, MB silver, GB gold, TB platinum, or something near it. The third shows everything in KB, files under a kilobyte included, so that more orders of magnitude read at a glance from the width the digits take.
+
+**Rename with the arrow keys, and a cursor that keeps its column.** Two ideas transplanted from XYplorer and attributed to it. While renaming a file, the up and down arrows move the rename to the file above or below, and the I-beam cursor keeps its column as it goes, so the whole listing behaves like a text editor. Brilliant, and copied. Before the article names XYplorer for it, its own documentation is checked for what it does and what it calls it.
