@@ -69,7 +69,28 @@ Here, where the pipeline question lives and the dylib is the hardest of the thre
 
 ## Windows
 
-After the Mac, with a letter. Linking is expected to be the easiest of the three: the prebuilt lgpl dll is one file carrying everything, and Rust can name a dll in the extern block itself, with no import library and no tool to make one. Shipping is the dll beside the executable, which is how resources already stage into the installer. What is sharpest there is size, the dll against an installer under four megabytes, and startup, since a dll in the import table is mapped at launch. There is no signing pipeline on Windows, so the pipeline question does not travel.
+Built on the Windows box on 2026-10-12, from the Mac's letter in `mac2win.md`. The link was the easiest of the three, as expected: the gates in `lib.rs` and `mpv.rs` opened to windows, and the extern block there carries `#[link(name = "libmpv-2", kind = "raw-dylib")]`, so the linker writes the imports from the seven declarations and no import library is made or kept. The library is zhongfly's mpv-winbuild lgpl dev archive of the same day, the plain x86_64 one, whose `client.h` matches the seven declarations at client api 2.5; its `libmpv-2.dll` sits untracked in `src-tauri/binaries/`, and is 101,207,552 bytes, a hundred megabytes rather than tens. Shipping is a tracked `tauri.windows.conf.json` naming the dll a resource, which Tauri merges on Windows alone and copies beside the executable in both profiles, and which `win-setup.js` now merges the same way, since it read `tauri.conf.json` alone before and would have made an installer without the dll in it. Two things found on the way. `tauri_build` watches only the configuration files that existed when it last ran, so the first build after the platform file appears does not copy the dll into `target/release` until `build.rs` or `tauri.conf.json` changes; a fresh checkout never sees this. And the dll hard-imports `vulkan-1.dll`, which graphics drivers install and Windows does not, so on a machine without one the loader fails before main and fuji never starts; loading on the first play would remove that along with the launch cost.
+
+The baseline, the installer built on the code as pulled and installed, with the executable at 11,561,984 bytes and the installer at 3,872,685: the cold launch is the one the installer makes at its end, and the warm one is from the Start menu.
+
+| launch | to main | main to page | page to first frame | to first frame | host at rest |
+| --- | --- | --- | --- | --- | --- |
+| cold, the installer's own launch | 25 | 463 | 176 | 664 | 4,435,968 |
+| warm | 29 | 351 | 120 | 500 | 4,177,920 |
+
+After, the same way, with the dll in the import table and mapped before main: the executable at 11,584,512 bytes and the installer at 38,595,036, its cabinet 36.6 MB where it was 3.5, made in 40 seconds where it was 6.
+
+| launch | to main | main to page | page to first frame | to first frame | host at rest |
+| --- | --- | --- | --- | --- | --- |
+| cold, the installer's own launch | 291 | 406 | 130 | 827 | 6,737,920 |
+| warm | 39 | 342 | 122 | 503 | 6,287,360 |
+| warm | 29 | 327 | 127 | 483 | 6,164,480 |
+
+Milliseconds, and the host's footprint in bytes; the engine's processes, the browser near 30 MB, the gpu process 26 to 29 and the renderer 19 to 22, sat where they were in every run. So a warm launch paid nothing anyone could measure: Windows maps the dll and reads its pages on demand, and nothing calls into it before the first frame. The cold launch paid about 260 ms before main, the first time the hundred megabytes were mapped after the installer wrote them, which is where Windows' antimalware looks at a new file and where its pages are read for the first time; which of the two it mostly was is not measured, and an install or an update pays it once either way. The host at rest grew by two megabytes, and the installer by thirty-five, ten times its size. That is the cost of linking at launch here; the warm number is the one every double-click on a picture pays, since each picture window is a process of its own, and here it is nothing. The size is the decision.
+
+The eyes: on the installed after build, `a` on the sheet showed the audio panel's one line with the library's version, mpv v0.41.0-1150-g88eb9f2e7 on FFmpeg N-127388-g615b07170, a development build of both, and the About section listed WebView2, libmpv and FFmpeg with their numbers. The panel's text could not be copied, which is noted and not chased.
+
+**The dll is a nightly, and that is the next thing to change here.** mpv publishes no Windows binaries, and the two build farms it points at, shinchiro's and zhongfly's fork of it, build mpv's and FFmpeg's git master every day and tag nothing else: the version the panel showed is 1,150 commits past 0.41.0, on an FFmpeg with no number at all, and zhongfly keeps thirty days of builds, so the archive this build came from is gone by November and no second machine could make these bytes. The Mac links Homebrew's mpv 0.41.0 on FFmpeg 9.0.2, plain release numbers. Fuji plays MP3s and MOVs that are years old, which 0.41.0 and the FFmpeg it was released against decode whole, so nothing newer buys anything but churn. Decided on the Windows box on 2026-10-12: Windows builds its own libmpv from the tagged release, pinned by version in the repository so every machine gets the same bytes, the way the flatpak's container plans to from source; the nightly stays as what the spike measured with and nothing more. That build is also where the Vulkan import and everything else fuji will not use come out, and where the question of how small a library of our own would be gets its number.
 
 ## Linux
 

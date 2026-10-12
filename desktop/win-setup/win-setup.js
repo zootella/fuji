@@ -33,6 +33,8 @@ function main() {
 
 	//the facts, from the files that already hold them: the product name, version, identifier, publisher, and resources from tauri's configuration, and the crate's name from Cargo.toml, which is the executable's
 	let configuration = JSON.parse(readFileSync(join(tauri, 'tauri.conf.json'), 'utf8'))
+	let platform = join(tauri, 'tauri.windows.conf.json')//what tauri merges into its configuration on windows alone, the same way: a json merge patch, where an object unites with the one beneath it and anything else replaces it. The resources that ride only on windows live there, since tauri_build fails a build on every platform over a resource it cannot find
+	if (existsSync(platform)) configuration = merge(configuration, JSON.parse(readFileSync(platform, 'utf8')))
 	let crate = parseToml(readFileSync(join(tauri, 'Cargo.toml'), 'utf8'))
 	let brandName = configuration.productName//the name people read; brand.js says how it and brandStem are used across the app
 	let brandStem = crate.package.name//the name files carry, the executable's among them, which Cargo names from the crate
@@ -111,6 +113,17 @@ function main() {
 	writeFileSync(join(bundled, file), Buffer.concat([stub, cabinet, trailer]))
 	say(`finished ${join(bundled, file)}, ${megabytes(stub.length + cabinet.length + trailer.length)} MB in ${seconds(started)} s`)
 	buildLog('exe', 'finished', file, readSha256(join(bundled, file)), 'in the bundle folder, where pnpm hash finds it')
+}
+
+//a json merge patch, rfc 7396, which is how tauri lays a platform's configuration over tauri.conf.json: an object merges key by key into the object under it, and a value of any other kind, an array included, takes the place of what was there
+function merge(base, patch) {
+	if (patch === null || typeof patch != 'object' || Array.isArray(patch)) return patch
+	let result = (base !== null && typeof base == 'object' && !Array.isArray(base)) ? {...base} : {}
+	for (let [key, value] of Object.entries(patch)) {
+		if (value === null) delete result[key]
+		else result[key] = merge(result[key], value)
+	}
+	return result
 }
 
 //every file under a folder, as paths relative to it with backslashes, which is how the cabinet and the setup program spell them

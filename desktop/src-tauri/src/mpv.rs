@@ -6,12 +6,13 @@ use crate::run_blocking;
 /*
 libmpv, the media library beneath fuji's sound and, later, its video: mpv's client API, declared by hand below rather than through a crate or a bindgen. Fuji calls a handful of its functions, their signatures are fixed by the API's second major version, and the Rust crates over it have gone stale more than once, so the declarations live here, where a reader can check them against client.h in a minute. A handle is a player: mpv_handle in the header and an opaque pointer here, made by mpv_create, given its options as strings, started by mpv_initialize, and ended by mpv_terminate_destroy, which waits for the player's own threads to finish. Every function below may be called from any thread, so a command's body runs on the blocking pool like the rest.
 
-On the Mac the library is Homebrew's for now, gathered with everything under it into a folder build.rs names, by frameworks.js, which also says how the copies travel into the bundle; where the library comes from on each platform in the end is the video spike's subject. Off the Mac nothing links yet, so lib.rs compiles a stand-in that says so.
+On the Mac the library is Homebrew's for now, gathered with everything under it into a folder build.rs names, by frameworks.js, which also says how the copies travel into the bundle. On Windows it is one prebuilt dll, libmpv-2.dll from zhongfly's mpv-winbuild, carrying FFmpeg and libplacebo inside it, kept in src-tauri/binaries untracked and shipped beside the executable by the resources entry in tauri.windows.conf.json; the link attribute names the dll itself, as raw-dylib, so the linker writes the imports from the declarations below and no import library is made or kept. Where the library comes from on each platform in the end is the video spike's subject. On Linux nothing links yet, so lib.rs compiles a stand-in that says so.
 */
 
 type Handle = *mut c_void;//mpv_handle, opaque in the header too
 
-#[link(name = "mpv")]
+#[cfg_attr(target_os = "macos", link(name = "mpv"))]//libmpv.dylib, in the folder build.rs names
+#[cfg_attr(target_os = "windows", link(name = "libmpv-2", kind = "raw-dylib"))]//libmpv-2.dll beside the executable, found by the loader at launch with no import library
 extern "C" {
 	fn mpv_client_api_version() -> c_ulong;//the api version the library was built with, major in the high sixteen bits and minor in the low
 	fn mpv_create() -> Handle;//a player with no options set and not yet started, or null

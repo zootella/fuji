@@ -35,10 +35,10 @@ mod menu {//off the mac there is no menu bar, so the commands the page has for i
 	#[tauri::command]
 	pub fn menu_enable(_menu: String, _item: String, _enabled: bool) -> Result<(), String> { Ok(()) }
 }
-#[cfg(target_os = "macos")]//the library links on the mac alone for now; the video spike brings it to the other two
+#[cfg(any(target_os = "macos", target_os = "windows"))]//the library links on the mac and windows for now; the video spike brings it to linux
 mod mpv;//and mpv.rs: the media library, libmpv, which plays sound and later video
-#[cfg(not(target_os = "macos"))]
-mod mpv {//off the mac nothing links yet, so the one command the page has answers that the library is missing rather than failing the build
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+mod mpv {//on linux nothing links yet, so the one command the page has answers that the library is missing rather than failing the build
 	#[tauri::command]
 	pub async fn mpv_version() -> Result<String, String> { Err("the media library is not linked on this platform yet".into()) }
 }
