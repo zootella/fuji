@@ -13,7 +13,7 @@ const tauri    = join(here, '../src-tauri')
 const dll      = join(tauri, 'binaries/libmpv-2.dll')//where build.sh leaves it, and tauri.windows.conf.json finds it
 const msys     = 'C:\\msys64'
 const bash     = join(msys, 'usr/bin/bash.exe')
-const packages = ['git', 'make', 'diffutils', ...['gcc', 'meson', 'ninja', 'pkgconf', 'nasm'].map(name => 'mingw-w64-ucrt-x86_64-' + name)]//what the eight packages call between them: git for libplacebo's clone, make for zlib, libass and FFmpeg, diffutils for the cmp in FFmpeg's and libass's configure scripts, and from ucrt64 the compiler with its binutils, meson and ninja, pkgconf as the pkg-config every configure asks, and nasm for FFmpeg's assembly
+const packages = ['git', 'make', 'diffutils', ...['gcc', 'meson', 'ninja', 'cmake', 'pkgconf', 'nasm', 'cppwinrt'].map(name => 'mingw-w64-ucrt-x86_64-' + name)]//what the packages call between them: git for the clones, make for zlib, libass and FFmpeg, diffutils for the cmp in FFmpeg's and libass's configure scripts, and from ucrt64 the compiler with its binutils, meson and ninja, cmake for the two Khronos packages, pkgconf as the pkg-config every configure asks, nasm for FFmpeg's and dav1d's assembly, and cppwinrt, Microsoft's header-only projection of the Windows Runtime, which mpv's media-key support is written against
 
 function main() {
 	if (process.platform != 'win32') { console.log("libmpv: nothing to build off windows; the mac gathers homebrew's and linux links the distribution's"); return }

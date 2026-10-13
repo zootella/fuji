@@ -39,6 +39,7 @@ $ pnpm hash         stage and hash what is already built, building nothing
 $ pnpm upload       send what is already staged to the production server
 $ pnpm certificate  find, make, or import the Mac's signing identity
 $ pnpm notarize     build the installer signed with the Developer ID and notarized by Apple
+$ pnpm libmpv       build the media library's dll from its release sources, on the Windows box
 
 $ cd site
 $ pnpm local        run the site here, in development mode with hot reload
