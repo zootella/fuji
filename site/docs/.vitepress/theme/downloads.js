@@ -74,8 +74,11 @@ export async function copyText(text) {
 	} catch (error) { return false }
 }
 
-//whole kilobytes, counted by 1000 the way macOS and browsers do. whole, because a decimal point is a
-//comma in half the world, and a number with no separator is right in both
-export function saySize(bytes) {
-	return Math.round(bytes / 1000) + ' KB'
+export function saySize4(n) {//a size in four digits or less, like 5428 KB or 31 MB: fuji's own saySize4 from desktop's library.js, said again here rather than imported across the workspace line. whole numbers, by 1024, and a thin space before the unit
+	let units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+	for (let u = 0; u < units.length; u++) {
+		let w = Math.floor(n / 1024 ** u)
+		if (w <= 9999) return w + '\u2009' + units[u]
+	}
+	return n + ''
 }

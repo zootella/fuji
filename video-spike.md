@@ -61,11 +61,11 @@ Questions: Which keys does it answer? One player for everything, or one per file
 
 ## Shipping and the binding
 
-Shipping is decided by doing. The spike takes the first route that gets the library into the build on each machine, the prebuilt lgpl dll on Windows, Homebrew's tree inside the bundle on the Mac, the distribution's package in the deb and rpm containers and a build of our own in the flatpak's, and writes what it took where it took it, in the build scripts and the Rust. The binding is settled: declarations written by hand in `mpv.rs` against mpv's client header, seven of them today, with no crate and no bindgen, since fuji calls a handful of functions whose signatures the API's second major version fixed.
+Shipping is decided by doing. The spike takes the first route that gets the library into the build on each machine, a dll built from the tagged releases on Windows, Homebrew's tree inside the bundle on the Mac, the distribution's package in the deb and rpm containers and a build of our own in the flatpak's, and writes what it took where it took it, in the build scripts and the Rust. The binding is settled: declarations written by hand in `mpv.rs` against mpv's client header, seven of them today, with no crate and no bindgen, since fuji calls a handful of functions whose signatures the API's second major version fixed.
 
 ## The Mac first
 
-Here, where the pipeline question lives and the dylib is the hardest of the three to source. Built: Homebrew's libmpv links the spike, and `frameworks.js` gathers it with the 47 libraries under it, FFmpeg's among them, rewrites each copy to find its siblings inside the bundle, signs each, and hands Tauri the list, so the fallback build carries the tree and launches; the numbers above are from it. Left here: the pipeline measurement, and whether 48 libraries from Homebrew are the argument for one self-contained library built our own way, which is what the Windows prebuilt already is.
+Here, where the pipeline question lives and the dylib is the hardest of the three to source. Built: Homebrew's libmpv links the spike, and `frameworks.js` gathers it with the 47 libraries under it, FFmpeg's among them, rewrites each copy to find its siblings inside the bundle, signs each, and hands Tauri the list, so the fallback build carries the tree and launches; the launch numbers above are from it, and the pipeline numbers from the apple build. Left here: whether 48 libraries from Homebrew are the argument for one self-contained library built our own way, which is what Windows now builds for itself from the tagged releases.
 
 ## Windows
 
