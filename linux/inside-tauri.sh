@@ -17,6 +17,9 @@ echo "==> pnpm install"
 corepack enable
 pnpm install --frozen-lockfile
 
+# the media library first, from the recipe the mac and windows build with, since a container starts empty and the binary links against it; desktop/libmpv/build.sh says what goes in
+echo "==> libmpv from its release sources"
+bash desktop/libmpv/build.sh
 echo "==> tauri build --bundles ${bundles}"
 cd desktop
 # --bundles overrides tauri.conf.json's targets for this run only, which is what keeps the linux specifics in this workspace instead of editing what the mac and windows builds are told to make.

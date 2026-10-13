@@ -1,0 +1,7 @@
+{
+	"bundle": {
+		"macOS": {
+			"frameworks": ["binaries/libmpv.2.dylib"]
+		}
+	}
+}

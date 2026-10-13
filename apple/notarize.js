@@ -115,8 +115,6 @@ async function buildSigned(building, version) {
 	//none of tauri's APPLE_ variables but the identity: no api key or apple id, so tauri signs, says it skipped notarizing, and stops, leaving that to n, and no certificate to import in place of the one in the keychain
 	let env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('APPLE_')))
 	env.APPLE_SIGNING_IDENTITY = identity//which tauri prefers to the Fuji Desktop in tauri.conf.json
-	let gathered = await run('node', ['frameworks.js'], {log: building, cwd: desktop})//the libraries the app carries, gathered before the build as pnpm installer gathers them; frameworks.js says what and why
-	if (!gathered.success) return {success: false, outcome: `${gathered.outcome}, and apple/applications/building.txt says why`}
 	let built = await run('pnpm', ['tauri', 'build', '--config', '{"bundle":{"macOS":{"hardenedRuntime":true}}}'], {log: building, env, cwd: desktop})//the hardened runtime on, which notarization requires and which tauri.conf.json leaves off for the fallback build: its library validation wants the app and every library it carries signed under one Team ID, which the Developer ID has and the self-signed Fuji Desktop does not
 	if (!built.success) return {success: false, outcome: `${built.outcome}, and apple/applications/building.txt says why`}
 

@@ -1,0 +1,45 @@
+import {execFileSync, spawnSync} from 'node:child_process'
+import {existsSync, statSync} from 'node:fs'
+import {join} from 'node:path'
+import {fileURLToPath} from 'node:url'
+import {buildLog, readSha256} from '../../build-log.js'
+
+/*
+Starts build.sh beside this file in the shell it runs in: on Windows a login shell of MSYS2's ucrt64 environment, with the toolchain the script needs installed first if it is not there, and on the Mac the Mac's own bash, with the tools named here looked for first and the brew line that installs them said if any is missing. MSYS2 itself has to be installed, at C:\msys64, which winget does in one line and which this says if it is missing. Off both this does nothing and says so, since Linux builds the library inside its containers, so the one name, pnpm libmpv, is safe to type anywhere. The build is a step in the build log like the installer's, started and finished with the library's hash, so the log says which library a release carried.
+*/
+
+const here   = fileURLToPath(new URL('.', import.meta.url))
+const tauri  = join(here, '../src-tauri')
+const script = join(here, 'build.sh')
+const msys   = 'C:\\msys64'
+const msysBash = join(msys, 'usr/bin/bash.exe')
+const msysPackages = ['git', 'make', 'diffutils', ...['gcc', 'meson', 'ninja', 'cmake', 'pkgconf', 'nasm', 'cppwinrt'].map(name => 'mingw-w64-ucrt-x86_64-' + name)]//what the packages call between them: git for the clones, make for zlib, libass and FFmpeg, diffutils for the cmp in FFmpeg's and libass's configure scripts, and from ucrt64 the compiler with its binutils, meson and ninja, cmake for the two Khronos packages, pkgconf as the pkg-config every configure asks, nasm for FFmpeg's and dav1d's assembly, and cppwinrt, Microsoft's header-only projection of the Windows Runtime, which mpv's media-key support is written against
+const macTools = ['meson', 'ninja', 'pkg-config']//three tools from Homebrew over Apple's clang and Swift, which the Mac already has; pkg-config is pkgconf's name on the path, and cmake and nasm are Windows' alone, since nothing on the Mac is built with cmake and arm64 assembly goes through the compiler
+const macFormulae = 'meson ninja pkgconf'
+
+function main() {
+	if (process.platform == 'win32') return windows()
+	if (process.platform == 'darwin') return mac()
+	console.log('libmpv: nothing to build off the mac and windows; linux builds the library inside its containers')
+}
+function windows() {
+	if (!existsSync(msysBash)) throw new Error(`MSYS2 is not at ${msys}; install it with: winget install --id MSYS2.MSYS2`)
+	let environment = {...process.env, MSYSTEM: 'UCRT64'}//the ucrt64 environment, which is the one whose gcc links against the universal C runtime every Windows 10 has
+	execFileSync(msysBash, ['-lc', `pacman -Q ${msysPackages.join(' ')} >/dev/null 2>&1 || pacman -S --noconfirm --needed ${msysPackages.join(' ')}`], {env: environment, stdio: 'inherit'})//silent when every package is there, and the whole install shown the first time
+	let path = script.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (match, drive) => '/' + drive.toLowerCase())//C:\a\b\build.sh as /c/a/b/build.sh, which is how msys spells a windows path
+	build(msysBash, ['-lc', `bash "${path}"`], environment, 'libmpv-2.dll')
+}
+function mac() {
+	let missing = macTools.filter(tool => spawnSync('which', [tool]).status != 0)
+	if (missing.length) throw new Error(`${missing.join(', ')} not found; install the tools with: brew install ${macFormulae}`)
+	build('bash', [script], process.env, 'libmpv.2.dylib')
+}
+function build(shell, args, environment, name) {//run the script and log the library it made, by name and hash
+	buildLog('libmpv', 'started', '-', '-', 'from the release tarballs build.sh names')
+	let run = spawnSync(shell, args, {env: environment, stdio: 'inherit'})
+	if (run.status != 0) throw new Error('build.sh failed')
+	let made = join(tauri, 'binaries', name)//where build.sh leaves it, and the platform's tauri configuration file finds it
+	buildLog('libmpv', 'finished', name, readSha256(made), `${statSync(made).size} bytes in src-tauri/binaries`)
+}
+
+try { main() } catch (e) { buildLog('libmpv', 'failed', '-', '-', e.message || String(e)); console.error('🚧 Error:', e.message || e); process.exitCode = 1 }

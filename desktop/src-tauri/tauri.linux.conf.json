@@ -1,0 +1,9 @@
+{
+	"bundle": {
+		"resources": {"binaries/libmpv.so.2": "libmpv.so.2"},
+		"linux": {
+			"deb": {"depends": ["libasound2", "libpulse0", "libfontconfig1", "libx11-6", "libxext6", "libxss1", "libxpresent1", "libxrandr2", "libgl1"]},
+			"rpm": {"depends": ["alsa-lib", "pulseaudio-libs", "fontconfig", "libX11", "libXext", "libXScrnSaver", "libXpresent", "libXrandr", "mesa-libGL"]}
+		}
+	}
+}

@@ -53,6 +53,9 @@ sed -i "s/^Icon=.*/Icon=${identifier}/" "build/files/share/applications/${identi
 install -Dm644 "usr/share/icons/hicolor/32x32/apps/${brand_stem}.png"     "build/files/share/icons/hicolor/32x32/apps/${identifier}.png"
 install -Dm644 "usr/share/icons/hicolor/128x128/apps/${brand_stem}.png"   "build/files/share/icons/hicolor/128x128/apps/${identifier}.png"
 install -Dm644 "usr/share/icons/hicolor/256x256@2/apps/${brand_stem}.png" "build/files/share/icons/hicolor/512x512/apps/${identifier}.png"
+# the resources the deb installs under usr/lib and the product's name, the media library among them, laid out under /app the same way, where the binary's rpath, ../lib and the product's name relative to itself, finds them
+mkdir -p "build/files/lib"
+cp -a "usr/lib/${brand_name}" "build/files/lib/${brand_name}"
 
 # A sandboxed application starts with no way to draw and no way to reach a file. The first four are what any GUI needs — wayland with an x11 fallback covers both kinds of session, dri is what makes the web engine's compositing hardware accelerated rather than software.
 #
@@ -62,6 +65,7 @@ flatpak build-finish build \
 	--socket=wayland \
 	--socket=fallback-x11 \
 	--device=dri \
+	--socket=pulseaudio \
 	--share=ipc \
 	--filesystem=host \
 	"--command=${brand_stem}"

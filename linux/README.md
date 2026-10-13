@@ -24,7 +24,7 @@ That is the whole of it. Publishing a release from this workspace is those three
 
 **Three steps rather than one, because each leaves behind a different kind of thing.** `build` writes packages, which are gitignored and disposable. `hash` writes sidecars, which are committed. `upload` puts files on a server, which is the only one of the three you cannot take back — and that is why it stays a separate, deliberate act rather than the tail of something else.
 
-**The first `build` on a new machine takes far longer than the rest**, because it builds the three toolchain images before it builds anything else: Debian carrying Node and Rust, a second copy of it for the other architecture, and a Flatpak image holding the GNOME runtime. The three come to about 11 GB on disk once built. Every build after that is under eight minutes on the Mac mini — 8m12s was measured while a fifth step, since removed, was still part of it — of which the image step is three seconds.
+**The first `build` on a new machine takes far longer than the rest**, because it builds the three toolchain images before it builds anything else: Debian carrying Node and Rust, a second copy of it for the other architecture, and a Flatpak image holding the GNOME runtime. The three come to about 11 GB on disk once built. Every build after that was under eight minutes on the Mac mini — 8m12s was measured while a fifth step, since removed, was still part of it — and is about twenty since the media library joined it: each tauri container builds that library from its sources before it builds fuji, from an empty start every time, which is the `libmpv from its release sources` step in the output, three minutes on arm64 and twelve on the emulated amd64; the image step is still three seconds.
 
 ### The four commands underneath
 
@@ -111,7 +111,7 @@ The architecture token is each ecosystem's own word — `amd64` for Debian, `x86
 
 **Editing an `inside-*.sh` script takes effect immediately.** Those are mounted into the container at run time, not baked into the image, so there is no image to rebuild. Editing a `Dockerfile.*` needs no action either: the next `build` rebuilds that image on its own.
 
-**The amd64 build is the slow one** — 4m54s of Rust against 1m40s for arm64 in the same run, because Apple silicon runs arm64 natively and emulates x86-64. `build` runs arm64 first on purpose, so a mistake surfaces in two minutes rather than twenty.
+**The amd64 build is the slow one** — 4m54s of Rust against 1m40s for arm64 in the same run, and 338 seconds of FFmpeg against 67 inside the media library's step, because Apple silicon runs arm64 natively and emulates x86-64. `build` runs arm64 first on purpose, so a mistake surfaces in two minutes rather than twenty.
 
 **The Flatpak is not built with `flatpak-builder`.** Bubblewrap installs a seccomp filter, and Rosetta rejects that call, so the usual manifest route cannot build an x86-64 Flatpak on this Mac at all. Since the work is unpacking a `.deb` and placing files rather than compiling, `inside-flatpak.sh` uses `flatpak build-init` and ordinary shell instead, which needs no sandbox. Its comments carry the whole account.
 

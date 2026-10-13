@@ -39,7 +39,7 @@ $ pnpm hash         stage and hash what is already built, building nothing
 $ pnpm upload       send what is already staged to the production server
 $ pnpm certificate  find, make, or import the Mac's signing identity
 $ pnpm notarize     build the installer signed with the Developer ID and notarized by Apple
-$ pnpm libmpv       build the media library's dll from its release sources, on the Windows box
+$ pnpm libmpv       build the media library from its pinned release sources, on the Mac and on Windows
 
 $ cd site
 $ pnpm local        run the site here, in development mode with hot reload
@@ -68,7 +68,7 @@ And through the site commands, there is really only one:
 
 We've picked unconventional script names to be clear about the smaller steps these commands perform. `compile` never makes an installer, `installer` never hashes, `hash` never builds, and `upload` never builds. The site's `upload` is the one exception, and builds before it sends.
 
-A name does the same job on every machine. In `desktop`, `installer` makes a `.dmg` on macOS and a `.exe` on Windows, and `upload` sends whichever one the machine you're on can build — so you don't have to remember a different command per platform. On a Mac the dmg is made by [dmgbuild](https://github.com/dmgbuild/dmgbuild) through `uvx`, so the Mac that builds the installer needs [uv](https://docs.astral.sh/uv/) installed, and every Mac build carries libmpv and the libraries under it from Homebrew, so a Mac that builds at all needs `brew install mpv`; `CLAUDE.md` says how the gather works. On Windows the exe is Fuji's own setup program, compiled with the Visual Studio C compiler that Rust already needs; the section The Windows installer says how. `linux` says `build` rather than `installer` because it makes four packages rather than an installer, but `hash` and `upload` mean exactly what they mean everywhere else.
+A name does the same job on every machine. In `desktop`, `installer` makes a `.dmg` on macOS and a `.exe` on Windows, and `upload` sends whichever one the machine you're on can build — so you don't have to remember a different command per platform. On a Mac the dmg is made by [dmgbuild](https://github.com/dmgbuild/dmgbuild) through `uvx`, so the Mac that builds the installer needs [uv](https://docs.astral.sh/uv/) installed, and every Mac build links libmpv as the recipe builds it, so a Mac that builds at all needs the recipe's tools, `brew install meson ninja pkgconf`, and one `pnpm libmpv` before its first build; `CLAUDE.md` says how the gather works. On Windows the exe is Fuji's own setup program, compiled with the Visual Studio C compiler that Rust already needs; the section The Windows installer says how. `linux` says `build` rather than `installer` because it makes four packages rather than an installer, but `hash` and `upload` mean exactly what they mean everywhere else.
 
 And through the Linux commands:
 
