@@ -136,9 +136,9 @@ That ordering was arrived at backwards and is worth recording. The mark was writ
 
 The brand buttons need their text changed too, not their background. VitePress paints --vp-button-brand-bg from brand-3 and puts --vp-button-brand-text on it, and that text is --vp-c-white in all three states with no dark override — so cyan behind white is 1.18:1 and unreadable. In dark mode the button keeps the cyan and takes the ink instead, at 8.96:1.
 
-The chrome is a third value, and the reason is rank rather than legibility. Navigation — the prev/next titles, the sidebar's active item, the outline marker, the return-to-top link — was painted in the ink, which measures 10.54:1 on white against the prose's 10.94:1. Nothing was wrong with it except that it carried the same weight as the words it serves. #00855B is the lightest value at the brand's own hue and saturation that still clears 4.5:1 as body text, at 4.66:1, which is 43% of the prose's weight — clearly below it, still unmistakably the brand, and full saturation so it reads as an accent rather than as stained ink.
+The chrome, which is brand-1 on the light page, is the prose ink, and for a while it was a third value. Navigation was first painted in the cyan ink, which measures 10.54:1 on white against the prose's 10.94:1 and so carried the same weight as the words it serves, and the answer was #00855B, the lightest value at the brand's hue that still clears 4.5:1 as text, so that navigation ranked below prose by being lighter. Then every piece of navigation a reader looks at took a different answer: the sidebar's current page and the outline's marker a cyan field, the pager's titles and the foot of a page the secondary gray, each marked or quieted rather than colored. What the variable still reached was the hover and focus states of three controls, the search, the appearance switch and the top bar's one item, and a control answers in ink, while a link here does not change on hover at all. So the variable is the ink, and the light page has one hue, the brand, and the grays.
 
-The dark page needs the same rank and cannot get it the same way. Walking the lightness down does almost nothing there: a saturated cyan holds its luminance, so L45 still measures 10.47:1 against the page where L81 measures 14.6:1, and by the time it dims it has stopped looking like the brand. Alpha is what works, because compositing toward the page drops saturation and lightness together — the cyan at 60% is 6.0:1, which is 47% of the dark prose's 12.81:1. It is the same operation that made the ink, pointed at the page instead of at the prose.
+The dark page keeps rank by alpha. There the brand is readable as ink, 14.6:1 against the page, and at full strength navigation would again weigh what the prose weighs. Walking the lightness down does almost nothing: a saturated cyan holds its luminance, so L45 still measures 10.47:1 where L81 measures 14.6:1, and by the time it dims it has stopped looking like the brand. Compositing toward the page drops saturation and lightness together, and the cyan at 60% is 6.0:1, which is 47% of the dark prose's 12.81:1. It is the same operation that made the cyan ink, pointed at the page instead of at the prose.
 
 brand-3 stays the raw cyan in dark mode alone. It is a button's background rather than text, and the ink on 60% cyan reads 3.69:1 where the ink on full cyan reads 8.96:1 — a field wants to be solid.
 
@@ -150,11 +150,11 @@ What this does not touch: the warning and danger containers keep their own amber
 :root {
 	--fuji-cyan:     #9FFFE0;  /* the brand, and never ink on a light page */
 	--fuji-cyan-ink: #154739;  /* a word the mark petrified: cyan with the page's ink mixed in */
-	--fuji-chrome:   #00855B;  /* navigation, which should rank below the prose it serves */
+	--fuji-chrome:   var(--vp-c-text-1);  /* the prose ink: what is left to it is the hover and focus states of the search, the appearance switch and the top bar, and a control answers in ink while the brand stays a field */
 
 	--vp-c-brand-1: var(--fuji-chrome);
 	--vp-c-brand-2: var(--fuji-chrome);   /* equal to brand-1, so hovers do not move */
-	--vp-c-brand-3: var(--fuji-chrome);   /* button backgrounds carry white text, at 4.66:1 */
+	--vp-c-brand-3: var(--fuji-chrome);   /* button backgrounds carry white text, on the ink at 10.9:1 */
 	--vp-c-brand-soft: rgba(159, 255, 224, 0.4);
 
 	--vp-code-bg: var(--fuji-cyan);         /* the industrial highlighter mark */
@@ -355,6 +355,19 @@ On specificity: VitePress's own sidebar rule carries six classes and a scoped at
 	color: var(--fuji-cyan-ink);
 }
 
+/*
+The lines under a page take the blockquote's setting, 14px at the prose's weight in the secondary ink: the edit link, which VitePress sets in the brand color at weight 500, and the last-updated line and the license line, which are the theme's own components and set it in themselves. The previous-and-next boxes keep VitePress's own setting, a label at 12 and a page name at 14, both at 500, with the name in the prose ink by the rule below; a foot with the boxes at the quotation's setting was tried, the names first and then the labels, and the boxes read better as VitePress drew them. The edit link keeps the same ink on hover, since a link here does not change on hover. VitePress's footer rules are scoped, so each selector here carries one class more than the one it replaces.
+*/
+.VPDocFooter .edit-link .edit-link-button,
+.VPDocFooter .edit-link .edit-link-button:hover {
+	font-size: 14px;
+	font-weight: 400;
+	color: var(--vp-c-text-2);
+}
+.VPDocFooter .edit-link .edit-link-button:hover {
+	text-decoration: underline;     /* a gray link says it is one under the pointer, with VitePress's own offset for a prose link */
+	text-underline-offset: 2px;
+}
 .VPDocFooter .pager-link .title {
 	color: var(--vp-c-text-1);
 }
@@ -398,4 +411,22 @@ The two hover rules mirror VitePress's own selector exactly, because it carries 
 	font-size: var(--vp-code-font-size);
 	font-weight: 500;
 	color: var(--vp-c-text-2);
+}
+
+/*
+A blockquote one step smaller than the prose and standing a line off from it. VitePress sets a quotation at the body's own 16px on its 28px line, in the secondary ink, behind a two-pixel rule, with a paragraph's 16px above and below and nothing inside the rule, and the ink alone did not separate it: a quote read as one more paragraph in a lighter grey, close enough to the prose to look like a mismatch rather than a different kind of text. At 14px on a 1.7 line height it reads as set-off matter, the way a quotation is set in print, and the lighter ink then makes sense. VitePress puts the size on the quote's paragraph rather than the quote, so this does too.
+
+The spacing is two lines each side: a line of margin, 24px, and a line of padding inside the rule, so the rule runs a line past the text at each end rather than stopping at its first and last baseline, which is what makes the quote a block and not a paragraph with a bar. VitePress sets a quote's own paragraphs at margin 0, which runs a quotation into the attribution under it; half a line between them is the usual setting for a source line under a quote. These three rules are the sister site's, taken as they are, and nothing else about the prose moves.
+*/
+.vp-doc blockquote > p {
+	font-size: 14px;
+	line-height: 1.7;
+}
+.vp-doc blockquote {
+	margin: 24px 0;
+	padding-top: 24px;
+	padding-bottom: 24px;
+}
+.vp-doc blockquote > p + p {
+	margin-top: 12px;
 }

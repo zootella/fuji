@@ -99,12 +99,16 @@ const markdown = {
 // the file. This is the one value that moves if the site ever moves.
 const origin = 'https://fujidesktop.app'
 
+const description = 'A multimedia file manager designed with privacy and precision in mind'// the product sentence, the site's own description and the card's for any page without one of its own
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
 	markdown,
 
 	title: 'Fuji',
-	description: 'A multimedia file manager designed with privacy and precision in mind',
+	description,
+	lastUpdated: true,// each page's foot shows the date of its last commit, read from git at build time, so the build has to run inside the checkout; the line itself is the theme's LastUpdated.vue, swapped in below
+	sitemap: { hostname: origin },// sitemap.xml at the root of the built site, for a public site that wants to be found
 
 	// cleanUrls stays off, which is vitepress's default: every link carries its .html, so every link
 	// points at a file that exists and the site needs no rule on the server to resolve a bare path
@@ -126,6 +130,8 @@ export default defineConfig({
 	*/
 	vite: {
 		plugins: [stagedSidecars()],
+		// VitePress's "Last updated" line swapped for the theme's own LastUpdated.vue, which writes the date the way the download page does, 2026 October 11, in place of Intl's reader-locale form. An alias on the internal component's path is how VitePress says to override one of its own components
+		resolve: { alias: [{ find: /^.*\/VPDocFooterLastUpdated\.vue$/, replacement: fileURLToPath(new URL('./theme/components/LastUpdated.vue', import.meta.url)) }] },
 		server: {
 			proxy: {
 				// Every sidecar, matched by shape rather than by a list that would need editing here and in downloads.js both. Reached only for what stagedSidecars above did not find on this machine.
@@ -134,9 +140,28 @@ export default defineConfig({
 		},
 	},
 
+	// Open Graph tags on every page, so a link to an article pasted into a chat or a feed shows its title and description as a card; VitePress adds none of its own. The title and description are the page's own frontmatter where a page has any, and the site's where it has none, and the address is the page's on fujidesktop.app with the .html the server needs, since cleanUrls is off above
+	transformPageData(pageData) {
+		let path = pageData.relativePath.replace(/index\.md$/, '').replace(/\.md$/, '.html')
+		let title = pageData.frontmatter.title || pageData.title || 'Fuji'
+		let said = pageData.frontmatter.description || pageData.description || description
+		pageData.frontmatter.head ??= []
+		pageData.frontmatter.head.push(
+			['meta', { property: 'og:type', content: path ? 'article' : 'website' }],
+			['meta', { property: 'og:site_name', content: 'Fuji' }],
+			['meta', { property: 'og:title', content: title }],
+			['meta', { property: 'og:description', content: said }],
+			['meta', { property: 'og:url', content: origin + '/' + path }],
+			['meta', { name: 'twitter:card', content: 'summary' }],
+		)
+	},
+
 	themeConfig: {
 		outline: 'deep',//the outline on the right lists every heading level rather than h2 alone, so the macOS and Windows steps on the download page appear under their section
 		origin,// not a theme setting; themeConfig is just how VitePress hands a value of our own to the app, where useData().theme reads it
+
+		search: { provider: 'local' },// an index built at build time and searched in the browser, with no outside service
+		editLink: { pattern: 'https://github.com/zootella/fuji/edit/main/site/docs/:path', text: 'Edit this page on GitHub' },// under every page, a link to its source, so a reader who finds a wrong word can fix it
 
 		// https://vitepress.dev/reference/default-theme-config
 		nav: [
@@ -171,6 +196,7 @@ export default defineConfig({
 					{ text: 'Gamma', link: '/gamma' },
 					{ text: 'Ben Day', link: '/ben-day' },
 					{ text: 'File Types', link: '/file-types' },
+					{ text: 'Free Software', link: '/free-software' },
 					{ text: 'List and Tree', link: '/list-and-tree' },
 				],
 			},
