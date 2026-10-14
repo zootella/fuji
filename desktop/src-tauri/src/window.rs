@@ -157,7 +157,7 @@ WebView2 also has a single setting that turns them all off, and it would be simp
 fn window_browser_keys_off(window: &WebviewWindow) {
 	use webview2_com::AcceleratorKeyPressedEventHandler;
 	use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2AcceleratorKeyPressedEventArgs2;
-	use windows_core::Interface;//for cast, from the version webview2-com is built on rather than fuji's own, which Cargo.toml explains
+	use webview2_core::Interface;//for cast, from the windows-core webview2-com is built on rather than fuji's own, under the name Cargo.toml gives it and explains
 
 	if cfg!(debug_assertions) { return }//a development build keeps them, for reloading the page and opening the developer tools
 	let _ = window.with_webview(|webview| unsafe {//on the main thread, where the web view lives
@@ -292,6 +292,8 @@ mpv draws video on Windows into a window it is handed, through its wid option: i
 
 **The mouse over the video reaches the page as an event, and mpv arranged half of it.** mpv's input-cursor-passthrough option, which hands pointer events through its window on a desktop, does nothing to a window with a parent, read in w32_common.c of 0.41.0; what mpv does instead when embedded is disable its own window, EnableWindow(w32->window, 0) in the same file, and a disabled child gets no mouse at all. Windows delivers the mouse over a disabled child to the nearest enabled ancestor, which is our window, as plain button and move messages; so the window procedure below sends each one up to the page as the event video-mouse, down, up or move with the point in the video's rectangle, and the page tells a click from a drag the way it does for a picture. The drag works because the button is really down when the page asks the window to follow the pointer. Nothing here finds or touches mpv's window: a hook on its thread and the layered styles were both tried on the Windows box on 2026-10-13 and both are unnecessary, since no mouse message ever reaches that thread. Only this module knows a video has a window of its own.
 
+**A file dropped on the video reaches the page as an event too, through a drop target of this window's own.** A drop is OLE's: the program dragging asks the window under the pointer, and then each window above it, for the drop target registered on it, and shows the refusing cursor when none is found. The web view's are on its own windows, siblings of this one, which wry registered when the web view was made by walking the children the window had then; this window did not exist yet, so a drop over the video found nothing, seen on the Windows box on 2026-10-13. The older road, DragAcceptFiles and WM_DROPFILES, was tried on 2026-10-14 and the pointer still refused, so this window registers a drop target of its own, the small COM object below, the same way wry does for the web view's windows: it answers copy to a drag that carries files, and on the drop reads every path and sends them up as the event video-drop, in the shape the web view's own drop event has, and the shell hands it to the same function, so the panel never learns there was a second road. tao initialized OLE on the thread that owns the window, which registering requires, and the command that makes the window is plain so that it runs there.
+
 Off Windows the two commands answer null and nothing: the Mac's video is the render api's, drawn into a view of fuji's own, which the spike builds there, and Linux follows the Mac.
 */
 #[cfg(target_os = "windows")]
@@ -316,6 +318,53 @@ fn video_mouse(hwnd: windows::Win32::Foundation::HWND, kind: &'static str, x: i3
 	let Some(label) = video_windows().iter().find(|(_, h)| *h == handle).map(|(l, _)| l.clone()) else { return };
 	if let Some(app) = VIDEO_APP.get() { let _ = app.emit_to(&label, "video-mouse", VideoMouse { kind, x, y }); }
 }
+#[cfg(target_os = "windows")]
+#[derive(Clone, Serialize)]
+struct VideoDrop { paths: Vec<String> }//the files dropped on the video, for the page, as the web view's own drop event lists them: every one, as Windows wrote the path, for the shell to forwardize at the boundary
+#[cfg(target_os = "windows")]
+#[windows::core::implement(windows::Win32::System::Ole::IDropTarget)]
+struct VideoTarget { handle: isize, files: std::cell::Cell<bool> }//the drop target registered on one video window: its handle, to find the window's label, and whether the drag that entered carries files, answered once at the edge and repeated for every move
+#[cfg(target_os = "windows")]
+#[allow(non_snake_case)]
+impl windows::Win32::System::Ole::IDropTarget_Impl for VideoTarget_Impl {//OLE calls these on the window's thread as a drag crosses the window; the effect written back is the cursor the user sees
+	fn DragEnter(&self, data: windows::core::Ref<windows::Win32::System::Com::IDataObject>, _keys: windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS, _at: &windows::Win32::Foundation::POINTL, effect: *mut windows::Win32::System::Ole::DROPEFFECT) -> windows::core::Result<()> {
+		self.files.set(data.as_ref().is_some_and(|d| unsafe { d.QueryGetData(&video_files()) }.is_ok()));
+		unsafe { *effect = if self.files.get() { windows::Win32::System::Ole::DROPEFFECT_COPY } else { windows::Win32::System::Ole::DROPEFFECT_NONE } };
+		Ok(())
+	}
+	fn DragOver(&self, _keys: windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS, _at: &windows::Win32::Foundation::POINTL, effect: *mut windows::Win32::System::Ole::DROPEFFECT) -> windows::core::Result<()> {
+		unsafe { *effect = if self.files.get() { windows::Win32::System::Ole::DROPEFFECT_COPY } else { windows::Win32::System::Ole::DROPEFFECT_NONE } };
+		Ok(())
+	}
+	fn DragLeave(&self) -> windows::core::Result<()> { self.files.set(false); Ok(()) }
+	fn Drop(&self, data: windows::core::Ref<windows::Win32::System::Com::IDataObject>, _keys: windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS, _at: &windows::Win32::Foundation::POINTL, effect: *mut windows::Win32::System::Ole::DROPEFFECT) -> windows::core::Result<()> {
+		use tauri::Emitter;
+		use windows::Win32::System::Ole::{ReleaseStgMedium, DROPEFFECT_COPY, DROPEFFECT_NONE};
+		use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
+		self.files.set(false);
+		unsafe { *effect = DROPEFFECT_NONE };
+		let Some(data) = data.as_ref() else { return Ok(()) };
+		let mut medium = unsafe { data.GetData(&video_files()) }?;//the list of files as the shell hands it, an HDROP in global memory
+		let drop = HDROP(unsafe { medium.u.hGlobal }.0);
+		let count = unsafe { DragQueryFileW(drop, u32::MAX, None) };//every index asks how many
+		let paths = (0..count).map(|i| {
+			let length = unsafe { DragQueryFileW(drop, i, None) } as usize;//without a buffer, the length in characters, not counting the null
+			let mut text = vec![0u16; length + 1];
+			let wrote = unsafe { DragQueryFileW(drop, i, Some(&mut text)) } as usize;
+			String::from_utf16_lossy(&text[..wrote.min(length)])
+		}).collect();
+		unsafe { ReleaseStgMedium(&mut medium) };//the shell's memory for the list, given back
+		unsafe { *effect = DROPEFFECT_COPY };
+		let Some(label) = video_windows().iter().find(|(_, h)| *h == self.handle).map(|(l, _)| l.clone()) else { return Ok(()) };
+		if let Some(app) = VIDEO_APP.get() { let _ = app.emit_to(&label, "video-drop", VideoDrop { paths }); }
+		Ok(())
+	}
+}
+#[cfg(target_os = "windows")]
+fn video_files() -> windows::Win32::System::Com::FORMATETC {//the one format a drop is asked for: the shell's list of files, in global memory
+	use windows::Win32::System::Com::{DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL};
+	FORMATETC { cfFormat: windows::Win32::System::Ole::CF_HDROP.0, ptd: std::ptr::null_mut(), dwAspect: DVASPECT_CONTENT.0, lindex: -1, tymed: TYMED_HGLOBAL.0 as u32 }
+}
 
 /// A native child window of this window at this rectangle of its client area, in backing pixels, for a video to draw in, answering its handle as a decimal string for mpv's wid option; a second call replaces the first. Null off Windows, where a video is drawn another way
 #[cfg(target_os = "windows")]
@@ -325,10 +374,11 @@ pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, heig
 	use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 	use windows::Win32::Graphics::Gdi::{GetStockObject, BLACK_BRUSH, HBRUSH};
 	use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-	use windows::Win32::UI::WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, LoadCursorW, RegisterClassW, SetWindowPos, HWND_TOP, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WNDCLASSW, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_NOPARENTNOTIFY, WS_VISIBLE};
+	use windows::Win32::System::Ole::{IDropTarget, RegisterDragDrop};
+	use windows::Win32::UI::WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, LoadCursorW, RegisterClassW, SetWindowPos, CS_DBLCLKS, HWND_TOP, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WNDCLASSW, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_NOPARENTNOTIFY, WS_VISIBLE};
 
 	unsafe extern "system" fn video_proc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {//the class's window procedure: the left button and the move go up to the page as events, and Windows' own does the rest, the hit test included, so a hit here is this window's
-		let kind = match msg { WM_LBUTTONDOWN => "down", WM_LBUTTONUP => "up", WM_MOUSEMOVE => "move", _ => return unsafe { DefWindowProcW(hwnd, msg, w, l) } };
+		let kind = match msg { WM_LBUTTONDOWN => "down", WM_LBUTTONUP => "up", WM_MOUSEMOVE => "move", WM_LBUTTONDBLCLK => "double", _ => return unsafe { DefWindowProcW(hwnd, msg, w, l) } };//the second press of a double click comes as double in place of down, because the class asks for that, and its release as up like any other
 		video_mouse(hwnd, kind, (l.0 & 0xffff) as u16 as i16 as i32, ((l.0 >> 16) & 0xffff) as u16 as i16 as i32);//the point in this window's own client area, in backing pixels, signed, since a drag can leave it
 		LRESULT(0)
 	}
@@ -337,7 +387,7 @@ pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, heig
 	let _ = VIDEO_APP.set(window.app_handle().clone());//for the window procedure, which has no other way to reach the page
 	CLASS.get_or_init(|| unsafe {
 		let instance = GetModuleHandleW(PCWSTR::null()).map_err(|e| e.to_string())?;
-		let spec = WNDCLASSW { lpfnWndProc: Some(video_proc), hInstance: HINSTANCE(instance.0), hbrBackground: HBRUSH(GetStockObject(BLACK_BRUSH).0), hCursor: LoadCursorW(None, IDC_ARROW).unwrap_or_default(), lpszClassName: class, ..Default::default() };//black until mpv draws, and the arrow, since the mouse over the video is this window's to answer for
+		let spec = WNDCLASSW { style: CS_DBLCLKS, lpfnWndProc: Some(video_proc), hInstance: HINSTANCE(instance.0), hbrBackground: HBRUSH(GetStockObject(BLACK_BRUSH).0), hCursor: LoadCursorW(None, IDC_ARROW).unwrap_or_default(), lpszClassName: class, ..Default::default() };//double clicks told from two clicks by Windows, black until mpv draws, and the arrow, since the mouse over the video is this window's to answer for
 		if RegisterClassW(&spec) == 0 { return Err(windows::core::Error::from_thread().to_string()) }
 		Ok(())
 	}).clone()?;
@@ -345,6 +395,8 @@ pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, heig
 	let parent = HWND(window.hwnd().map_err(|e| e.to_string())?.0);
 	let child = unsafe { CreateWindowExW(WS_EX_NOPARENTNOTIFY, class, PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN, x, y, width, height, Some(parent), None, Some(window_module()), None) }.map_err(|e| e.to_string())?;//clipping siblings and children so nothing of fuji's paints over mpv's window inside it
 	unsafe { SetWindowPos(child, Some(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) }.map_err(|e| e.to_string())?;//raised above the web view, where Windows did not put it
+	let target: IDropTarget = VideoTarget { handle: child.0 as isize, files: std::cell::Cell::new(false) }.into();
+	unsafe { RegisterDragDrop(child, &target) }.map_err(|e| e.to_string())?;//OLE keeps its own reference to the target until the window is revoked, so this one can go
 	video_windows().push((window.label().to_string(), child.0 as isize));
 	Ok(Some((child.0 as isize).to_string()))
 }
@@ -358,6 +410,7 @@ pub fn window_video_drop(window: WebviewWindow) -> Result<(), String> {
 	use windows::Win32::Foundation::HWND;
 	use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
 	let Some(handle) = video_forget(window.label()) else { return Ok(()) };
+	let _ = unsafe { windows::Win32::System::Ole::RevokeDragDrop(HWND(handle as *mut _)) };//the drop target first, which frees it, and a window with none registered is nothing to report
 	unsafe { DestroyWindow(HWND(handle as *mut _)) }.map_err(|e| e.to_string())
 }
 

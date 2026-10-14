@@ -135,6 +135,9 @@ onMounted(async () => {
 	unlistenFileDrop = await w.onDragDropEvent(event => {
 		if (event.payload.type == 'drop' && event.payload.paths.length) reportTrouble(() => viewOpen(forwardize(event.payload.paths[0])))//forwardized here, at the boundary where a path enters fuji
 	})
+	unlistenVideoDrop = await w.listen('video-drop', event => {//the same drop, over the video's native window on windows, which the web view's own listener above never sees; window.rs sends it in the same shape, and it takes the same road
+		if (event.payload.paths.length) reportTrouble(() => viewOpen(forwardize(event.payload.paths[0])))
+	})
 	unlistenResized = await w.onResized(() => reportTrouble(recordSheet))//the sheet's size, into settings as the user changes it
 	unlistenFocus = await w.onFocusChanged(event => {
 		if (event.payload) { menuTitle(); editLit = {}; editMenu() }//the one menu bar serves every window, so the window coming to the front says where its own View item goes, and all over again which Edit items it can answer
@@ -157,12 +160,13 @@ function logLaunch() {//two lines at the top of every log. The launch timed whol
 	}, restAfter)
 }
 
-let unlistenFileDrop, unlistenMenu, unlistenResized, unlistenFocus//will hold the unsubscribe functions set above and called below
+let unlistenFileDrop, unlistenVideoDrop, unlistenMenu, unlistenResized, unlistenFocus//will hold the unsubscribe functions set above and called below
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	window.removeEventListener('resize', onResize)
 	window.removeEventListener('contextmenu', onContextMenu)
 	if (unlistenFileDrop) unlistenFileDrop()
+	if (unlistenVideoDrop) unlistenVideoDrop()
 	if (unlistenMenu) unlistenMenu()
 	if (unlistenResized) unlistenResized()
 	if (unlistenFocus) unlistenFocus()
@@ -295,7 +299,7 @@ async function reportTrouble(work) {//a window event is where the platform start
 }
 
 /*
-The sheet lives in a window and a table lives fullscreen. That is the whole of fuji's window, and every rule below follows from it: going to the table puts the window in fullscreen, going to the sheet takes it out, and nothing else ever does either. The preview is the one exception, a table in a window with no title bar, and it only ever happens first.
+The sheet lives in a window and a table lives fullscreen. That is the whole of fuji's window, and every rule below follows from it: going to the table puts the window in fullscreen, going to the sheet takes it out, and nothing else ever does either. The preview is the one exception, a table in a window with no title bar, and it only ever happens first. The audio panel is the second, since 2026-10-14, and it is the video table to come: a double click on it toggles fuji's own fullscreen with the panel staying, through audioFullscreen below, and a goes back to the sheet's window from either state, because showView leaves fullscreen whenever fuji is in it and the view asked for is not the table.
 
 The shell places every window fuji makes, before it is revealed; Rust builds each one hidden at no particular size, and window.rs says why fuji places them rather than the platform. A launch on a picture opens as a preview, fitted around the picture in the work area, the part of the desktop the menu bar, dock and taskbar leave free, and placed out from under the pointer; library.js has the rule. Every other launch, and the first sheet after a preview, is the contact sheet's window. Its size is the one thing fuji remembers about a window across launches, because it is the only window the user thinks of as one: the size goes into settings as the user resizes it, and comes back at a random place whenever it still fits the work area. A sheet snapped or tiled to half the screen is only a size here, and comes back at that size somewhere random rather than against the same edge; the convenience is the size, not the place.
 
@@ -340,7 +344,7 @@ async function toggleView() {//fuji's own item in the View menu, Show Light Tabl
 async function showView(name) {//show the sheet or the settings in a window, or the current table fullscreen; the sheet and the table stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
 	if (showing.value == name) return
 	if (name != 'Table' && previewFramed) return sheetFromPreview(name)//the sheet's window after a preview, with the sheet in it or the settings, which the menu bar can ask for from the preview or from the table it opened onto
-	if (name != 'Table' && showing.value != 'Table') {//the sheet and the settings trading places in the one window, which keeps its size, so nothing needs covering
+	if (name != 'Table' && showing.value != 'Table' && !fullscreenOurs) {//the sheet and the settings trading places in the one window, which keeps its size, so nothing needs covering; not from the audio panel fullscreen, which goes through the curtain below and out of fullscreen like the table
 		showing.value = name
 		await nextTick()//the arriving view is on the page, and the panel has been made
 		activeView()?.start?.()
@@ -400,6 +404,9 @@ async function recordSheet() {//the sheet's size into settings as the user resiz
 	}
 	settingsChanged()
 }
+async function audioFullscreen() {//the audio panel was double-clicked: fuji's own fullscreen on or off with the panel staying, behind the curtain, since the window changes size and the native square over it holds still
+	await curtained(() => fullscreenSet(!fullscreenOurs))
+}
 async function fullscreenSet(on) {//turn fuji's own fullscreen on or off, and wait for the window to arrive
 	if (on == fullscreenOurs) return
 	let w = getCurrentWindow()
@@ -430,7 +437,7 @@ async function closeWindow() {//close the window as the red button or the × wou
 
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @audio="reportTrouble(() => showView('Audio'))" @open="choose => reportTrouble(() => openAsk(choose))" />
 <SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @audio="reportTrouble(() => showView('Audio'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
-<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" /><!-- the fourth kind of view, in the sheet's window like the settings panel, and made fresh each time the same way -->
+<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(audioFullscreen)" /><!-- the fourth kind of view, in the sheet's window like the settings panel, and made fresh each time the same way; the one view besides a table that can have the screen -->
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
 <div v-if="curtainShowing" class="fixed inset-0 bg-paper"></div><!-- last, so it covers everything while the view and the fullscreen change -->

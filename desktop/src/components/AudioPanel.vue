@@ -13,7 +13,7 @@ The shell trades this with the sheet when either asks with a, and brings it from
 
 **The player is this view's, started when it comes on screen and stopped when it goes.** libmpv's own profile already leaves mpv with no terminal, no on-screen controller and no key bindings of its own, so the page is the only thing that will ever press a key; the page adds the few options every build has, and a video drawn in the square where the platform gives the page one, through its native window handed over as wid, and the video switched off where it does not, so mpv never opens a window of its own. A dropped file is loaded and played; play loads the last file again; stop stops. No pause control and no seek bar, since those are the products' to shape. While the view shows, it reads the position and the length every half second, which is the one road back from the player until events come up.
 
-**The square is a rectangle of the page that a native window sits over,** so nothing is ever drawn on the video, and the panel does not scroll, because a native window would not scroll with it. A click anywhere on the video toggles pause, and a drag on it moves the whole window; both are the page's. On Windows the mouse over the video reaches the page as the window event video-mouse, which the native window sends up, since mpv's window inside it takes no mouse and Windows hands the mouse to the window around it; window.rs says how. On the Mac the page's own handlers on the square see the mouse directly. A press that moves more than a few pixels is a drag and asks the window to follow the pointer, and Windows runs the move itself from there, so the release never reaches the page; a press that stays is a click, told on the release.
+**The square is a rectangle of the page that a native window sits over,** so nothing is ever drawn on the video, and the panel does not scroll, because a native window would not scroll with it. A click anywhere on the video toggles pause, and a drag anywhere on the panel, the video included, moves the whole window; both are the page's. The three handlers sit on the panel's root, and a press remembers whether it began on the square, which is what tells the click that toggles pause from a click on a button or on the text. On Windows the mouse over the video reaches the page as the window event video-mouse, which the native window sends up, since mpv's window inside it takes no mouse and Windows hands the mouse to the window around it; window.rs says how. On the Mac the page's own handlers see the mouse directly. A press that moves more than a few pixels is a drag and asks the window to follow the pointer, and Windows runs the move itself from there, so the release never reaches the page; a press that stays is a click, told on the release. A double click anywhere on the panel asks the shell for fuji's own fullscreen, on or off, with this view staying, the way a video wants the screen as a picture does; its two clicks toggle pause twice on the way, so the video is playing or paused after as it was before. A drop on the square reaches the shell as its own event on Windows, and the shell hands it down the road every drop takes, so this view sees one kind of drop.
 */
 
 const version = ref('')//what the library said, or blank until it has answered
@@ -24,7 +24,7 @@ const position = ref('')//time-pos and duration as the player says them, read ev
 const paused = ref('')//yes or no, as the player says it
 const square = ref(null)//the rectangle the video draws in
 let ticker//the half-second read while the view shows
-let press//where the button went down, or null while it is up; a drag is told from a click by how far the pointer moved from here
+let press//where the button went down and whether that was on the square, or null while it is up; a drag is told from a click by how far the pointer moved from here, and a click toggles pause only when it began on the video
 
 let startedDone//settles started, below
 const started = new Promise(resolve => startedDone = resolve)//settled once start has run, player or no player, for a shell that has a file to hand over the moment the view is ready
@@ -87,21 +87,26 @@ let unlistenMouse//the window's video-mouse events, which on windows are how the
 async function listenMouse() {
 	unlistenMouse = await getCurrentWindow().listen('video-mouse', e => {//the point is in the video's rectangle in backing pixels, and only distances are taken from it, so css pixels by the ratio are enough
 		const {kind, x, y} = e.payload
-		const at = {button: 0, clientX: x / devicePixelRatio, clientY: y / devicePixelRatio}
-		if (kind == 'down') onPress(at); else if (kind == 'move') onMove(at); else onRelease()
+		const at = {button: 0, clientX: x / devicePixelRatio, clientY: y / devicePixelRatio, target: square.value}//on the square by definition, since the native window covers nothing else
+		if (kind == 'down') onPress(at); else if (kind == 'move') onMove(at); else if (kind == 'double') { onPress(at); onDouble() } else onRelease()//the second press of a double click is a press too, so its release is a click like the first, and both platforms toggle pause twice and go fullscreen once
 	})
 }
-function onPress(e) { if (e.button == 0) press = {x: e.clientX, y: e.clientY} }
+function onPress(e) { if (e.button == 0) press = {x: e.clientX, y: e.clientY, video: square.value?.contains(e.target)} }
 function onMove(e) {//a press that has moved is a drag, and from here the window follows the pointer
 	if (!press || (Math.abs(e.clientX - press.x) < 4 && Math.abs(e.clientY - press.y) < 4)) return
 	press = null
-	log('audio: drag on the square, window follows the pointer')
+	log('audio: drag on the panel, window follows the pointer')
 	getCurrentWindow().startDragging().catch(error => troubled('dragging the window', error))
 }
-function onRelease() {//a press that stayed is a click, and a click on the video toggles pause
-	if (!press) return
+function onRelease() {//a press that stayed is a click, and a click on the video toggles pause; a click anywhere else on the panel is the button's or nobody's
+	const was = press
 	press = null
+	if (!was?.video) return
 	if (path.value) mpvSend(['cycle', 'pause']).then(() => mpvRead('pause')).then(pause => log(`audio: click on the square, pause ${pause}`)).catch(error => troubled('toggling pause', error))
+}
+function onDouble() {//a double click anywhere on the panel, the video included, trades the window for the screen and back, the way the light table has it; the page's own dblclick is the road on the mac and on the page beside the square, and video-mouse's double the road on the square on windows, so neither platform hears it twice
+	log('audio: double click, fullscreen toggles')
+	emit('fullscreen')
 }
 
 onBeforeUnmount(() => {//the view goes away: the sound stops with it, and the native window goes after the player, so mpv takes its own window down before ours is destroyed under it
@@ -111,7 +116,7 @@ onBeforeUnmount(() => {//the view goes away: the sound stops with it, and the na
 		.then(() => windowVideoDrop()).catch(error => troubled('dropping the video window', error))
 })
 
-const emit = defineEmits(['sheet'])//a, for the contact sheet back
+const emit = defineEmits(['sheet', 'fullscreen'])//a, for the contact sheet back; a double click, for fuji's own fullscreen on or off with this view staying
 function onKey(e) {
 	if (e.key == 'a' && !e.ctrlKey && !e.metaKey) emit('sheet')
 }
@@ -121,13 +126,13 @@ defineExpose({start, started, onDrop, onKey})//the calls of the shell's this vie
 </script>
 <template>
 
-<div class="myMono bg-paper w-full h-full overflow-hidden p-8 select-none">
+<div class="myMono bg-paper w-full h-full overflow-hidden p-8 select-none" @mousedown="onPress" @mousemove="onMove" @mouseup="onRelease" @mouseleave="press = null" @dblclick="onDouble"><!-- a drag anywhere on the panel moves the window and a double click anywhere toggles fullscreen, so the handlers are the root's; a press on the square is the one that can be a click -->
 	<h1 class="mb-8 text-strong">{{brandName}} Audio</h1>
 	<p v-if="version">{{version}}</p><!-- the library names itself at the start of the line -->
 	<p v-else-if="trouble" class="text-warn">{{trouble}}</p>
 	<p v-else class="text-fainter italic">Asking the library…</p>
-	<div ref="square" class="mt-8 w-[640px] h-[360px] bg-well text-fainter flex items-center justify-center" @mousedown="onPress" @mousemove="onMove" @mouseup="onRelease" @mouseleave="press = null"><!-- the video's rectangle; what shows here is the native window over it, and this text only until it is made -->
-		<span>The video draws here. Drop a file anywhere else on the page</span><!-- on windows the box is a native window and no drop target, so a drop on it is refused; seen on the Windows box on 2026-10-13, where this text invited exactly that -->
+	<div ref="square" class="mt-8 w-[640px] h-[360px] bg-well text-fainter flex items-center justify-center"><!-- the video's rectangle; what shows here is the native window over it, and this text only until it is made -->
+		<span>The video draws here. Drop a file anywhere on the page</span><!-- the square too: on windows it is a native window that asks for drops itself, since 2026-10-14, after a day of refusing them -->
 	</div>
 	<p class="mt-8 text-strong">{{path ? backize(path) : 'Nothing loaded'}}</p>
 	<p class="mt-2">{{position || '—'}}<span v-if="paused == 'yes'" class="text-fainter"> paused</span></p>

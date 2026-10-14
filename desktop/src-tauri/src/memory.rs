@@ -123,7 +123,7 @@ mod platform {
 	use windows::Win32::System::ProcessStatus::{GetPerformanceInfo, GetProcessMemoryInfo, PERFORMANCE_INFORMATION, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX, PROCESS_MEMORY_COUNTERS_EX2};
 	use windows::Win32::System::SystemInformation::{GetPhysicallyInstalledSystemMemory, GlobalMemoryStatusEx, MEMORYSTATUSEX};
 	use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
-	use windows_core::Interface;//for cast, from the version webview2-com is built on rather than fuji's own, which Cargo.toml explains
+	use webview2_core::Interface;//for cast, from the windows-core webview2-com is built on rather than fuji's own, under the name Cargo.toml gives it and explains
 	use super::{row, Row};
 
 	fn status() -> Option<MEMORYSTATUSEX> {//the one call task manager's memory panel is mostly made of
