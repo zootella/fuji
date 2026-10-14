@@ -6,3 +6,7 @@ export function windowEngine() { return invoke('window_engine') }//the version o
 export function windowFrame() { return invoke('window_frame') }//{x, y, width, height} of the visible frame
 export function windowFrameSet(frame) { return invoke('window_frame_set', {frame}) }//put the visible frame exactly there, whatever title bar or borders the window has
 export function windowFullscreenLeave() { return invoke('window_fullscreen_leave') }//out of fullscreen without changing whether the window is showing, which tauri's own way does not promise on windows
+
+//a native rectangle for a video, on windows: a child window above the page at a rectangle of it, which the page measures in css pixels and hands over in backing ones, since a native child is placed in those; window.rs says why there is one and what mpv does inside it
+export function windowVideoMake({x, y, width, height}) { return invoke('window_video_make', {x: Math.round(x * devicePixelRatio), y: Math.round(y * devicePixelRatio), width: Math.round(width * devicePixelRatio), height: Math.round(height * devicePixelRatio)}) }//its handle as a decimal string, for mpv's wid option; null off windows
+export function windowVideoDrop() { return invoke('window_video_drop') }//remove it, if there is one. The mouse over it comes to the page as the window event video-mouse, down, up or move with the point in its rectangle in backing pixels, which the panel listens for

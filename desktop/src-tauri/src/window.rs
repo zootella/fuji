@@ -284,3 +284,92 @@ fn window_seen_move(window: &WebviewWindow, to: PhysicalPosition<i32>) -> tauri:
 	let (seen, _) = window_seen(window)?;
 	window.set_position(PhysicalPosition::new(to.x - (seen.x - outer.x), to.y - (seen.y - outer.y)))
 }
+
+/*
+A native rectangle for a video, on Windows.
+
+mpv draws video on Windows into a window it is handed, through its wid option: it makes a child of its own inside that window, fills it, and presents through Direct3D 11. The page cannot make a native window, so one command here makes a child of the Tauri window at a rectangle the page measured, in backing pixels of the client area, which is what a child's coordinates are, and answers its handle as the decimal string the option takes. It is a plain command rather than an async one so the child is made on the thread that owns the window and WebView2's own child, and it is raised above WebView2 among the siblings, since Windows puts a new child at the bottom of them, under the web view, seen in a dump of the window tree on the Windows box on 2026-10-13. Its class paints black under anything mpv has not drawn yet, and takes the mouse over it as its own, to hand up to the page.
+
+**The mouse over the video reaches the page as an event, and mpv arranged half of it.** mpv's input-cursor-passthrough option, which hands pointer events through its window on a desktop, does nothing to a window with a parent, read in w32_common.c of 0.41.0; what mpv does instead when embedded is disable its own window, EnableWindow(w32->window, 0) in the same file, and a disabled child gets no mouse at all. Windows delivers the mouse over a disabled child to the nearest enabled ancestor, which is our window, as plain button and move messages; so the window procedure below sends each one up to the page as the event video-mouse, down, up or move with the point in the video's rectangle, and the page tells a click from a drag the way it does for a picture. The drag works because the button is really down when the page asks the window to follow the pointer. Nothing here finds or touches mpv's window: a hook on its thread and the layered styles were both tried on the Windows box on 2026-10-13 and both are unnecessary, since no mouse message ever reaches that thread. Only this module knows a video has a window of its own.
+
+Off Windows the two commands answer null and nothing: the Mac's video is the render api's, drawn into a view of fuji's own, which the spike builds there, and Linux follows the Mac.
+*/
+#[cfg(target_os = "windows")]
+static VIDEO_WINDOWS: Mutex<Vec<(String, isize)>> = Mutex::new(Vec::new());//the video window of each window that has one, by label; one entry on windows and linux, which only ever have one window
+#[cfg(target_os = "windows")]
+static VIDEO_APP: OnceLock<AppHandle> = OnceLock::new();//the application, kept for the window procedure, which Windows calls with nothing of ours in hand
+#[cfg(target_os = "windows")]
+fn video_windows() -> std::sync::MutexGuard<'static, Vec<(String, isize)>> { VIDEO_WINDOWS.lock().unwrap_or_else(|p| p.into_inner()) }
+#[cfg(target_os = "windows")]
+fn video_forget(label: &str) -> Option<isize> {//out of the list, answering the handle for the caller to destroy or leave to its parent
+	let mut list = video_windows();
+	let at = list.iter().position(|(l, _)| l == label)?;
+	Some(list.remove(at).1)
+}
+#[cfg(target_os = "windows")]
+#[derive(Clone, Serialize)]
+struct VideoMouse { kind: &'static str, x: i32, y: i32 }//one mouse message over the video, for the page: down, up or move, and where in the video's rectangle, in backing pixels
+#[cfg(target_os = "windows")]
+fn video_mouse(hwnd: windows::Win32::Foundation::HWND, kind: &'static str, x: i32, y: i32) {//to the page of the window this video window belongs to, as the event video-mouse
+	use tauri::Emitter;
+	let handle = hwnd.0 as isize;
+	let Some(label) = video_windows().iter().find(|(_, h)| *h == handle).map(|(l, _)| l.clone()) else { return };
+	if let Some(app) = VIDEO_APP.get() { let _ = app.emit_to(&label, "video-mouse", VideoMouse { kind, x, y }); }
+}
+
+/// A native child window of this window at this rectangle of its client area, in backing pixels, for a video to draw in, answering its handle as a decimal string for mpv's wid option; a second call replaces the first. Null off Windows, where a video is drawn another way
+#[cfg(target_os = "windows")]
+#[command]
+pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, height: i32) -> Result<Option<String>, String> {
+	use windows::core::{w, PCWSTR};
+	use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
+	use windows::Win32::Graphics::Gdi::{GetStockObject, BLACK_BRUSH, HBRUSH};
+	use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+	use windows::Win32::UI::WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, LoadCursorW, RegisterClassW, SetWindowPos, HWND_TOP, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WNDCLASSW, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_NOPARENTNOTIFY, WS_VISIBLE};
+
+	unsafe extern "system" fn video_proc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {//the class's window procedure: the left button and the move go up to the page as events, and Windows' own does the rest, the hit test included, so a hit here is this window's
+		let kind = match msg { WM_LBUTTONDOWN => "down", WM_LBUTTONUP => "up", WM_MOUSEMOVE => "move", _ => return unsafe { DefWindowProcW(hwnd, msg, w, l) } };
+		video_mouse(hwnd, kind, (l.0 & 0xffff) as u16 as i16 as i32, ((l.0 >> 16) & 0xffff) as u16 as i16 as i32);//the point in this window's own client area, in backing pixels, signed, since a drag can leave it
+		LRESULT(0)
+	}
+	static CLASS: OnceLock<Result<(), String>> = OnceLock::new();//registered once per process, the first time a rectangle is asked for
+	let class = w!("VideoSurface");
+	let _ = VIDEO_APP.set(window.app_handle().clone());//for the window procedure, which has no other way to reach the page
+	CLASS.get_or_init(|| unsafe {
+		let instance = GetModuleHandleW(PCWSTR::null()).map_err(|e| e.to_string())?;
+		let spec = WNDCLASSW { lpfnWndProc: Some(video_proc), hInstance: HINSTANCE(instance.0), hbrBackground: HBRUSH(GetStockObject(BLACK_BRUSH).0), hCursor: LoadCursorW(None, IDC_ARROW).unwrap_or_default(), lpszClassName: class, ..Default::default() };//black until mpv draws, and the arrow, since the mouse over the video is this window's to answer for
+		if RegisterClassW(&spec) == 0 { return Err(windows::core::Error::from_thread().to_string()) }
+		Ok(())
+	}).clone()?;
+	window_video_drop(window.clone())?;//the one before it, if any
+	let parent = HWND(window.hwnd().map_err(|e| e.to_string())?.0);
+	let child = unsafe { CreateWindowExW(WS_EX_NOPARENTNOTIFY, class, PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN, x, y, width, height, Some(parent), None, Some(window_module()), None) }.map_err(|e| e.to_string())?;//clipping siblings and children so nothing of fuji's paints over mpv's window inside it
+	unsafe { SetWindowPos(child, Some(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) }.map_err(|e| e.to_string())?;//raised above the web view, where Windows did not put it
+	video_windows().push((window.label().to_string(), child.0 as isize));
+	Ok(Some((child.0 as isize).to_string()))
+}
+#[cfg(target_os = "windows")]
+fn window_module() -> windows::Win32::Foundation::HINSTANCE { unsafe { windows::Win32::System::LibraryLoader::GetModuleHandleW(windows::core::PCWSTR::null()) }.map(|m| windows::Win32::Foundation::HINSTANCE(m.0)).unwrap_or_default() }//this executable, which the class was registered under
+
+/// Remove the video window made for this window, if it has one; nothing, otherwise
+#[cfg(target_os = "windows")]
+#[command]
+pub fn window_video_drop(window: WebviewWindow) -> Result<(), String> {
+	use windows::Win32::Foundation::HWND;
+	use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
+	let Some(handle) = video_forget(window.label()) else { return Ok(()) };
+	unsafe { DestroyWindow(HWND(handle as *mut _)) }.map_err(|e| e.to_string())
+}
+
+/// The window with this label is closing: forget its video window, which goes with its parent
+#[cfg(target_os = "windows")]
+pub fn window_video_closed(label: &str) { video_forget(label); }
+
+#[cfg(not(target_os = "windows"))]
+#[command]
+pub fn window_video_make(_window: WebviewWindow, _x: i32, _y: i32, _width: i32, _height: i32) -> Result<Option<String>, String> { Ok(None) }
+#[cfg(not(target_os = "windows"))]
+#[command]
+pub fn window_video_drop(_window: WebviewWindow) -> Result<(), String> { Ok(()) }
+#[cfg(not(target_os = "windows"))]
+pub fn window_video_closed(_label: &str) {}

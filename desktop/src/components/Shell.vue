@@ -13,6 +13,7 @@ import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs
 import {uptimeProcess} from '../uptime.js'//how long the launch took, for the log's line at the first frame
 import {memoryReport} from '../memory.js'//what fuji's processes take at rest, for the log's line a moment after it
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
+import {fileTypes} from '../fileTypes.js'//to tell a sound or a video handed over at launch from a picture, by its extension
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
@@ -92,13 +93,15 @@ onMounted(async () => {
 			notices.push(sayTrouble(`shell: asking whether ${opened[0]} is a folder`, error))//and again; the path goes on as a picture, which the preview shows or turns away
 		}
 	}
+	let openedMedia = ''//a sound or a video rather than a picture, which opens on the audio panel and plays, since that is where the player lives while Fuji Audio and Fuji Video are products still to come; it goes by what libmpv plays on this platform rather than by the type's enabled flag, which says what fuji lists and offers
+	if (opened.length && mediaPlays(opened[0])) { openedMedia = opened[0]; opened = [] }
 	let waiting = ''//Settings…, About or Fuji Help, when one was chosen from the mac's menu bar while fuji had no window and this window was made to answer it; blank for every other window
 	try {
 		waiting = await menuWaiting()
 	} catch (error) {
 		notices.push(sayTrouble('shell: asking what the menu bar chose', error))//and again
 	}
-	showing.value = opened.length ? 'Table' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, and every other launch on the contact sheet, since the sheet is the view that lives in a window
+	showing.value = opened.length ? 'Table' : openedMedia ? 'Audio' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, a sound or a video on the audio panel, and every other launch on the contact sheet, since the sheet is the view that lives in a window
 	whichTable.value = settings.view.table
 	helpShowing.value = settings.hud.help//on at the factory, so a new user is greeted by it
 	if (!tables[whichTable.value]) {//a name settings cannot check, because the tables fuji has are known here and not there
@@ -121,7 +124,8 @@ onMounted(async () => {
 	if (waiting == 'menu-help') reportTrouble(() => menuChose(waiting))//after the reveal, so the browser opens in front of the window rather than behind it
 	await raf()//the window is up; let the viewport report its dimensions before the view measures them
 	logLaunch()//the first frame is on screen, which is the moment the launch is measured to
-	activeView()?.start?.()
+	const started = activeView()?.start?.()
+	if (openedMedia) Promise.resolve(started).then(() => activeView()?.onDrop?.(openedMedia)).catch(error => logTrouble(`shell: playing ${openedMedia}`, error))//once the panel's player is up, the file it was opened with, as a drop would hand it over
 	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble(`shell: registering what ${brandName} can open`, error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
 
 	window.addEventListener('keydown', onKey)
@@ -215,7 +219,18 @@ async function facesShow() {//put the page's text in the fonts the settings name
 
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
+function mediaPlays(path) {//whether libmpv plays a file of this extension on this platform, by the type table's two native lists
+	const type = fileTypes[path.slice(path.lastIndexOf('.')).toLowerCase()]
+	return !!type && [...(type.audioNative || []), ...(type.videoNative || [])].includes(platform())
+}
+
 async function viewOpen(path) {//a picture dropped on the window, for the view on screen to show; optional, because a view answers only the calls it has a use for
+	if (mediaPlays(path) && showing.value != 'Audio') {//a sound or a video goes to the audio panel wherever it was dropped, since that is the one view that plays; the panel's player is up once its start has run, which showView does not wait for, so the drop waits here
+		if (showing.value == 'Table') await showView('Sheet')//the panel lives in the sheet's window, so out of the table's fullscreen first, the way the settings are reached
+		await showView('Audio')
+		await audioRef.value?.started
+		return audioRef.value?.onDrop?.(path)
+	}
 	if (showing.value == 'Settings') await showView('Sheet')//the settings panel opens nothing, so the sheet comes back to take it
 	await activeView()?.onDrop?.(path)
 }

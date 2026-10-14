@@ -38,9 +38,21 @@ mod menu {//off the mac there is no menu bar, so the commands the page has for i
 #[cfg(any(target_os = "macos", target_os = "windows"))]//the library links on the mac and windows for now; the video spike brings it to linux
 mod mpv;//and mpv.rs: the media library, libmpv, which plays sound and later video
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-mod mpv {//on linux nothing links yet, so the one command the page has answers that the library is missing rather than failing the build
+mod mpv {//on linux nothing links yet, so the commands the page has answer that the library is missing rather than failing the build, and the state they would keep is empty
+	const MISSING: &str = "the media library is not linked on this platform yet";
+	#[derive(Default)]
+	pub struct Players;
 	#[tauri::command]
-	pub async fn mpv_version() -> Result<String, String> { Err("the media library is not linked on this platform yet".into()) }
+	pub async fn mpv_version() -> Result<String, String> { Err(MISSING.into()) }
+	#[tauri::command]
+	pub async fn mpv_start(_options: Vec<(String, String)>) -> Result<(), String> { Err(MISSING.into()) }
+	#[tauri::command]
+	pub async fn mpv_send(_args: Vec<String>) -> Result<(), String> { Err(MISSING.into()) }
+	#[tauri::command]
+	pub async fn mpv_read(_name: String) -> Result<String, String> { Err(MISSING.into()) }
+	#[tauri::command]
+	pub async fn mpv_stop() -> Result<(), String> { Ok(()) }
+	pub fn mpv_window_closed(_app: &tauri::AppHandle, _label: &str) {}
 }
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
 mod panel;//and panel.rs: how many pixels the main display really has
@@ -78,6 +90,7 @@ pub fn run() {
 		.plugin(tauri_plugin_dialog::init())//for its Rust half, which dialog.rs calls to put up the system's open box off the Mac, where AppKit's is called directly; capabilities grant the page none of it
 		.manage(desktop::ExitFiles::default())//shared state any command can reach: text handed down to be written on the way out
 		.manage(open::OpenFiles::default())//and the paths the operating system handed fuji, waiting for the page to be built and ask for them
+		.manage(mpv::Players::default())//and the media library's players, one per window, for the window that closes mid-play to be rid of
 		.invoke_handler(//the complete list of what javascript may invoke; a name absent here cannot be called at all
 			tauri::generate_handler![
 				disk::disk_readdir, //functions we've written in disk.rs
@@ -94,7 +107,11 @@ pub fn run() {
 				launch::launch_opens,//and in launch.rs
 				launch::launch_set,
 				memory::memory_report,//and in memory.rs
-				mpv::mpv_version,//and in mpv.rs, or its stand-in off the mac
+				mpv::mpv_version,//and in mpv.rs, or its stand-in on linux
+				mpv::mpv_start,
+				mpv::mpv_send,
+				mpv::mpv_read,
+				mpv::mpv_stop,
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				open::open_files,//and in open.rs
@@ -114,8 +131,13 @@ pub fn run() {
 				window::window_frame,
 				window::window_frame_set,
 				window::window_fullscreen_leave,
+				window::window_video_make,
+				window::window_video_drop,
 			]
 		)
+		.on_window_event(|window, event| {//a window on its way out takes its player with it, and its video window goes with its parent; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking
+			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { mpv::mpv_window_closed(tauri::Manager::app_handle(window), window.label()); window::window_video_closed(window.label()) }
+		})
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
 			#[cfg(target_os = "macos")]
 			menu::menu_set(_app.handle())?;//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
