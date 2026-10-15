@@ -50,16 +50,17 @@ function readCommit() {
 	return head.stdout.trim().slice(0, 8) + (changed ? '+' : '')
 }
 
-//one step of this machine's around work that throws, the way this file and the build scripts beside it work: started, then finished with the value and words work returns, or failed with what was thrown, which goes on up
+//one step of this machine's around work that throws, the way this file and the build scripts beside it work: started, then finished with the value and words work returns, or failed with what was thrown, which goes on up. work may answer with a promise, as the linux driver's does since its containers run together, and then the step ends when the promise does
 export function buildStep(step, subject, words, work) {
 	buildLog(step, 'started', subject, '-', words)
+	let finished = result => { buildLog(step, 'finished', subject, result.value, result.words); return result }
+	let failed = e => { buildLog(step, 'failed', subject, '-', e.message); throw e }
 	try {
 		let result = work()
-		buildLog(step, 'finished', subject, result.value, result.words)
-		return result
+		if (result && typeof result.then == 'function') return result.then(finished, failed)
+		return finished(result)
 	} catch (e) {
-		buildLog(step, 'failed', subject, '-', e.message)
-		throw e
+		return failed(e)
 	}
 }
 

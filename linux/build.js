@@ -1,7 +1,8 @@
-import {execFileSync} from 'node:child_process'
+import {execFileSync, spawn, spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs'
 import {basename, join} from 'node:path'
+import {createInterface} from 'node:readline'
 import {fileURLToPath} from 'node:url'
 import {buildStep} from '../build-log.js'
 
@@ -38,7 +39,7 @@ Two are the same image at two architectures. On apple silicon the arm64 one runs
 	fuji-tauri:amd64     .deb and .rpm for x86_64   }
 	fuji-flatpak:amd64   .flatpak for x86_64, built from the amd64 .deb     pnpm build-flatpak
 
-The third consumes what the second produces, which is why `build` runs them in that order: the flatpak wraps the amd64 deb.
+The two tauri containers run at the same time, and the third waits for the second, since the flatpak wraps the amd64 deb. Running the two together hides the arm64 leg under the amd64 one, which is emulated and three times as long: with the library cached, the arm64 leg is about two minutes of a nine-minute run, measured on 2026-10-15, and the two cargo builds share the eight cores for those two minutes and cost each other a little. Each container's lines reach the terminal prefixed with its architecture, since two writers interleave otherwise, and a container that fails stops the other, so the native leg keeps its old job as the early warning: a wrong image or a broken lockfile fails arm64 in two minutes and the emulated leg is stopped rather than run on.
 
 There was a fourth, an arch container that ran makepkg over an AUR recipe to prove the recipe worked. It was removed in September 2026. Arch's mirrors carry only today's version of every package, the container installed the recipe's dependencies at run time against a package list docker had frozen into the image, and the two disagreed within a day or two of every image build — a property of a rolling distribution rather than a bug in the recipe, and not worth carrying for a channel fuji never opened. Arch users take the flatpak.
 
@@ -84,6 +85,26 @@ function run(args, options = {}) {//one place that shells out, so every docker i
 	execFileSync('docker', args, {stdio: 'inherit', ...options})
 }
 
+//a container run beside another: started with a name, its lines prefixed so two containers can share a terminal, and resolved as a result rather than thrown, so the caller sees both outcomes. a bottom gate: docker's exit code becomes a value
+function container(name, prefix, args) {
+	let child = spawn('docker', ['run', '--rm', '--name', name, ...args], {stdio: ['ignore', 'pipe', 'pipe']})
+	for (let stream of [child.stdout, child.stderr]) createInterface({input: stream}).on('line', line => process.stdout.write(`${prefix} | ${line}\n`))
+	return new Promise(resolve => {
+		child.on('error', e => resolve({success: false, outcome: `docker could not start: ${e.message}`}))
+		child.on('close', code => resolve(code == 0 ? {success: true} : {success: false, outcome: `${prefix} exited ${code}`}))
+	})
+}
+
+//two containers at once, and the other stopped as soon as one fails, so a failure found by the fast native leg never leaves the slow emulated one running on; both results come back, and a failure throws with both outcomes
+async function together(first, second) {
+	let names = [first.name, second.name]
+	let stopOthers = name => { for (let other of names) if (other != name) spawnSync('docker', ['stop', other], {stdio: 'ignore'}) }//stopping a container that has already exited is a harmless error
+	let watched = [first, second].map(one => container(one.name, one.prefix, one.args).then(result => { if (!result.success) stopOthers(one.name); return result }))
+	let results = await Promise.all(watched)
+	let failed = results.filter(result => !result.success)
+	if (failed.length) throw new Error(failed.map(result => result.outcome).join('; '))
+}
+
 //what a container runs is mounted rather than baked, so a change to a build step takes effect on the next run instead of on the next image build. it is also what keeps an image the toolchain and nothing else — the two inside-*.py scripts are this workspace's code, not debian's
 function inside(script) { return ['--entrypoint', 'python3', '-v', `${join(here, script)}:/build.py:ro`] }
 
@@ -118,23 +139,23 @@ function buildImage(tag) {
 
 function buildImages() { for (let tag of Object.keys(images)) buildImage(tag) }
 
-//the tauri containers, in one of inside-tauri.py's two modes: the word library compiles the media library into the cache, and a bundle list builds those packages from it. the bundle list is an argument rather than a change to tauri.conf.json, so what the mac and the windows box are told to build stays exactly as it was
-function tauri(tag, platform, mode) {
+//one tauri container as together runs it, in one of inside-tauri.py's two modes: the word library compiles the media library into the cache, and a bundle list builds those packages from it. the bundle list is an argument rather than a change to tauri.conf.json, so what the mac and the windows box are told to build stays exactly as it was. the name carries this process's id, so a run killed partway leaves no name for the next run to collide with
+function tauri(architecture, mode) {
+	let tag = `${brandStem}-tauri:${architecture}`
 	say(`==> ${tag}  ${mode == 'library' ? 'the media library' : '--bundles ' + mode}`)
 	mkdirSync(release, {recursive: true})
 	mkdirSync(cache, {recursive: true})
-	run(['run', '--rm', '--platform', platform,
+	return {name: `${brandStem}-${architecture}-${process.pid}`, prefix: architecture, args: ['--platform', `linux/${architecture}`,
 		...inside('inside-tauri.py'),
 		'-v', `${stage}:/src:ro`,
 		'-v', `${release}:/out`,
 		'-v', `${cache}:/cache`,
 		'-e', `IMAGE=${imageKey(tag)}`,
-		tag, '/build.py', mode])
+		tag, '/build.py', mode]}
 }
 
-//compile the media library in one container and append its ledger entry to the architecture's library file at the root, after a blank line when the file holds entries already
-function library(tag, platform, architecture) {
-	tauri(tag, platform, 'library')
+//append one architecture's ledger entry, written out by its container, to its library file at the root, after a blank line when the file holds entries already; called for arm64 then amd64 once both containers have finished, so the files read the same whichever leg landed first
+function ledgerAppend(architecture) {
 	let entry = readFileSync(join(release, `library.${architecture}.txt`), 'utf8')
 	let ledger = join(root, ledgers[architecture])
 	appendFileSync(ledger, (existsSync(ledger) && statSync(ledger).size > 0 ? '\n' : '') + entry)
@@ -172,12 +193,10 @@ The two steps `build` runs, in the order it runs them. They are grouped by conta
 `distro` is the word for those two together — a .deb and an .rpm are the distributions' own formats, installed into the system and leaning on its libraries, against flatpak's sandboxed bundle that carries its own.
 */
 const steps = {
-	//arm64 first: it runs native on apple silicon where amd64 runs emulated, so anything wrong with the image, the whitelist or the lockfile surfaces in a couple of minutes rather than twenty. the slow one is never the one to discover a typo in
-	distro:  () => { stageSource(); tauri(`${brandStem}-tauri:arm64`, 'linux/arm64', 'deb')
-	                                tauri(`${brandStem}-tauri:amd64`, 'linux/amd64', 'deb,rpm') },
-	flatpak: () => flatpak(),
-	library: () => { stageSource(); library(`${brandStem}-tauri:arm64`, 'linux/arm64', 'arm64')
-	                                library(`${brandStem}-tauri:amd64`, 'linux/amd64', 'amd64') },
+	//both tauri containers at once, the native arm64 leg finishing first and stopping the emulated one if it fails, which the essay above says more about
+	distro:  async () => { stageSource(); await together(tauri('arm64', 'deb'), tauri('amd64', 'deb,rpm')) },
+	flatpak: async () => flatpak(),
+	library: async () => { stageSource(); await together(tauri('arm64', 'library'), tauri('amd64', 'library')); ledgerAppend('arm64'); ledgerAppend('amd64') },
 }
 
 /*
@@ -185,16 +204,16 @@ Build the packages, after making sure the toolchains they need are current.
 
 The images are rebuilt every time rather than being something a person has to remember. Docker's layer cache is what makes that free: with nothing changed it is about three seconds, and when a version inside a Dockerfile has moved — because somebody bumped rust and you pulled it — the affected image rebuilds itself and this build uses the new toolchain. Nobody has to know that happened, and there is no way they could have.
 */
-function build(only) {
+async function build(only) {
 	//the name is checked before anything runs, so a typo costs nothing rather than an image pass
 	if (only && !steps[only]) throw new Error('no such step: ' + only + ' — say one of ' + Object.keys(steps).join(', '))
 
 	buildImages()
 	if (only) {
-		steps[only]()
+		await steps[only]()
 	} else {
 		//order matters: the flatpak wraps the amd64 deb that distro makes
-		steps.distro(); steps.flatpak()
+		await steps.distro(); await steps.flatpak()
 	}
 	report()
 }
@@ -215,15 +234,15 @@ The verbs package.json passes. build makes the packages from the library in the 
 Not named `prepare`, which was the first choice and is a trap: npm and pnpm treat prepare as a lifecycle script and run it on every install. A `prepare` here would mean that cloning this repository and running pnpm install tried to build ten gigabytes of docker images, and failed the install outright on a machine where docker was not running.
 */
 const commands = {
-	'build':        () => buildStep('linux', process.argv[3] || '-', '', () => { build(process.argv[3]); return {value: '-', words: 'the packages in linux/release'} }),
-	'library':      () => buildStep('library', 'linux', '', () => { buildImages(); steps.library(); return {value: '-', words: 'both libraries in linux/cache, with their entries in the ledger'} }),
+	'build':        () => buildStep('linux', process.argv[3] || '-', '', async () => { await build(process.argv[3]); return {value: '-', words: 'the packages in linux/release'} }),
+	'library':      () => buildStep('library', 'linux', '', async () => { buildImages(); await steps.library(); return {value: '-', words: 'both libraries in linux/cache, with their entries in the ledger'} }),
 	'build-images': () => buildImages(),
 	'stage':        () => stageSource(),
 }
 
-function main() {
+async function main() {
 	let command = commands[process.argv[2]]
 	if (!command) throw new Error('say which: ' + Object.keys(commands).join(', '))
-	command()
+	await command()
 }
-try { main() } catch (e) { console.error('🚧 Error:', e.message || e); process.exitCode = 1 }
+main().catch(e => { console.error('🚧 Error:', e.message || e); process.exitCode = 1 })
