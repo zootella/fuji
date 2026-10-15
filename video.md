@@ -1,6 +1,6 @@
 # Video
 
-Fuji will play video through libmpv. Decided 2026-09-29 on the Windows box after a research pass. What is built is in `video-spike.md`: the library carried on the Mac and Windows, the four player commands, and on Windows a video playing in a square on the page, as of 2026-10-13. This document owns playback — how a video file reaches the screen and the speakers once fuji has decided to show it. What fuji claims to open is `fileTypes.js`, whose `.mp4` and `.mov` entries already carry a `videoNative` route that names libmpv.
+Fuji will play video through libmpv. Decided 2026-09-29 on the Windows box after a research pass. What is built is in `video-spike.md`: the library carried by all six packages, the four player commands, and a video playing in a square on the page on Windows and on the Mac, built for Linux and waiting on its first smoke test there, as of 2026-10-15. This document owns playback — how a video file reaches the screen and the speakers once fuji has decided to show it. What fuji claims to open is `fileTypes.js`, whose `.mp4` and `.mov` entries already carry a `videoNative` route that names libmpv.
 
 A whiteboard: far more asked than settled, and the settled part is two paragraphs.
 

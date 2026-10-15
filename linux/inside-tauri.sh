@@ -33,4 +33,6 @@ for f in $(find src-tauri/target/release/bundle -type f \( -name '*.deb' -o -nam
 	found=$((found + 1))
 done
 [ "$found" -gt 0 ] || { echo "nothing was bundled — look above for what tauri said" >&2; exit 1; }
+# and the record the recipe wrote beside the library, under this architecture's name, since the other container writes one too; pnpm hash puts it in each package's sidecar, the rpm and the flatpak taking amd64's, which is the library they carry
+cp -v src-tauri/binaries/libmpv.json "/out/libmpv.$(dpkg --print-architecture).json"
 echo "==> $found package(s) in /out"

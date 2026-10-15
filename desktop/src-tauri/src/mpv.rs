@@ -14,12 +14,15 @@ libmpv, the media library beneath fuji's sound and its video: mpv's client API, 
 
 **A window that closes takes its player with it,** through mpv_window_closed, which lib.rs calls as the window is asked to close. The destroy goes to the blocking pool rather than running on the window's thread: on Windows the video draws in a child of fuji's window that mpv made on a thread of its own, and tearing that down can send to the thread that owns the parent, so a destroy that blocked the window's thread while mpv waited on it would never finish. The page stops the player itself when its view goes away; this is for the window the user closes mid-play.
 
-On the Mac the library is Homebrew's for now, gathered with everything under it into a folder build.rs names, by frameworks.js, which also says how the copies travel into the bundle. On Windows it is one dll, libmpv-2.dll, built from the tagged releases by pnpm libmpv with FFmpeg and libplacebo inside it, kept in src-tauri/binaries untracked and shipped beside the executable by the resources entry in tauri.windows.conf.json; the link attribute names the dll itself, as raw-dylib, so the linker writes the imports from the declarations below and no import library is made or kept. Where the library comes from on each platform in the end is the video spike's subject. On Linux nothing links yet, so lib.rs compiles a stand-in that says so.
+The library is one fuji builds itself from the same recipe on every platform, desktop/libmpv/build.sh, with FFmpeg and libplacebo inside it and nothing from anywhere else. On Windows it is libmpv-2.dll, kept in src-tauri/binaries untracked and shipped beside the executable by the resources entry in tauri.windows.conf.json; the link attribute names the dll itself, as raw-dylib, so the linker writes the imports from the declarations below and no import library is made or kept. On the Mac it is libmpv.2.dylib in the same folder, which build.rs names for the linker and tauri.macos.conf.json carries into the bundle as a framework, found at launch by its rpath. On Linux it is libmpv.so.2, built by the same recipe inside the containers, named for the linker by build.rs the same way, and carried by the packages as a resource under the product's folder, where the rpath build.rs gives the binary finds it.
+
+**Off Windows a wid is the surface window.rs made, and the video is drawn through the render API**, four more declarations against render.h, with an essay of their own below.
 */
 
 type Handle = *mut c_void;//mpv_handle, opaque in the header too
 
 #[cfg_attr(target_os = "macos", link(name = "mpv"))]//libmpv.dylib, in the folder build.rs names
+#[cfg_attr(target_os = "linux", link(name = "mpv"))]//libmpv.so, in the same folder, and at launch libmpv.so.2 by the rpath build.rs gives the binary
 #[cfg_attr(target_os = "windows", link(name = "libmpv-2", kind = "raw-dylib"))]//libmpv-2.dll beside the executable, found by the loader at launch with no import library
 extern "C" {
 	fn mpv_client_api_version() -> c_ulong;//the api version the library was built with, major in the high sixteen bits and minor in the low
@@ -31,7 +34,18 @@ extern "C" {
 	fn mpv_free(data: *mut c_void);//what the library allocated for the caller
 	fn mpv_error_string(error: c_int) -> *const c_char;//what an error code means, in text the library keeps
 	fn mpv_terminate_destroy(ctx: Handle);//stop the player and free it, once its threads have finished
+	//the render API, on every platform but Windows, which hands mpv a window instead; the essay below says how the two differ
+	#[cfg(not(target_os = "windows"))] fn mpv_render_context_create(res: *mut *mut c_void, mpv: Handle, params: *mut RenderParam) -> c_int;//a renderer for the player's core against the GL context current on this thread; 0, or an error code below it
+	#[cfg(not(target_os = "windows"))] fn mpv_render_context_set_update_callback(ctx: *mut c_void, callback: Option<extern "C" fn(*mut c_void)>, cb_ctx: *mut c_void);//called from a thread of mpv's own when a frame is ready, and allowed to call nothing of the library
+	#[cfg(not(target_os = "windows"))] fn mpv_render_context_render(ctx: *mut c_void, params: *mut RenderParam) -> c_int;//the current frame into the framebuffer the parameters name, with the GL context current; 0, or an error code below it
+	#[cfg(not(target_os = "windows"))] fn mpv_render_context_free(ctx: *mut c_void);//the renderer, with the GL context current, before the player it was made for
 }
+#[cfg(not(target_os = "windows"))]
+#[repr(C)] struct RenderParam { kind: c_int, data: *mut c_void }//mpv_render_param: a type from render.h's enum, 1 the api, 2 the GL init parameters, 3 the framebuffer, 4 the flip, and 0 ending a list, and a pointer to its value
+#[cfg(not(target_os = "windows"))]
+#[repr(C)] struct OpenglInitParams { get_proc_address: extern "C" fn(*mut c_void, *const c_char) -> *mut c_void, get_proc_address_ctx: *mut c_void }//mpv_opengl_init_params: how the renderer finds each GL function
+#[cfg(not(target_os = "windows"))]
+#[repr(C)] struct OpenglFbo { fbo: c_int, w: c_int, h: c_int, internal_format: c_int }//mpv_opengl_fbo: the framebuffer to draw into and its size in pixels
 
 pub struct Player(Handle);//one running player: its handle, or null once it has been destroyed, which a command that was waiting for the lock finds
 unsafe impl Send for Player {}//the pointer may move between threads because every function above may be called from any thread; the mutex around it is what keeps the calls one at a time
@@ -72,6 +86,8 @@ pub async fn mpv_start(window: WebviewWindow, options: Vec<(String, String)>, pl
 	let label = window.label().to_string();
 	run_blocking(move || {
 		if let Some(old) = map_take(&map, &label) { player_destroy(&old) }
+		#[cfg(not(target_os = "windows"))]
+		let (options, surface) = video_surface(options, &label)?;//the wid off Windows is the view window.rs made, drawn through the render API rather than handed to mpv; the essay says how
 		let player = unsafe { mpv_create() };
 		if player.is_null() { return Err("mpv_create answered null".into()) }
 		for (name, value) in &options {
@@ -80,6 +96,8 @@ pub async fn mpv_start(window: WebviewWindow, options: Vec<(String, String)>, pl
 		}
 		let started = unsafe { mpv_initialize(player) };
 		if started < 0 { unsafe { mpv_terminate_destroy(player) }; return Err(format!("mpv_initialize: {}", error_text(started))) }
+		#[cfg(not(target_os = "windows"))]
+		if let Some((layer, gl)) = surface { if let Err(error) = render_create(player, layer, gl) { unsafe { mpv_terminate_destroy(player) }; return Err(error) } }
 		map_lock(&map).insert(label, Arc::new(Mutex::new(Player(player))));
 		Ok(())
 	}).await
@@ -134,9 +152,101 @@ fn player_handle(player: &Shared) -> Result<MutexGuard<'_, Player>, String> {//t
 fn player_destroy(player: &Shared) {//under the lock, so a call in flight finishes first, and leaving a null behind for any command that was waiting
 	let mut guard = player.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 	if guard.0.is_null() { return }
+	#[cfg(not(target_os = "windows"))]
+	render_free(guard.0);//its render context first, which the render API wants gone before the player
 	unsafe { mpv_terminate_destroy(guard.0) };
 	guard.0 = std::ptr::null_mut();
 }
+
+/*
+The render API, on the Mac and on Linux, where mpv is handed no window.
+
+mpv takes a window to draw in on X11, Windows and Android and nowhere else, so off Windows the square is a GL surface of fuji's own that the platform asks to draw, a Core Animation layer on the Mac and a GTK GL area on Linux, which window.rs makes and the page hands back as the wid. Start takes that wid out of the options and puts vo=libmpv in its place, the output that draws only when asked, and once the player is up makes a render context against the surface's GL context. Every call on that context wants the GL context current on the calling thread, and what current means is window.rs's to arrange behind video_gl_current, since the two platforms differ: the Mac lends its CGL context to the pool under the lock CGL offers, and Linux runs the call on the main thread, which alone may make GTK's context current, with the pool waiting.
+
+A frame ready is said from a thread of mpv's own through the callback, which may call nothing of the library, so it asks window.rs to display the surface, and the platform draws on the main thread with its context current, through video_render. The list below holds each context with its surface, its GL context and its player, and the list's lock is what makes the draws and the free take turns: a render holds it through the draw, a free takes the context out under it and so waits for a draw in flight, and a draw after finds nothing to draw. The free comes before the player's destroy, as the API requires, and on Linux also as the surface is unrealized, since there the context can be current only while the area stands.
+
+video-timing-offset is zero for a player drawing this way. By default mpv announces a frame fifty milliseconds early and the render blocks until the frame's time, which on the main thread would hold the page's events for most of every frame; at zero the frame is announced at its time, the render returns at once, and the platform shows it at the next refresh, within a sixtieth of a second, which render.h offers as the way to do this.
+*/
+#[cfg(not(target_os = "windows"))]
+struct Render { layer: isize, gl: isize, ctx: isize, player: isize }//one render context: the surface it draws, the GL context it was made against, the context itself, and the player it belongs to, as addresses so the list can be shared; on the Mac the surface is the layer and the context CGL's, and on Linux both are the GL area, whose context is GTK's
+#[cfg(not(target_os = "windows"))]
+static RENDERS: Mutex<Vec<Render>> = Mutex::new(Vec::new());
+#[cfg(not(target_os = "windows"))]
+fn renders() -> MutexGuard<'static, Vec<Render>> { RENDERS.lock().unwrap_or_else(|p| p.into_inner()) }
+#[cfg(not(target_os = "windows"))]
+fn video_surface(options: Vec<(String, String)>, label: &str) -> Result<(Vec<(String, String)>, Option<(isize, isize)>), String> {//the wid out and the render API's output in, answering the surface and GL context the render context is made against once the player is up; options with no wid pass untouched
+	if !options.iter().any(|(name, _)| name == "wid") { return Ok((options, None)) }
+	let Some((layer, gl)) = crate::window::video_gl(label) else { return Err("the window has no video view for the wid it was given".into()) };
+	let mut options: Vec<_> = options.into_iter().filter(|(name, _)| name != "wid").collect();
+	options.push(("vo".into(), "libmpv".into()));
+	options.push(("video-timing-offset".into(), "0".into()));//the essay says why
+	Ok((options, Some((layer, gl))))
+}
+#[cfg(not(target_os = "windows"))]
+fn render_create(player: Handle, layer: isize, gl: isize) -> Result<(), String> {//the context made with the GL context current, wherever window.rs runs the call, and listed once it is made, so a frame announced in between finds nothing to draw and the next finds it; the player crosses as an address, since the call may run on another thread
+	crate::window::video_gl_retain(gl);//a reference of the render's own, so the context outlives the view if the window goes first
+	let player_at = player as isize;
+	let made = crate::window::video_gl_current(gl, move || {
+		let mut init = OpenglInitParams { get_proc_address: gl_address, get_proc_address_ctx: std::ptr::null_mut() };
+		let mut params = [RenderParam { kind: 1, data: c"opengl".as_ptr() as *mut c_void }, RenderParam { kind: 2, data: &mut init as *mut OpenglInitParams as *mut c_void }, RenderParam { kind: 0, data: std::ptr::null_mut() }];
+		let mut ctx = std::ptr::null_mut();
+		let made = unsafe { mpv_render_context_create(&mut ctx, player_at as Handle, params.as_mut_ptr()) };
+		if made < 0 || ctx.is_null() { return Err(format!("mpv_render_context_create: {}", error_text(made))) }
+		unsafe { mpv_render_context_set_update_callback(ctx, Some(render_update), layer as *mut c_void) };
+		Ok(ctx as isize)
+	});
+	match made {
+		Ok(ctx) => { renders().push(Render { layer, gl, ctx, player: player_at }); Ok(()) }
+		Err(error) => { crate::window::video_gl_release(gl); Err(error) }
+	}
+}
+#[cfg(not(target_os = "windows"))]
+fn render_free(player: Handle) {//the player's, if it has one: out of the list under its lock, and ended outside it, since the free may wait for the core to take the video down
+	let taken = { let mut list = renders(); list.iter().position(|r| r.player == player as isize).map(|at| list.remove(at)) };
+	let Some(render) = taken else { return };
+	render_end(render)
+}
+#[cfg(not(target_os = "windows"))]
+fn render_end(render: Render) {//a context already out of the list: no frame announced for it again, the free with the GL context current, and the reference given back
+	unsafe { mpv_render_context_set_update_callback(render.ctx as *mut c_void, None, std::ptr::null_mut()) };
+	let ctx = render.ctx;
+	crate::window::video_gl_current(render.gl, move || unsafe { mpv_render_context_free(ctx as *mut c_void) });
+	crate::window::video_gl_release(render.gl);
+}
+/// This surface is going, said by window.rs on the main thread with its GL context current: free whatever draws it now, while there is a context to be current; nothing, for a surface no player draws
+#[cfg(target_os = "linux")]
+pub fn video_unrealize(layer: isize) {
+	let taken = { let mut list = renders(); list.iter().position(|r| r.layer == layer).map(|at| list.remove(at)) };
+	if let Some(render) = taken { render_end(render) }
+}
+#[cfg(not(target_os = "windows"))]
+extern "C" fn render_update(layer: *mut c_void) { crate::window::video_display(layer as isize) }//a frame is ready, said from mpv's thread, and nothing of the library may be called from here
+#[cfg(target_os = "macos")]
+extern "C" fn gl_address(_ctx: *mut c_void, name: *const c_char) -> *mut c_void {//how the renderer finds each GL function: by name in the OpenGL framework, which CGL already loaded into the process; except glFlush, which answers a function that does nothing, since Core Animation flushes the layer's context itself after each draw, the arrangement mpv's own Mac layer makes
+	static OPENGL: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+	let framework = *OPENGL.get_or_init(|| unsafe { libc::dlopen(c"/System/Library/Frameworks/OpenGL.framework/OpenGL".as_ptr(), libc::RTLD_LAZY) } as usize);
+	if framework == 0 { return std::ptr::null_mut() }
+	if unsafe { CStr::from_ptr(name) } == c"glFlush" { return gl_flush_nothing as *mut c_void }
+	unsafe { libc::dlsym(framework as *mut c_void, name) }
+}
+#[cfg(target_os = "macos")]
+extern "C" fn gl_flush_nothing() {}
+#[cfg(target_os = "linux")]
+extern "C" fn gl_address(_ctx: *mut c_void, name: *const c_char) -> *mut c_void { crate::window::video_gl_address(name) }//how the renderer finds each GL function: through the loader of whichever GL the display has, which window.rs found with the display, EGL's on Wayland and GLX's on X11
+/// The current frame of the player drawing this surface into the framebuffer the platform bound, at the surface's size in pixels, answering whether there was a player to draw it; called by window.rs on the main thread with the GL context current
+#[cfg(not(target_os = "windows"))]
+pub fn video_render(layer: isize, framebuffer: i32, width: i32, height: i32) -> bool {
+	let list = renders();//held through the draw, so a free waits for it
+	let Some(render) = list.iter().find(|r| r.layer == layer) else { return false };
+	let mut target = OpenglFbo { fbo: framebuffer, w: width, h: height, internal_format: 0 };
+	let mut flip: c_int = 1;//GL's framebuffer has its origin at the bottom, and the frame is drawn the right way up for it
+	let mut params = [RenderParam { kind: 3, data: &mut target as *mut OpenglFbo as *mut c_void }, RenderParam { kind: 4, data: &mut flip as *mut c_int as *mut c_void }, RenderParam { kind: 0, data: std::ptr::null_mut() }];
+	unsafe { mpv_render_context_render(render.ctx as *mut c_void, params.as_mut_ptr()) };//an error here is a frame not drawn, which the next frame answers
+	true
+}
+/// Put the C library's numeric locale back to C, which mpv_create requires and answers null without: GTK set the whole locale from the environment when the runtime started it, and in a French or a German locale the number parsing mpv and FFmpeg share would read a comma where the code writes a point. Called once on Linux as the application sets up, on the main thread before any player is made; on Windows and the Mac nothing sets the locale and it stays C
+#[cfg(target_os = "linux")]
+pub fn mpv_locale() { unsafe { libc::setlocale(libc::LC_NUMERIC, c"C".as_ptr()) }; }
 
 fn text(s: &str) -> Result<CString, String> { CString::new(s).map_err(|_| format!("a string with a null byte in it: {s:?}")) }//c text for the library; a path or an option with a null in it cannot be said in c, and is refused rather than cut short
 

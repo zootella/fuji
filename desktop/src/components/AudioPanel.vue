@@ -38,7 +38,7 @@ async function starting() {
 	await nextTick()//the square has a layout box to measure
 	try {
 		await listenMouse()//before the native window exists, so no event is missed
-		const wid = await windowVideoMake(square.value.getBoundingClientRect())//null off windows
+		const wid = await windowVideoMake(square.value.getBoundingClientRect())//a child window on windows, and the address of the view mpv.rs draws through on the mac and linux
 		const begun = performance.now()
 		await mpvStart([//nothing here about the terminal, the on-screen controller, mpv's own key bindings or staying idle after a file: libmpv applies its own profile as a player is made, the libmpv section of mpv's etc/builtin.conf, which turns all of those off and idle on. And an option a build lacks is an error rather than a no-op: osc and load-scripts exist only in a build with scripting, which the Windows dll is not, found on the Windows box on 2026-10-13, so the page names only options every build has
 			['audio-fallback-to-null', 'yes'],//a machine with no sound device still plays, silently, with time running; without this mpv drops the audio track, and a file with nothing else ends at once

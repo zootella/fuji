@@ -1,6 +1,6 @@
 import {execFile, execFileSync, spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
-import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
+import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs'
 import {homedir, tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -207,6 +207,7 @@ function hashOne(name, version, demanded) {
 	let destination = join(stage, published)
 
 	let {notarized} = buildStep('hash', published, `${built.file}, ${version} ${built.arch}`, () => {
+		let libmpv = readLibrary(name, target, built)//the record of the media library inside, checked before anything is copied, so a refusal stages nothing
 		//copy first, then measure what landed, so every number describes the file the site will ship. a container's output is already sitting in the staging folder under its published name, and copying a file onto itself is both pointless and an error
 		if (join(built.folder, built.file) != destination) copyFileSync(join(built.folder, built.file), destination)
 		let bytes = readFileSync(destination)//whole file into memory; a package is a few megabytes and streaming would buy nothing
@@ -218,6 +219,7 @@ function hashOne(name, version, demanded) {
 			bytes: bytes.length,
 			sha256: createHash('sha256').update(bytes).digest('hex'),
 			date: new Date().toISOString().slice(0, 10),//iso, because the home page sorts these as text to find the earliest build
+			libmpv,//the record whole, which readLibrary describes
 		}
 		writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
 
@@ -230,6 +232,28 @@ function hashOne(name, version, demanded) {
 	})
 	if (!notarized) warnUnnotarized(published)//after the step's last line, so it is the final thing on the screen
 	return true
+}
+
+/*
+The media library inside a package, from the record the recipe writes beside the library it built, desktop/libmpv/build.sh: the library's name, size and hash, the day it was built, the hash of the recipe that built it, the tools it was built with, and every source the recipe fetched with its hash. The sidecar carries the record whole, under libmpv, so the repository says of every release, in one tracked file, which library it carried and where each part of that library came from, and a release is traced from its own hash back to the exact sources long after the recipe has moved on.
+
+Three checks keep the record true, and each refuses rather than warns, since the fix is a command that takes seconds when nothing has changed. The recipe checked out must be the recipe that built the library: the record holds the recipe's hash, and a library built by an older one would otherwise ship, without a word, under a commit whose recipe never made it. On the mac and windows, where the library sits in binaries between builds, it must still be the one the record describes, hashed again here, since either could have been replaced; and the installer must have been built after the library, by the two files' times, since an installer carries whatever was in binaries when tauri ran; a recipe run with nothing to rebuild still strips the library and writes the record afresh, so after one the installer is built again before hash accepts it, a minute on either machine. The containers build the library and the package together from an empty start, so for a linux package the record describes the library inside it by construction, and each writes a record under its architecture's name; the rpm and the flatpak carry the amd64 library.
+*/
+function readLibrary(name, target, built) {
+	let bundle = target.source == 'bundle'
+	let folder = bundle ? join(root, 'desktop/src-tauri/binaries') : staged.linux
+	let record = join(folder, bundle ? 'libmpv.json' : `libmpv.${built.arch == 'x86_64' ? 'amd64' : built.arch}.json`)
+	let again = bundle ? 'pnpm libmpv and then the installer, in desktop' : 'pnpm build in linux'
+	if (!existsSync(record)) throw new Error(`${name}: no record of the media library at ${record} — run ${again}, then hash`)
+	let library = JSON.parse(readFileSync(record, 'utf8'))
+	let recipe = createHash('sha256').update(readFileSync(join(root, 'desktop/libmpv/build.sh'))).digest('hex')
+	if (library.recipe != recipe) throw new Error(`${name}: the media library was built by a recipe other than desktop/libmpv/build.sh as checked out — run ${again}, then hash`)
+	if (bundle) {
+		let sha256 = createHash('sha256').update(readFileSync(join(folder, library.file))).digest('hex')
+		if (sha256 != library.sha256) throw new Error(`${name}: ${library.file} in binaries is not the library its record describes — run ${again}, then hash`)
+		if (statSync(record).mtimeMs > statSync(join(built.folder, built.file)).mtimeMs) throw new Error(`${name}: the media library was built after ${built.file}, which carries the one before it — run the installer, then hash`)
+	}
+	return library
 }
 
 //whether a dmg carries the notarization ticket the apple workspace staples to it. one without is either the fallback signed with Fuji Desktop alone, or a pnpm installer build staged by mistake, and only the person publishing knows which
@@ -367,6 +391,7 @@ function checkSidecar(name, stage, sidecar, sidecarName, version) {
 	if (sidecar.version != version)    throw new Error(`${name}: sidecar says version ${sidecar.version}, tauri.conf.json says ${version}; re-run pnpm hash`)
 	if (sidecar.bytes != bytes.length) throw new Error(`${name}: sidecar says ${sidecar.bytes} bytes, the file is ${bytes.length}; re-run pnpm hash`)
 	if (sidecar.sha256 != sha256)      throw new Error(`${name}: sidecar hash does not describe this file; re-run pnpm hash`)
+	if (!sidecar.libmpv)               throw new Error(`${name}: sidecar carries no record of the media library inside; re-run pnpm hash`)
 
 	console.log(`checked  ${sidecar.sha256}  ${bytes.length} bytes  ${sidecar.file}  ${sidecar.version} ${sidecar.arch}`)
 }

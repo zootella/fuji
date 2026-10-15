@@ -36,20 +36,66 @@ Fuji reaches FFmpeg through [mpv](https://en.wikipedia.org/wiki/Mpv_(media_playe
 
 ## Provenance
 
-A library that plays whatever it is handed is also the largest piece of someone else's code inside Fuji, and a collector who trusts Fuji with a drive is trusting that library to be what it says it is. So Fuji builds it rather than downloads it. One recipe, kept in the repository, names its sources, mpv 0.41.0, FFmpeg 9.0.2 and the libraries under them, each a tagged release fetched from its own project and checked against a hash written in the recipe before it is unpacked:
+A library that plays whatever it is handed is also the largest piece of someone else's code inside Fuji, and a collector who trusts Fuji with a drive is trusting that library to be what it says it is. So Fuji builds it rather than downloads it. [One recipe, kept in the repository](https://github.com/zootella/fuji/blob/main/desktop/libmpv/build.sh), names every source, each a tagged release fetched from its own project and checked against a hash written in the recipe before it is unpacked:
 
 ```sh
 fetch() {
 	local name=$1 url=$2 sha=$3
 	local file=$src/${url##*/}
+	source_record $name $url sha256 $sha
 	if [ -d $src/$name ]; then return; fi
 	echo "== fetching $name"
-	curl -sSL -o $file $url
-	echo "$sha *$file" | sha256sum -c --quiet || { echo "$file does not match the hash written in build.sh"; exit 1; }
+	curl -fsSL --retry 3 -o $file $url
+	[ "$(sha256 $file)" = "$sha" ] || { echo "$file does not match the hash written in build.sh"; exit 1; }
 	tar -xf $file -C $src
 }
 ```
 
-They are built in order into one library with nothing in it from anywhere else, no nightly from a build farm and no package manager's copy of the day, and the build is [reproducible](https://reproducible-builds.org/): the recipe pins the time the linker stamps into the file, so the hash of the library names the recipe rather than the afternoon, and on the Windows box two builds from the same sources gave the same hash. The same recipe builds the library on the Mac, on Windows and in the Linux containers, so every package of Fuji carries a library built from the same sources at the same versions, and the About section of Fuji's settings lists those parts and their versions, which are the recipe's numbers.
+These are the sources, as the recipe names them on 2026-10-15. A tarball is checked by its SHA-256, and a project that publishes no tarball with its parts inside is cloned at a tag and checked by the commit.
 
-That is what free software looks like from the inside: a license that let the decoders be kept, a recipe that says exactly which copy of them Fuji carries, and a program under the same license, so that the next person can keep it too.
+| Library | Version | From | Checked against |
+| --- | --- | --- | --- |
+| [zlib](https://zlib.net/) | 1.3.2 | github.com/madler/zlib | `d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3` |
+| [FreeType](https://freetype.org/) | 2.15.0 | download-mirror.savannah.gnu.org | `93cd47eb719c325107f2d3cf087d06299e944c3b48a40b55537302304dea1dd5` |
+| [FriBidi](https://github.com/fribidi/fribidi) | 1.0.17 | github.com/fribidi/fribidi | `6949dcde27d41cebad1fd741fcafc36d55a1020d2d872d4a6eb3914caabbada2` |
+| [HarfBuzz](https://harfbuzz.github.io/) | 14.6.0 | github.com/harfbuzz/harfbuzz | `d07a007327277708a2a73ae437887cdbaf282937f6d03ca5467723e9099af586` |
+| [libass](https://github.com/libass/libass) | 0.17.5 | github.com/libass/libass | `2dca25c0e0c837ddf00b52011b3f82cac1e4ddd3ad018227806b0c2288864acc` |
+| [Little CMS](https://www.littlecms.com/) | 2.19 | github.com/mm2/Little-CMS | `49e7e134e4299733dd0eda434fa468997a28ab3d33fa397c642b03644f552216` |
+| [libplacebo](https://code.videolan.org/videolan/libplacebo) | 7.360.1 | code.videolan.org, cloned | commit `cee9b076f2c63104ccfd497fa79c39a867293ec4` |
+| [dav1d](https://code.videolan.org/videolan/dav1d) | 1.5.4 | downloads.videolan.org | `686616b7c69eb88d44459391ab25cac13b6647a3b288835c5784e71c1514a5c5` |
+| [FFmpeg](https://ffmpeg.org/download.html) | 9.0.2 | ffmpeg.org | `8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e` |
+| [mpv](https://mpv.io/) | 0.41.0 | github.com/mpv-player/mpv | `ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209` |
+| [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) | vulkan-sdk-1.4.363.0 | github.com/KhronosGroup/SPIRV-Cross | `f708982e88b763ef5b0394ed468fc2c3628f68cdab89f2e7a946cd628c04e721` |
+| [shaderc](https://github.com/google/shaderc) | 2026.4 | github.com/google/shaderc | `f06ce5bcca94e5df7f34e115743597d0ad2e13c5fe9213c67dc8c76031241947` |
+| glslang | inside shaderc | github.com/KhronosGroup/glslang, cloned | commit `e1b562a8bed273a02f30b59b66a5d499793cede5` |
+| SPIRV-Tools | inside shaderc | github.com/KhronosGroup/SPIRV-Tools, cloned | commit `ef96ed763b43b59b33b31b362f09a02b729fa1c9` |
+| SPIRV-Headers | inside shaderc | github.com/KhronosGroup/SPIRV-Headers, cloned | commit `04fd3caa1e8267e4d95c806cad901181728e1006` |
+
+The first ten go into every platform's library. The last five are Windows' alone, where the picture is drawn through Direct3D, which takes its shaders in HLSL while mpv writes them in GLSL: shaderc compiles GLSL to SPIR-V, with the three libraries inside it at the commits its own DEPS file names, and SPIRV-Cross translates SPIR-V to HLSL. The Mac and Linux draw through OpenGL, which takes the shaders as mpv writes them.
+
+They are built in order into one library with nothing in it from anywhere else: no nightly from a build farm, and no package manager's copy of the day, since Homebrew on the Mac, MSYS2 on Windows and Debian in the Linux containers provide the compiler and the build tools and not one byte of the result. The same recipe runs on all three, so every package of Fuji carries a library built from the same sources at the same versions, and the About section of Fuji's settings lists those parts and their versions, which are the recipe's numbers, mpv 0.41.0 on FFmpeg 9.0.2.
+
+| Platform | Library | Decodes with | Draws with | Sound through |
+| --- | --- | --- | --- | --- |
+| Windows | `libmpv-2.dll` | D3D11VA, DXVA2 and software | Direct3D 11 | WASAPI |
+| Mac | `libmpv.2.dylib` | VideoToolbox and software | OpenGL | CoreAudio |
+| Linux | `libmpv.so.2` | software | OpenGL | ALSA and PulseAudio |
+
+The build is [reproducible](https://reproducible-builds.org/): the recipe pins the time the linker would stamp into the file, zeroes the dates in its archives, keeps the Swift compiler from writing a per-run hash into the Mac's objects, and keeps local symbols out of the Mac's link, since Apple's linker writes those in whichever order its threads finish and hashes the file into the library's UUID before they are stripped, so the hash of the library names the recipe rather than the afternoon or the machine's load. On the Mac mini on 2026-10-15, a build and two relinks of mpv under full load gave the same `libmpv.2.dylib`, 25,717,744 bytes, SHA-256 `4e1b39f3938d6e6e21ca4ee9bf6fb25555a10c9ed4af513c4a2a0642926fab3e`; on the Windows box on 2026-10-12, a build and two relinks of mpv gave the same `libmpv-2.dll` three times.
+
+The recipe also writes down what it made. Beside the library goes a record: the library's hash and size, the day it was built, the hash of the recipe itself, the tools it was built with, and every source in the table with its hash. The command that stages a release copies that record into the package's sidecar, the small file beside every download on this site that carries the download's SHA-256, and the sidecars are committed to the repository. So the repository says of every release, in one tracked file, which library it carried and where each part of that library came from, and it refuses to stage a package whose library the recipe as checked out did not build. This is the record the Mac mini's recipe wrote on 2026-10-15, with its list of the sources left out, since the table above is that list:
+
+```json
+{
+	"file": "libmpv.2.dylib",
+	"bytes": 25717744,
+	"sha256": "4e1b39f3938d6e6e21ca4ee9bf6fb25555a10c9ed4af513c4a2a0642926fab3e",
+	"built": "2026-10-15",
+	"recipe": "7f1fbb8190e01277515ba1c2eeb0f7ceb28271d64d6e6b1776a21f400d269d15",
+	"tools": "Apple clang version 17.0.0 (clang-1700.6.3.2); meson 1.12.1; ninja 1.13.2; swift-driver version: 1.127.14.1 Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)"
+}
+```
+
+The tools come from the machine rather than from the recipe, so the record names them: a library whose hash moved with nothing changed in the recipe is explained by the line that says what compiled it.
+
+That is what free software looks like from the inside: a license that let the decoders be kept, a recipe that says exactly which copy of them Fuji carries, a record of which copy each release carried, and a program under the same license, so that the next person can keep it too.

@@ -35,25 +35,7 @@ mod menu {//off the mac there is no menu bar, so the commands the page has for i
 	#[tauri::command]
 	pub fn menu_enable(_menu: String, _item: String, _enabled: bool) -> Result<(), String> { Ok(()) }
 }
-#[cfg(any(target_os = "macos", target_os = "windows"))]//the library links on the mac and windows for now; the video spike brings it to linux
-mod mpv;//and mpv.rs: the media library, libmpv, which plays sound and later video
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-mod mpv {//on linux nothing links yet, so the commands the page has answer that the library is missing rather than failing the build, and the state they would keep is empty
-	const MISSING: &str = "the media library is not linked on this platform yet";
-	#[derive(Default)]
-	pub struct Players;
-	#[tauri::command]
-	pub async fn mpv_version() -> Result<String, String> { Err(MISSING.into()) }
-	#[tauri::command]
-	pub async fn mpv_start(_options: Vec<(String, String)>) -> Result<(), String> { Err(MISSING.into()) }
-	#[tauri::command]
-	pub async fn mpv_send(_args: Vec<String>) -> Result<(), String> { Err(MISSING.into()) }
-	#[tauri::command]
-	pub async fn mpv_read(_name: String) -> Result<String, String> { Err(MISSING.into()) }
-	#[tauri::command]
-	pub async fn mpv_stop() -> Result<(), String> { Ok(()) }
-	pub fn mpv_window_closed(_app: &tauri::AppHandle, _label: &str) {}
-}
+mod mpv;//and mpv.rs: the media library, libmpv, which plays sound and video
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
 mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
@@ -107,7 +89,7 @@ pub fn run() {
 				launch::launch_opens,//and in launch.rs
 				launch::launch_set,
 				memory::memory_report,//and in memory.rs
-				mpv::mpv_version,//and in mpv.rs, or its stand-in on linux
+				mpv::mpv_version,//and in mpv.rs
 				mpv::mpv_start,
 				mpv::mpv_send,
 				mpv::mpv_read,
@@ -135,14 +117,16 @@ pub fn run() {
 				window::window_video_drop,
 			]
 		)
-		.on_window_event(|window, event| {//a window on its way out takes its player with it, and its video window goes with its parent; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking
-			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { mpv::mpv_window_closed(tauri::Manager::app_handle(window), window.label()); window::window_video_closed(window.label()) }
+		.on_window_event(|window, event| {//a window on its way out takes its player with it, and its video view goes with its window; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking. The view goes first: on linux that frees the player's render context while the area can still be drawn to, so the destroy on the pool after finds nothing left to free
+			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); mpv::mpv_window_closed(tauri::Manager::app_handle(window), window.label()) }
 		})
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
 			#[cfg(target_os = "macos")]
 			menu::menu_set(_app.handle())?;//the mac alone has a menu bar along the top of the screen; everywhere else this would put a menu inside the window, so menu.rs is gated here rather than in itself
 			#[cfg(target_os = "macos")]
 			dock::dock_install(_app.handle());//and the other menu, the one on the dock icon
+			#[cfg(target_os = "linux")]
+			mpv::mpv_locale();//after GTK, which the runtime started before this and which set the process's locale from the environment, and before any player is made; mpv.rs says what the library asks
 			touch::touch_start();//watch scroll wheel events for the pages that will ask to be spared a trackpad's; every platform calls it and only the mac installs anything
 			Ok(())
 		})
