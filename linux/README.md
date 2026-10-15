@@ -118,6 +118,8 @@ The architecture token is each ecosystem's own word — `amd64` for Debian, `x86
 
 **The Flatpak container runs `--privileged`** for one narrow reason: `flatpak build-export` validates the icon inside bubblewrap, and that needs a namespace an ordinary container cannot make.
 
+**A build can fail saying the library needs a package the dependency line does not declare.** The Linux library links the distribution's fontconfig, X11, OpenGL and sound libraries by design, and meson picks an optional one up whenever the image has its headers, so a change to the recipe or the Dockerfile can add one. `inside-tauri.py` reads what the library needs and checks it against the deb's and the rpm's dependency lines in `desktop/src-tauri/tauri.linux.conf.json` and its own table of which package provides which library; the fix is naming the new package in all three places, which is what the message says.
+
 **There is no `pnpm reveal` here.** That is a Mac convenience in the `desktop` workspace; everything this one produces is in `linux/release/`, named above.
 
 ## Building on Linux instead

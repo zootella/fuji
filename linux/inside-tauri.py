@@ -77,6 +77,34 @@ if mode == 'library':
 	sys.exit()
 
 if not library_kept(): sys.exit(f'no media library in the cache for this recipe and this image; run pnpm library first, then pnpm build')
+
+#the library's dependencies against what the packages declare. On Linux the recipe links the library against the distribution's shared libraries by design, and meson picks optional ones up when the image has their headers, so a line added to the Dockerfile or an option flipped in the recipe can add one without a word, while the deb's and the rpm's dependency lines in tauri.linux.conf.json are kept by hand; and Linux is the one platform nobody runs before it is published, so a missing package would be found on a user's machine first. This reads the libraries the file itself says it needs and refuses to build a package that does not declare every one
+provided = {  #each library the recipe may link, and the debian and fedora packages that provide it; a new one here means one in both dependency lines too
+	'libfontconfig.so.1': ('libfontconfig1', 'fontconfig'),
+	'libasound.so.2':     ('libasound2',     'alsa-lib'),
+	'libpulse.so.0':      ('libpulse0',      'pulseaudio-libs'),
+	'libX11.so.6':        ('libx11-6',       'libX11'),
+	'libXext.so.6':       ('libxext6',       'libXext'),
+	'libXss.so.1':        ('libxss1',        'libXScrnSaver'),
+	'libXpresent.so.1':   ('libxpresent1',   'libXpresent'),
+	'libXrandr.so.2':     ('libxrandr2',     'libXrandr'),
+	'libGL.so.1':         ('libgl1',         'mesa-libGL'),
+}
+base = {'libc.so.6', 'libm.so.6', 'libpthread.so.0', 'libdl.so.2', 'librt.so.1'}  #glibc's own, which every system has by the glibc floor the image sets
+def dependencies_declared():
+	record = json.loads((binaries / 'libmpv.json').read_text())
+	needed = [line.split('[')[1].rstrip(']') for line in read(['readelf', '-d', binaries / record['file']]).splitlines() if '(NEEDED)' in line]  #one line per library, like (NEEDED) Shared library: [libGL.so.1]
+	linux = json.loads((desktop / 'src-tauri/tauri.linux.conf.json').read_text())['bundle']['linux']
+	declared = {'debian': set(linux['deb']['depends']), 'fedora': set(linux['rpm']['depends'])}
+	for library in needed:
+		if library in base: continue
+		if library not in provided: sys.exit(f"{record['file']} needs {library}, which the table in inside-tauri.py does not know; add it there and to the dependency lines in tauri.linux.conf.json")
+		debian, fedora = provided[library]
+		if debian not in declared['debian']: sys.exit(f"{record['file']} needs {library}, from {debian}, which the deb's dependency line in tauri.linux.conf.json does not declare")
+		if fedora not in declared['fedora']: sys.exit(f"{record['file']} needs {library}, from {fedora}, which the rpm's dependency line in tauri.linux.conf.json does not declare")
+	say(f"==> {record['file']} needs {len(needed)} libraries, and the packages declare every one of them")
+dependencies_declared()
+
 say(f'==> tauri build --bundles {mode}')
 run(['pnpm', 'tauri', 'build', '--bundles', mode], cwd=desktop)  #--bundles overrides tauri.conf.json's targets for this run only, which is what keeps the linux specifics in this workspace instead of editing what the mac and windows builds are told to make
 
