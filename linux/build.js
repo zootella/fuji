@@ -1,5 +1,6 @@
 import {execFileSync} from 'node:child_process'
-import {cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs'
+import {createHash} from 'node:crypto'
+import {appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs'
 import {basename, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {buildStep} from '../build-log.js'
@@ -11,7 +12,13 @@ Fuji is developed on a mac and its linux users are somebody else's machines, so 
 
 ## The pipe flushes clean
 
-Two layers, and only one of them lasts. An *image* is the toolchain — debian, node, rust, the webkit headers, or flatpak and its runtime — and it holds no source and no secrets. A *container* is one build: it is handed the source, makes a package, and is destroyed. Nothing carries between builds, so there is no warm target directory, no cargo registry, no node_modules from last time. Every run starts from the same known state, which is worth more here than speed: these packages are made a few times a year, not in a daily loop.
+Two layers, and only one of them lasts. An *image* is the toolchain — debian, node, rust, the webkit headers, or flatpak and its runtime — and it holds no source and no secrets. A *container* is one build: it is handed the source, makes a package, and is destroyed. Nothing carries between builds, so there is no warm target directory, no cargo registry, no node_modules from last time. Every run starts from the same known state, which matters more here than speed: these packages are made a few times a year, not in a daily loop.
+
+One thing carries, on purpose and under proof: the compiled media library, in cache/. Compiling it is twelve minutes under emulation and the recipe that makes it changes a few times a year, so `pnpm library` is the command that compiles it, in both containers, and keeps each architecture's library beside the record the recipe writes; `pnpm build` uses it again only when the record names the recipe it was handed by hash and the library still hashes to what the record says, under a folder named for a hash of the toolchain image's layers as well, so a bumped compiler is a miss, and refuses to build without one rather than compiling on its own. The essay in inside-tauri.py has the whole argument; here the point is that the cache is keyed by everything that could change the bytes, and deleting the folder and running `pnpm library` is the way to compile fresh.
+
+## The ledger
+
+Every library the containers compile gets an entry in one of the two library files for linux at the repository root, library-arm.txt and library-amd.txt, which git tracks: when it was compiled, from which sources checked against which hashes, with which compilers, under which recipe, and what came out. The recipe inside the container writes the entry beside the record, since it alone knows all of that, and this file appends it to the root file once the container has finished, because a container never writes into the working tree. The recipe's essay says what an entry holds and why the mac and windows append their own.
 
 Reproducibility is what makes "clean" mean something. pnpm-lock.yaml and Cargo.lock are both in the whitelist and both enforced, so the versions that land are the ones the mac and the windows box already build with. Without them a fresh container would resolve every caret range in package.json against whatever the registry served that morning, and each build would differ from the last with nothing recording why.
 
@@ -47,6 +54,8 @@ const here    = fileURLToPath(new URL('.', import.meta.url))
 const root    = join(here, '..')            //the monorepo, where the whitelist is gathered from
 const stage   = join(here, '.stage')        //the whitelist copy, and the only thing a container reads
 const release = join(here, 'release')       //what comes out, and the only thing a container writes
+const cache   = join(here, 'cache')         //the compiled media library between runs, the one exception the essay above argues
+const ledgers = {arm64: 'library-arm.txt', amd64: 'library-amd.txt'}//the two library files at the root, by the architecture debian names a container with
 
 function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern for the reason scripts.js gives: this workspace has no dependencies, and one line of toml needs no parser
 	let found = readFileSync(join(root, 'desktop/src-tauri/Cargo.toml'), 'utf8').match(/^name\s*=\s*"([^"]+)"/m)
@@ -75,8 +84,11 @@ function run(args, options = {}) {//one place that shells out, so every docker i
 	execFileSync('docker', args, {stdio: 'inherit', ...options})
 }
 
-//what a container runs is mounted rather than baked, so a change to a build step takes effect on the next run instead of on the next image build. it is also what keeps an image honestly the toolchain and nothing else — the two inside-*.sh scripts are this workspace's code, not debian's
-function inside(script) { return ['--entrypoint', 'sh', '-v', `${join(here, script)}:/build.sh:ro`] }
+//what a container runs is mounted rather than baked, so a change to a build step takes effect on the next run instead of on the next image build. it is also what keeps an image the toolchain and nothing else — the two inside-*.py scripts are this workspace's code, not debian's
+function inside(script) { return ['--entrypoint', 'python3', '-v', `${join(here, script)}:/build.py:ro`] }
+
+//what an image is, as a hash of its layers, which names the cache folder beside the architecture, so a rebuilt toolchain never serves a library the old one compiled. not the image's id: docker gives an image a new id on every build, even with every layer cached, three ids from three builds of one unchanged Dockerfile on the Mac mini on 2026-10-15, while the layer digests stayed one, since those are the toolchain's own content
+function imageKey(tag) { return createHash('sha256').update(execFileSync('docker', ['image', 'inspect', '--format', '{{join .RootFS.Layers ","}}', tag], {encoding: 'utf8'}).trim()).digest('hex').slice(0, 12) }
 
 function say(line) { console.log(line) }
 
@@ -106,32 +118,44 @@ function buildImage(tag) {
 
 function buildImages() { for (let tag of Object.keys(images)) buildImage(tag) }
 
-//the two tauri runs. the bundle list is an argument rather than a change to tauri.conf.json, so what the mac and the windows box are told to build stays exactly as it was
-function tauri(tag, platform, bundles) {
-	say(`==> ${tag}  --bundles ${bundles}`)
+//the tauri containers, in one of inside-tauri.py's two modes: the word library compiles the media library into the cache, and a bundle list builds those packages from it. the bundle list is an argument rather than a change to tauri.conf.json, so what the mac and the windows box are told to build stays exactly as it was
+function tauri(tag, platform, mode) {
+	say(`==> ${tag}  ${mode == 'library' ? 'the media library' : '--bundles ' + mode}`)
 	mkdirSync(release, {recursive: true})
+	mkdirSync(cache, {recursive: true})
 	run(['run', '--rm', '--platform', platform,
-		...inside('inside-tauri.sh'),
+		...inside('inside-tauri.py'),
 		'-v', `${stage}:/src:ro`,
 		'-v', `${release}:/out`,
-		tag, '/build.sh', bundles])
+		'-v', `${cache}:/cache`,
+		'-e', `IMAGE=${imageKey(tag)}`,
+		tag, '/build.py', mode])
 }
 
-//--privileged is for one narrow thing: build-export validates the icon inside bubblewrap, which needs a namespace an ordinary container cannot make. inside-flatpak.sh carries the whole account, including why flatpak-builder is not what runs here
+//compile the media library in one container and append its ledger entry to the architecture's library file at the root, after a blank line when the file holds entries already
+function library(tag, platform, architecture) {
+	tauri(tag, platform, 'library')
+	let entry = readFileSync(join(release, `library.${architecture}.txt`), 'utf8')
+	let ledger = join(root, ledgers[architecture])
+	appendFileSync(ledger, (existsSync(ledger) && statSync(ledger).size > 0 ? '\n' : '') + entry)
+	say(`    ${ledgers[architecture]} has the entry`)
+}
+
+//--privileged is for one narrow thing: build-export validates the icon inside bubblewrap, which needs a namespace an ordinary container cannot make. inside-flatpak.py carries the whole account, including why flatpak-builder is not what runs here
 function flatpak() {
 	let deb = newestIn(release, '.deb', 'amd64')
 	if (!deb) throw new Error('the flatpak wraps the x86_64 deb and there is not one in release/ yet — run pnpm build-distro first')
 	say(`==> ${brandStem}-flatpak:amd64  wrapping ${deb}`)
 	run(['run', '--rm', '--platform', 'linux/amd64', '--privileged',
-		...inside('inside-flatpak.sh'),
+		...inside('inside-flatpak.py'),
 		'-v', `${release}:/out`,
-		`${brandStem}-flatpak:amd64`, '/build.sh', deb, brandName, brandStem, identifier])
+		`${brandStem}-flatpak:amd64`, '/build.py', deb, brandName, brandStem, identifier])
 }
 
 /*
 find a package in release/ by extension and architecture token. the filenames are tauri's own, which is deliberate — naming them for publication is the delivery half and belongs elsewhere.
 
-That is also why only a name beginning with brandName and an underscore counts. `pnpm hash` stages into this same folder, so after a release has been staged once, fuji.amd64.deb sits beside Fuji_0.1.0_amd64.deb and both end in the same three characters. The staged copy is the wrong input here — inside-flatpak.sh reads the version and the architecture straight out of a build's filename and a published name carries neither — so a build output is what this looks for. Tauri names a build brandName, an underscore and the version, where a staged copy is brandStem and a dot, and the underscore tells them apart even for a product whose two names are the same string, where the capital that separates Fuji from fuji would not
+That is also why only a name beginning with brandName and an underscore counts. `pnpm hash` stages into this same folder, so after a release has been staged once, fuji.amd64.deb sits beside Fuji_0.1.0_amd64.deb and both end in the same three characters. The staged copy is the wrong input here — inside-flatpak.py reads the version and the architecture straight out of a build's filename and a published name carries neither — so a build output is what this looks for. Tauri names a build brandName, an underscore and the version, where a staged copy is brandStem and a dot, and the underscore tells them apart even for a product whose two names are the same string, where the capital that separates Fuji from fuji would not
 */
 function newestIn(folder, extension, token) {
 	if (!existsSync(folder)) return ''
@@ -148,16 +172,18 @@ The two steps `build` runs, in the order it runs them. They are grouped by conta
 `distro` is the word for those two together — a .deb and an .rpm are the distributions' own formats, installed into the system and leaning on its libraries, against flatpak's sandboxed bundle that carries its own.
 */
 const steps = {
-	//arm64 first on purpose: it runs native on apple silicon where amd64 runs emulated, so anything wrong with the image, the whitelist or the lockfile surfaces in a couple of minutes rather than twenty. the slow one is never worth discovering a typo in
+	//arm64 first: it runs native on apple silicon where amd64 runs emulated, so anything wrong with the image, the whitelist or the lockfile surfaces in a couple of minutes rather than twenty. the slow one is never the one to discover a typo in
 	distro:  () => { stageSource(); tauri(`${brandStem}-tauri:arm64`, 'linux/arm64', 'deb')
 	                                tauri(`${brandStem}-tauri:amd64`, 'linux/amd64', 'deb,rpm') },
 	flatpak: () => flatpak(),
+	library: () => { stageSource(); library(`${brandStem}-tauri:arm64`, 'linux/arm64', 'arm64')
+	                                library(`${brandStem}-tauri:amd64`, 'linux/amd64', 'amd64') },
 }
 
 /*
 Build the packages, after making sure the toolchains they need are current.
 
-The images are rebuilt every time rather than being something a person has to remember. Docker's layer cache is what makes that free: with nothing changed it is about three seconds, and when a version inside a Dockerfile has moved — because somebody bumped rust and you pulled it — the affected image rebuilds itself and this build uses the new toolchain. Nobody has to know that happened, which is the point, because there is no way they could have.
+The images are rebuilt every time rather than being something a person has to remember. Docker's layer cache is what makes that free: with nothing changed it is about three seconds, and when a version inside a Dockerfile has moved — because somebody bumped rust and you pulled it — the affected image rebuilds itself and this build uses the new toolchain. Nobody has to know that happened, and there is no way they could have.
 */
 function build(only) {
 	//the name is checked before anything runs, so a typo costs nothing rather than an image pass
@@ -184,12 +210,13 @@ function report() {
 }
 
 /*
-The verbs package.json passes. build-images and stage are here for factoring rather than for typing — build runs the images itself, and stage is a window into what a container is handed, useful when something about the whitelist needs looking at.
+The verbs package.json passes. build makes the packages from the library in the cache, and library compiles the library into the cache, which is the twenty-minute run and the one that writes the ledger. build-images and stage are here for factoring rather than for typing — build and library run the images themselves, and stage is a window into what a container is handed, useful when something about the whitelist needs looking at.
 
 Not named `prepare`, which was the first choice and is a trap: npm and pnpm treat prepare as a lifecycle script and run it on every install. A `prepare` here would mean that cloning this repository and running pnpm install tried to build ten gigabytes of docker images, and failed the install outright on a machine where docker was not running.
 */
 const commands = {
 	'build':        () => buildStep('linux', process.argv[3] || '-', '', () => { build(process.argv[3]); return {value: '-', words: 'the packages in linux/release'} }),
+	'library':      () => buildStep('library', 'linux', '', () => { buildImages(); steps.library(); return {value: '-', words: 'both libraries in linux/cache, with their entries in the ledger'} }),
 	'build-images': () => buildImages(),
 	'stage':        () => stageSource(),
 }

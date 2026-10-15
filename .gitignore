@@ -186,3 +186,6 @@ temp/
 
 package-lock.json
 yarn.lock
+
+# What Python leaves beside a script it compiled for import, which the pipeline's three scripts never need; a syntax check made one once.
+__pycache__/

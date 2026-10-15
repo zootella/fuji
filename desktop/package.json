@@ -8,7 +8,7 @@
 		"local": "tauri dev",
 		"compile": "tauri build --no-bundle",
 		"installer": "tauri build && node dmg.js && node win-setup/win-setup.js",
-		"libmpv": "node libmpv/libmpv.js",
+		"library": "node libmpv/libmpv.js",
 		"notarize": "node --env-file-if-exists=../.env ../apple/notarize.js",
 		"reveal": "node ../scripts.js reveal",
 		"hash": "node ../scripts.js hash --source=bundle",

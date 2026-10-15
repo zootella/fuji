@@ -3,8 +3,12 @@
 # The packages themselves stay out — they are large, and git never forgets a blob — but their sidecars are tracked, so the repository keeps a dated record of what hash each release had. Excluding the contents rather than the directory is what makes the negation work: git does not descend into an excluded directory, so !release/*.json under a plain release/ would silently match nothing. This mirrors the rule the root .gitignore states at length for desktop/release.
 release/*
 !release/*.json
-# except the media library's record, which each tauri container writes under its architecture's name: pnpm hash copies it into the sidecars, where it is tracked
+# except the media library's record and its ledger entry, which each tauri container writes under its architecture's name: pnpm hash copies the record into the sidecars, and build.js appends the entry to the library file at the root, where both are tracked
 release/libmpv.*.json
+release/library.*.txt
 
 # The whitelist copy handed to a container. Rebuilt by every run, and a copy of source that already lives one directory up.
 .stage/
+
+# The compiled media library kept between runs, one folder per architecture and toolchain image, each holding the library and the record the recipe wrote beside it. inside-tauri.py says when it is used and why that is safe; delete it to compile fresh.
+cache/

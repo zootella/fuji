@@ -366,7 +366,7 @@ function readVersion() {//read fresh rather than once, since the waiting room st
 	return JSON.parse(readFileSync(join(desktop, 'src-tauri/tauri.conf.json'), 'utf8')).version
 }
 
-//pnpm notarize in desktop: b and then n, for a release that needs nothing from the waiting room, each step's lines printed as it starts and ends. b hands back the application already kept for unchanged code, so running this again after a stop carries on from where the last run got to. the dmg ends in the bundle folder, as pnpm installer's does, and hash and upload stay commands of their own, as the deliberate acts they are
+//pnpm notarize in desktop: b and then n, for a release that needs nothing from the waiting room, each step's lines printed as it starts and ends. b hands back the application already kept for unchanged code, so running this again after a stop carries on from where the last run got to. the dmg ends in the bundle folder, as pnpm installer's does, and hash and upload stay commands of their own, as the separate acts they are
 async function main() {
 	if (process.platform != 'darwin') throw new Error('notarization is apple\'s, and only a mac submits to it')
 	let began = Date.now()

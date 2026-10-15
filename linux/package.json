@@ -5,6 +5,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"scripts": {
+		"library": "node build.js library",
 		"build": "node build.js build",
 		"hash": "node ../scripts.js hash --source=linux",
 		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=linux",

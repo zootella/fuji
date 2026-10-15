@@ -36,19 +36,17 @@ Fuji reaches FFmpeg through [mpv](https://en.wikipedia.org/wiki/Mpv_(media_playe
 
 ## Provenance
 
-A library that plays whatever it is handed is also the largest piece of someone else's code inside Fuji, and a collector who trusts Fuji with a drive is trusting that library to be what it says it is. So Fuji builds it rather than downloads it. [One recipe, kept in the repository](https://github.com/zootella/fuji/blob/main/desktop/libmpv/build.sh), names every source, each a tagged release fetched from its own project and checked against a hash written in the recipe before it is unpacked:
+A library that plays whatever it is handed is also the largest piece of someone else's code inside Fuji, and a collector who trusts Fuji with a drive is trusting that library to be what it says it is. So Fuji builds it rather than downloads it. [One recipe, kept in the repository](https://github.com/zootella/fuji/blob/main/desktop/libmpv/build.py), names every source, each a tagged release fetched from its own project and checked against a hash written in the recipe before it is unpacked:
 
-```sh
-fetch() {
-	local name=$1 url=$2 sha=$3
-	local file=$src/${url##*/}
-	source_record $name $url sha256 $sha
-	if [ -d $src/$name ]; then return; fi
-	echo "== fetching $name"
-	curl -fsSL --retry 3 -o $file $url
-	[ "$(sha256 $file)" = "$sha" ] || { echo "$file does not match the hash written in build.sh"; exit 1; }
-	tar -xf $file -C $src
-}
+```python
+def fetch(name, url, sha):
+	sources.append({'name': name, 'url': url, 'sha256': sha})
+	file = src / url.rsplit('/', 1)[1]
+	if (src / name).is_dir(): return
+	say(f'== fetching {name}')
+	run(['curl', '-fsSL', '--retry', '3', '-o', file, url])
+	if sha256(file) != sha: sys.exit(f'{file} does not match the hash written in build.py')
+	run(['tar', '-xf', file, '-C', src])
 ```
 
 These are the sources, as the recipe names them on 2026-10-15. A tarball is checked by its SHA-256, and a project that publishes no tarball with its parts inside is cloned at a tag and checked by the commit.
@@ -81,20 +79,9 @@ They are built in order into one library with nothing in it from anywhere else: 
 | Mac | `libmpv.2.dylib` | VideoToolbox and software | OpenGL | CoreAudio |
 | Linux | `libmpv.so.2` | software | OpenGL | ALSA and PulseAudio |
 
-The build is [reproducible](https://reproducible-builds.org/): the recipe pins the time the linker would stamp into the file, zeroes the dates in its archives, keeps the Swift compiler from writing a per-run hash into the Mac's objects, and keeps local symbols out of the Mac's link, since Apple's linker writes those in whichever order its threads finish and hashes the file into the library's UUID before they are stripped, so the hash of the library names the recipe rather than the afternoon or the machine's load. On the Mac mini on 2026-10-15, a build and two relinks of mpv under full load gave the same `libmpv.2.dylib`, 25,717,744 bytes, SHA-256 `4e1b39f3938d6e6e21ca4ee9bf6fb25555a10c9ed4af513c4a2a0642926fab3e`; on the Windows box on 2026-10-12, a build and two relinks of mpv gave the same `libmpv-2.dll` three times.
+The build is [reproducible](https://reproducible-builds.org/): the recipe pins the time the linker would stamp into the file, zeroes the dates in its archives, keeps the Swift compiler from writing a per-run hash into the Mac's objects, and keeps local symbols out of the Mac's link, since Apple's linker writes those in whichever order its threads finish and hashes the file into the library's UUID before they are stripped, so the hash of the library names the recipe, the compilers and the folder it was built in, since mpv and FFmpeg each write their configure line into the binary, rather than the afternoon or the machine's load. On the Mac mini on 2026-10-15, two builds of every package gave the same `libmpv.2.dylib`, 25,717,744 bytes, SHA-256 `622f89438d2fca1453b34b3f6234dcbea85e3d6e2165078f97e7b3df660085ed`, and two relinks of mpv under full CPU load gave the same library again; on the Windows box on 2026-10-12, a build and two relinks of mpv gave the same `libmpv-2.dll` three times.
 
-The recipe also writes down what it made. Beside the library goes a record: the library's hash and size, the day it was built, the hash of the recipe itself, the tools it was built with, and every source in the table with its hash. The command that stages a release copies that record into the package's sidecar, the small file beside every download on this site that carries the download's SHA-256, and the sidecars are committed to the repository. So the repository says of every release, in one tracked file, which library it carried and where each part of that library came from, and it refuses to stage a package whose library the recipe as checked out did not build. This is the record the Mac mini's recipe wrote on 2026-10-15, with its list of the sources left out, since the table above is that list:
-
-```json
-{
-	"file": "libmpv.2.dylib",
-	"bytes": 25717744,
-	"sha256": "4e1b39f3938d6e6e21ca4ee9bf6fb25555a10c9ed4af513c4a2a0642926fab3e",
-	"built": "2026-10-15",
-	"recipe": "7f1fbb8190e01277515ba1c2eeb0f7ceb28271d64d6e6b1776a21f400d269d15",
-	"tools": "Apple clang version 17.0.0 (clang-1700.6.3.2); meson 1.12.1; ninja 1.13.2; swift-driver version: 1.127.14.1 Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)"
-}
-```
+The recipe also writes down what it made, twice. Beside the library goes a record: the library's hash and size, the moment it was built, the hash of the recipe itself, the tools it was built with, and every source in the table with its hash. The command that stages a release copies that record into the package's sidecar, the small file beside every download on this site that carries the download's SHA-256, and the sidecars are committed to the repository, so the repository says of every release, in one tracked file, which library it carried and where each part of that library came from. And the same record goes into a ledger: four files at the root of the repository, [library-mac.txt](https://github.com/zootella/fuji/blob/main/library-mac.txt), [library-win.txt](https://github.com/zootella/fuji/blob/main/library-win.txt), [library-amd.txt](https://github.com/zootella/fuji/blob/main/library-amd.txt) and [library-arm.txt](https://github.com/zootella/fuji/blob/main/library-arm.txt), one per library Fuji ships, each appended by every compile and never otherwise edited. An entry is the library's line, with the moment, the size and the hash, then the recipe's hash, then the compilers, then one line per source with its hash and where it came from. Two entries with one hash on different days are the reproducibility shown rather than claimed. The command that stages a release refuses a package whose library the recipe as checked out did not build, and one whose library has no entry in the ledger, so no download carries a library the repository does not know.
 
 The tools come from the machine rather than from the recipe, so the record names them: a library whose hash moved with nothing changed in the recipe is explained by the line that says what compiled it.
 

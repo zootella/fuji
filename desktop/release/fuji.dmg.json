@@ -2,15 +2,15 @@
 	"file": "fuji.dmg",
 	"version": "0.1.0",
 	"arch": "aarch64",
-	"bytes": 18492717,
-	"sha256": "fa7e9ed1fe66cfe665594287659a3ca6cba230b1601ce5b319b472dfad954c5b",
+	"bytes": 18492634,
+	"sha256": "4b4839f1539b142e6713fb250bc4d3a50480f1d47defcc908b1d7bce7a16a2b4",
 	"date": "2026-10-15",
 	"libmpv": {
 		"file": "libmpv.2.dylib",
 		"bytes": 25717744,
-		"sha256": "4e1b39f3938d6e6e21ca4ee9bf6fb25555a10c9ed4af513c4a2a0642926fab3e",
-		"built": "2026-10-15",
-		"recipe": "7f1fbb8190e01277515ba1c2eeb0f7ceb28271d64d6e6b1776a21f400d269d15",
+		"sha256": "622f89438d2fca1453b34b3f6234dcbea85e3d6e2165078f97e7b3df660085ed",
+		"built": "2026-10-15T20:30:00Z",
+		"recipe": "2bf55610cd6b8de5b48ead03f7005edf2ca912d6fa69d9277facd97632526ae1",
 		"tools": "Apple clang version 17.0.0 (clang-1700.6.3.2); meson 1.12.1; ninja 1.13.2; swift-driver version: 1.127.14.1 Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)",
 		"sources": [
 			{

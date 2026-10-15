@@ -39,7 +39,7 @@ $ pnpm hash         stage and hash what is already built, building nothing
 $ pnpm upload       send what is already staged to the production server
 $ pnpm certificate  find, make, or import the Mac's signing identity
 $ pnpm notarize     build the installer signed with the Developer ID and notarized by Apple
-$ pnpm libmpv       build the media library from its pinned release sources, on the Mac and on Windows
+$ pnpm library      build the media library from its pinned release sources, and write its entry in the ledger at the root
 
 $ cd site
 $ pnpm local        run the site here, in development mode with hot reload
@@ -47,7 +47,8 @@ $ pnpm build        build it to dist, to sanity check that works
 $ pnpm upload       build it and send it to the production server
 
 $ cd linux
-$ pnpm build        build the Linux packages in Docker containers
+$ pnpm library      build the media library for both architectures in Docker containers, into linux/cache and the ledger
+$ pnpm build        build the Linux packages in Docker containers, from the library in linux/cache
 $ pnpm hash         stage them and write the sidecars, building nothing
 $ pnpm upload       send what is staged to the production server
 
@@ -68,7 +69,7 @@ And through the site commands, there is really only one:
 
 We've picked unconventional script names to be clear about the smaller steps these commands perform. `compile` never makes an installer, `installer` never hashes, `hash` never builds, and `upload` never builds. The site's `upload` is the one exception, and builds before it sends.
 
-A name does the same job on every machine. In `desktop`, `installer` makes a `.dmg` on macOS and a `.exe` on Windows, and `upload` sends whichever one the machine you're on can build — so you don't have to remember a different command per platform. On a Mac the dmg is made by [dmgbuild](https://github.com/dmgbuild/dmgbuild) through `uvx`, so the Mac that builds the installer needs [uv](https://docs.astral.sh/uv/) installed, and every Mac build links libmpv as the recipe builds it, so a Mac that builds at all needs the recipe's tools, `brew install meson ninja pkgconf`, and one `pnpm libmpv` before its first build; `CLAUDE.md` says how the gather works. On Windows the exe is Fuji's own setup program, compiled with the Visual Studio C compiler that Rust already needs; the section The Windows installer says how. `linux` says `build` rather than `installer` because it makes four packages rather than an installer, but `hash` and `upload` mean exactly what they mean everywhere else.
+A name does the same job on every machine. In `desktop`, `installer` makes a `.dmg` on macOS and a `.exe` on Windows, and `upload` sends whichever one the machine you're on can build — so you don't have to remember a different command per platform. On a Mac the dmg is made by [dmgbuild](https://github.com/dmgbuild/dmgbuild) through `uvx`, so the Mac that builds the installer needs [uv](https://docs.astral.sh/uv/) installed, and every Mac build links libmpv as the recipe builds it, so a Mac that builds at all needs the recipe's tools, `brew install meson ninja pkgconf`, and one `pnpm library` before its first build; `CLAUDE.md` says how the gather works. On Windows the exe is Fuji's own setup program, compiled with the Visual Studio C compiler that Rust already needs; the section The Windows installer says how. `linux` says `build` rather than `installer` because it makes four packages rather than an installer, but `hash` and `upload` mean exactly what they mean everywhere else.
 
 And through the Linux commands:
 
@@ -81,6 +82,30 @@ And through the Apple waiting room, a key each:
 `pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI. `icon.md` explains why that second case is easy to forget.
 
 The JavaScript behind these commands is in one file, `scripts.js`, at the root, and each command passes it a verb. Every workspace reaches it because they share facts: the published name of every artifact, where each one is built, and the file manager command for each platform. Those live in one table there. The Linux workspace has a second file, `linux/build.js`, which drives the containers — `scripts.js` publishes and does not build, and that one builds and does not publish. Every step of a build or a publish also writes a line to `build-log.txt` at the root as it starts and as it ends, through `build-log.js` beside `scripts.js`, so each machine keeps its own record of what it built and sent, and when.
+
+### The build pipeline
+
+Everything between a checkout and a download is thirteen scripts in three places: on the Mac natively, on the Windows box alone, and inside Docker Desktop's containers on the Mac, which are Linux. No Linux machine runs any of it. A release passes through them in one order on every platform: the media library is compiled from its sources, Tauri builds the application against it, a script of ours makes the installer, `hash` stages that under its published name with a sidecar beside it, and `upload` sends the pair to the server. This table is the map.
+
+| path | runs | started by | does |
+|---|---|---|---|
+| `desktop/libmpv/libmpv.js` | Mac, Windows | `pnpm library` in desktop | checks the compilers and build tools are installed, installs MSYS2's on Windows the first time, and starts the recipe below |
+| `desktop/libmpv/build.py` | Mac, Windows, and inside both Linux containers | `libmpv.js`, or `inside-tauri.py` in a container | downloads mpv, FFmpeg and the libraries under them, checks each against a hash written in the script, compiles them into the one media library, writes `libmpv.json` beside it, the record of what it made and where every part came from, and appends that record as an entry to the platform's library file at the root |
+| `desktop/src-tauri/build.rs` | everywhere Fuji compiles | cargo, inside every Tauri build | links Fuji against the media library on the Mac and Linux, and gives the binary the path to find it at launch |
+| `desktop/dmg.js` | Mac | `pnpm installer` after Tauri's build, and `notarize.js` | makes the dmg from the app Tauri built |
+| `desktop/win-setup/win-setup.js` | Windows | `pnpm installer` after Tauri's build | packs the executable and the dll into a cabinet and compiles the setup program around it |
+| `desktop/win-setup/registry.js` | Windows, inside the step above | `win-setup.js` | says which registry keys the uninstaller removes |
+| `apple/notarize.js` | Mac | `pnpm notarize` in desktop | builds with the Developer ID, sends the app and then the dmg to Apple, staples their tickets, checks both with Gatekeeper, and puts the dmg in the bundle folder |
+| `apple/waiting-room.js` | Mac | `pnpm waiting-room` in apple | the same work a key at a time, with a screen of where every application stands |
+| `linux/build.js` | Mac | `pnpm library` and `pnpm build` in linux | copies a whitelist of the source into `linux/.stage`, brings the Docker images up to date, and runs the containers: for `library` the two Tauri containers compiling the media library, appending each one's entry to its library file at the root; for `build` the three containers making the packages |
+| `linux/inside-tauri.py` | inside the arm64 and the x86-64 container | `build.js` | for `library`, runs `build.py` and keeps the library and its record in `linux/cache`; for `build`, takes the library from the cache when its record names the staged recipe, refuses otherwise, runs Tauri's build, and copies the deb, the rpm and the record out to `linux/release` |
+| `linux/inside-flatpak.py` | inside the flatpak container | `build.js`, once the x86-64 deb exists | unpacks that deb and lays it out as a flatpak |
+| `scripts.js` | Mac, Windows | `pnpm hash`, `pnpm upload`, `pnpm reveal` and `pnpm certificate`, in desktop or linux | stages the finished package under its published name, writes the sidecar with the library's record inside, refuses a library the checked-out `build.py` did not make or one with no entry in its library file, and uploads each package with its sidecar |
+| `build-log.js` | Mac, Windows | imported by the scripts above | writes a line to `build-log.txt` at the root as every step starts and ends |
+
+The media library is compiled a few times a year and the application every release, and the four files at the root, `library-mac.txt`, `library-win.txt`, `library-amd.txt` and `library-arm.txt`, are the ledger of the library: every compile appends an entry saying when, from which sources checked against which hashes, with which compilers, under which recipe, and what came out, and `hash` refuses a package whose library has no entry. Between the library and the installer runs Tauri's own build, which is not ours. The three files beside `tauri.conf.json`, `tauri.macos.conf.json`, `tauri.windows.conf.json` and `tauri.linux.conf.json`, are read by it on their own platform alone and tell it to carry the media library into the bundle: as a framework on the Mac, a resource beside the executable on Windows, and under the program's folder on Linux, where that file also names the system libraries the deb and the rpm depend on.
+
+Nine of the thirteen are JavaScript, because Node is already on every machine for Tauri, runs on Windows where there is no bash, and hands a child process its arguments without a shell re-parsing them. `build.rs` is Rust because cargo runs it. The recipe and the two `inside` scripts are Python, which every build platform carries already because meson is written in it, and which keeps a table of sources, a stamp per package and a record of what it made far more plainly than a shell does; on Windows the recipe runs under MSYS2's own Python, the one that spells a path the way the configure scripts expect.
 
 ### Linux packages
 

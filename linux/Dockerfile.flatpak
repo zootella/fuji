@@ -17,4 +17,8 @@ RUN flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flath
  && flatpak install -y --noninteractive flathub \
       "org.gnome.Platform//${GNOME_VERSION}" "org.gnome.Sdk//${GNOME_VERSION}"
 
+# Python, for the script that runs inside; its own layer after the runtime's, so adding it did not fetch the five gigabytes above again.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+ && rm -rf /var/lib/apt/lists/*
+
 # No script is baked in. What a container does is mounted at run time by build.js, because an image here is the toolchain and nothing else — editing a build step should not mean rebuilding one.

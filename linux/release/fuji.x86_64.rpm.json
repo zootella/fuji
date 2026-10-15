@@ -2,15 +2,15 @@
 	"file": "fuji.x86_64.rpm",
 	"version": "0.1.0",
 	"arch": "x86_64",
-	"bytes": 17484235,
-	"sha256": "182480fdc54cb6835f53a38bc56b8307a05df39089df5ab19d251e81ac2f3aef",
+	"bytes": 17484230,
+	"sha256": "a3057851e25cc784fb46d1cc86996fcef758a82eb196a0132a6a7d5430e277e1",
 	"date": "2026-10-15",
 	"libmpv": {
 		"file": "libmpv.so.2",
 		"bytes": 28153176,
-		"sha256": "a93987f6fc73f4ba9456ff36ff052bd7318654472b38015e739a0a1e1c936642",
-		"built": "2026-10-15",
-		"recipe": "7f1fbb8190e01277515ba1c2eeb0f7ceb28271d64d6e6b1776a21f400d269d15",
+		"sha256": "aa15cd4dbe30a7d354cb072734a496a827a658f84326240f104dc80e7c877c81",
+		"built": "2026-10-15T20:43:45Z",
+		"recipe": "2bf55610cd6b8de5b48ead03f7005edf2ca912d6fa69d9277facd97632526ae1",
 		"tools": "gcc (Debian 12.2.0-14+deb12u1) 12.2.0; meson 1.12.1; ninja 1.11.1; NASM version 2.16.01",
 		"sources": [
 			{

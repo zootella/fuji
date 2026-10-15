@@ -19,7 +19,7 @@ Measured on the Sequoia Mac mini on 2026-10-01, with a checkerboard of 200-point
 - The window size is the frame, title bar included. Showing all 800 points of picture takes 828, because Sequoia's title bar is 28 with the toolbar hidden. Tahoe redrew window chrome, and if its title bar is another height the bottom of the picture is clipped or letterboxed by the difference.
 - The picture is drawn at its own size from the top left of the area under the title bar, and never scaled to fit the window.
 - An icon's position is the center of its picture, measured from that same top left. The label hangs below and is not counted, so y 400 puts the disc's center on the middle line of the picture exactly.
-- The window's position runs from the bottom left of the screen to the bottom left of the frame, with y up — Cocoa's coordinates, not AppleScript's. So no number means the same place on every screen, and tools that take a position from the top, create-dmg among them, quietly convert it on the screen of the Mac that ran the build. A window whose top would run past the menu bar is clamped just beneath it, which is what happens on most laptops.
+- The window's position runs from the bottom left of the screen to the bottom left of the frame, with y up — Cocoa's coordinates, not AppleScript's. So no number means the same place on every screen, and tools that take a position from the top, create-dmg among them, convert it on the screen of the Mac that ran the build. A window whose top would run past the menu bar is clamped just beneath it, which is what happens on most laptops.
 
 ## The pins
 

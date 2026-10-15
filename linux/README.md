@@ -15,12 +15,13 @@ Then, from the repository root, `pnpm install` once — it installs every worksp
 ## The commands
 
 ```
-pnpm build        the four packages
+pnpm library      the media library for both architectures, into linux/cache and the ledger at the root
+pnpm build        the four packages, from the library in linux/cache
 pnpm hash         stage them and write the sidecars
 pnpm upload       send them to the server
 ```
 
-That is the whole of it. Publishing a release from this workspace is those three and then a commit, because the sidecars are tracked.
+That is the whole of it, and `library` is the rare one: it runs again when the recipe changes, a few times a year, and `build` refuses to run without what it made. Publishing a release from this workspace is those three and then a commit, because the sidecars are tracked.
 
 **Three steps rather than one, because each leaves behind a different kind of thing.** `build` writes packages, which are gitignored and disposable. `hash` writes sidecars, which are committed. `upload` puts files on a server, which is the only one of the three you cannot take back — and that is why it stays a separate, deliberate act rather than the tail of something else.
 
@@ -99,7 +100,7 @@ The architecture token is each ecosystem's own word — `amd64` for Debian, `x86
 
 ## Why it is built this way
 
-**The pipe flushes clean.** An image is the toolchain and holds no source and no secrets. A container is one build: it is handed the source, makes a package, and is destroyed. Nothing carries between builds — no warm `target/`, no cargo registry, no `node_modules` from last time. These packages are made a few times a year, not in a daily loop, so a known starting state is worth more than speed.
+**The pipe flushes clean.** An image is the toolchain and holds no source and no secrets. A container is one build: it is handed the source, makes a package, and is destroyed. Nothing carries between builds — no warm `target/`, no cargo registry, no `node_modules` from last time. These packages are made a few times a year, not in a daily loop, so a known starting state is worth more than speed. One thing carries, on purpose: the compiled media library, in `linux/cache`, which `pnpm library` compiles, one folder per architecture and toolchain image, used again by `build` only when the record the recipe wrote beside it names the staged recipe by hash and the library still hashes to what the record says. `inside-tauri.py` carries the argument, and deleting the folder and running `pnpm library` is how to compile fresh. Each compile also appends an entry to `library-arm.txt` or `library-amd.txt` at the root, the ledger git tracks.
 
 **`pnpm-lock.yaml` and `Cargo.lock` are what make "clean" mean something.** Both are in the whitelist and both are enforced, so the versions that land are the ones the Mac and the Windows box already build with. Without them a fresh container would resolve every caret range against whatever the registry served that morning.
 
@@ -113,7 +114,7 @@ The architecture token is each ecosystem's own word — `amd64` for Debian, `x86
 
 **The amd64 build is the slow one** — 4m54s of Rust against 1m40s for arm64 in the same run, and 338 seconds of FFmpeg against 67 inside the media library's step, because Apple silicon runs arm64 natively and emulates x86-64. `build` runs arm64 first on purpose, so a mistake surfaces in two minutes rather than twenty.
 
-**The Flatpak is not built with `flatpak-builder`.** Bubblewrap installs a seccomp filter, and Rosetta rejects that call, so the usual manifest route cannot build an x86-64 Flatpak on this Mac at all. Since the work is unpacking a `.deb` and placing files rather than compiling, `inside-flatpak.sh` uses `flatpak build-init` and ordinary shell instead, which needs no sandbox. Its comments carry the whole account.
+**The Flatpak is not built with `flatpak-builder`.** Bubblewrap installs a seccomp filter, and Rosetta rejects that call, so the usual manifest route cannot build an x86-64 Flatpak on this Mac at all. Since the work is unpacking a `.deb` and placing files rather than compiling, `inside-flatpak.py` uses `flatpak build-init` and ordinary file copies instead, which need no sandbox. Its essay carries the whole account.
 
 **The Flatpak container runs `--privileged`** for one narrow reason: `flatpak build-export` validates the icon inside bubblewrap, and that needs a namespace an ordinary container cannot make.
 
