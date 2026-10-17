@@ -223,9 +223,9 @@ async function facesShow() {//put the page's text in the fonts the settings name
 
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
-function mediaPlays(path) {//whether libmpv plays a file of this extension on this platform, by the type table's two native lists
+function mediaPlays(path) {//whether this is a sound or a video libmpv plays on this platform, by the type table's kind and its two native lists; kind first, since a picture only FFmpeg decodes names libmpv under videoNative for a still frame, never for the player
 	const type = fileTypes[path.slice(path.lastIndexOf('.')).toLowerCase()]
-	return !!type && [...(type.audioNative || []), ...(type.videoNative || [])].includes(platform())
+	return !!type && (type.kind == 'video' || type.kind == 'audio') && [...(type.audioNative || []), ...(type.videoNative || [])].includes(platform())
 }
 
 async function viewOpen(path) {//a picture dropped on the window, for the view on screen to show; optional, because a view answers only the calls it has a use for

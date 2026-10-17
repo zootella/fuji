@@ -4,7 +4,7 @@ import {ref, onMounted, version as vueVersion} from 'vue'
 import {getTauriVersion} from '@tauri-apps/api/app'//the framework asked for its own version, which the page may do for its own window
 import {brandName, brandVersion, urlHome} from '../brand.js'
 import {windowEngine} from '../window.js'
-import {mpvVersion} from '../mpv.js'
+import {mediaVersion} from '../media.js'
 import {processOpen} from '../process.js'//the site in the system's browser, rather than in the web view
 import {logTrouble} from '../log.js'
 import {platform} from './library.js'
@@ -27,7 +27,7 @@ list()
 onMounted(() => {
 	ask(getTauriVersion(), 'asking tauri its version').then(text => { tauri = text; list() })
 	ask(windowEngine(), 'asking the web engine its version').then(text => { engine = text; list() })
-	ask(mpvVersion(), 'asking the media library its version').then(answer => { media = answer; list() })
+	ask(mediaVersion(), 'asking the media library its version').then(answer => { media = answer; list() })
 })
 function ask(promise, where) { return promise.catch(error => { logTrouble(`about: ${where}`, error); return String(error) }) }//an answer or the trouble, both shown, since a part that cannot say is itself something to see
 function list() {//the lines in their fixed order, with whatever has answered so far

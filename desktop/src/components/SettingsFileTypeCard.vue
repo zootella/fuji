@@ -1,7 +1,7 @@
 <script setup>//the card for one kind of file in fuji's settings, beside its chip: what it is and where it came from, where it stands, and the button that changes it
 
 import {ref, computed, watch, onMounted, nextTick} from 'vue'
-import {associateAnswers, associateActive, associateChoose, associateDiffers, associateFinish, associateProgram, associateSiblings} from '../associate.js'
+import {associateAnswers, associateActive, associateExtensions, associateChoose, associateDiffers, associateFinish, associateProgram, associateSiblings} from '../associate.js'
 import {sayList} from './library.js'
 import {logTrouble} from '../log.js'
 import {brandName} from '../brand.js'
@@ -23,7 +23,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['close'])
 
-const coming = computed(() => !fileTypes[props.extension].enabled)//a kind fuji does not open yet, whose card is its heading and history and nothing more
+const coming = computed(() => !associateExtensions.includes(props.extension))//a kind fuji does not open on this system, whose card is its heading and history and nothing more
 const pending = computed(() => associateDiffers(props.extension) ? associateAnswers.value[props.extension] : '')//yes or no where the system has not carried the answer out, which turns the status into a link to its settings; blank where they agree
 const offered = computed(() => associateAnswers.value[props.extension] == 'no' || associateProgram(props.extension) != brandName)//Choose Fuji, everywhere but a kind the system already opens with fuji and fuji has no answer for, which is every such kind on the mac, where fuji keeps no answers, and none on windows, where looking turns it into a yes
 

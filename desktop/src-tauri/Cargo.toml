@@ -47,4 +47,4 @@ libc = "0.2" # memory.rs asks mach and libproc through it, host_statistics64 and
 gtk = "0.18" # the GL area a video draws in and the overlay that holds it over the web view, for window.rs; the version tauri's runtime is built on, already in the tree
 gdk = "0.18" # the display, which says whether its GL is EGL's or GLX's, and the GL context; beneath gtk
 glib = "0.18" # a widget from its address, and a signal's answer; beneath both
-libc = "0.2" # dlopen for the GL loader in window.rs, and setlocale in mpv.rs; already in the tree
+libc = "0.2" # dlopen for the GL loader in window.rs, and setlocale in media.rs; already in the tree

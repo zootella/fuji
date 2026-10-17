@@ -17,6 +17,8 @@ import {panelResolution} from '../panel.js'
 import {brandName} from '../brand.js'
 import {fileTypesEnabled} from '../fileTypes.js'
 
+const fileTypesListed = Object.fromEntries(Object.entries(fileTypesEnabled).filter(([extension, entry]) => [...entry.imageNative, ...entry.imageWeb].includes(platform())))//the entries the image parts take on this platform: an enabled one whose imageNative or imageWeb names it. Every listing and count below keeps these and nothing else, so a sound or a video, whose image lists are empty, never reaches the sheet or the table, and the shell hands it to the player instead; fileTypes.js says why a list is an instruction
+
 //promises
 
 export const raf = () => new Promise(resolve => requestAnimationFrame(resolve))//before next paint, synchronized with display refresh (~16ms)
@@ -62,12 +64,12 @@ export function sayList(items) {//items in a sentence: .png, then .gif and .png,
 export async function listFolder(folder) {//the image files in one folder, in whatever order the disk handed them over; a sort is what puts them in one
 	return _listImages(folder, await diskReadDir(folder))
 }
-export async function peekFolder(folder) {//how many images a folder holds and which subfolders it has, as paths, from one readdir in rust that stats nothing and answers a count and names rather than a record per file: what the pager needs to pass through a folder it will never show, and to count the buckets of one it will. The count follows the rule _listImages applies to a full listing, hidden names left out, symlinks neither files nor folders, and the extensions fileTypesEnabled lists, so a folder counts here exactly what it lists there; disk.rs says the same beside its half of the rule
-	let peek = await diskPeek(folder, Object.keys(fileTypesEnabled))
+export async function peekFolder(folder) {//how many images a folder holds and which subfolders it has, as paths, from one readdir in rust that stats nothing and answers a count and names rather than a record per file: what the pager needs to pass through a folder it will never show, and to count the buckets of one it will. The count follows the rule _listImages applies to a full listing, hidden names left out, symlinks neither files nor folders, and the extensions fileTypesListed names, so a folder counts here exactly what it lists there; disk.rs says the same beside its half of the rule
+	let peek = await diskPeek(folder, Object.keys(fileTypesListed))
 	return {images: peek.files, folders: peek.folders.map(name => parse.join(folder, name))}
 }
 export async function imageFolders(folder, forward, want, examine) {//the next folders after this one in sorted preorder, or before it, that hold an image fuji shows, up to want of them from at most examine folders read, each as {folder, images}, with where it stopped and whether the volume ended: one call into rust walks the stretch with the stack the textbook iterator has, so a thousand imageless folders cost a thousand directory reads and one trip across the bridge. The same rule as peekFolder for what counts, since it is the same reading of a folder underneath
-	let found = await findFolders(folder, forward, Object.keys(fileTypesEnabled), want, examine)
+	let found = await findFolders(folder, forward, Object.keys(fileTypesListed), want, examine)
 	return {folders: found.folders.map(f => ({folder: f.path, images: f.files})), stopped: found.stopped, done: found.done, examined: found.examined, refused: found.refused}
 }
 function _listImages(folder, contents) {//the entries of a readdir that are image files fuji shows, each with its path, extension and mime beside what rust gave; peekFolder above counts by the same rule in rust, and the two must agree
@@ -78,10 +80,10 @@ function _listImages(folder, contents) {//the entries of a readdir that are imag
 	}))
 	return files
 		.filter(f => !f.name.startsWith('.'))//skip the .name.ext files macos makes for every file on a removable drive
-		.filter(f => fileTypesEnabled[f.extension])//only include known extensions
+		.filter(f => fileTypesListed[f.extension])//only the extensions the image parts take on this platform
 		.map(f => ({
 		...f,
-		mime: fileTypesEnabled[f.extension].mime,//include the mime type that goes with that extension; the filter above has already dropped anything the table does not name
+		mime: fileTypesListed[f.extension].mime,//include the mime type that goes with that extension; the filter above has already dropped anything the listing does not keep
 	}))
 }
 export async function listSiblings(path) {//the same listing, ordered and with the given path found in it; the retired experiments are the only callers left, because the model lists and sorts for itself

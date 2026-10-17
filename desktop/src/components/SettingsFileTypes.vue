@@ -1,11 +1,11 @@
 <script setup>//the file types section of fuji's settings: a chip for every kind of file fuji opens, under the program that opens it now, and a card for each
 
 import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
-import {associateAnswers, associateOpens, associateActive, associateChoose, associateLook, associateDiffers, associateProgram, associateFinish} from '../associate.js'
+import {associateAnswers, associateOpens, associateActive, associateExtensions, associateChoose, associateLook, associateDiffers, associateProgram, associateFinish} from '../associate.js'
 import {logTrouble} from '../log.js'
 import {brandName} from '../brand.js'
 import {platform, sayList} from './library.js'
-import {fileTypes, fileTypesEnabled} from '../fileTypes.js'
+import {fileTypes} from '../fileTypes.js'
 import SettingsFileTypeCard from './SettingsFileTypeCard.vue'
 
 /*
@@ -20,8 +20,8 @@ Most of this section is Windows'. On the Mac an application can make itself the 
 associate.js is the policy and carries the essay; this only shows it and hands the user's clicks down. Fuji asks the system what opens each kind only while this is showing, so it looks when the section appears, and the panel calls look again whenever the window comes back into focus, which is how it notices the user returning from the system's settings. Until the system has answered, and on a platform where fuji cannot ask it yet, every kind appears in one list with no heading.
 */
 
-const fileExtensions = Object.keys(fileTypesEnabled).sort()//every kind of file fuji opens, alphabetical, which is the order every list below keeps
-const fileExtensionsComing = Object.keys(fileTypes).filter(extension => !fileTypes[extension].enabled).sort()//and every kind it will open, shown under the last heading and nowhere else
+const fileExtensions = [...associateExtensions].sort()//every kind of file fuji opens on this system, alphabetical, which is the order every list below keeps
+const fileExtensionsComing = Object.keys(fileTypes).filter(extension => !associateExtensions.includes(extension)).sort()//and every other kind, one fuji does not open yet or opens only on another system, shown under the last heading and nowhere else
 const hoverShow = 300//milliseconds the pointer rests on a chip before its card appears
 const hoverHide = 200//and after it leaves the chip and the card, long enough to cross from one to the other
 

@@ -85,7 +85,7 @@ The JavaScript behind these commands is in one file, `scripts.js`, at the root, 
 
 ### The build pipeline
 
-Everything between a checkout and a download is thirteen scripts in three places: on the Mac natively, on the Windows box alone, and inside Docker Desktop's containers on the Mac, which are Linux. No Linux machine runs any of it. A release passes through them in one order on every platform: the media library is compiled from its sources, Tauri builds the application against it, a script of ours makes the installer, `hash` stages that under its published name with a sidecar beside it, and `upload` sends the pair to the server. This table is the map.
+Everything between a checkout and a download is the scripts below, and they run in three places: on the Mac natively, on the Windows box alone, and inside Docker Desktop's containers on the Mac, which are Linux. No Linux machine runs any of it. A release passes through them in one order on every platform: the media library is compiled from its sources, Tauri builds the application against it, a script of ours makes the installer, `hash` stages that under its published name with a sidecar beside it, and `upload` sends the pair to the server. This table is the map.
 
 | path | runs | started by | does |
 |---|---|---|---|
@@ -105,7 +105,7 @@ Everything between a checkout and a download is thirteen scripts in three places
 
 The media library is compiled a few times a year and the application every release, and the four files at the root, `library-mac.txt`, `library-win.txt`, `library-amd.txt` and `library-arm.txt`, are the ledger of the library: every compile appends an entry saying when, from which sources checked against which hashes, with which compilers, under which recipe, and what came out, and `hash` refuses a package whose library has no entry. Between the library and the installer runs Tauri's own build, which is not ours. The three files beside `tauri.conf.json`, `tauri.macos.conf.json`, `tauri.windows.conf.json` and `tauri.linux.conf.json`, are read by it on their own platform alone and tell it to carry the media library into the bundle: as a framework on the Mac, a resource beside the executable on Windows, and under the program's folder on Linux, where that file also names the system libraries the deb and the rpm depend on.
 
-Nine of the thirteen are JavaScript, because Node is already on every machine for Tauri, runs on Windows where there is no bash, and hands a child process its arguments without a shell re-parsing them. `build.rs` is Rust because cargo runs it. The recipe and the two `inside` scripts are Python, which every build platform carries already because meson is written in it, and which keeps a table of sources, a stamp per package and a record of what it made far more plainly than a shell does; on Windows the recipe runs under MSYS2's own Python, the one that spells a path the way the configure scripts expect.
+Most of them are JavaScript, because Node is already on every machine for Tauri, runs on Windows where there is no bash, and hands a child process its arguments without a shell re-parsing them. `build.rs` is Rust because cargo runs it. The recipe and the two `inside` scripts are Python, which every build platform carries already because meson is written in it, and which keeps a table of sources, a stamp per package and a record of what it made far more plainly than a shell does; on Windows the recipe runs under MSYS2's own Python, the one that spells a path the way the configure scripts expect.
 
 ### Linux packages
 

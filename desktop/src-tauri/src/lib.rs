@@ -35,7 +35,7 @@ mod menu {//off the mac there is no menu bar, so the commands the page has for i
 	#[tauri::command]
 	pub fn menu_enable(_menu: String, _item: String, _enabled: bool) -> Result<(), String> { Ok(()) }
 }
-mod mpv;//and mpv.rs: the media library, libmpv, which plays sound and video
+mod media;//and media.rs: the media library, libmpv, which plays sound and video and answers what a media file is
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
 mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
@@ -72,7 +72,7 @@ pub fn run() {
 		.plugin(tauri_plugin_dialog::init())//for its Rust half, which dialog.rs calls to put up the system's open box off the Mac, where AppKit's is called directly; capabilities grant the page none of it
 		.manage(desktop::ExitFiles::default())//shared state any command can reach: text handed down to be written on the way out
 		.manage(open::OpenFiles::default())//and the paths the operating system handed fuji, waiting for the page to be built and ask for them
-		.manage(mpv::Players::default())//and the media library's players, one per window, for the window that closes mid-play to be rid of
+		.manage(media::Players::default())//and the media library's players, one per window, for the window that closes mid-play to be rid of
 		.invoke_handler(//the complete list of what javascript may invoke; a name absent here cannot be called at all
 			tauri::generate_handler![
 				disk::disk_readdir, //functions we've written in disk.rs
@@ -89,11 +89,13 @@ pub fn run() {
 				launch::launch_opens,//and in launch.rs
 				launch::launch_set,
 				memory::memory_report,//and in memory.rs
-				mpv::mpv_version,//and in mpv.rs
-				mpv::mpv_start,
-				mpv::mpv_send,
-				mpv::mpv_read,
-				mpv::mpv_stop,
+				media::media_version,//and in media.rs
+				media::media_start,
+				media::media_send,
+				media::media_read,
+				media::media_stop,
+				media::media_probe,
+				media::media_frame,
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				open::open_files,//and in open.rs
@@ -114,11 +116,12 @@ pub fn run() {
 				window::window_frame_set,
 				window::window_fullscreen_leave,
 				window::window_video_make,
+				window::window_video_place,
 				window::window_video_drop,
 			]
 		)
 		.on_window_event(|window, event| {//a window on its way out takes its player with it, and its video view goes with its window; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking. The view goes first: on linux that frees the player's render context while the area can still be drawn to, so the destroy on the pool after finds nothing left to free
-			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); mpv::mpv_window_closed(tauri::Manager::app_handle(window), window.label()) }
+			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); media::media_window_closed(tauri::Manager::app_handle(window), window.label()) }
 		})
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
 			#[cfg(target_os = "macos")]
@@ -126,7 +129,7 @@ pub fn run() {
 			#[cfg(target_os = "macos")]
 			dock::dock_install(_app.handle());//and the other menu, the one on the dock icon
 			#[cfg(target_os = "linux")]
-			mpv::mpv_locale();//after GTK, which the runtime started before this and which set the process's locale from the environment, and before any player is made; mpv.rs says what the library asks
+			media::media_locale();//after GTK, which the runtime started before this and which set the process's locale from the environment, and before any player is made; media.rs says what the library asks
 			touch::touch_start();//watch scroll wheel events for the pages that will ask to be spared a trackpad's; every platform calls it and only the mac installs anything
 			Ok(())
 		})

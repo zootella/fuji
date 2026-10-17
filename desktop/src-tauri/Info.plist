@@ -5,7 +5,7 @@
 
 	LSHandlerRank is Alternate on every one of these, and that is the whole design: Alternate says fuji can open this kind of file and is not claiming it. Fuji appears in Finder's Open With menu the moment the app is dragged into Applications, and every file on the machine still opens with whatever opened it before. A user who wants fuji uses Get Info and Change All, which macOS confirms with a sheet of its own. Nothing fuji does takes a file type.
 
-	The list is the enabled entries of fileTypes in src/fileTypes.js, and win-setup/registry.js holds a third copy, for the Windows uninstaller. This file cannot read the table, because the bundle is built before any of fuji's code runs. Keep the three in step by hand, in the same commit: it changes about once a year and that is cheaper than a build step. Generating this file from that list was considered and declined on 2026-09-15 for that reason; fileTypes.js imports nothing, so a script could read it as it stands the day the list starts moving.
+	The list is what fileTypesAssociations in src/fileTypes.js answers for the Mac, and win-setup/registry.js holds its answer for Windows, for the uninstaller. This file cannot read the table, because the bundle is built before any of fuji's code runs. Both are pasted from what that function answers for their platform, in the same commit as the change to the table, and checked against it, never worked out by hand: the table changes about once a year and that is cheaper than a build step. Generating this file from that list was considered and declined on 2026-09-15 for that reason; fileTypes.js imports nothing, so a script could read it as it stands the day the list starts moving.
 
 	One dict per extension rather than one per format, even though a dict can carry several extensions and the four JPEG spellings really are one format. CFBundleTypeName is per dict, and the name is per extension so that sorting by type in Windows Explorer groups a folder's .jpe files together. Keeping both platforms reading from one shape is worth three extra dictionaries.
 -->
@@ -16,6 +16,12 @@
 		<dict>
 			<key>CFBundleTypeName</key><string>BMP Image</string>
 			<key>CFBundleTypeExtensions</key><array><string>bmp</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>DIB Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>dib</string></array>
 			<key>CFBundleTypeRole</key><string>Viewer</string>
 			<key>LSHandlerRank</key><string>Alternate</string>
 		</dict>
@@ -70,6 +76,390 @@
 		<dict>
 			<key>CFBundleTypeName</key><string>WebP Image</string>
 			<key>CFBundleTypeExtensions</key><array><string>webp</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>TGA Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>tga</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>TIF Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>tif</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>TIFF Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>tiff</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>PICT Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>pict</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>PCT Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>pct</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>PSD Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>psd</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>HEIC Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>heic</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>HEIF Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>heif</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>DNG Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>dng</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>CR2 Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>cr2</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>NEF Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>nef</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>ARW Image</string>
+			<key>CFBundleTypeExtensions</key><array><string>arw</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MP4 Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>mp4</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MOV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>mov</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AVI Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>avi</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MPG Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>mpg</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MPEG Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>mpeg</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>ASF Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>asf</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>WMV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>wmv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>RM Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>rm</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>RMVB Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>rmvb</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>FLV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>flv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>M4V Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>m4v</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>3GP Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>3gp</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MKV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>mkv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>WebM Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>webm</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>OGV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>ogv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>VOB Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>vob</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>M2TS Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>m2ts</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>DivX Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>divx</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>QT Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>qt</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MPE Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>mpe</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>TS Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>ts</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MTS Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>mts</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>DV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>dv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>3G2 Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>3g2</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>F4V Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>f4v</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>OGM Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>ogm</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>NSV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>nsv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>BIK Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>bik</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>WTV Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>wtv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>DVR-MS Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>dvr-ms</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>DAT Video</string>
+			<key>CFBundleTypeExtensions</key><array><string>dat</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>WAV Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>wav</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AIFF Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>aiff</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AIF Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>aif</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MP3 Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>mp3</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>RA Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>ra</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>WMA Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>wma</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>OGG Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>ogg</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>M4A Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>m4a</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AAC Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>aac</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>FLAC Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>flac</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>Opus Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>opus</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MP2 Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>mp2</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AC3 Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>ac3</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>DTS Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>dts</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>APE Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>ape</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>WV Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>wv</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AMR Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>amr</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>AU Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>au</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>SND Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>snd</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>VOC Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>voc</string></array>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>MKA Audio</string>
+			<key>CFBundleTypeExtensions</key><array><string>mka</string></array>
 			<key>CFBundleTypeRole</key><string>Viewer</string>
 			<key>LSHandlerRank</key><string>Alternate</string>
 		</dict>

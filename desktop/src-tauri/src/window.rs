@@ -416,6 +416,18 @@ pub fn window_video_drop(window: WebviewWindow) -> Result<(), String> {
 	unsafe { DestroyWindow(HWND(handle as *mut _)) }.map_err(|e| e.to_string())
 }
 
+/// Move this window's video window to this rectangle of its client area, in backing pixels, and show it, or hide it where the rectangle has no area; mpv's own window inside follows its size, through the hook mpv puts on the window it is handed, read in w32_common.c of 0.41.0. Nothing, for a window with no video window
+#[cfg(target_os = "windows")]
+#[command]
+pub fn window_video_place(window: WebviewWindow, x: i32, y: i32, width: i32, height: i32) -> Result<(), String> {
+	use windows::Win32::Foundation::HWND;
+	use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, ShowWindow, HWND_TOP, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE};
+	let Some(handle) = video_windows().iter().find(|(l, _)| l == window.label()).map(|(_, handle)| *handle) else { return Ok(()) };
+	let child = HWND(handle as *mut _);
+	if width <= 0 || height <= 0 { let _ = unsafe { ShowWindow(child, SW_HIDE) }; return Ok(()) }//its answer, whether the window was visible before, is nothing this needs
+	unsafe { SetWindowPos(child, Some(HWND_TOP), x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW) }.map_err(|e| e.to_string())//above the web view still, and shown
+}
+
 /// The window with this label is closing: forget its video window, which goes with its parent
 #[cfg(target_os = "windows")]
 pub fn window_video_closed(label: &str) { video_forget(label); }
@@ -423,13 +435,13 @@ pub fn window_video_closed(label: &str) { video_forget(label); }
 /*
 A native rectangle for a video, on the Mac.
 
-mpv takes a window to draw in on X11, Windows and Android and nowhere else, so on the Mac the video is drawn by the library's render API into a surface of fuji's own: a view of ours above the WKWebView at the rectangle the page measured, whose layer is a CAOpenGLLayer, the arrangement mpv's own Mac window is built on, read in video/out/mac/gl_layer.swift of 0.41.0. Core Animation owns the surface and asks the layer to draw into it, on the main thread with the layer's GL context current; the draw hands mpv.rs the framebuffer and the size it finds bound, mpv.rs renders the player's current frame into them, and the superclass flushes the context, as its header asks. OpenGL is deprecated on the Mac and still there, and it is the one hardware backend the render API has.
+mpv takes a window to draw in on X11, Windows and Android and nowhere else, so on the Mac the video is drawn by the library's render API into a surface of fuji's own: a view of ours above the WKWebView at the rectangle the page measured, whose layer is a CAOpenGLLayer, the arrangement mpv's own Mac window is built on, read in video/out/mac/gl_layer.swift of 0.41.0. Core Animation owns the surface and asks the layer to draw into it, on the main thread with the layer's GL context current; the draw hands media.rs the framebuffer and the size it finds bound, media.rs renders the player's current frame into them, and the superclass flushes the context, as its header asks. OpenGL is deprecated on the Mac and still there, and it is the one hardware backend the render API has.
 
 **The view ignores the mouse, so the page sees every click and drag directly.** hitTest answers nil, and that is the whole of it: AppKit skips the view when it looks for what is under the pointer and finds the web view beneath, so the panel's own handlers on the square fire as they do over a picture, and a file dragged over the video lands on the web view's drop target as it does anywhere else on the page. Nothing here sends the page an event, which is the half of Windows' arrangement the Mac does not need.
 
-**The GL context is made here, once, with the view, and lent to both of its users.** Core Animation draws with it current on the main thread, and mpv.rs makes and frees the render context with it current on the blocking pool, as the render API requires of every call; the lock CGL offers around the pool's turns is the protocol Apple documents for a context two threads share, and the layer hands its context and pixel format back to Core Animation retained, as copy methods must. A frame ready is said by mpv from a thread of its own, and the layer is displayed on the main thread, where a layer is drawn; the render never waits for the frame's time there, because mpv.rs starts the player with video-timing-offset at zero and says why.
+**The GL context is made here, once, with the view, and lent to both of its users.** Core Animation draws with it current on the main thread, and media.rs makes and frees the render context with it current on the blocking pool, as the render API requires of every call; the lock CGL offers around the pool's turns is the protocol Apple documents for a context two threads share, and the layer hands its context and pixel format back to Core Animation retained, as copy methods must. A frame ready is said by mpv from a thread of its own, and the layer is displayed on the main thread, where a layer is drawn; the render never waits for the frame's time there, because media.rs starts the player with video-timing-offset at zero and says why.
 
-The frame is the page's rectangle in backing pixels over the window's scale into points, measured from the top of the web view's superview if that view is flipped and from the bottom if it is not, which is AppKit's default and wry's; the mask keeps the top edge where it is when the window changes size, as it does for fuji's own fullscreen. The pixel format asks for the 3.2 core profile and falls back to the legacy one, as mpv's own layer does.
+The frame is the page's rectangle in backing pixels over the window's scale into points, laid out in the window's own coordinates from its content layout rectangle and converted into the superview's, so it lands right wherever the web view sits in its superview and whichever way that view is flipped; the mask keeps the top edge where it is when the window changes size, and window_video_place moves and resizes the view whenever the page asks, which is how the region follows the video's shape and the window's size. The pixel format asks for the 3.2 core profile and falls back to the legacy one, as mpv's own layer does.
 */
 #[cfg(target_os = "macos")]
 static VIDEO_VIEWS: Mutex<Vec<(String, isize, isize)>> = Mutex::new(Vec::new());//the video view of each window that has one, by label, and its layer, as addresses
@@ -464,7 +476,7 @@ fn video_forget(label: &str) -> Option<(isize, isize)> {//out of the list, answe
 #[cfg(target_os = "macos")]
 fn video_gl_of(layer: isize) -> Option<(isize, isize)> { VIDEO_GL.lock().unwrap_or_else(|p| p.into_inner()).iter().find(|(l, _, _)| *l == layer).map(|(_, pix, gl)| (*pix, *gl)) }//a layer's pixel format and context
 #[cfg(target_os = "macos")]
-fn video_gl_forget(layer: isize) {//the view's own references to the layer's pixel format and context, given back; Core Animation holds its own until the layer goes, and mpv.rs its own until the render context does
+fn video_gl_forget(layer: isize) {//the view's own references to the layer's pixel format and context, given back; Core Animation holds its own until the layer goes, and media.rs its own until the render context does
 	let mut list = VIDEO_GL.lock().unwrap_or_else(|p| p.into_inner());
 	let Some(at) = list.iter().position(|(l, _, _)| *l == layer) else { return };
 	let (_, pix, gl) = list.remove(at);
@@ -486,7 +498,7 @@ fn video_pixel_format() -> Result<*mut c_void, String> {//a hardware pixel forma
 }
 #[cfg(target_os = "macos")]
 #[allow(deprecated)]//OpenGL is deprecated on the Mac and still there, as the essay says, and objc2 marks the layer class with Apple's warning; here and on each function below that names it
-fn video_classes() {//the two classes, registered once per process: a view that ignores the mouse, and a layer that draws through mpv.rs; made with the runtime's own builder rather than objc2's macro, the way dock.rs makes its delegate
+fn video_classes() {//the two classes, registered once per process: a view that ignores the mouse, and a layer that draws through media.rs; made with the runtime's own builder rather than objc2's macro, the way dock.rs makes its delegate
 	use objc2::runtime::ClassBuilder;
 	use objc2::{sel, ClassType};
 	use objc2_app_kit::NSView;
@@ -517,7 +529,7 @@ extern "C" fn video_pixel_format_copy(this: &objc2::runtime::AnyObject, _command
 }
 #[cfg(target_os = "macos")]
 #[allow(deprecated)]
-extern "C" fn video_context_copy(this: &objc2::runtime::AnyObject, _command: objc2::runtime::Sel, pix: *mut c_void) -> *mut c_void {//and the context the same way, the one made with the view, so the render context mpv.rs makes against it draws here
+extern "C" fn video_context_copy(this: &objc2::runtime::AnyObject, _command: objc2::runtime::Sel, pix: *mut c_void) -> *mut c_void {//and the context the same way, the one made with the view, so the render context media.rs makes against it draws here
 	use objc2::{msg_send, ClassType};
 	match video_gl_of(this as *const _ as isize) { Some((_, gl)) => unsafe { CGLRetainContext(gl as *mut c_void) }, None => unsafe { msg_send![super(this, objc2_quartz_core::CAOpenGLLayer::class()), copyCGLContextForPixelFormat: pix] } }
 }
@@ -528,17 +540,17 @@ extern "C" fn video_draw(this: &objc2::runtime::AnyObject, _command: objc2::runt
 	let mut framebuffer = 0;
 	let mut viewport = [0; 4];
 	unsafe { glGetIntegerv(0x8CA6, &mut framebuffer); glGetIntegerv(0x0BA2, viewport.as_mut_ptr()) }//GL_FRAMEBUFFER_BINDING, which Core Animation may leave at zero for the layer's own, and GL_VIEWPORT, which it sets to the surface in pixels
-	crate::mpv::video_render(this as *const _ as isize, framebuffer, viewport[2], viewport[3]);
+	crate::media::video_render(this as *const _ as isize, framebuffer, viewport[2], viewport[3]);
 	unsafe { let _: () = msg_send![super(this, objc2_quartz_core::CAOpenGLLayer::class()), drawInCGLContext: ctx, pixelFormat: pix, forLayerTime: time, displayTime: stamp]; }
 }
 
-/// The layer and GL context of this window's video view, for mpv.rs to make a render context against; none where the window has no view
+/// The layer and GL context of this window's video view, for media.rs to make a render context against; none where the window has no view
 #[cfg(target_os = "macos")]
 pub fn video_gl(label: &str) -> Option<(isize, isize)> {
 	let layer = video_views().iter().find(|(l, _, _)| l == label).map(|(_, _, layer)| *layer)?;
 	video_gl_of(layer).map(|(_, gl)| (layer, gl))
 }
-/// One turn with this GL context current on the calling thread, under CGL's lock, for a render API call off the main thread; the bounds are Linux's, where the turn is taken on another thread, so mpv.rs writes one call for both
+/// One turn with this GL context current on the calling thread, under CGL's lock, for a render API call off the main thread; the bounds are Linux's, where the turn is taken on another thread, so media.rs writes one call for both
 #[cfg(target_os = "macos")]
 pub fn video_gl_current<R: Send + 'static>(gl: isize, work: impl FnOnce() -> R + Send + 'static) -> R {
 	let gl = gl as *mut c_void;
@@ -565,7 +577,7 @@ pub fn video_display(layer: isize) {
 	});
 }
 
-/// A view of fuji's own above the web view at this rectangle of the window, in backing pixels, with a GL layer for a video to draw in, answering the layer's address as text, which mpv.rs takes as the wid and resolves through the window's label; a second call replaces the first
+/// A view of fuji's own above the web view at this rectangle of the window, in backing pixels, with a GL layer for a video to draw in, answering the layer's address as text, which media.rs takes as the wid and resolves through the window's label; a second call replaces the first
 #[cfg(target_os = "macos")]
 #[allow(deprecated)]
 #[command]
@@ -574,25 +586,18 @@ pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, heig
 	use objc2::runtime::AnyClass;
 	use objc2::{msg_send, MainThreadMarker};
 	use objc2_app_kit::{NSAutoresizingMaskOptions, NSView, NSWindowOrderingMode};
-	use objc2_foundation::{NSPoint, NSRect, NSSize};
 	use objc2_quartz_core::{CALayer, CAOpenGLLayer};
 	if MainThreadMarker::new().is_none() { return Err("the video view is made on the main thread, and this was not it".into()) }
 	let _ = VIDEO_APP.set(window.app_handle().clone());
 	video_classes();
 	window_video_drop(window.clone())?;//the one before it, if any
-	let found = std::sync::Arc::new(Mutex::new(0usize));
-	let seen = found.clone();
-	window.with_webview(move |webview| { *seen.lock().unwrap_or_else(|p| p.into_inner()) = webview.inner() as usize }).map_err(|e| e.to_string())?;//at once, since this is the main thread
-	let web = *found.lock().unwrap_or_else(|p| p.into_inner());
-	if web == 0 { return Err("the window has no web view to put the video over".into()) }
+	let web = video_webview(&window)?;
 	let webview: &NSView = unsafe { &*(web as *const NSView) };
 	let Some(parent) = (unsafe { webview.superview() }) else { return Err("the web view has no superview".into()) };
 	let Some(ns_window) = webview.window() else { return Err("the web view is in no window".into()) };
 	let scale = ns_window.backingScaleFactor();
-	let (x, y, width, height) = (x as f64 / scale, y as f64 / scale, width as f64 / scale, height as f64 / scale);//into points, which a view's frame is in
 	let flipped = parent.isFlipped();
-	let top = if flipped { y } else { parent.bounds().size.height - y - height };
-	let frame = NSRect::new(NSPoint::new(x, top), NSSize::new(width, height));
+	let frame = video_frame(webview, &parent, scale, x, y, width, height);
 	let Some(layer_class) = AnyClass::get(c"VideoLayer") else { return Err("the video layer class did not register".into()) };//both classes before anything is made, so a refusal leaves nothing behind
 	let Some(view_class) = AnyClass::get(c"VideoSurface") else { return Err("the video view class did not register".into()) };
 
@@ -620,6 +625,46 @@ pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, heig
 	Ok(Some(layer_at.to_string()))
 }
 
+/// Move this window's video view to this rectangle of the window, in backing pixels, and show it, or hide it where the rectangle has no area; the layer draws again at its new size, since it asks to when its bounds change. Nothing, for a window with no video view
+#[cfg(target_os = "macos")]
+#[command]
+pub fn window_video_place(window: WebviewWindow, x: i32, y: i32, width: i32, height: i32) -> Result<(), String> {
+	use objc2::MainThreadMarker;
+	use objc2_app_kit::NSView;
+	if MainThreadMarker::new().is_none() { return Err("the video view is placed on the main thread, and this was not it".into()) }
+	let Some(view) = video_views().iter().find(|(l, _, _)| l == window.label()).map(|(_, view, _)| *view) else { return Ok(()) };
+	let view: &NSView = unsafe { &*(view as *const NSView) };
+	if width <= 0 || height <= 0 { view.setHidden(true); return Ok(()) }
+	let web = video_webview(&window)?;
+	let webview: &NSView = unsafe { &*(web as *const NSView) };
+	let Some(parent) = (unsafe { view.superview() }) else { return Err("the video view is in no superview".into()) };
+	let Some(ns_window) = view.window() else { return Err("the video view is in no window".into()) };
+	let frame = video_frame(webview, &parent, ns_window.backingScaleFactor(), x, y, width, height);
+	view.setFrame(frame);
+	view.setHidden(false);
+	let said = |r: objc2_foundation::NSRect| format!("{},{} {}x{}", r.origin.x, r.origin.y, r.size.width, r.size.height);//points, from the bottom left unless flipped
+	crate::log::log(&format!("window: video view placed at {} in its superview, flipped {}; the web view's frame {} and bounds {}, flipped {}; the superview's bounds {}; the window's content layout {} and frame {}", said(frame), parent.isFlipped(), said(webview.frame()), said(webview.bounds()), webview.isFlipped(), said(parent.bounds()), said(ns_window.contentLayoutRect()), said(ns_window.frame())));//where the view landed against the web view and the window, which a page measuring only itself cannot see
+	Ok(())
+}
+#[cfg(target_os = "macos")]
+fn video_webview(window: &WebviewWindow) -> Result<usize, String> {//the address of the window's web view, asked on the main thread, where with_webview answers at once
+	let found = std::sync::Arc::new(Mutex::new(0usize));
+	let seen = found.clone();
+	window.with_webview(move |webview| { *seen.lock().unwrap_or_else(|p| p.into_inner()) = webview.inner() as usize }).map_err(|e| e.to_string())?;
+	let web = *found.lock().unwrap_or_else(|p| p.into_inner());
+	if web == 0 { return Err("the window has no web view to put the video over".into()) }
+	Ok(web)
+}
+#[cfg(target_os = "macos")]
+fn video_frame(webview: &objc2_app_kit::NSView, parent: &objc2_app_kit::NSView, scale: f64, x: i32, y: i32, width: i32, height: i32) -> objc2_foundation::NSRect {//a rectangle of the page, in backing pixels from the page's top left, as a frame in the superview's points. The page's top left is the top left of the window's content layout rectangle, the part no title bar covers: where the web view starts below a title bar the two are the same, and where it runs up under one, WebKit insets the page by the bar, which showed as a title bar's height of white under the video in a window and none in fuji's fullscreen, on the Mac mini on 2026-10-16
+	use objc2_foundation::{NSPoint, NSRect, NSSize};
+	let (x, y, width, height) = (x as f64 / scale, y as f64 / scale, width as f64 / scale, height as f64 / scale);//into points, which a frame is in
+	let Some(window) = webview.window() else { return NSRect::new(NSPoint::new(x, y), NSSize::new(width, height)) };
+	let layout = window.contentLayoutRect();//in the window's own coordinates, from its bottom left
+	let in_window = NSRect::new(NSPoint::new(layout.origin.x + x, layout.origin.y + layout.size.height - y - height), NSSize::new(width, height));
+	parent.convertRect_fromView(in_window, None)//into the superview's, whichever way it is flipped
+}
+
 /// Remove the video view made for this window, if it has one; nothing, otherwise
 #[cfg(target_os = "macos")]
 #[command]
@@ -641,16 +686,16 @@ pub fn window_video_closed(label: &str) { if let Some((_, layer)) = video_forget
 /*
 A native rectangle for a video, on Linux.
 
-Every Linux desktop fuji ships to runs Wayland, where mpv cannot be handed a window, so the video is drawn as it is on the Mac, by the render API into a surface of fuji's own: a GTK GL area over the web view at the rectangle the page measured, which serves a desktop still on X11 the same way. The window wry builds is a GTK window holding a vertical box with the WebKit view packed in it, and the first rectangle asked for lifts the web view out of that box into an overlay put back in its place, GTK's own arrangement for one widget drawn over another; the area is an overlay child placed by its margins from the top left, which holds its top edge as the Mac's view does. GTK makes the area's GL context as the area is realized, binds the area's framebuffer and sets the viewport before asking for a frame, and composites what was drawn into the window with everything else; the render signal hands mpv.rs the framebuffer and the size it finds bound, as the Mac's draw does, and clears the area to black when no player draws it, since GTK leaves a fresh buffer undefined.
+Every Linux desktop fuji ships to runs Wayland, where mpv cannot be handed a window, so the video is drawn as it is on the Mac, by the render API into a surface of fuji's own: a GTK GL area over the web view at the rectangle the page measured, which serves a desktop still on X11 the same way. The window wry builds is a GTK window holding a vertical box with the WebKit view packed in it, and the first rectangle asked for lifts the web view out of that box into an overlay put back in its place, GTK's own arrangement for one widget drawn over another; the area is an overlay child placed by its margins from the top left, which holds its top edge as the Mac's view does. GTK makes the area's GL context as the area is realized, binds the area's framebuffer and sets the viewport before asking for a frame, and composites what was drawn into the window with everything else; the render signal hands media.rs the framebuffer and the size it finds bound, as the Mac's draw does, and clears the area to black when no player draws it, since GTK leaves a fresh buffer undefined.
 
 **The area is passed through, so the page sees every click and drag directly.** GTK's overlay can mark a child pass-through, the Mac's hitTest nil in GTK's words: the pointer over the area goes to the web view beneath, so the panel's own handlers see the mouse, and a file dragged over the video lands on the web view's drop target as it does anywhere else on the page. Nothing here sends the page an event.
 
 **The GL context is GTK's, and current on the main thread alone.** GTK makes it current before each render and clears it after, so a render API call from the blocking pool, making the render context or freeing it, runs on the main thread with the area made current for it while the pool waits, which is video_gl_current here. The area's unrealize, which GTK raises as the widget leaves the window, frees any render context on it first, with the context still there to be current, so a window closing mid-play never leaves a render context for the player's destroy to free without one; lib.rs forgets the view before it destroys the player for that reason. The one turn this cannot cover is a player destroyed on the pool at the moment its window closes, where the turn on the main thread may come after the area has gone and the free runs with no context current, which GL answers by doing nothing.
 
-The rectangle arrives in backing pixels and GTK lays widgets out in css pixels, so the margins and the size are divided by the window's scale, which GTK keeps whole. The GL functions mpv.rs asks for are found through the loader of whichever GL the display has, EGL's on Wayland and GLX's on X11, each answering for the context current on the calling thread, the way mpv's own outputs on the two find them. None of this has run on a Linux desktop yet: the containers prove that it compiles and links, and the first smoke test is the Linux desktop's.
+The rectangle arrives in backing pixels and GTK lays widgets out in css pixels, so the margins and the size are divided by the window's scale, which GTK keeps whole. The GL functions media.rs asks for are found through the loader of whichever GL the display has, EGL's on Wayland and GLX's on X11, each answering for the context current on the calling thread, the way mpv's own outputs on the two find them. None of this has run on a Linux desktop yet: the containers prove that it compiles and links, and the first smoke test is the Linux desktop's.
 */
 #[cfg(target_os = "linux")]
-static VIDEO_VIEWS: Mutex<Vec<(String, isize)>> = Mutex::new(Vec::new());//the video area of each window that has one, by label, as its address: the wid the page hands back and the key mpv.rs draws by; one entry, since linux has one window
+static VIDEO_VIEWS: Mutex<Vec<(String, isize)>> = Mutex::new(Vec::new());//the video area of each window that has one, by label, as its address: the wid the page hands back and the key media.rs draws by; one entry, since linux has one window
 #[cfg(target_os = "linux")]
 static VIDEO_APP: OnceLock<AppHandle> = OnceLock::new();//the application, for the frame callback and the pool to reach the main thread
 #[cfg(target_os = "linux")]
@@ -678,7 +723,7 @@ fn video_gl_loader() -> usize {//eglGetProcAddress or glXGetProcAddressARB, by t
 	if handle.is_null() { return 0 }
 	(unsafe { libc::dlsym(handle, symbol.as_ptr()) }) as usize
 }
-/// A GL function by name through the display's own loader, for mpv.rs; null before a view has been made, or where the loader has no such function
+/// A GL function by name through the display's own loader, for media.rs; null before a view has been made, or where the loader has no such function
 #[cfg(target_os = "linux")]
 pub fn video_gl_address(name: *const std::ffi::c_char) -> *mut std::ffi::c_void {
 	let Some(loader) = VIDEO_LOADER.get().copied().filter(|l| *l != 0) else { return std::ptr::null_mut() };
@@ -708,7 +753,7 @@ fn video_rendered(area: &gtk::GLArea) {//the render signal, on the main thread w
 	let mut framebuffer = [0];
 	let mut viewport = [0; 4];
 	video_gl_integers(0x8CA6, &mut framebuffer); video_gl_integers(0x0BA2, &mut viewport);//GL_FRAMEBUFFER_BINDING and GL_VIEWPORT, which GTK set to the area in pixels
-	if !crate::mpv::video_render(area.as_ptr() as isize, framebuffer[0], viewport[2], viewport[3]) { video_gl_clear() }
+	if !crate::media::video_render(area.as_ptr() as isize, framebuffer[0], viewport[2], viewport[3]) { video_gl_clear() }
 }
 #[cfg(target_os = "linux")]
 fn video_gl_turn<R>(gl: isize, work: impl FnOnce() -> R) -> R {//on the main thread: the area's context current for the work, where the area still stands, and cleared after
@@ -720,7 +765,7 @@ fn video_gl_turn<R>(gl: isize, work: impl FnOnce() -> R) -> R {//on the main thr
 	answer
 }
 
-/// The surface and GL context of this window's video view, for mpv.rs to make a render context against, both the area's address here; none where the window has no view
+/// The surface and GL context of this window's video view, for media.rs to make a render context against, both the area's address here; none where the window has no view
 #[cfg(target_os = "linux")]
 pub fn video_gl(label: &str) -> Option<(isize, isize)> { video_views().iter().find(|(l, _)| l == label).map(|(_, at)| (*at, *at)) }
 /// One turn with this GL context current, for a render API call: on the main thread, which alone may make GTK's context current, with the caller waiting if it is another thread; the work runs without a context where the view has already gone, or where the main thread is no longer taking turns
@@ -749,7 +794,7 @@ pub fn video_display(layer: isize) {
 	let _ = app.run_on_main_thread(move || { use gtk::prelude::*; if let Some(area) = video_area(layer) { area.queue_render() } });
 }
 
-/// A GL area of fuji's own over the web view at this rectangle of the window, in backing pixels, for a video to draw in, answering the area's address as text, which mpv.rs takes as the wid and resolves through the window's label; a second call replaces the first
+/// A GL area of fuji's own over the web view at this rectangle of the window, in backing pixels, for a video to draw in, answering the area's address as text, which media.rs takes as the wid and resolves through the window's label; a second call replaces the first
 #[cfg(target_os = "linux")]
 #[command]
 pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, height: i32) -> Result<Option<String>, String> {
@@ -791,7 +836,7 @@ pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, heig
 	area.set_size_request(width, height);
 	let at = area.as_ptr() as isize;
 	area.connect_render(|area, _| { video_rendered(area); glib::Propagation::Stop });
-	area.connect_unrealize(move |area| { area.make_current(); crate::mpv::video_unrealize(at); gdk::GLContext::clear_current() });//with the context still there, before GTK takes it
+	area.connect_unrealize(move |area| { area.make_current(); crate::media::video_unrealize(at); gdk::GLContext::clear_current() });//with the context still there, before GTK takes it
 	overlay.add_overlay(&area);
 	overlay.set_overlay_pass_through(&area, true);
 	area.show();
@@ -801,6 +846,23 @@ pub fn window_video_make(window: WebviewWindow, x: i32, y: i32, width: i32, heig
 	VIDEO_AREAS.with(|list| list.borrow_mut().push((at, area)));
 	video_views().push((window.label().to_string(), at));
 	Ok(Some(at.to_string()))
+}
+
+/// Move this window's video area to this rectangle of the window, in backing pixels, and show it, or hide it where the rectangle has no area; GTK lays the area out again by its margins and size, in css pixels, and renders it at its new size. Nothing, for a window with no video area
+#[cfg(target_os = "linux")]
+#[command]
+pub fn window_video_place(window: WebviewWindow, x: i32, y: i32, width: i32, height: i32) -> Result<(), String> {
+	use gtk::prelude::*;
+	if !gtk::is_initialized_main_thread() { return Err("the video view is placed on the main thread, and this was not it".into()) }
+	let Some(at) = video_views().iter().find(|(l, _)| l == window.label()).map(|(_, at)| *at) else { return Ok(()) };
+	let Some(area) = video_area(at) else { return Ok(()) };
+	if width <= 0 || height <= 0 { area.hide(); return Ok(()) }//unmapped rather than unrealized, so its GL context, and the render context made against it, stand
+	let scale = area.scale_factor().max(1);//into css pixels, as window_video_make divides them
+	area.set_margin_start(x / scale);
+	area.set_margin_top(y / scale);
+	area.set_size_request(width / scale, height / scale);
+	area.show();
+	Ok(())
 }
 
 /// Remove the video area made for this window, if it has one; nothing, otherwise

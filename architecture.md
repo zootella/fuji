@@ -26,7 +26,7 @@ App.vue
         disk.js → disk.rs
         thumbnail.js → thumbnail.rs   beside the cache, for the sheet only: the operating system's thumbnailer
         memory.js → memory.rs         for the report and the log's line at rest: the machine's memory and what fuji's processes take
-        mpv.js → mpv.rs               for the audio panel: the media library, libmpv
+        media.js → media.rs           for the audio panel: the media library, libmpv, which plays a file and answers what one holds
         uptime.js → uptime.rs         for the log's launch line: how long the process has been running, by the system's clock and main's
         find.js → find.rs             for the pager alone: the next folders holding an image, a stretch of the tree per call
 ```
