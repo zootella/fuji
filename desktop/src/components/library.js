@@ -11,6 +11,7 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
+import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {diskRead, diskReadDir, diskPeek} from '../disk.js'//our rust modules
 import {findFolders} from '../find.js'
 import {panelResolution} from '../panel.js'
@@ -274,22 +275,7 @@ export const thinSpace = '\u2009'//between a number and its unit, and around the
 export const multiplicationSign = '\u00d7'//the x of a size, which typed is easy to mistake for the letter
 export const middleDot = '\u00b7'//between things listed on one line, which typed is easy to mistake for a period
 
-// Describe big sizes and counts in four digits or less
-export function saySize4(n)   { return _number4(n, 1024, ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].map(unit => thinSpace + unit)) }//a thin space between the number and its unit
-export function sayNumber4(n) { return _number4(n, 1000, ['',       ' K',  ' M',  ' B',  ' T',  ' P',  ' E',  ' Z',  ' Y'])  }
-function _number4(n, power, units) {
-	var u = 0 // Start on the first unit
-	var d = 1 // Which has a value of 1 each
-	while (u < units.length) { // Loop to larger units until we can say n in four digits or less
-
-		var w = Math.floor(n / d) // Find out how many of the current unit we have
-		if (w <= 9999) return w + units[u] // Four digits or less, use this unit
-
-		u++ // Move to the next larger unit
-		d *= power
-	}
-	return n+'' // We ran out of units
-}
+export function saySizeThin(n) { return saySize4(n).replace(' ', thinSpace) }//a count of bytes the way fuji writes one, like 117 MB: ergo's saySize4, four digits or less, with a thin space before the unit in place of ergo's ordinary one
 
 export function sayDimensions(size) {//a picture's width by its height, like 1050 × 856, with thin spaces around the sign
 	return `${size.x}${thinSpace}${multiplicationSign}${thinSpace}${size.y}`

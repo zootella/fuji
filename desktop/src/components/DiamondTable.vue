@@ -3,7 +3,7 @@
 import {ref, watch, onBeforeUnmount} from 'vue'
 import {
 xy, xySnap, raf, errorImageData,
-saySize4, sayDay, sayDimensions, middleDot, thinSpace, backize,
+saySizeThin, sayDay, sayDimensions, middleDot, thinSpace, backize,
 } from './library.js'//our javascript library
 import {modelList, modelPath, modelOpen, modelIndex, modelStand, modelFile} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
 import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
@@ -396,7 +396,7 @@ function updateInformation() {//the information hud: the zoom, the card, what lo
 			`card ${sayDimensions(xy(+sayRatio(quiverC.card2.x), +sayRatio(quiverC.card2.y)))} css pixels`,//to three places, since a card snapped to the backing grid at 150 percent sits on a third of a css pixel
 			`load ${sayMs(here.loaded - here.requested)} ${halves[0]} + ${sayMs(here.rendered - here.loaded)} ${halves[1]}`,
 			`flip ${sayMs(flipMs)}, ${flipFrames} frames: ${sayMs(storeMs)} store + ${sayMs(paintMs)} paint`,
-			`store ${f.count} pictures, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`,
+			`store ${f.count} pictures, ${saySizeThin(f.blobs)} of files + ${saySizeThin(f.pixels)} of pixels`,
 		)
 	} else lines.push('no picture loaded')
 	lines.push(`${gamma.value == 1 ? 'Gamma OFF' : `Gamma ${gamma.value.toFixed(2)}`} ${middleDot} ${raster.value ? 'Rasterized' : 'Smooth'}`)//on every reading, loaded or not, because both are lenses over the card rather than facts about the picture on it; the words the user chose, Gamma OFF or Gamma 1.22, and Rasterized or Smooth
@@ -404,11 +404,11 @@ function updateInformation() {//the information hud: the zoom, the card, what lo
 	hud3Ref.value = lines.join('\n')
 }
 function sayRatio(n) { return String(Math.round(n * 1000) / 1000) }//a ratio to three places with the zeros dropped, so a number key reads 2 and a notch 2.154
-function sayMs(n) { return `${Math.round(n)}${thinSpace}ms` }//a duration, with the thin space between a number and its unit that saySize4 uses
+function sayMs(n) { return `${Math.round(n)}${thinSpace}ms` }//a duration, with the thin space between a number and its unit that saySizeThin gives a size
 function captionText() {//the caption's two lines: the picture's full path as the platform writes it, then the day it was last modified, its size and its dimensions, the line the contact sheet writes under a thumbnail with the path in place of the name. Read by the caption and by the hud, so the two never differ
 	let file = modelFile(here.path)//the listing's entry, with the modified time and the size; false for a picture outside the listed folder, which then shows its path and dimensions alone
 	let parts = []
-	if (file) parts.push(sayDay(file.mtime), saySize4(file.size))
+	if (file) parts.push(sayDay(file.mtime), saySizeThin(file.size))
 	if (here.element) parts.push(sayDimensions(here.natural))//none for the error placeholder, whose dimensions are nobody's
 	return `${backize(here.path)}\n${parts.filter(part => part).join(` ${middleDot} `)}`
 }

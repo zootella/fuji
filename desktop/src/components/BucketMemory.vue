@@ -3,7 +3,7 @@
 import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
 import {memoryReport} from '../memory.js'
 import {logTrouble} from '../log.js'
-import {saySize4, platform} from './library.js'
+import {saySizeThin, platform} from './library.js'
 import {brandName} from '../brand.js'
 
 //the numbers a user compares when choosing how many buckets and how many thumbnails to run: what the machine was bought with, what everything on it is using, what fuji's processes take of that, and what the thumbnails take of fuji, each as a share of the shell outside it. The outer three come from memory.rs, read every memoryEvery milliseconds and only while this box is on screen, which is what the IntersectionObserver answers: a sheet hidden behind the table, or scrolled up past this box, asks nothing. The innermost is the sheet's own count, exact, since every thumbnail is a canvas fuji sized, and the sheet sums what every bucket's caption shows
@@ -35,7 +35,7 @@ function memoryStop() { clearInterval(memoryTimer); memoryTimer = 0 }
 function memoryRead() { memoryReport().then(report => { memory.value = report }).catch(error => logTrouble('BucketMemory: reading memory', error)) }//the top gate for a reading: rust answers trouble as a rejection, and a reading that fails leaves the last one showing
 
 const memoryOuter = computed(() => memory.value ? memory.value.processes.reduce((sum, p) => sum + p.bytes, 0) : 0)//the outer number: fuji's processes together
-function sayShare(part, whole, of) { return whole > 0 ? `${Math.round(part / whole * 100)}% of the ${saySize4(whole)} ${of}` : '' }//one shell as a share of the one outside it, naming the number it is divided by and the row that number is, like 1% of the 9625 MB in use
+function sayShare(part, whole, of) { return whole > 0 ? `${Math.round(part / whole * 100)}% of the ${saySizeThin(whole)} ${of}` : '' }//one shell as a share of the one outside it, naming the number it is divided by and the row that number is, like 1% of the 9625 MB in use
 const memoryNames = {//what each process is, for its row, by rust's kind: the three a tauri program is made of, and the two more WebView2 adds
 	host: 'Rust and the window',
 	'web content': 'Web renderer', renderer: 'Web renderer',//WebKit's name and WebView2's for the same thing
@@ -86,13 +86,13 @@ function memoryLeave() { memoryHint.value = memoryIntro }
 <div ref="memoryRoot" class="myMemory myMono flex gap-8" @mouseleave="memoryLeave">
 	<div class="myMemoryHint">{{memoryHint}}</div>
 	<div v-if="memory" class="myMemoryGrid" @mouseover="memoryPoint">
-		<div class="contents" data-hint="installed"><span>System</span><span>This computer has</span><span class="myMemoryBytes">{{saySize4(memory.installed)}}</span><span></span></div>
-		<div class="contents" data-hint="used"><span></span><span>In use</span><span class="myMemoryBytes">{{saySize4(memory.used)}}</span><span>{{sayShare(memory.used, memory.installed, 'this computer has')}}</span></div>
-		<div class="contents" data-hint="available"><span></span><span>Available</span><span class="myMemoryBytes">{{saySize4(memory.available)}}</span><span></span></div>
-		<div v-for="row in memory.details" :key="row.name" class="contents" :data-hint="row.name"><span></span><span>{{row.name}}</span><span class="myMemoryBytes">{{saySize4(row.bytes)}}</span><span></span></div>
-		<div class="contents" data-hint="fuji"><span class="myMemoryBreak">{{brandName}}</span><span class="myMemoryBreak">All of it</span><span class="myMemoryBytes myMemoryBreak">{{saySize4(memoryOuter)}}</span><span class="myMemoryBreak">{{sayShare(memoryOuter, memory.used, 'in use')}}</span></div>
-		<div v-for="p in memory.processes" :key="p.pid" class="contents" :data-hint="p.kind"><span></span><span>{{sayKind(p.kind)}}</span><span class="myMemoryBytes">{{saySize4(p.bytes)}}</span><span>pid {{p.pid}}</span></div>
-		<div class="contents" data-hint="thumbnails"><span class="myMemoryBreak">Thumbnails</span><span class="myMemoryBreak">All of them</span><span class="myMemoryBytes myMemoryBreak">{{saySize4(props.bytes)}}</span><span class="myMemoryBreak">{{sayShare(props.bytes, memoryOuter, `${brandName} takes`)}}</span></div>
+		<div class="contents" data-hint="installed"><span>System</span><span>This computer has</span><span class="myMemoryBytes">{{saySizeThin(memory.installed)}}</span><span></span></div>
+		<div class="contents" data-hint="used"><span></span><span>In use</span><span class="myMemoryBytes">{{saySizeThin(memory.used)}}</span><span>{{sayShare(memory.used, memory.installed, 'this computer has')}}</span></div>
+		<div class="contents" data-hint="available"><span></span><span>Available</span><span class="myMemoryBytes">{{saySizeThin(memory.available)}}</span><span></span></div>
+		<div v-for="row in memory.details" :key="row.name" class="contents" :data-hint="row.name"><span></span><span>{{row.name}}</span><span class="myMemoryBytes">{{saySizeThin(row.bytes)}}</span><span></span></div>
+		<div class="contents" data-hint="fuji"><span class="myMemoryBreak">{{brandName}}</span><span class="myMemoryBreak">All of it</span><span class="myMemoryBytes myMemoryBreak">{{saySizeThin(memoryOuter)}}</span><span class="myMemoryBreak">{{sayShare(memoryOuter, memory.used, 'in use')}}</span></div>
+		<div v-for="p in memory.processes" :key="p.pid" class="contents" :data-hint="p.kind"><span></span><span>{{sayKind(p.kind)}}</span><span class="myMemoryBytes">{{saySizeThin(p.bytes)}}</span><span>pid {{p.pid}}</span></div>
+		<div class="contents" data-hint="thumbnails"><span class="myMemoryBreak">Thumbnails</span><span class="myMemoryBreak">All of them</span><span class="myMemoryBytes myMemoryBreak">{{saySizeThin(props.bytes)}}</span><span class="myMemoryBreak">{{sayShare(props.bytes, memoryOuter, `${brandName} takes`)}}</span></div>
 		<div class="contents" data-hint="counts"><span></span><span class="col-span-3">{{props.buckets}} buckets, {{props.thumbnails}} thumbnails, {{props.beam}}, {{props.fit.replace(/Fit$/, '')}}</span></div>
 		<div class="contents" data-hint="read"><span class="myMemoryBreak">Pager</span><span class="myMemoryBreak">{{props.read.count}} folders read</span><span class="myMemoryBytes myMemoryBreak">{{sayMilliseconds(props.read.milliseconds)}}</span><span class="myMemoryBreak">for this page and its look-ahead</span></div>
 	</div>

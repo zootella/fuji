@@ -909,6 +909,7 @@ dependencies = [
  "windows 0.62.2",
  "windows-core 0.61.2",
  "windows-core 0.62.2",
+ "zootella-ergo",
 ]
 
 [[package]]
@@ -5058,3 +5059,12 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zootella-ergo"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0837c9810878bb4a4f345e500a3ca6b2e0b0a01be5df289d4624b0eb6e062d0"
+dependencies = [
+ "getrandom 0.4.3",
+]

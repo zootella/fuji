@@ -19,6 +19,9 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.11.1
         version: 2.11.1
+      '@zootella/ergo':
+        specifier: ^0.1.0
+        version: 0.1.0
       path-browserify:
         specifier: ^1.0.1
         version: 1.0.1
@@ -49,6 +52,9 @@ importers:
 
   site:
     devDependencies:
+      '@zootella/ergo':
+        specifier: ^0.1.0
+        version: 0.1.0
       vitepress:
         specifier: ^1.6.4
         version: 1.6.4(@algolia/client-search@5.59.0)(lightningcss@1.33.0)(postcss@8.5.26)(search-insights@2.17.3)
@@ -957,6 +963,10 @@ packages:
 
   '@vueuse/shared@12.8.2':
     resolution: {integrity: sha512-dznP38YzxZoNloI0qpEfpkms8knDtaoQ6Y/sfS0L7Yki4zh40LFHEhur0odJC6xTHG5dxWVPiUWBXn+wCG2s5w==}
+
+  '@zootella/ergo@0.1.0':
+    resolution: {integrity: sha512-QRQaM/Jt+NmxSLvC9U6hKLdqvnolel2u+jwu03PsOuc0EKScGONSUw1Z3r8xPfzUJvv4AwVwjrMuV8ShS5u70g==}
+    engines: {node: '>=22'}
 
   algoliasearch@5.59.0:
     resolution: {integrity: sha512-wUXzaeI7B526W4y1gFg3lcxgDZ67XSgRJIiellYWOas/pLpO7rOtxm9Gr2E/C8aiSDXIgx1q5TdSsvK67Uakqw==}
@@ -2217,6 +2227,8 @@ snapshots:
       vue: 3.5.42
     transitivePeerDependencies:
       - typescript
+
+  '@zootella/ergo@0.1.0': {}
 
   algoliasearch@5.59.0:
     dependencies:

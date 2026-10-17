@@ -18,6 +18,10 @@ Development has no downloads directory, so config.js stands in for it twice over
 **Fetch on mount, never at module scope.** VitePress prerenders components in Node at build time, and Node has fetch — so a module-scope call would run rather than fail loudly, but a relative url has no origin to resolve against there and nothing is serving these files during a build, so every row would bake in as unpublished.
 */
 
+import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+
+const thinSpace = '\u2009'//between a number and its unit; named rather than typed, because typed it looks like any other space
+
 //the published names, in the order the home page lists them. no name carries a version, so a link anyone shares keeps pointing at the current build, and every linux package names its architecture because linux is where architectures multiply and a bare name would read as the default while being the rarer one
 export let installerFiles = [
 	'fuji.dmg',            //macOS, Apple silicon
@@ -74,11 +78,6 @@ export async function copyText(text) {
 	} catch (error) { return false }
 }
 
-export function saySize4(n) {//a size in four digits or less, like 5428 KB or 31 MB: fuji's own saySize4 from desktop's library.js, said again here rather than imported across the workspace line. whole numbers, by 1024, and a thin space before the unit
-	let units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-	for (let u = 0; u < units.length; u++) {
-		let w = Math.floor(n / 1024 ** u)
-		if (w <= 9999) return w + '\u2009' + units[u]
-	}
-	return n + ''
+export function saySizeThin(n) {//a size in four digits or less, like 5428 KB or 31 MB: ergo's saySize4 with a thin space before the unit in place of its ordinary one, the same line as saySizeThin in desktop's library.js, said again here rather than imported across the workspace line
+	return saySize4(n).replace(' ', thinSpace)
 }
