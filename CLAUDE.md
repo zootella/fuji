@@ -155,7 +155,7 @@ The modules, by what each one answers: the disk (`disk.rs`), the folder tree in 
 
 **Key Patterns**:
 - All paths are "forwardized" on entry (backslashes → forward slashes) and "backized" for Windows display
-- Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed
+- Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed. A picture only the operating system's imaging library reads on this platform, a TIFF on Windows or a Photoshop file on the Mac, reaches it instead as the library's pixels at the picture's own size, painted once onto a canvas the store holds in the img's place; `fileTypesTable` in `fileTypes.js` says which
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
 - A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `TestFlow.vue` is the code, and the thumbnail pipeline document on the site is why it is shaped that way

@@ -98,6 +98,7 @@ pub fn run() {
 				media::media_frame,
 				panel::panel_resolution,//and in panel.rs
 				thumbnail::thumbnail_render,//and in thumbnail.rs
+				thumbnail::thumbnail_natural,
 				open::open_files,//and in open.rs
 				paths::paths_executable,//and in paths.rs
 				process::process_open,//and in process.rs

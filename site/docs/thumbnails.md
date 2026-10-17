@@ -13,7 +13,7 @@ Fuji's words for its own parts:
 - **Beam** — the length every thumbnail is measured against, in CSS pixels; today a picture's longer side is fitted to it, so each tile sits inside a square the beam on each side, whatever shape the picture is. The user picks the beam's length from Small, Medium, Large and XL.
 - **Store** — the one place Fuji keeps a file's bytes and its decoded pixels. It hands them out and takes them back when told, and decides nothing on its own.
 
-A light table's route to the screen is plain: an `<img>`, sized by two lines of CSS, flipped by hiding one element and showing another. The contact sheet cannot do the same thing. The rest of this page is why, and what it does instead.
+A light table's route to the screen is plain: an `<img>`, sized by two lines of CSS, flipped by hiding one element and showing another. A picture the web engine cannot decode, a TIFF on Windows or a Photoshop file on macOS, comes from the operating system instead, every pixel of it, onto a canvas that stands where the `<img>` would. The contact sheet cannot do the same thing. The rest of this page is why, and what it does instead.
 
 ## Why a contact sheet cannot do what a light table does
 
@@ -107,21 +107,17 @@ An `<img>` shows an SVG as an image rather than as a document: its scripts never
 
 | platform | thumbnailer | formats Fuji sends it |
 | --- | --- | --- |
-| macOS | [ImageIO](https://developer.apple.com/documentation/imageio) | JPEG, PNG, WebP, AVIF, BMP |
-| Windows | [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec) | JPEG, PNG |
+| macOS | [ImageIO](https://developer.apple.com/documentation/imageio) | JPEG, PNG, BMP, WebP, AVIF, HEIC, TIFF, Targa, PICT, Photoshop, and the camera raws DNG, CR2, NEF and ARW |
+| Windows | [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec) | JPEG, PNG, BMP, TIFF |
 | Linux | — | none |
 
-Each list is short and conservative, and Fuji never goes past it. Windows gets JPEG and PNG because WIC's decoders for both have shipped in every version of Windows since XP and are its most exercised code. macOS gets the formats ImageIO has decoded in testing. A format off a column's list goes to the page whatever that machine might have been able to do, because Fuji does not probe for codecs: the routing table is a decision written down in the code, and a capability negotiation would give a different answer on every machine.
+Each list is conservative, and Fuji never goes past it. Windows gets the formats WIC decodes on a stock install, and none it reads only through an extension from the Microsoft Store, which a machine may not have, so WebP and AVIF go to the page there. macOS gets the formats ImageIO reads that a collection is likely to hold. GIF and SVG are on neither list, for the reasons above. A format off a column's list goes to the page whatever that machine might have been able to do, because Fuji does not probe for codecs: the routing table is a decision written down in the code, and a capability negotiation would give a different answer on every machine.
 
 The page route is the only one of the two that works on all three platforms, which is why it is the one that has to keep working.
 
-The formats Fuji opens at all are a shorter list than any of the decoders underneath it:
+Which formats Fuji opens at all, and the history of each, is the [File Types page](./file-types.html).
 
-```
-.jpg  .jpeg  .jpe  .jfif  .png  .gif  .bmp  .webp  .avif  .svg
-```
-
-The decoders underneath have far more range. ImageIO on a current Mac will decode some sixty types, including thirty-odd camera raw formats; WIC on a stock Windows install handles JPEG, PNG, GIF, BMP, TIFF, ICO, JPEG-XR and DDS, with WebP, AVIF and HEIC arriving as store extensions. Chromium's own decoders cover JPEG, PNG, GIF, WebP, BMP, ICO, AVIF and JPEG XL. The two platforms come out opposite. On macOS the native side is the more capable one and the web side adds only SVG; on Windows it is the other way round for the web-born formats, until the codec packs are installed.
+The decoders underneath have far more range than these lists. ImageIO on a current Mac will decode some sixty types, including thirty-odd camera raw formats; WIC on a stock Windows install handles JPEG, PNG, GIF, BMP, TIFF, ICO, JPEG-XR and DDS, with WebP, AVIF and HEIC arriving as store extensions. Chromium's own decoders cover JPEG, PNG, GIF, WebP, BMP, ICO, AVIF and JPEG XL. The two platforms come out opposite. On macOS the native side is the more capable one and the web side adds only SVG; on Windows it is the other way round for the web-born formats, until the codec packs are installed.
 
 ## The operating system's route
 
@@ -150,7 +146,7 @@ The clock is not the only difference. Both libraries perform a *scaled decode*: 
 
 ## The page's route
 
-For everything else, WebP, AVIF and BMP on Windows and everything on Linux, the page does it. The store reads the file through Rust, wraps the bytes in a blob, makes an object URL, points an element at it and decodes it. The flow then draws that element down into the canvas and releases it, so the store can drop the bytes, the URL and the full-size decode the moment the canvas has the pixels.
+For everything else, WebP and AVIF on Windows among it and everything on Linux, the page does it. The store reads the file through Rust, wraps the bytes in a blob, makes an object URL, points an element at it and decodes it. The flow then draws that element down into the canvas and releases it, so the store can drop the bytes, the URL and the full-size decode the moment the canvas has the pixels.
 
 On macOS nothing takes this route at all: every raster extension Fuji opens is on that platform's native list. Emptying that list is the only way to reach it on a Mac, and that is how the page route gets tested there.
 
@@ -362,7 +358,7 @@ Each of these is open.
 
 - **Reading ahead.** The rows reflow as a contact sheet fills, because Fuji learns a picture's size only when its thumbnail arrives. A later system may read the first bytes and headers of files well ahead of the view and keep what it learns, by path, in a database on disk, so a tile could hold its box before its pixels land. It can never delay the first thumbnail to do it.
 - **Animated WebP** is a still on the native route. Sending it to an `<img>` the way Fuji sends a GIF means knowing it is animated before its tile is chosen, which is a job for that reading ahead.
-- **A size ceiling on the page route.** The ceiling stands in front of the operating system's decoder, so the page route, all of Linux and BMP, WebP and AVIF on Windows, hands the engine the whole file as a light table does, and the engine's sandbox is what contains a picture claiming an impossible size.
+- **A size ceiling on the page route.** The ceiling stands in front of the operating system's decoder, so the page route, which takes every picture on Linux and WebP and AVIF on Windows, hands the engine the whole file as a light table does, and the engine's sandbox is what contains a picture claiming an impossible size.
 - **Tile position at a fractional scale**, which is where the Windows measurement above left the old `flowSnap` question. Sizing a canvas is settled and rounding is the right rule; what is not settled is placing a row on the backing grid, and that is a layout problem rather than a canvas one. It needs whoever next takes on how the contact sheet lays its rows out, and nothing about how a thumbnail is sized can substitute for it.
 - **A Display P3 file on a wide-gamut Windows panel.** The profile path works, per the measurement above, but *WIC* converts everything to sRGB because it has no wide-gamut context to draw into without a profile file. So a Display P3 photograph loses its out-of-gamut colors before the page ever sees the pixels, and the header reports sRGB. On an ordinary Windows screen nothing is lost; on a wide-gamut one this is the gap, and closing it means giving *WIC* a profile file to make that context from.
 - **A change of monitor.** Fuji never remakes a canvas when a window moves to a different screen, so the `devicePixelRatio` and the gamut it was made for both go stale until the contact sheet rebuilds.

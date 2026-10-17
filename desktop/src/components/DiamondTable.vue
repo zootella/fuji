@@ -347,16 +347,16 @@ async function showIndex(index) {//put the image at index on the card, and recor
 
 	modelStand(path)//the model keeps the path rather than the index, so a change of sort leaves the user on this picture
 	here = entry
-	cardShow(entry.error ? errorRef.value : entry.img)//the store's own element goes on the card rather than one of ours pointed at the same picture, which would pay the whole decode again
-	quiverA.natural = entry.error ? xy(64, 64) : xy(entry.img.naturalWidth, entry.img.naturalHeight); quiver()//position and size the card for the aspect ratio we are showing, and quiver updates the hud on its way out
+	cardShow(entry.error ? errorRef.value : entry.element)//the store's own element goes on the card rather than one of ours pointed at the same picture, which would pay the whole decode again
+	quiverA.natural = entry.error ? xy(64, 64) : entry.natural; quiver()//position and size the card for the aspect ratio we are showing, and quiver updates the hud on its way out
 	shownAt = performance.now()//the swap is done, and the next frame boundary is the paint
 }
 let showing = null//the element the card is showing right now, which is the store's and not ours
-function cardShow(img) {//the one place an image becomes visible
-	if (img.parentNode != cardRef.value) { img.className = 'myImage'; cardRef.value.insertBefore(img, cardRef.value.firstChild) }//adopted on first showing; the store takes it back out when it lets the image go. The class only styles this element because the rule for it is written with :deep(), as this element is not the template's
-	if (showing && showing != img) showing.style.display = 'none'
-	img.style.display = 'block'
-	showing = img
+function cardShow(element) {//the one place an image becomes visible: the store's img, its canvas for a picture the imaging library made, or the error img
+	if (element.parentNode != cardRef.value) { element.className = 'myImage'; cardRef.value.insertBefore(element, cardRef.value.firstChild) }//adopted on first showing; the store takes it back out when it lets the image go. The class only styles this element because the rule for it is written with :deep(), as this element is not the template's
+	if (showing && showing != element) showing.style.display = 'none'
+	element.style.display = 'block'
+	showing = element
 }
 
 //  _               _ 
@@ -387,13 +387,14 @@ function updateInformation() {//the information hud: the zoom, the card, what lo
 	if (!showHud3Ref.value) return//a hidden hud builds no string and touches no ref, so measuring with it off measures fuji rather than fuji plus a readout
 	let lines = []
 	if (here?.error) lines.push(`could not be shown: ${here.error}`)//the card is showing the error placeholder, so say what the decoder said; the caption lines below name the file
-	else if (here?.img && quiverC?.card2) {
+	else if (here?.element && quiverC?.card2) {
 		let f = cacheFootprint()//the store's running totals, free to read because they are kept rather than walked
 		let scale = quiverA.diamond / (quiverA.natural.x + quiverA.natural.y)//css pixels per picture pixel, the number every zoom sets; from quiver a, which is never rounded
+		let halves = here.native ? ['native', 'copy'] : ['disk', 'decode']//what a load's two durations were: a read then a decode, or the imaging library's one call that does both, then the copy of its pixels onto the canvas
 		lines.push(
 			`zoom ${sayRatio(scale)} css pixels per picture pixel, ${sayRatio(scale * window.devicePixelRatio)} backing`,//the second is the ratio the engine paints at, which is the same number here and twice it on a retina mac
 			`card ${sayDimensions(xy(+sayRatio(quiverC.card2.x), +sayRatio(quiverC.card2.y)))} css pixels`,//to three places, since a card snapped to the backing grid at 150 percent sits on a third of a css pixel
-			`load ${sayMs(here.loaded - here.requested)} disk + ${sayMs(here.rendered - here.loaded)} decode`,
+			`load ${sayMs(here.loaded - here.requested)} ${halves[0]} + ${sayMs(here.rendered - here.loaded)} ${halves[1]}`,
 			`flip ${sayMs(flipMs)}, ${flipFrames} frames: ${sayMs(storeMs)} store + ${sayMs(paintMs)} paint`,
 			`store ${f.count} pictures, ${saySize4(f.blobs)} of files + ${saySize4(f.pixels)} of pixels`,
 		)
@@ -408,7 +409,7 @@ function captionText() {//the caption's two lines: the picture's full path as th
 	let file = modelFile(here.path)//the listing's entry, with the modified time and the size; false for a picture outside the listed folder, which then shows its path and dimensions alone
 	let parts = []
 	if (file) parts.push(sayDay(file.mtime), saySize4(file.size))
-	if (here.img) parts.push(sayDimensions(xy(here.img.naturalWidth, here.img.naturalHeight)))//none for the error placeholder, whose dimensions are nobody's
+	if (here.element) parts.push(sayDimensions(here.natural))//none for the error placeholder, whose dimensions are nobody's
 	return `${backize(here.path)}\n${parts.filter(part => part).join(` ${middleDot} `)}`
 }
 function updateCaption() {//the caption below the card
@@ -476,7 +477,7 @@ let here = null//the store's entry for the image on the card, which is where the
 .myCard { outline: 1px solid var(--color-frame) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n */
 
 /*
-The image on the card is the store's own element: cache.js makes it with new Image() and cardShow adopts it into the card. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
+The image on the card is the store's own element: cache.js makes it, an img the engine decoded or a canvas painted from the imaging library's pixels, and cardShow adopts it into the card. Every rule here holds for both, the stretch to the card, the r key's nearest neighbor and the shell's gamma lens. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
 
 Without this the only rule landing on an adopted image was tailwind's own img{max-width:100%; height:auto}, which shrinks a picture to fit the card but will never enlarge one. The card kept sizing to the diamond in both directions while the picture stopped at its natural size, sitting at one to one in the card's top left corner with black around it, so the table could zoom out but not in.
 */

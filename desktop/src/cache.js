@@ -1,7 +1,9 @@
 import parse from 'path-browserify'
 import {diskRead} from './disk.js'
 import {governorRun} from './governor.js'
-import {fileTypes} from './fileTypes.js'
+import {fileTypes, fileTypesTable} from './fileTypes.js'
+import {thumbnailNatural, thumbnailUnpack} from './thumbnail.js'
+import {xy, platform} from './components/library.js'
 import {logLoad} from './log.js'//the log already records what a load cost; this is only reporting it, and a load nothing ever flipped to counts too
 
 /*
@@ -11,7 +13,9 @@ Three shapes came before this one and each failed the same way: intelligence in 
 
 What is left is worth one place precisely because it is not clever: a path's bytes, its object url, its decoded pixels, and what each of those cost.
 
-An entry holds two things over one file. The blob is raw material: any decode at any size, and a hash later. The img is the finished thing, and a table shows that element itself rather than pointing an element of its own at the same picture — because pointing a second element at the same source costs the whole decode again. The measurement that said otherwise was taken on elements nobody was painting, and the running app overruled it.
+An entry holds two things over one file. The blob is raw material: any decode at any size, and a hash later. The element is the finished thing, an img the engine decoded, and a table shows that element itself rather than pointing an element of its own at the same picture — because pointing a second element at the same source costs the whole decode again. The measurement that said otherwise was taken on elements nobody was painting, and the running app overruled it.
+
+Where the web engine cannot decode a kind and this platform's imaging library can, a TIFF on Windows or a Photoshop file on the Mac, the element is a canvas instead, painted once from the pixels the library hands back at the picture's own size, and a table shows it exactly as it shows an img. The library opens and reads the file itself, so such an entry has no blob and no url, and its pixels are the canvas's own bytes, which the engine cannot drop and rebuild the way it can an img's. Which of the two a path gets is not the store's decision: fileTypesTable in fileTypes.js answers it from the extension, as the same table answers the blob's type, and the store follows.
 
 The store owns the object url for as long as it owns the entry. library.js says why fuji avoided object urls until now — "URL.createObjectURL saves memory, but creates a resource that could leak" — and that is exactly right, so urls are made in one place here and revoked in one place, cacheFree, and no view touches either. Revoking the moment decode() resolves was tried and taken back out: a loaded element does go on displaying without its url, but an element the page is not showing can have its decoded frame dropped by the engine, and then showing it again has to rebuild from source. A revoked url leaves nothing cheap to rebuild through. Whether that is really happening here is what the store and paint halves of the flip on the hud are for; until they say, keeping the url costs one line in a function that already runs.
 
@@ -19,29 +23,33 @@ There is one store per window rather than one per fuji, which matters on macOS w
 
 No judgement about how much is too much lives here either. The store counts what it holds and will tell anyone who asks, but deciding that a number is alarming means knowing what the user is looking at, which is the same knowledge an eviction policy would need and the same reason it is not here. A view that wants to complain about its own footprint is the one with enough context to mean it.
 
-A need says which steps it wants. The read is always taken, and the decode is a step a caller can leave out with {decode: false}, getting back the bytes and the url alone. The sheet's GIF and SVG tiles do that: they hand the engine an img of their own, so a decode here would be the same work done twice, with the engine's option of doing it lazily taken away — and an SVG has nothing to decode at a size in the first place. The element is decoded only at natural size; a small one made from the same blob would be another step beside it rather than a second store.
+A need says which steps it wants. The read is always taken, and the decode is a step a caller can leave out with {decode: false}, getting back the bytes and the url alone. The sheet's GIF and SVG tiles do that: they hand the engine an img of their own, so a decode here would be the same work done twice, with the engine's option of doing it lazily taken away — and an SVG has nothing to decode at a size in the first place. The element is decoded only at natural size; a small one made from the same blob would be another step beside it rather than a second store. A picture the imaging library makes has no steps to choose between, since the library reads and decodes in one call, and every need for it waits on that.
 */
 
 const cacheEntries = new Map()//path to entry, and the only place fuji keeps images
 let cacheBlobBytes = 0//running totals rather than a walk, because the hud reads them from the pan path
 let cachePixelBytes = 0
+const cacheGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space a native picture's canvas is made in, asked of the screen exactly as flowGamut in TestFlow.vue asks it, whose comment says why the screen and not the engine; read once, and stale on a change of monitor as devicePixelRatio is
 
 export function cacheNeed(path, holder, steps = {}) {//take a reference and get the image; asking and holding are the same act, so nothing can be had without saying who wants it. steps lets a caller leave out work it has no use for: {decode: false} answers with the bytes and the url and never builds an element, for a view that hands the engine an img of its own
 	let entry = cacheEntries.get(path)
 	if (!entry) {
 		entry = {
 			path,
+			native: fileTypesTable(parse.extname(path).toLowerCase(), platform()) == 'native',//the imaging library makes this picture's element rather than the engine, as fileTypes.js answers from the extension; everything else is the engine's, an extension the table does not know included
 			blob: null,//the file's bytes, kept for a decode at another size or a hash later; nothing reads it yet, and it costs nothing, because the url below holds these bytes either way
 			url: '',//one object url over that blob, kept alive so re-showing the element is a rebuild from source rather than a full decode
-			img: null,//the decoded element, which is the thing a table puts on screen; null for as long as nobody has asked for one
+			element: null,//the finished thing a table puts on screen, an img the engine decoded or a canvas painted from the library's pixels; null for as long as nobody has asked for one
+			natural: null,//the picture's own size as it shows, in image pixels, once the element has it
 			blobBytes: 0, pixelBytes: 0,//counted on the entry so dropping it can subtract exactly what it added
 			references: new Map(),//holder name to how many times that holder has asked
-			requested: performance.now(), loaded: 0, rendered: 0,//two durations: getting the bytes, then decoding them. performance.now everywhere, because these are intervals and it cannot jump the way a wall clock can
+			requested: performance.now(), loaded: 0, rendered: 0,//two durations: getting the bytes, then decoding them, or for a native picture the library's whole answer, then the copy onto the canvas. performance.now everywhere, because these are intervals and it cannot jump the way a wall clock can
 			error: null,
-			reading: null, decoding: null,//the two steps as promises, each made once and shared by everyone who arrives while it runs, which is bookkeeping rather than judgement; decoding stays null until the first caller asks for an element
+			reading: null, decoding: null,//the two steps as promises, each made once and shared by everyone who arrives while it runs, which is bookkeeping rather than judgement; decoding stays null until the first caller asks for an element, except for a native picture, whose one step is both
 		}
 		cacheEntries.set(path, entry)
-		entry.reading = cacheRead(entry)
+		if (entry.native) entry.reading = entry.decoding = cacheNative(entry)//one step: the library opens and reads the file itself, so there are no bytes here to read first, and nothing a need could leave out
+		else entry.reading = cacheRead(entry)
 	}
 	entry.references.set(holder, (entry.references.get(holder) || 0) + 1)
 
@@ -89,12 +97,13 @@ async function cacheDecode(entry) {//decode the bytes into an element, once the 
 	await entry.reading
 	if (!entry.url) return entry//the read failed, or the entry was released before it finished; either way there is nothing to decode, and the read has already reported
 	try {
-		entry.img = new Image()
-		entry.img.src = entry.url
-		await entry.img.decode()//throws on data an image decoder cannot use
-		if (entry.img) {//still ours: a release landing during the decode has already run cacheFree, which empties the entry, and measuring what it no longer holds would record a good file as a broken one
+		entry.element = new Image()
+		entry.element.src = entry.url
+		await entry.element.decode()//throws on data an image decoder cannot use
+		if (entry.element) {//still ours: a release landing during the decode has already run cacheFree, which empties the entry, and measuring what it no longer holds would record a good file as a broken one
 			entry.rendered = performance.now()
-			entry.pixelBytes = entry.img.naturalWidth * entry.img.naturalHeight * 4//an estimate, and known to be low: a decoder may pad rows or keep a copy on the gpu
+			entry.natural = xy(entry.element.naturalWidth, entry.element.naturalHeight)
+			entry.pixelBytes = entry.natural.x * entry.natural.y * 4//an estimate, and known to be low: a decoder may pad rows or keep a copy on the gpu
 			cachePixelBytes += entry.pixelBytes
 		}
 	} catch (error) {
@@ -105,8 +114,39 @@ async function cacheDecode(entry) {//decode the bytes into an element, once the 
 	return entry
 }
 
+/*
+A canvas has a ceiling an img does not. Chromium and WebKit are both understood to refuse a canvas larger than about 268 million pixels, 16,384 squared, a figure remembered from their sources rather than measured here, while the engine's own img shows a picture of any size. A picture past it, an A3 page scanned at 1200 dpi and opened on Windows, say, at about 280 million pixels, passes the memory wall in thumbnail.rs, is decoded whole, crosses to the page as more than a gigabyte, and only then fails at the canvas, as the error card or perhaps as a blank one. fuji sets no limit of its own on how large a picture may be, the case is very rare, and it costs time rather than safety, so nothing here guards against it. If it is ever met, the answer is the page telling Rust its ceiling so the library refuses before it decodes, or asking for the largest picture a canvas holds and giving up one to one beyond it.
+*/
+async function cacheNative(entry) {//the picture at its own size from the operating system's imaging library, painted once onto a canvas that stands where the engine's img would, recording what that cost: loaded when the library's whole answer, the read and the decode together, has crossed, and rendered when the copy onto the canvas is done
+	try {
+		let buffer = await governorRun('rust computation', () => thumbnailNatural({path: entry.path, gamut: cacheGamut}))//in the line every decode on a Rust thread shares, the sheet's thumbnails among them; the time it waits there is part of what loaded measures
+		entry.loaded = performance.now()
+		if (cacheEntries.get(entry.path) == entry) {//still wanted, so worth the copy; a release while the library worked is handled below
+			let {width, height, gamut, naturalWidth, naturalHeight, pixels} = thumbnailUnpack(buffer)
+			let canvas = document.createElement('canvas')
+			canvas.width = width; canvas.height = height//the picture's own pixels, since the library was asked for its own size
+			canvas.getContext('2d', {colorSpace: cacheGamut}).putImageData(new ImageData(pixels, width, height, {colorSpace: gamut}), 0, 0)//the copy, on the main thread, which the render column of the log times; tagged with what the pixels are, so windows' srgb is right on a wide-gamut canvas
+			entry.element = canvas
+			entry.rendered = performance.now()
+			entry.natural = xy(naturalWidth, naturalHeight)
+			entry.pixelBytes = width * height * 4//exact, since a canvas holds just the bytes it was sized to
+			cachePixelBytes += entry.pixelBytes
+		}
+	} catch (error) {
+		entry.error = error//remembered like a failed decode, and the library's words say why: a file it will not open, a size it will not give, or one past the memory wall in thumbnail.rs
+	}
+	if (cacheEntries.get(entry.path) != entry) { logLoad(entry, 'released while loading'); cacheFree(entry) }//released while the library worked
+	else logLoad(entry, 'native')
+	return entry
+}
+
 function cacheFree(entry) {//the only place the store lets go, and the only place it subtracts from the totals
-	if (entry.img) { entry.img.remove(); entry.img.src = ''; entry.img = null }//out of whatever card was showing it, then emptied so the engine can take the pixels back
+	if (entry.element) {//out of whatever card was showing it, then emptied so the engine can take the pixels back
+		entry.element.remove()
+		if (entry.native) { entry.element.width = 0; entry.element.height = 0 }//a canvas gives its bytes back by being sized to nothing
+		else entry.element.src = ''//and an img by losing its source
+		entry.element = null
+	}
 	if (entry.url) { URL.revokeObjectURL(entry.url); entry.url = '' }//the only place fuji revokes a url, after the element that used it has let go
 	entry.blob = null
 	cacheBlobBytes -= entry.blobBytes; entry.blobBytes = 0

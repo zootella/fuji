@@ -53,7 +53,7 @@ export function log(text) {//one line, handed to rust when things go quiet
 	logLater()
 }
 
-export function logLoad(entry, note) {//one completed load, however it turned out. The store says in the note which kind: blank for a read and decode together, bytes only for a read nobody asked to decode, decoded later for a decode that followed such a read (its disk column repeats that row's, being the same read), or released while loading
+export function logLoad(entry, note) {//one completed load, however it turned out. The store says in the note which kind: blank for a read and decode together, bytes only for a read nobody asked to decode, decoded later for a decode that followed such a read (its disk column repeats that row's, being the same read), native for a picture the imaging library made (its disk column is the library's whole answer, read and decode together, and its render column the copy onto the canvas), or released while loading
 	if (!logRecording) return
 	if (entry.error && note != 'released while loading') note = String(entry.error)//a file that would not read or decode; a release mid-decode aborts the decode, which looks like an error and is not one
 	log(sayRow({
@@ -62,7 +62,7 @@ export function logLoad(entry, note) {//one completed load, however it turned ou
 		disk: entry.loaded ? Math.round(entry.loaded - entry.requested) : 0,//whole milliseconds: performance.now is fractional, and the fraction is noise in a column meant to be read down
 		render: entry.rendered ? Math.round(entry.rendered - entry.loaded) : 0,
 		bytes: entry.blobBytes,
-		natural: entry.img ? `${entry.img.naturalWidth}x${entry.img.naturalHeight}` : '',
+		natural: entry.natural ? `${entry.natural.x}x${entry.natural.y}` : '',
 		note,
 	}))
 }
