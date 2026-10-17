@@ -45,7 +45,7 @@ function tileFor(file) {//the kind of tile a file gets on this platform, from it
 	let path = file.path
 	let entry = fileTypesEnabled[file.extension]//lowercased by the listing
 	let native = entry?.render.includes(fileTypesLibrary[flowPlatform])//the operating system's imaging library draws it here, imageio on the mac and wic on windows, and nothing on linux, whose tag is blank and matches no entry
-	let web = entry?.render.includes(fileTypesEngine[flowPlatform])//the web engine draws it here in an img
+	let web = entry?.render.includes(fileTypesEngine[flowPlatform])//the web engine draws it here in an img. The same tag on a video means its video tag, which never reaches this question, since the listing keeps pictures alone
 	let kind = 'refused'//nothing on this platform can draw it, which flowFill counts with the files that fail
 	if (web && entry.contactSheet == 'img') kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
 	else if (native) kind = 'native'//a canvas the operating system fills, preferred wherever it can
