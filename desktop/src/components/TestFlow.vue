@@ -8,10 +8,10 @@ import {fitSize} from '../fit.js'
 import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logBucket} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
 import {xy, platform, sayDay, sayDimensions, saySize4, middleDot, backize} from './library.js'
-import {fileTypesEnabled} from '../fileTypes.js'
+import {fileTypesEnabled, fileTypesEngine, fileTypesLibrary} from '../fileTypes.js'
 
 /*
-The one flow, and the whole of how a file becomes a tile. A bucket hands this its files, the listing's entries, which carry the name, the size and the modified time the caption reads. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw is left out, counted in the bucket's caption. A canvas gets its pixels one of two ways. A file whose entry lists this platform under imageNative goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
+The one flow, and the whole of how a file becomes a tile. A bucket hands this its files, the listing's entries, which carry the name, the size and the modified time the caption reads. The extension's entry in fileTypes.js says what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw is left out, counted in the bucket's caption. A canvas gets its pixels one of two ways. A file whose entry carries this platform's imaging library among its render tags goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.
 
 Every tile is sized the same way whatever its route: from the picture's own size, by the fit thumbnail.fit names, which the settings panel sets, through flowFit and fit.js. A page tile has that size once its decode resolves, an img tile once the engine has loaded it, and a native tile from Rust, which sends it back beside the pixels after running the same fit to choose how large to render. The flow itself is wrap, which places tiles left to right like words, and its name names no fit, since the fit is the user's to choose.
 
@@ -27,7 +27,7 @@ const flowBeam = settingsThumbnailBeam()//the length every thumbnail is measured
 const flowFitName = settings.thumbnail.fit//how every tile is sized against the beam, one of fitNames in fit.js; read once like the beam
 const flowScreen = xy(screen.width, screen.height)//the screen's size in css pixels, which ScaleFit and LogFit measure against; read once, and stale on a change of monitor exactly as devicePixelRatio is
 const flowGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space every canvas is made in, read once like the beam. A canvas is sRGB unless asked, and drawing a Display P3 photograph into an sRGB canvas clamps its most saturated colors away for good, so the thumbnail would come out duller than a table shows the same file. Asking the screen what it can show, rather than asking the engine whether it knows the name, is what keeps this from being a feature check: webkitgtk has no display-p3 value and throws when handed one, and is never handed one, because the query is always false there. Stale on a change of monitor, exactly as devicePixelRatio is
-const flowPlatform = platform()//mac, windows or linux, read once, which is how this flow reads each type's imageNative and imageWeb lists in fileTypes.js
+const flowPlatform = platform()//mac, windows or linux, read once, which picks the two render tags this flow looks for in each type's entry in fileTypes.js, the platform's imaging library and its web engine
 
 const props = defineProps({
 	files: {type: Array, required: true},//the listing's entries, in the pager's order, and never from two folders
@@ -44,8 +44,8 @@ let flowRefused = 0
 function tileFor(file) {//the kind of tile a file gets on this platform, from its extension alone
 	let path = file.path
 	let entry = fileTypesEnabled[file.extension]//lowercased by the listing
-	let native = entry?.imageNative.includes(flowPlatform)
-	let web = entry?.imageWeb.includes(flowPlatform)
+	let native = entry?.render.includes(fileTypesLibrary[flowPlatform])//the operating system's imaging library draws it here, imageio on the mac and wic on windows, and nothing on linux, whose tag is blank and matches no entry
+	let web = entry?.render.includes(fileTypesEngine[flowPlatform])//the web engine draws it here in an img
 	let kind = 'refused'//nothing on this platform can draw it, which flowFill counts with the files that fail
 	if (web && entry.contactSheet == 'img') kind = 'img'//an img wins, so a GIF animates and an SVG stays vector even where the operating system could make a still of it
 	else if (native) kind = 'native'//a canvas the operating system fills, preferred wherever it can

@@ -15,9 +15,9 @@ import {diskRead, diskReadDir, diskPeek} from '../disk.js'//our rust modules
 import {findFolders} from '../find.js'
 import {panelResolution} from '../panel.js'
 import {brandName} from '../brand.js'
-import {fileTypesEnabled} from '../fileTypes.js'
+import {fileTypesEnabled, fileTypesRender} from '../fileTypes.js'
 
-const fileTypesListed = Object.fromEntries(Object.entries(fileTypesEnabled).filter(([extension, entry]) => [...entry.imageNative, ...entry.imageWeb].includes(platform())))//the entries the image parts take on this platform: an enabled one whose imageNative or imageWeb names it. Every listing and count below keeps these and nothing else, so a sound or a video, whose image lists are empty, never reaches the sheet or the table, and the shell hands it to the player instead; fileTypes.js says why a list is an instruction
+const fileTypesListed = Object.fromEntries(Object.entries(fileTypesEnabled).filter(([extension, entry]) => entry.kind == 'image' && fileTypesRender(entry, platform()).length > 0))//the entries the image parts take on this platform: an enabled picture with a road here, its imaging library or its web engine, by the roads fileTypes.js keeps. Every listing and count below keeps these and nothing else, so a sound or a video never reaches the sheet or the table, and the shell hands it to the player instead; the kind is asked first, since a video's one road is the player's
 
 //promises
 

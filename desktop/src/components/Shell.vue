@@ -13,7 +13,7 @@ import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs
 import {uptimeProcess} from '../uptime.js'//how long the launch took, for the log's line at the first frame
 import {memoryReport} from '../memory.js'//what fuji's processes take at rest, for the log's line a moment after it
 import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
-import {fileTypes} from '../fileTypes.js'//to tell a sound or a video handed over at launch from a picture, by its extension
+import {fileTypes, fileTypesRender} from '../fileTypes.js'//to tell a sound or a video handed over at launch from a picture, by its extension
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
@@ -223,9 +223,9 @@ async function facesShow() {//put the page's text in the fonts the settings name
 
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
-function mediaPlays(path) {//whether this is a sound or a video libmpv plays on this platform, by the type table's kind and its two native lists; kind first, since a picture only FFmpeg decodes names libmpv under videoNative for a still frame, never for the player
+function mediaPlays(path) {//whether this is a sound or a video libmpv plays on this platform, by the type table's kind and its render tags through the roads fileTypes.js keeps; kind first, since a picture FFmpeg decodes carries mpv for a still frame, never for the player
 	const type = fileTypes[path.slice(path.lastIndexOf('.')).toLowerCase()]
-	return !!type && (type.kind == 'video' || type.kind == 'audio') && [...(type.audioNative || []), ...(type.videoNative || [])].includes(platform())
+	return !!type && (type.kind == 'video' || type.kind == 'audio') && fileTypesRender(type, platform()).length > 0
 }
 
 async function viewOpen(path) {//a picture dropped on the window, for the view on screen to show; optional, because a view answers only the calls it has a use for
