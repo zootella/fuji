@@ -1,6 +1,6 @@
 //the scout's command: the tip of one file by its path, and the second slice when the tip asks for one, read in fuji's own process and handed to the scout, fuji's own reader of a file's first bytes in safe rust, a crate of its own in the scout folder at the repository root, where its essay says what it answers and what it promises
 
-/// What the first bytes of this file say: its format and medium, the size a picture or a video shows at, the running time of a sound or a video, and the rest of the fields scout_bytes answers. The tip is the first 64 KiB, and when the tip says where the rest of its answer lies, one more 64 KiB slice at the offset it names, which is the last read, never a third. An error for a path that is not a regular file, since opening a FIFO waits for a writer, and for a file that cannot be opened or read
+/// What the first bytes of this file say: its format and medium, the stored size of a picture or a video and the shape it shows at, the running time of a sound or a video, whether the file is corrupted or chopped, and the rest of the fields scout_bytes answers, with the scout's report on its own reading beside them. The tip is the first 64 KiB, and when the tip says where the rest of its answer lies, one more 64 KiB slice at the offset it names, which is the last read, never a third. An error for a path that is not a regular file, since opening a FIFO waits for a writer, and for a file that cannot be opened or read
 #[tauri::command]
 pub async fn scout_tip(path: String) -> Result<::scout::Tip, String> {//::scout is the crate, where a bare scout could be read as this module
 	crate::run_blocking(move || {
@@ -10,14 +10,14 @@ pub async fn scout_tip(path: String) -> Result<::scout::Tip, String> {//::scout 
 		let mut tip = vec![0u8; ::scout::TIP_BYTES];//the allocations, this and the slice's below, are sized by the crate's constant and never by anything in the file
 		let got = read_into(&mut file, &mut tip).map_err(|e| format!("scout: {path}: {e}"))?;
 		tip.truncate(got);
-		let mut t = ::scout::scout_bytes(&tip, meta.len());
-		if t.slice > 0 {//the reader asks for the second slice: the same read again at the offset the answer names, and the reader over both; whatever the second answer asks for, this was the last read
+		let (mut t, wish) = ::scout::scout_bytes(&tip, meta.len());
+		if let Some(at) = wish {//the reader asks for the second slice: the same read again at the offset that came back beside the answer, and the reader over both, which is the last read and answers alone
 			use std::io::Seek;
-			file.seek(std::io::SeekFrom::Start(t.slice)).map_err(|e| format!("scout: {path}: {e}"))?;
+			file.seek(std::io::SeekFrom::Start(at)).map_err(|e| format!("scout: {path}: {e}"))?;
 			let mut slice = vec![0u8; ::scout::TIP_BYTES];
 			let got = read_into(&mut file, &mut slice).map_err(|e| format!("scout: {path}: {e}"))?;
 			slice.truncate(got);
-			t = ::scout::scout_slices(&tip, &slice, t.slice, meta.len());
+			t = ::scout::scout_slices(&tip, &slice, at, meta.len());
 		}
 		Ok(t)
 	}).await
