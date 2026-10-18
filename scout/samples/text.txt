@@ -1,0 +1,2 @@
+A plain text file for the scanner, with a line of Japanese, 日本語のテキスト, and a tab	here.
+Second line.

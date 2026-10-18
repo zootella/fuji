@@ -14,13 +14,14 @@ Made with
 
 ### Workspaces
 
-This repository is a pnpm monorepo: the application, the website, the Linux packaging, and the Mac release through Apple. The planning documents stay at the root.
+This repository is a pnpm monorepo: the application, the website, the Linux packaging, the Mac release through Apple, and the scout, a Rust crate the application depends on. The planning documents stay at the root.
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri
 ./site              the website and documentation, made with VitePress
 ./linux             Fuji's Linux packages, built on a Mac through Docker
 ./apple             the Mac release, signed with a Developer ID and notarized by Apple
+./scout             Fuji's own reader of a file's first bytes, a Rust crate
 ```
 
 ### Scripts
@@ -54,6 +55,10 @@ $ pnpm upload       send what is staged to the production server
 
 $ cd apple
 $ pnpm waiting-room build, notarize, hash and upload the Mac release, a key each
+
+$ cd scout
+$ pnpm test         run the scout's tests against its sample files
+$ pnpm fuzz         run libFuzzer on the scout, seeded from the samples, until stopped
 ```
 
 Common flows through the desktop commands include:
@@ -78,6 +83,10 @@ And through the Linux commands:
 And through the Apple waiting room, a key each:
 
 - **b / n / h / u / commit & push** — build, notarize, hash and upload the Mac release, then commit. `./apple/README.md` is the guide, setting up a Mac included.
+
+The scout is the one workspace that is Rust rather than JavaScript: a crate of its own, which the application depends on by path and nothing publishes, and its two commands are cargo's. Through them:
+
+- **test / fuzz** — run its tests against its sample files, then let libFuzzer try millions of mutated files on it. `./scout/README.md` is the guide.
 
 `pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI. `icon.md` explains why that second case is easy to forget.
 

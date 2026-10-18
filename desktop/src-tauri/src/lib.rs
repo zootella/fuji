@@ -41,6 +41,7 @@ mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
 mod process;//and process.rs: other programs, handed a file or an address the way a double-click would
 mod registry;//and registry.rs: the windows registry, read and written for the page
+mod scout;//and scout.rs: the command for the scout, fuji's own reader of a file's first bytes, the crate of that name at the repository root, which says what the bytes are and what the common formats keep in their header; and the home of the hashing to come
 mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path at a time
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
 mod uptime;//and uptime.rs: how long this process has been running, since the operating system started it and since main began
@@ -107,6 +108,7 @@ pub fn run() {
 				registry::registry_delete,
 				registry::registry_notify,
 				registry::registry_opens,
+				scout::scout_tip,//and in scout.rs
 				touch::touch_block,//and in touch.rs
 				uptime::uptime_process,//and in uptime.rs
 				menu::menu_text,//and in menu.rs, or its stand-in off the mac

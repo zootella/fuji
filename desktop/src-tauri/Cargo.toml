@@ -24,6 +24,7 @@ open = { version = "5", features = ["shellexecute-on-windows"] } # opens a file 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 display-info = "0.5"
+scout = { path = "../../scout" } # fuji's own reader of a file's first bytes, a crate of its own in the scout folder at the repository root, where it is tested and fuzzed alone; scout.rs is its command
 zootella-ergo = "0.1" # small helpers that give the same answers in rust as on the page, from the ergo project; its one dependency, getrandom, is already in tauri's tree
 
 [target.'cfg(target_os = "windows")'.dependencies]

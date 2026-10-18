@@ -1,0 +1,10 @@
+# The scout, fuji's own reader of a file's first bytes in safe Rust, as a crate of its own: it builds, tests and fuzzes here with nothing of fuji around it, and fuji's Rust depends on it by path. Never published
+
+[package]
+name = "scout"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] } # the answer derives Serialize, for the command in fuji that hands it to the page

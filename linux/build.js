@@ -78,7 +78,7 @@ const images = {
 }
 
 //what goes into a container, said positively. desktop/ is copied whole except for the names below, which are all things a build makes rather than things a build needs
-const whitelist = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'desktop']
+const whitelist = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'desktop', 'scout']//scout because fuji's rust depends on it by path
 const leaveBehind = ['node_modules', 'target', 'dist', 'release', '.DS_Store']
 
 function run(args, options = {}) {//one place that shells out, so every docker invocation looks the same

@@ -1,0 +1,23 @@
+# The fuzz crate, which cargo-fuzz runs: libFuzzer feeding the scout millions of mutated inputs and reporting any panic. pnpm fuzz in the scout folder runs it; it needs the nightly toolchain and cargo-fuzz, which rustup and cargo install
+
+[package]
+name = "scout-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+scout = { path = ".." }
+
+[[bin]]
+name = "scout"
+path = "fuzz_targets/scout.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

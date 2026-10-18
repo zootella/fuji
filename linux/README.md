@@ -53,9 +53,10 @@ linux/.stage/package.json
 linux/.stage/pnpm-workspace.yaml
 linux/.stage/pnpm-lock.yaml
 linux/.stage/desktop/
+linux/.stage/scout/
 ```
 
-Nothing else. Not `.git`, not the root `.env`, not `node_modules`, not `src-tauri/target`. That comes to about 2 MB against 15 GB for the real `desktop/` folder. The list is stated positively — a whitelist, not a set of exclusions — because a whitelist fails closed, and the thing it must never let through is the `.env` holding the deploy credentials.
+`scout` is there because fuji's Rust depends on it by path. Nothing else. Not `.git`, not the root `.env`, not `node_modules`, not `src-tauri/target`. That comes to about 2 MB against 15 GB for the real `desktop/` folder. The list is stated positively — a whitelist, not a set of exclusions — because a whitelist fails closed, and the thing it must never let through is the `.env` holding the deploy credentials.
 
 `.stage` is wiped and rebuilt by every run, and it is mounted **read-only** into the container, so a build can never write back into your working tree.
 
