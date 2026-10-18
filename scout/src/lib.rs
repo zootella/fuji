@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::cell::Cell;
 
 /*
-Scout: fuji's own reader of the first bytes of a file, a crate of its own so it builds, tests and fuzzes with nothing of fuji around it. Given the tip of a file, its first 64 KiB or the whole of a smaller one, and the file's size, scout_bytes says what the bytes are and what the common formats keep in their first bytes: the kind of medium, the stored size of a picture or a video and the shape it shows at, both with a phone's quarter turn applied, the running time of a sound or a video, whether a picture is animated, whether the file breaks its format's rules or ends before the part its structure points to, and, for every file, whether its bytes read as text or as binary. When the tip shows where the rest of an answer lies, scout_bytes hands back the offset of one more slice, 64 KiB there, beside its answer, and scout_slices answers again from both. It reads no frame, no pixel and no sample. The file's name and fuji's table of types play no part: the bytes name themselves, which is also why no name can steer the reader.
+Scout: fuji's own reader of the first bytes of a file, a crate of its own so it builds, tests and fuzzes with nothing of fuji around it. Given the tip of a file, its first 64 KiB or the whole of a smaller one, and the file's size, scout_bytes says what the bytes are and what the common formats keep in their first bytes: the kind of medium, the stored size of a picture or a video and the size to show it at, both with a phone's quarter turn applied, the running time of a sound or a video, whether a picture is animated, whether the file breaks its format's rules or ends before the part its structure points to, and, for every file, whether its bytes read as text or as binary. When the tip shows where the rest of an answer lies, scout_bytes hands back the offset of one more slice, 64 KiB there, beside its answer, and scout_slices answers again from both. It reads no frame, no pixel and no sample. The file's name and fuji's table of types play no part: the bytes name themselves, which is also why no name can steer the reader.
 
 Why fuji writes this itself. Every parser that reads a collection's files reads bytes nobody vouched for, and the history fuji's security page tells is of decoders written in C and C++ made to run code by a file: GDI+'s JPEG, the Windows Metafile engine, ImageIO's JBIG2, libwebp, GStreamer's music decoders, FFmpeg's MagicYUV. A scan asks a question of every file on a drive, so it reaches more hostile files than any click, and the code it runs on them has to be code a file cannot subvert. Safe Rust is that code: the compiler refuses a read or a write outside the memory the program owns, which is the whole class of mistake those exploits were, and the first line of this file forbids unsafe code, so the compiler holds that promise for every line below.
 
@@ -45,17 +45,19 @@ pub struct Tip {//what the first bytes of a file say: what the file holds at the
 	pub medium: &'static str,//image, video or audio; blank for a format that is none of the three, and for a container whose streams the reader did not reach
 	pub text: bool,//the scout is very certain the tip is characters, judged from the counts in the reading alone and apart from every format's reader and signature, so a text file that opens with a signature's letters answers its format and this both; text_verdict says the rule
 	pub binary: bool,//the scout is very certain the tip is not characters: it holds a zero byte and opens with no byte order mark. Never true with text, and false beside it for an empty file
-	pub raster: Size,//the stored pixel count of a picture or a video, 0 when the tip does not say, with its turn already applied; for MP4 and MOV the track header's shown size, which is the stored count for square pixels
-	pub aspect: Size,//the shape the picture shows at as the file writes it, 4 and 3 in one format and 853 and 480 in another, so a caller uses it only in arithmetic and never as a size: a copy of raster when the file gives no shape, which is every file today, and turned with it
+	pub raster: Size,//the stored pixel count of a picture or a video, 0 when the tip does not say, with its turn already applied
+	pub aspect: Size,//the size to show a picture or a video at, in square pixels: raster grown on one side where a header the scout reads says the pixels are not square, so a DVD stored at 720 by 480 and flagged 16:9 answers 853 by 480, the same as raster everywhere else, and turned with it; at full size, mpv, fuji's player, draws the file at this size
 	pub orientation: u32,//the turn or flip the file asks for, in EXIF's numbering, 1 for none through 8, as a finding only: raster and aspect already have it applied, so a caller uses them as they are and never turns them again, which would swap them back. It says the file is one an older program, which ignores the instruction, would show turned
 	pub seconds: f64,//the running time of a sound or a video; 0 when the tip does not say, and an estimate where the comment on the reader says so
 	pub animated: bool,//true when the format's own flag says the picture is animated; false where it says still, and where the reader could not look
 	pub corrupted: bool,//the reader found a format, then found the file breaking that format's rules where it needed them; a broken part it steps past without needing, a JPEG's EXIF or an AVI's OpenDML header, costs only what it held and is not reported
 	pub chopped: bool,//the reader found a format, then found the file's end cut off: a length or an offset points past the end, or the file ends inside the structure it was walking. It can come with a finished reading, as for a WAV whose data chunk claims more than the file holds. False on this and on corrupted says no such evidence was seen, and never that the file is good
 	pub reading: Reading,//how the reading went, apart from what the file holds
+	#[serde(skip)]
+	pixel: (u64, u64),//the shape of one stored pixel as the file states it, width to height and unturned, which a reader records and sizes makes aspect from; 0 on either side when the file states none, which counts as square. Kept out of the answer, which says it as aspect
 }
 #[derive(Serialize, Debug, PartialEq, Clone, Copy)]
-pub struct Size { pub width: u32, pub height: u32 }//a width and a height: pixels in raster, and whatever the file wrote in aspect; 0 and 0 when the file did not say
+pub struct Size { pub width: u32, pub height: u32 }//a width and a height in pixels: as stored in raster, and square in aspect; 0 and 0 when the file did not say
 #[derive(Serialize, Debug, PartialEq)]
 pub struct Reading {//the scout's report on its own reading
 	pub parsed: bool,//the scout has a reader for this format and ran it past the signature; false for a format it names by its signature alone, for bytes it does not recognize, and for an empty file. Says nothing about trouble: a JPEG cut off at 100 bytes is parsed, with trouble
@@ -85,7 +87,7 @@ fn scout(tip: &[u8], second: Option<(u64, &[u8])>, size: u64) -> (Tip, Option<u6
 	let counts = text_counts(tip);
 	let (text, binary) = text_verdict(tip, &counts);
 	let none = Size { width: 0, height: 0 };
-	let mut t = Tip { format: "", medium: "", text, binary, raster: none, aspect: none, orientation: 1, seconds: 0.0, animated: false, corrupted: false, chopped: false, reading: Reading { parsed: false, trouble: false, details: "", reads: if second.is_some() { 2 } else { 1 }, depth: 0, counts } };
+	let mut t = Tip { format: "", medium: "", text, binary, raster: none, aspect: none, orientation: 1, seconds: 0.0, animated: false, corrupted: false, chopped: false, reading: Reading { parsed: false, trouble: false, details: "", reads: if second.is_some() { 2 } else { 1 }, depth: 0, counts }, pixel: (0, 0) };
 	let mut wish = None;
 	if tip.is_empty() { t.reading.details = "empty" }
 	else {
@@ -105,17 +107,25 @@ fn scout(tip: &[u8], second: Option<(u64, &[u8])>, size: u64) -> (Tip, Option<u6
 			}
 		}
 	}
-	turn(&mut t);
+	sizes(&mut t);
 	t.reading.depth = u32::try_from(b.depth.get()).unwrap_or(u32::MAX);//exact, since the tip is at most 64 KiB
 	(t, wish)
 }
 
-fn turn(t: &mut Tip) {//the one step that turns what the readers recorded as stored: the shape copies the stored size when the file gave none, and then both swap their sides together when the orientation turns the picture a quarter turn, EXIF's 5 through 8, the same four values thumbnail.rs swaps for, so the two can never disagree about the turn
-	if t.aspect.width == 0 || t.aspect.height == 0 { t.aspect = t.raster }
+fn sizes(t: &mut Tip) {//the one step that makes the answer's two sizes from what the readers recorded, stored and unturned: aspect is raster grown by the pixel's shape, and then both swap their sides together when the orientation turns the picture a quarter turn, EXIF's 5 through 8, the same four values thumbnail.rs swaps for, so the two can never disagree about the turn
+	t.aspect = grow(t.raster, t.pixel);
 	if (5..=8).contains(&t.orientation) {
 		t.raster = Size { width: t.raster.height, height: t.raster.width };
 		t.aspect = Size { width: t.aspect.height, height: t.aspect.width };
 	}
+}
+
+fn grow(stored: Size, pixel: (u64, u64)) -> Size {//the size to show stored pixels of this shape at, by mpv's rule in mp_image_params_get_dsize: the side the pixel is long on grows by its shape, so neither side shrinks below the stored count, in whole numbers with the fraction dropped, which keeps the answer to the pixel of what fuji's player draws at full size. A shape the file did not state, a square one, or one that would grow a side past what the answer holds leaves the size as stored
+	let (across, down) = pixel;
+	let scale = |side: u32, long: u64, short: u64| -> Option<u32> { u32::try_from(u128::from(side).checked_mul(u128::from(long))?.checked_div(u128::from(short))?).ok() };
+	if across > down && down > 0 { if let Some(width) = scale(stored.width, across, down) { return Size { width, height: stored.height } } }
+	if down > across && across > 0 { if let Some(height) = scale(stored.height, down, across) { return Size { width: stored.width, height } } }
+	stored
 }
 
 fn read_format(b: &Bytes, size: u64, t: &mut Tip) -> Option<Step<()>> {//the format the first bytes announce, and that format's reader run on them: none when no signature matches, and otherwise the reader's own step, which is Ok when it finished and a stop when it did not. A signature is checked where its format puts it, most at the first byte; the order matters only where two could match, and none here do
@@ -466,7 +476,7 @@ fn riff_list(b: &Bytes, from: usize, end: usize, kind: &[u8; 4]) -> Step<(usize,
 	Err(Stop::Limit("more lists than the walk allows"))
 }
 
-fn avi(b: &Bytes, t: &mut Tip) -> Step<()> {//the main header is the first chunk of the header list: the time a frame lasts in microseconds, the frame count, and the size, at fixed offsets. A file past a gigabyte continues in further RIFF chunks, and its whole frame count is in an OpenDML header in the same list, taken when it is there
+fn avi(b: &Bytes, t: &mut Tip) -> Step<()> {//the main header is the first chunk of the header list: the time a frame lasts in microseconds, the frame count, and the size, at fixed offsets. A file past a gigabyte continues in further RIFF chunks, and its whole frame count is in an OpenDML header in the same list, taken when it is there. The pixel's shape is not read: AVI's place for it, the OpenDML video properties chunk, is one few writers fill in, and the shape an AVI carries is usually inside its codec's own stream
 	t.format = "avi"; t.medium = VIDEO;
 	let (from, end) = riff_list(b, 12, usize::MAX, b"hdrl")?;
 	let (main, _) = riff_chunk(b, from, end, b"avih")?;
@@ -548,7 +558,7 @@ fn iso_brand(b: &Bytes, data: usize, t: &mut Tip) -> Step<()> {//the file's majo
 	Ok(())
 }
 
-fn iso_moov(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the movie box: the movie header with the running time, and a box per track with its size and the matrix that turns it
+fn iso_moov(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the movie box: the movie header with the running time, and a box per track with the handler that says what the track is, the matrix that turns it and its sizes
 	let (mut at, mut tracks, mut visual) = (from, 0u32, false);
 	for _ in 0..STEPS {
 		if at >= end { break }
@@ -568,26 +578,68 @@ fn iso_moov(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the 
 	Ok(())
 }
 
-fn iso_track(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<bool> {//one track, from its header: true when it is a picture, with the size and the turn read; a sound track has a zero size there
+fn iso_track(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<bool> {//one track: true when its handler says it is a picture, with its stored size, its pixel's shape and its turn read. The track header comes first, with the matrix and the size the track shows at; the media box after it holds the handler and, three boxes further in, the sample description
+	let (mut shown, mut orientation) = (Size { width: 0, height: 0 }, 1);
 	let mut at = from;
 	for _ in 0..STEPS {
 		if at >= end { return Ok(false) }
 		let (kind, data, box_end) = box_head(b, at)?;
-		if &kind == b"tkhd" {
-			let matrix = if b.u8(data)? == 1 { 52 } else { 40 };//where the matrix starts: after the version and flags, the times, the id, the duration, and the layer, group, volume and reserved fields, which version 1's 64-bit times push along by twelve
-			let (width, height) = (b.be32(add(data, add(matrix, 36)?)?)? >> 16, b.be32(add(data, add(matrix, 40)?)?)? >> 16);//the size after the matrix, as 16.16 fixed point, so the integer part is the high half
-			if width == 0 || height == 0 { return Ok(false) }
-			let number = |offset: usize| -> Step<i32> { Ok(b.be32(add(data, add(matrix, offset)?)?)? as i32) };
-			let (a, bb, c, d) = (number(0)?, number(4)?, number(12)?, number(16)?);//the matrix's a, b, c and d, 16.16 fixed; u, v and the translation are not read
-			const ONE: i32 = 1 << 16;
-			const MINUS_ONE: i32 = -ONE;
-			t.orientation = match (a, bb, c, d) { (0, ONE, MINUS_ONE, 0) => 6, (MINUS_ONE, 0, 0, MINUS_ONE) => 3, (0, MINUS_ONE, ONE, 0) => 8, _ => 1 };//the three quarter turns a phone records, in EXIF's numbering, checked against ffmpeg's rotate tags of 90, 180 and 270 in the samples; anything else, the identity included, shows as stored
-			t.raster = Size { width, height };
-			return Ok(true)
+		let box_end = box_end.min(end);
+		match &kind {
+			b"tkhd" => {
+				let matrix = if b.u8(data)? == 1 { 52 } else { 40 };//where the matrix starts: after the version and flags, the times, the id, the duration, and the layer, group, volume and reserved fields, which version 1's 64-bit times push along by twelve
+				shown = Size { width: b.be32(add(data, add(matrix, 36)?)?)? >> 16, height: b.be32(add(data, add(matrix, 40)?)?)? >> 16 };//the size after the matrix, as 16.16 fixed point, of which FFmpeg keeps the integer part, and so does this
+				let number = |offset: usize| -> Step<i32> { Ok(b.be32(add(data, add(matrix, offset)?)?)? as i32) };
+				let (a, bb, c, d) = (number(0)?, number(4)?, number(12)?, number(16)?);//the matrix's a, b, c and d, 16.16 fixed; u, v and the translation are not read
+				const ONE: i32 = 1 << 16;
+				const MINUS_ONE: i32 = -ONE;
+				orientation = match (a, bb, c, d) { (0, ONE, MINUS_ONE, 0) => 6, (MINUS_ONE, 0, 0, MINUS_ONE) => 3, (0, MINUS_ONE, ONE, 0) => 8, _ => 1 };//the three quarter turns a phone records, in EXIF's numbering, checked against ffmpeg's rotate tags of 90, 180 and 270 in the samples; anything else, the identity included, shows as stored, and a matrix that stretches one side, which FFmpeg turns into a pixel's shape, is too rare to read as one
+			}
+			b"mdia" => {
+				let Some((stored, pixel)) = iso_picture(b, data, box_end, shown)? else { return Ok(false) };
+				(t.raster, t.pixel, t.orientation) = (stored, pixel, orientation);
+				return Ok(true)
+			}
+			_ => {}
 		}
-		at = box_end.min(end);
+		at = box_end;
 	}
 	Err(Stop::Limit("more boxes in a track than the walk allows"))
+}
+
+fn iso_picture(b: &Bytes, from: usize, end: usize, shown: Size) -> Step<Option<(Size, (u64, u64))>> {//a track's media box, when its handler says vide: the stored size from the first entry of the sample description, and the pixel's shape, from that entry's pasp box when it has one and otherwise from the shown size against the stored, which is the order FFmpeg's demuxer takes them in. None for every other handler, sound, a subtitle or a chapter's text, whose track header can carry a size of its own that would otherwise lend an audiobook a picture
+	let Some((handler, _)) = iso_child(b, from, end, b"hdlr")? else { return Ok(None) };
+	if &b.four(add(handler, 8)?)? != b"vide" { return Ok(None) }//after the version and flags, and four bytes that ISO leaves zero and QuickTime fills with its component type
+	let Some((information, information_end)) = iso_child(b, from, end, b"minf")? else { return Err(Stop::Corrupted("a picture track with no sample description")) };
+	let Some((table, table_end)) = iso_child(b, information, information_end, b"stbl")? else { return Err(Stop::Corrupted("a picture track with no sample description")) };
+	let Some((description, description_end)) = iso_child(b, table, table_end, b"stsd")? else { return Err(Stop::Corrupted("a picture track with no sample description")) };
+	let first = add(description, 8)?;//the first sample entry, past the version, the flags and the count; its type names the codec
+	if first >= description_end { return Err(Stop::Corrupted("a sample description with no entry")) }
+	let (_, entry, entry_end) = box_head(b, first)?;
+	let entry_end = entry_end.min(description_end);
+	if add(entry, 78)? > entry_end { return Err(Stop::Corrupted("a sample entry shorter than a picture's fields")) }//every visual entry, ISO's and QuickTime's, has these seventy-eight bytes before its boxes
+	let stored = Size { width: b.be16(add(entry, 24)?)?.into(), height: b.be16(add(entry, 26)?)?.into() };//after six reserved bytes, the data reference and sixteen bytes ISO reserves and QuickTime spends on a version, a vendor and two qualities
+	if stored.width == 0 || stored.height == 0 { return Err(Stop::Corrupted("a zero size in the sample description")) }
+	let spacing = match iso_child(b, add(entry, 78)?, entry_end, b"pasp") {//the boxes after the entry's fields
+		Ok(Some((pasp, _))) => (b.be32(pasp)?, b.be32(add(pasp, 4)?)?),
+		Ok(None) | Err(Stop::Corrupted(_) | Stop::Limit(_)) => (0, 0),//a box the walk cannot step, like the color table an old QuickTime entry can keep there, costs the shape and nothing else
+		Err(stop) => return Err(stop),//while bytes the slices do not hold are asked for, and bytes past the file's end are the file chopped, as for any read
+	};
+	let pixel = if spacing.0 > 0 && spacing.1 > 0 { (u64::from(spacing.0), u64::from(spacing.1)) }//the pixel's shape as two spacings, 32 and 27 for a DVD at 16:9
+		else if shown.width > 0 && shown.height > 0 && shown != stored { (u64::from(shown.width).saturating_mul(stored.height.into()), u64::from(shown.height).saturating_mul(stored.width.into())) }//or the shown size over the stored, as a pixel's: 853 by 480 over 720 by 480 is 853 to 720
+		else { (0, 0) };
+	Ok(Some((stored, pixel)))
+}
+
+fn iso_child(b: &Bytes, from: usize, end: usize, want: &[u8; 4]) -> Step<Option<(usize, usize)>> {//the first box of a kind between two offsets, as where its data starts and where it ends; none when there is no such box
+	let mut at = from;
+	for _ in 0..STEPS {
+		if at >= end { return Ok(None) }
+		let (kind, data, box_end) = box_head(b, at)?;
+		if &kind == want { return Ok(Some((data, box_end.min(end)))) }
+		at = box_end.min(end);
+	}
+	Err(Stop::Limit("more boxes than the walk allows"))
 }
 
 //Matroska and WebM, whose elements are EBML: an id and a size as variable-length integers, then the data
@@ -668,7 +720,7 @@ fn ebml_info(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the
 	if let Some((data, n)) = ebml_child(b, from, end, 0x4489)? { t.seconds = seconds(ebml_float(b, data, n)? * scale as f64 / 1e9) }
 	Ok(())
 }
-fn ebml_tracks(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//each track entry says its type, 1 for a picture, and a picture track carries a video element with its size in pixels; the first picture track's size is the answer, and a file with none is a sound file
+fn ebml_tracks(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//each track entry says its type, 1 for a picture, and a picture track carries a video element with its size in pixels and, where the pixels are not square, its display size; the first picture track's sizes are the answer, and a file with none is a sound file
 	let (mut at, mut visual) = (from, false);
 	for _ in 0..STEPS {
 		if at >= end { break }
@@ -682,7 +734,11 @@ fn ebml_tracks(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//e
 					let video_end = add(video, n)?;
 					let side = |want: u32| -> Step<u32> { match ebml_child(b, video, video_end, want)? { Some((d, n)) => Ok(u32::try_from(ebml_uint(b, d, n)?).unwrap_or(0)), None => Ok(0) } };
 					let (width, height) = (side(0xB0)?, side(0xBA)?);
-					if width > 0 && height > 0 { t.raster = Size { width, height } }
+					if width > 0 && height > 0 {
+						t.raster = Size { width, height };
+						let display = |side: u32, pixels: u32| u64::from(if side > 0 { side } else { pixels });//a display side the file leaves out is its pixel count
+						t.pixel = (display(side(0x54B0)?, width).saturating_mul(height.into()), display(side(0x54BA)?, height).saturating_mul(width.into()));//the display size over the pixel size, as a pixel's shape: 853 and 480 over 720 by 480, or 16 and 9 the way a Matroska file can write the same ratio, are both 32 to 27. The display unit is not read, and a crop is left out of the shape, since mpv's own Matroska reader does both, and few files carry a crop
+					}
 				}
 			}
 		}
@@ -694,7 +750,7 @@ fn ebml_tracks(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//e
 
 //the other containers of video
 
-fn mpeg(b: &Bytes, from: usize, t: &mut Tip) -> Step<()> {//an MPEG-1 or MPEG-2 stream, a program stream of packs or the bare video: the size is twelve bits each in the sequence header, found by its start code, which the format defines as the way to find it. A program stream's running time is the last pack's clock less the first's, which is how FFmpeg estimates it, and a Video CD or a DVD writes a pack every two kilobytes, so the last is in the last 64 KiB, which the second slice reads; the bare video has no clock
+fn mpeg(b: &Bytes, from: usize, t: &mut Tip) -> Step<()> {//an MPEG-1 or MPEG-2 stream, a program stream of packs or the bare video: the size is twelve bits each in the sequence header, found by its start code, which the format defines as the way to find it, and the pixel's shape is in the four bits after them. A program stream's running time is the last pack's clock less the first's, which is how FFmpeg estimates it, and a Video CD or a DVD writes a pack every two kilobytes, so the last is in the last 64 KiB, which the second slice reads; the bare video has no clock
 	t.format = "mpeg"; t.medium = VIDEO;
 	let header = b.find(from, &[0, 0, 1, 0xB3])?;
 	if let Some(at) = header {
@@ -702,6 +758,7 @@ fn mpeg(b: &Bytes, from: usize, t: &mut Tip) -> Step<()> {//an MPEG-1 or MPEG-2 
 		let (width, height) = ((b0 << 4) | (b1 >> 4), ((b1 & 0x0F) << 8) | b2);
 		if width == 0 || height == 0 { return Err(Stop::Corrupted("no size in the sequence header")) }
 		t.raster = Size { width, height };
+		t.pixel = mpeg_pixel(b, at, t.raster)?;
 	}
 	if let Some(first) = b.find(from, &[0, 0, 1, 0xBA])? {
 		let start = pack_clock(b, first)?;
@@ -719,6 +776,16 @@ fn mpeg(b: &Bytes, from: usize, t: &mut Tip) -> Step<()> {//an MPEG-1 or MPEG-2 
 	if header.is_none() { return Err(Stop::Limit("no sequence header in the slices")) }
 	Ok(())
 }
+const MPEG1_PIXELS: [(u64, u64); 14] = [(1, 1), (49, 33), (64, 45), (239, 182), (36, 29), (32, 27), (169, 151), (178, 163), (54, 53), (196, 201), (187, 200), (200, 219), (127, 147), (134, 161)];//MPEG-1's fourteen pixel shapes, codes 1 to 14, width to height. The format writes each as a pixel's height over its width to four places, and these are the fractions FFmpeg's decoder makes of them, av_d2q under 255 and turned over, which ffprobe reported for every code on the mac mini on 2026-10-18; a test pins them
+fn mpeg_pixel(b: &Bytes, header: usize, raster: Size) -> Step<(u64, u64)> {//the pixel's shape from the four bits after the size in the sequence header at an offset, which the two versions spend differently: MPEG-1 on a pixel's shape from its table, and MPEG-2 on the whole picture's, square, 4:3, 16:9 or 2.21:1, which the stored size divides into a pixel's. A sequence extension at the next start code is what makes a stream MPEG-2, as it is to FFmpeg's decoder. MPEG-2's ratio is taken over the whole frame and a display extension is not read, which is what FFmpeg does too unless the extension names a window whose shape under the code comes out at exactly 4:3 or 16:9; none when the code is one the format reserves
+	let code = b.u8(add(header, 7)?)? >> 4;
+	let next = b.find(add(header, 12)?, &[0, 0, 1])?;//the next start code, past the twelve bytes of the header and any of its two tables of quantizer weights, whose values the format forbids to be zero, so a search cannot stop inside them
+	let mpeg2 = match next { Some(at) => matches!(b.held(add(at, 3)?, 2), Some(&[0xB5, id]) if id >> 4 == 1), None => false };//the extension start code, and 1 for the sequence extension in its first four bits
+	if !mpeg2 { return Ok(usize::from(code).checked_sub(1).and_then(|i| MPEG1_PIXELS.get(i)).copied().unwrap_or((0, 0))) }
+	let (across, down): (u64, u64) = match code { 1 => return Ok((1, 1)), 2 => (4, 3), 3 => (16, 9), 4 => (221, 100), _ => return Ok((0, 0)) };
+	Ok((across.saturating_mul(raster.height.into()), down.saturating_mul(raster.width.into())))//the picture's ratio over the frame's, as a pixel's: 16:9 over 720 by 480 is 16 times 480 to 9 times 720, which is 32 to 27
+}
+
 fn pack_clock(b: &Bytes, at: usize) -> Step<u64> {//the system clock reference of the pack header at an offset, in ticks of a 90 kHz clock: 33 bits that MPEG-1 writes in five bytes behind a 0010 nibble and MPEG-2 in six behind 01, each with marker bits set between the fields, which a run of data that spells the start code fails
 	let c = array::<6>(b.read(add(at, 4)?, 6)?)?;
 	if c[0] & 0xF0 == 0x20 {
@@ -799,7 +866,7 @@ const ASF_STREAM: [u8; 16] = [0x91, 0x07, 0xDC, 0xB7, 0xB7, 0xA9, 0xCF, 0x11, 0x
 const ASF_AUDIO: [u8; 16] = [0x40, 0x9E, 0x69, 0xF8, 0x4D, 0x5B, 0xCF, 0x11, 0xA8, 0xFD, 0x00, 0x80, 0x5F, 0x5C, 0x44, 0x2B];
 const ASF_VIDEO: [u8; 16] = [0xC0, 0xEF, 0x19, 0xBC, 0x4D, 0x5B, 0xCF, 0x11, 0xA8, 0xFD, 0x00, 0x80, 0x5F, 0x5C, 0x44, 0x2B];
 
-fn asf(b: &Bytes, t: &mut Tip) -> Step<()> {//Windows Media, video and audio alike: the header object holds smaller objects, each a GUID and a 64-bit size; the file properties object has the play duration in hundreds of nanoseconds and the preroll in milliseconds, which the duration includes; a stream properties object says whether its stream is sound or picture, and a picture's size is the first two numbers of its type-specific data
+fn asf(b: &Bytes, t: &mut Tip) -> Step<()> {//Windows Media, video and audio alike: the header object holds smaller objects, each a GUID and a 64-bit size; the file properties object has the play duration in hundreds of nanoseconds and the preroll in milliseconds, which the duration includes; a stream properties object says whether its stream is sound or picture, and a picture's size is the first two numbers of its type-specific data. The pixel's shape is not read: Windows Media keeps it as two attributes in the header extension, which few files carry
 	t.format = "asf";
 	let end = to_usize(b.le64(16)?)?;
 	let (mut at, mut visual, mut sound) = (30, false, false);//past the header object's GUID, size, count and two reserved bytes
@@ -868,12 +935,13 @@ fn ogg(b: &Bytes, t: &mut Tip) -> Step<()> {//an Ogg stream's first page carries
 		else if b.has(payload, b"OpusHead") { t.medium = AUDIO; (48000.0, u64::from(b.le16(add(payload, 10)?)?), 0) }//Opus counts its granule at 48 kHz whatever the sound's own rate, less the pre-skip after the version and the channel count
 		else if b.has(payload, b"\x7FFLAC") { t.medium = AUDIO; (f64::from((b.be64(add(payload, 27)?)? >> 44) as u32), 0, 0) }//FLAC's stream information block inside the first packet, with its sample rate in the top twenty bits of the same eight bytes the bare file packs
 		else if b.has(payload, b"Speex   ") { t.medium = AUDIO; (f64::from(b.le32(add(payload, 36)?)?), 0, 0) }//the rate after the version string, its id and the header's size
-		else if b.has(payload, b"\x80theora") {//the picture size after the identification header's version and its frame size in macroblocks, then the frame rate as a fraction. A granule position is a keyframe's number and the count of frames since it, split at a shift the header gives, so the frame count is the two added
+		else if b.has(payload, b"\x80theora") {//the picture size after the identification header's version and its frame size in macroblocks, then the frame rate as a fraction and the pixel's shape. A granule position is a keyframe's number and the count of frames since it, split at a shift the header gives, so the frame count is the two added
 			t.medium = VIDEO;
 			let (width, height) = (b.be24(add(payload, 14)?)?, b.be24(add(payload, 17)?)?);
 			if width > 0 && height > 0 { t.raster = Size { width, height } }
 			let (numerator, denominator) = (b.be32(add(payload, 22)?)?, b.be32(add(payload, 26)?)?);
 			if denominator == 0 { return Err(Stop::Corrupted("no frame rate")) }
+			t.pixel = (b.be24(add(payload, 30)?)?.into(), b.be24(add(payload, 33)?)?.into());//a numerator and a denominator, 32 and 27 for a DVD at 16:9, and 0 in either when the encoder did not know, as FFmpeg's Ogg reader takes them
 			(f64::from(numerator) / f64::from(denominator), 0, u32::from((b.be16(add(payload, 40)?)? >> 5) & 0x1F))
 		}
 		else { return Err(Stop::Limit("a first packet the reader does not know")) };
@@ -1065,19 +1133,32 @@ mod tests {
 	}
 
 	#[test]
-	fn the_turn_swaps_both_sizes_together() {//the step at the end of scout, handed what a reader would have recorded: a stored size, a shape that differs from it, and a quarter turn
-		let mut t = scout(&[]);
-		t.raster = size(720, 480); t.aspect = size(16, 9); t.orientation = 6;
-		turn(&mut t);
-		assert_eq!((t.raster, t.aspect), (size(480, 720), size(9, 16)));
-		let mut t = scout(&[]);
-		t.raster = size(32, 20); t.orientation = 8;//no shape: the shape copies the stored size, and both turn
-		turn(&mut t);
-		assert_eq!((t.raster, t.aspect), (size(20, 32), size(20, 32)));
-		let mut t = scout(&[]);
-		t.raster = size(32, 20); t.orientation = 3;//a half turn swaps nothing
-		turn(&mut t);
-		assert_eq!((t.raster, t.aspect), (size(32, 20), size(32, 20)));
+	fn the_shape_grows_the_short_edge_and_the_turn_swaps_both() {//the step at the end of scout, handed what a reader would have recorded: a stored size, a pixel's shape and a turn. The first three are the samples' numbers, with the sizes mpv 0.41 drew them at on the mac mini on 2026-10-18, read from its dwidth and dheight
+		let shown = |raster: Size, pixel: (u64, u64), orientation: u32| { let mut t = scout(&[]); t.raster = raster; t.pixel = pixel; t.orientation = orientation; sizes(&mut t); (t.raster, t.aspect) };
+		assert_eq!(shown(size(720, 480), (32, 27), 1), (size(720, 480), size(853, 480)));//a DVD at 16:9: wide pixels, so the width grows, and 853.33 drops its fraction
+		assert_eq!(shown(size(720, 480), (8, 9), 1), (size(720, 480), size(720, 540)));//at 4:3: tall pixels, so the height grows, and the width never shrinks to 640
+		assert_eq!(shown(size(352, 240), (200, 219), 1), (size(352, 240), size(352, 262)));//a Video CD's MPEG-1 code 12
+		assert_eq!(shown(size(720, 576), (64, 45), 1), (size(720, 576), size(1024, 576)));//PAL at 16:9, and at 4:3
+		assert_eq!(shown(size(720, 576), (16, 15), 1), (size(720, 576), size(768, 576)));
+		assert_eq!(shown(size(720, 480), (32, 27), 6), (size(480, 720), size(480, 853)));//a quarter turn swaps both sizes together
+		assert_eq!(shown(size(32, 20), (0, 0), 8), (size(20, 32), size(20, 32)));//no shape stated: the stored size, turned
+		assert_eq!(shown(size(32, 20), (1, 1), 3), (size(32, 20), size(32, 20)));//a half turn swaps nothing
+		assert_eq!(shown(size(u32::MAX, 1), (2, 1), 1), (size(u32::MAX, 1), size(u32::MAX, 1)));//a shape that would grow a side past what the answer holds leaves it as stored
+	}
+
+	#[test]
+	fn mpeg_codes_give_the_shapes_ffmpeg_gives() {//every value of the four bits written into every sequence header of the two MPEG samples, against the sample aspect ratio ffprobe reported for the same bytes on the mac mini on 2026-10-18, FFmpeg 9.0.2; 0 and 0 where it reported none
+		fn coded(name: &str, code: u8) -> (u64, u64) {
+			let mut v = sample(name);
+			let mut at = 0;
+			while let Some(p) = v[at..].windows(4).position(|w| w == [0, 0, 1, 0xB3]) { at += p; v[at + 7] = (code << 4) | (v[at + 7] & 0x0F); at += 4 }
+			scout(&v).pixel
+		}
+		let same = |(a, b): (u64, u64), (c, d): (u64, u64)| a * d == b * c && (a == 0) == (c == 0);//one shape, however the pair is scaled
+		let mpeg1 = [(0, 0), (1, 1), (49, 33), (64, 45), (239, 182), (36, 29), (32, 27), (169, 151), (178, 163), (54, 53), (196, 201), (187, 200), (200, 219), (127, 147), (134, 161), (0, 0)];
+		for (code, want) in mpeg1.into_iter().enumerate() { assert!(same(coded("video.mpg", code as u8), want), "MPEG-1 code {code}: {:?} against {want:?}", coded("video.mpg", code as u8)) }
+		let mpeg2 = [(0, 0), (1, 1), (5, 6), (10, 9), (221, 160), (0, 0)];//over the sample's 32 by 20
+		for (code, want) in mpeg2.into_iter().enumerate() { assert!(same(coded("video.vob", code as u8), want), "MPEG-2 code {code}: {:?} against {want:?}", coded("video.vob", code as u8)) }
 	}
 
 	fn png_header(width: u32, height: u32) -> Vec<u8> {
@@ -1175,19 +1256,29 @@ mod tests {
 		data.extend(be32(width << 16)); data.extend(be32(height << 16));
 		iso_box(b"tkhd", &data)
 	}
+	fn media(handler: &[u8; 4], width: u16, height: u16) -> Vec<u8> {//a track's media box down to its sample description, whose one entry has the stored size where a visual entry keeps it
+		let mut hdlr = vec![0; 8]; hdlr.extend(handler); hdlr.extend([0; 13]);
+		let mut entry = vec![0; 24]; entry.extend(width.to_be_bytes()); entry.extend(height.to_be_bytes()); entry.extend([0; 50]);
+		let mut stsd = vec![0, 0, 0, 0]; stsd.extend(be32(1)); stsd.extend(iso_box(b"avc1", &entry));
+		let mut v = iso_box(b"hdlr", &hdlr); v.extend(iso_box(b"minf", &iso_box(b"stbl", &iso_box(b"stsd", &stsd))));
+		iso_box(b"mdia", &v)
+	}
 	#[test]
 	fn mp4_reads_its_movie_box_when_it_comes_first() {
 		let mut mvhd = vec![0; 12]; mvhd.extend(be32(1000)); mvhd.extend(be32(5500)); mvhd.extend([0; 80]);
 		let one = 1 << 16;
+		let track = |tkhd: Vec<u8>, media: Vec<u8>| { let mut v = tkhd; v.extend(media); iso_box(b"trak", &v) };
 		let mut moov = iso_box(b"mvhd", &mvhd);
-		moov.extend(iso_box(b"trak", &tkhd(0, 0, [one, 0, 0, one])));//a sound track first
-		moov.extend(iso_box(b"trak", &tkhd(1920, 1080, [0, one, -one, 0])));//then the picture, turned a quarter turn as a phone records it
+		moov.extend(track(tkhd(0, 0, [one, 0, 0, one]), media(b"soun", 0, 0)));//a sound track first
+		moov.extend(track(tkhd(320, 60, [one, 0, 0, one]), media(b"sbtl", 0, 0)));//a subtitle track whose header has a size, which is no picture
+		moov.extend(track(tkhd(1920, 1080, [0, one, -one, 0]), media(b"vide", 1920, 1080)));//then the picture, turned a quarter turn as a phone records it
 		let mut v = iso_box(b"ftyp", b"mp42\0\0\0\0isommp42"); v.extend(iso_box(b"moov", &moov)); v.extend(iso_box(b"mdat", &[0; 16]));
 		let t = scout(&v);
 		assert_eq!((t.format, t.medium, t.raster, t.aspect, t.orientation, t.seconds, t.reading.details), ("mp4", VIDEO, size(1080, 1920), size(1080, 1920), 6, 5.5, ""));
-		let mut sound = iso_box(b"mvhd", &mvhd); sound.extend(iso_box(b"trak", &tkhd(0, 0, [one, 0, 0, one])));
+		let mut sound = iso_box(b"mvhd", &mvhd); sound.extend(track(tkhd(0, 0, [one, 0, 0, one]), media(b"soun", 0, 0))); sound.extend(track(tkhd(320, 60, [one, 0, 0, one]), media(b"sbtl", 0, 0)));
 		let mut v = iso_box(b"ftyp", b"isom\0\0\0\0"); v.extend(iso_box(b"moov", &sound));
-		assert_eq!(scout(&v).medium, AUDIO);
+		let t = scout(&v);
+		assert_eq!((t.medium, t.raster), (AUDIO, size(0, 0)));//sound and a subtitle with a size: a sound file, and no size
 	}
 	#[test]
 	fn mp4_with_its_index_at_the_end_names_the_stop() {
@@ -1251,79 +1342,87 @@ mod tests {
 
 	#[test]
 	fn samples_answer_as_their_makers_made_them() {
-		type Row = (&'static str, &'static str, &'static str, (u32, u32), u32, f64, bool, (bool, bool), (bool, bool), &'static str);//the file; its format and medium; its stored size, turned; its orientation; its running time, matched within a twentieth of a second and 0 for none; whether it animates; text and binary; parsed and trouble; and the details. No sample is corrupted or chopped, and every sample's shape copies its stored size, since no reader gives one yet, which the loop checks for every row
+		type Row = (&'static str, &'static str, &'static str, (u32, u32), (u32, u32), u32, f64, bool, (bool, bool), (bool, bool), &'static str);//the file; its format and medium; its stored size and the size to show it at, both turned; its orientation; its running time, matched within a twentieth of a second and 0 for none; whether it animates; text and binary; parsed and trouble; and the details. No sample is corrupted or chopped, which the loop checks for every row
 		let rows: &[Row] = &[
-			("picture.png", "png", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("picture.gif", "gif", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("animated.gif", "gif", IMAGE, (32, 20), 1, 0.0, true, (false, true), (true, false), ""),
-			("picture.bmp", "bmp", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("picture.jpg", "jpeg", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("progressive.jpg", "jpeg", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("orient-1.jpg", "jpeg", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("orient-2.jpg", "jpeg", IMAGE, (32, 20), 2, 0.0, false, (false, true), (true, false), ""),
-			("orient-3.jpg", "jpeg", IMAGE, (32, 20), 3, 0.0, false, (false, true), (true, false), ""),
-			("orient-4.jpg", "jpeg", IMAGE, (32, 20), 4, 0.0, false, (false, true), (true, false), ""),
-			("orient-5.jpg", "jpeg", IMAGE, (20, 32), 5, 0.0, false, (false, true), (true, false), ""),
-			("orient-6.jpg", "jpeg", IMAGE, (20, 32), 6, 0.0, false, (false, true), (true, false), ""),
-			("orient-7.jpg", "jpeg", IMAGE, (20, 32), 7, 0.0, false, (false, true), (true, false), ""),
-			("orient-8.jpg", "jpeg", IMAGE, (20, 32), 8, 0.0, false, (false, true), (true, false), ""),
-			("thumbnail.jpg", "jpeg", IMAGE, (20, 32), 6, 0.0, false, (false, true), (true, false), ""),//turned, with a 16 by 10 picture inside its EXIF segment that a search would have sized it by
-			("picture.webp", "webp", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("lossless.webp", "webp", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("animated.webp", "webp", IMAGE, (32, 20), 1, 0.0, true, (false, true), (true, false), ""),
-			("picture.tif", "tiff", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("picture.psd", "psd", IMAGE, (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
-			("picture.heic", "heic", IMAGE, (0, 0), 1, 0.0, false, (false, true), (true, true), "item properties not read"),
-			("picture.avif", "avif", IMAGE, (0, 0), 1, 0.0, false, (false, true), (true, true), "item properties not read"),
-			("picture.svg", "svg", IMAGE, (0, 0), 1, 0.0, false, (true, false), (true, false), ""),
-			("moov-first.mp4", "mp4", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("moov-last.mp4", "mp4", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),//the index after the data, as a phone writes it, in hand since the file is small; the second slice reads it in the test below
-			("ccw-90.mp4", "mp4", VIDEO, (20, 32), 8, 1.0, false, (false, true), (true, false), ""),//a quarter turn counter-clockwise, which is EXIF's 8
-			("ccw-180.mp4", "mp4", VIDEO, (32, 20), 3, 1.0, false, (false, true), (true, false), ""),
-			("ccw-270.mp4", "mp4", VIDEO, (20, 32), 6, 1.0, false, (false, true), (true, false), ""),//and three quarters counter-clockwise is a quarter clockwise, EXIF's 6, the turn a phone held upright records
-			("video.mov", "mov", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("audio.m4a", "m4a", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
-			("video.avi", "avi", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("video.mpg", "mpeg", VIDEO, (32, 20), 1, 0.58, false, (false, true), (true, false), ""),//an MPEG-1 program stream of three packs, the last clocked at 52,201 ticks of 90 kHz: the running time to the last pack, which is what the reader has, short of the last frame's end
-			("video.vob", "mpeg", VIDEO, (32, 20), 1, 0.5, false, (false, true), (true, false), ""),//MPEG-2, whose pack writes its clock the other way, two packs and the last at 45,001
-			("video.ts", "mpegts", VIDEO, (0, 0), 1, 0.0, false, (false, true), (false, false), SIGNATURE_ONLY),
-			("video.mkv", "matroska", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("video.webm", "webm", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("video.flv", "flv", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("video.wmv", "asf", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("video.rm", "realmedia", VIDEO, (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
-			("audio.wav", "wav", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
-			("audio.aiff", "aiff", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
-			("audio.au", "au", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
-			("audio.flac", "flac", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
-			("cbr.mp3", "mp3", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
-			("plain.mp3", "mp3", AUDIO, (0, 0), 1, 1.04, false, (false, true), (true, false), ""),//no Xing header and no tag, so the running time is the size over the bit rate, which ffprobe also answers 1.044875 for
-			("vbr.mp3", "mp3", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
-			("audio.aac", "aac", AUDIO, (0, 0), 1, 0.0, false, (false, true), (false, false), SIGNATURE_ONLY),
-			("audio.ogg", "ogg", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),//the last page's granule position over the rate, 44,160 samples at 44.1 kHz
-			("audio.opus", "ogg", AUDIO, (0, 0), 1, 1.0, false, (false, true), (true, false), ""),//48,312 at 48 kHz, less a pre-skip of 312
-			("audio.wma", "asf", AUDIO, (0, 0), 1, 1.02, false, (false, true), (true, false), ""),
-			("text.txt", "", "", (0, 0), 1, 0.0, false, (true, false), (false, false), ""),
-			("page.html", "", "", (0, 0), 1, 0.0, false, (true, false), (false, false), ""),
-			("binary.bin", "", "", (0, 0), 1, 0.0, false, (false, true), (false, false), ""),
-			("archive.zip", "zip", "", (0, 0), 1, 0.0, false, (false, true), (false, false), SIGNATURE_ONLY),
-			("empty", "", "", (0, 0), 1, 0.0, false, (false, false), (false, false), "empty"),
+			("picture.png", "png", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("picture.gif", "gif", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("animated.gif", "gif", IMAGE, (32, 20), (32, 20), 1, 0.0, true, (false, true), (true, false), ""),
+			("picture.bmp", "bmp", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("picture.jpg", "jpeg", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("progressive.jpg", "jpeg", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("orient-1.jpg", "jpeg", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("orient-2.jpg", "jpeg", IMAGE, (32, 20), (32, 20), 2, 0.0, false, (false, true), (true, false), ""),
+			("orient-3.jpg", "jpeg", IMAGE, (32, 20), (32, 20), 3, 0.0, false, (false, true), (true, false), ""),
+			("orient-4.jpg", "jpeg", IMAGE, (32, 20), (32, 20), 4, 0.0, false, (false, true), (true, false), ""),
+			("orient-5.jpg", "jpeg", IMAGE, (20, 32), (20, 32), 5, 0.0, false, (false, true), (true, false), ""),
+			("orient-6.jpg", "jpeg", IMAGE, (20, 32), (20, 32), 6, 0.0, false, (false, true), (true, false), ""),
+			("orient-7.jpg", "jpeg", IMAGE, (20, 32), (20, 32), 7, 0.0, false, (false, true), (true, false), ""),
+			("orient-8.jpg", "jpeg", IMAGE, (20, 32), (20, 32), 8, 0.0, false, (false, true), (true, false), ""),
+			("thumbnail.jpg", "jpeg", IMAGE, (20, 32), (20, 32), 6, 0.0, false, (false, true), (true, false), ""),//turned, with a 16 by 10 picture inside its EXIF segment that a search would have sized it by
+			("picture.webp", "webp", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("lossless.webp", "webp", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("animated.webp", "webp", IMAGE, (32, 20), (32, 20), 1, 0.0, true, (false, true), (true, false), ""),
+			("picture.tif", "tiff", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("picture.psd", "psd", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+			("picture.heic", "heic", IMAGE, (0, 0), (0, 0), 1, 0.0, false, (false, true), (true, true), "item properties not read"),
+			("picture.avif", "avif", IMAGE, (0, 0), (0, 0), 1, 0.0, false, (false, true), (true, true), "item properties not read"),
+			("picture.svg", "svg", IMAGE, (0, 0), (0, 0), 1, 0.0, false, (true, false), (true, false), ""),
+			("moov-first.mp4", "mp4", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("moov-last.mp4", "mp4", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),//the index after the data, as a phone writes it, in hand since the file is small; the second slice reads it in the test below
+			("ccw-90.mp4", "mp4", VIDEO, (20, 32), (20, 32), 8, 1.0, false, (false, true), (true, false), ""),//a quarter turn counter-clockwise, which is EXIF's 8
+			("ccw-180.mp4", "mp4", VIDEO, (32, 20), (32, 20), 3, 1.0, false, (false, true), (true, false), ""),
+			("ccw-270.mp4", "mp4", VIDEO, (20, 32), (20, 32), 6, 1.0, false, (false, true), (true, false), ""),//and three quarters counter-clockwise is a quarter clockwise, EXIF's 6, the turn a phone held upright records
+			("video.mov", "mov", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("dvd-16x9.mp4", "mp4", VIDEO, (720, 480), (853, 480), 1, 1.0, false, (false, true), (true, false), ""),//720 by 480 flagged 16:9, which FFmpeg writes as a pasp box of 32 to 27 and a track header of 853.33 by 480, and mpv draws at 853 by 480
+			("dvd-16x9.mov", "mov", VIDEO, (720, 480), (853, 480), 1, 1.0, false, (false, true), (true, false), ""),//the same as QuickTime, whose track header FFmpeg leaves at 720 by 480, so the pasp box alone holds the shape
+			("audiobook.m4b", "m4a", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),//a tone and a subtitle track whose header has a size, 320 by 60, which is no picture
+			("audio.m4a", "m4a", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
+			("video.avi", "avi", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("video.mpg", "mpeg", VIDEO, (32, 20), (32, 20), 1, 0.58, false, (false, true), (true, false), ""),//an MPEG-1 program stream of three packs, the last clocked at 52,201 ticks of 90 kHz: the running time to the last pack, which is what the reader has, short of the last frame's end
+			("video.vob", "mpeg", VIDEO, (32, 20), (32, 20), 1, 0.5, false, (false, true), (true, false), ""),//MPEG-2, whose pack writes its clock the other way, two packs and the last at 45,001
+			("dvd-16x9.vob", "mpeg", VIDEO, (720, 480), (853, 480), 1, 0.7, false, (false, true), (true, false), ""),//a DVD's MPEG-2 at 720 by 480 flagged 16:9, which mpv draws at 853 by 480; eight packs, the last at 63,019 ticks
+			("dvd-4x3.vob", "mpeg", VIDEO, (720, 480), (720, 540), 1, 0.7, false, (false, true), (true, false), ""),//and flagged 4:3, which mpv draws at 720 by 540
+			("vcd.mpg", "mpeg", VIDEO, (352, 240), (352, 262), 1, 0.5, false, (false, true), (true, false), ""),//MPEG-1 at a Video CD's NTSC size flagged 4:3, which FFmpeg's encoder writes as code 12, and mpv draws at 352 by 262
+			("video.ts", "mpegts", VIDEO, (0, 0), (0, 0), 1, 0.0, false, (false, true), (false, false), SIGNATURE_ONLY),
+			("video.mkv", "matroska", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("video.webm", "webm", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("dvd-16x9.mkv", "matroska", VIDEO, (720, 480), (853, 480), 1, 1.0, false, (false, true), (true, false), ""),//720 by 480 flagged 16:9, which FFmpeg writes as a display size of 16 by 9 in display unit 3, a bare ratio, and mpv draws at 853 by 480
+			("dvd-16x9.webm", "webm", VIDEO, (720, 480), (853, 480), 1, 1.0, false, (false, true), (true, false), ""),//the same flag, which WebM, allowing no such unit, writes as 853 by 480
+			("dvd-4x3.webm", "webm", VIDEO, (720, 480), (720, 540), 1, 1.0, false, (false, true), (true, false), ""),//and 4:3, written as 640 by 480, which mpv draws at 720 by 540 rather than shrink the width
+			("video.flv", "flv", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("video.wmv", "asf", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("video.rm", "realmedia", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+			("audio.wav", "wav", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
+			("audio.aiff", "aiff", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
+			("audio.au", "au", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
+			("audio.flac", "flac", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
+			("cbr.mp3", "mp3", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
+			("plain.mp3", "mp3", AUDIO, (0, 0), (0, 0), 1, 1.04, false, (false, true), (true, false), ""),//no Xing header and no tag, so the running time is the size over the bit rate, which ffprobe also answers 1.044875 for
+			("vbr.mp3", "mp3", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
+			("audio.aac", "aac", AUDIO, (0, 0), (0, 0), 1, 0.0, false, (false, true), (false, false), SIGNATURE_ONLY),
+			("audio.ogg", "ogg", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),//the last page's granule position over the rate, 44,160 samples at 44.1 kHz
+			("audio.opus", "ogg", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),//48,312 at 48 kHz, less a pre-skip of 312
+			("audio.wma", "asf", AUDIO, (0, 0), (0, 0), 1, 1.02, false, (false, true), (true, false), ""),
+			("text.txt", "", "", (0, 0), (0, 0), 1, 0.0, false, (true, false), (false, false), ""),
+			("page.html", "", "", (0, 0), (0, 0), 1, 0.0, false, (true, false), (false, false), ""),
+			("binary.bin", "", "", (0, 0), (0, 0), 1, 0.0, false, (false, true), (false, false), ""),
+			("archive.zip", "zip", "", (0, 0), (0, 0), 1, 0.0, false, (false, true), (false, false), SIGNATURE_ONLY),
+			("empty", "", "", (0, 0), (0, 0), 1, 0.0, false, (false, false), (false, false), "empty"),
 		];
 		let mut wrong = vec![];//every row that disagrees, so one run shows them all
-		for &(name, format, medium, (width, height), orientation, secs, animated, (text, binary), (parsed, trouble), details) in rows {
+		for &(name, format, medium, raster, aspect, orientation, secs, animated, (text, binary), (parsed, trouble), details) in rows {
 			let t = scout_sample(name);
-			let got = (t.format, t.medium, (t.raster.width, t.raster.height), t.orientation, t.animated, (t.text, t.binary), (t.reading.parsed, t.reading.trouble), t.reading.details);
-			let want = (format, medium, (width, height), orientation, animated, (text, binary), (parsed, trouble), details);
+			let got = (t.format, t.medium, (t.raster.width, t.raster.height), (t.aspect.width, t.aspect.height), t.orientation, t.animated, (t.text, t.binary), (t.reading.parsed, t.reading.trouble), t.reading.details);
+			let want = (format, medium, raster, aspect, orientation, animated, (text, binary), (parsed, trouble), details);
 			if got != want { wrong.push(format!("{name}: {got:?} against {want:?}")) }
 			if (t.seconds - secs).abs() >= 0.05 { wrong.push(format!("{name}: {} seconds against {secs}", t.seconds)) }
 			if t.corrupted || t.chopped { wrong.push(format!("{name}: read as corrupted or chopped")) }
-			if t.aspect != t.raster { wrong.push(format!("{name}: a shape {:?} apart from its size {:?}", t.aspect, t.raster)) }
 		}
 		assert!(wrong.is_empty(), "\n{}", wrong.join("\n"));
 	}
 
 	#[test]
-	fn samples_changed_the_way_other_writers_leave_them() {//the matroska sample with its segment and clusters of unknown size, as a live recording leaves them, and the flash video's metadata with a value the reader cannot step over after the size
+	fn samples_changed_the_way_other_writers_leave_them() {//the matroska sample with its segment and clusters of unknown size, as a live recording leaves them, the flash video's metadata with a value the reader cannot step over after the size, and the MP4 with its shape in the track header alone
 		let mut v = sample("video.mkv");
 		let (segment, cluster) = {
 			let b = Bytes { tip: &v, slice: &[], slice_at: 0, size: v.len() as u64, depth: Cell::new(0) };
@@ -1345,15 +1444,27 @@ mod tests {
 		v[at] = 3;//an object, as a keyframe index is
 		let t = scout(&v);
 		assert_eq!((t.format, t.raster, t.reading.details, t.reading.trouble, t.corrupted, t.chopped), ("flv", size(32, 20), "a metadata value the reader does not step over", true, false, false));
+		let mut v = sample("dvd-16x9.mp4");
+		let at = v.windows(4).position(|w| w == b"pasp").unwrap();
+		v[at] = b'x';//the pixel's spacing renamed away, as a writer that keeps the shape only in the track header leaves it: 853 by 480 there over 720 by 480 stored, which FFmpeg and mpv turn into the same 853 by 480
+		let t = scout(&v);
+		assert_eq!((t.raster, t.aspect, t.reading.details), (size(720, 480), size(853, 480), ""));
 	}
 
 	#[test]
-	fn ogg_theora_counts_frames_from_its_granule() {//hand-built, since the mac mini's ffmpeg has no Theora encoder: an identification header for a 32 by 20 picture at ten frames a second with a granule shift of 6, and a last page whose granule says keyframe 8 and two frames since, which is ten frames
+	fn ogg_theora_counts_frames_from_its_granule() {//hand-built, since the mac mini's ffmpeg has no Theora encoder: an identification header at ten frames a second with a granule shift of 6, and a last page whose granule says keyframe 8 and two frames since, which is ten frames. The second is 720 by 480 with pixels of 32 to 27, which FFmpeg 9.0.2's own listing of the same bytes read as 720 by 480, SAR 32:27 and DAR 16:9, on the mac mini on 2026-10-18
 		fn page(kind: u8, granule: u64, payload: &[u8]) -> Vec<u8> { let mut v = b"OggS\0".to_vec(); v.push(kind); v.extend(granule.to_le_bytes()); v.extend(7u32.to_le_bytes()); v.extend([0; 8]); v.push(1); v.push(payload.len() as u8); v.extend(payload); v }
-		let mut header = b"\x80theora\x03\x02\x01".to_vec(); header.extend([0, 2, 0, 2]); header.extend([0, 0, 32, 0, 0, 20, 0, 0]); header.extend(be32(10)); header.extend(be32(1)); header.extend([0; 10]); header.extend((6u16 << 5).to_be_bytes());
-		let mut v = page(2, 0, &header); v.extend(page(4, (8 << 6) | 2, &[0]));
-		let t = scout(&v);
-		assert_eq!((t.format, t.medium, t.raster, t.seconds, t.reading.details), ("ogg", VIDEO, size(32, 20), 1.0, ""));
+		let theora = |width: u32, height: u32, pixel: (u32, u32)| {
+			let mut header = b"\x80theora\x03\x02\x01".to_vec(); header.extend(((width / 16) as u16).to_be_bytes()); header.extend(((height / 16) as u16).to_be_bytes());
+			header.extend(&width.to_be_bytes()[1..]); header.extend(&height.to_be_bytes()[1..]); header.extend([0, 0]); header.extend(be32(10)); header.extend(be32(1));
+			header.extend(&pixel.0.to_be_bytes()[1..]); header.extend(&pixel.1.to_be_bytes()[1..]); header.extend([0; 4]); header.extend((6u16 << 5).to_be_bytes());
+			let mut v = page(2, 0, &header); v.extend(page(4, (8 << 6) | 2, &[0]));
+			scout(&v)
+		};
+		let t = theora(32, 20, (0, 0));//a shape the encoder did not know, which counts as square
+		assert_eq!((t.format, t.medium, t.raster, t.aspect, t.seconds, t.reading.details), ("ogg", VIDEO, size(32, 20), size(32, 20), 1.0, ""));
+		let t = theora(720, 480, (32, 27));
+		assert_eq!((t.raster, t.aspect, t.seconds, t.reading.details), (size(720, 480), size(853, 480), 1.0, ""));
 	}
 
 	#[test]
