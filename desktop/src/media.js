@@ -5,7 +5,7 @@ import {invoke} from '@tauri-apps/api/core'
 export function mediaVersion() { return invoke('media_version') }//{mpv, api, ffmpeg}: the library's own version text, which names itself first, the client api it was built against, and the FFmpeg beneath it; rejects where the library is not linked
 export function mediaStart(options) { return invoke('media_start', {options}) }//a player for this window, from a list of [name, value] pairs set before it starts; replaces the one this window had
 export function mediaSend(args) { return invoke('media_send', {args}) }//one mpv command and its arguments, a list of strings, like ['loadfile', path] or ['cycle', 'pause']; resolves when it has run
-export function mediaRead(name) { return invoke('media_read', {name}) }//one property as text, blank where it has no value yet
+export function mediaRead(name) { return invoke('media_read', {name}) }//one property as text, blank where it has no value yet, and mpv's own JSON for one whose value is a structure, like track-list
 export function mediaStop() { return invoke('media_stop') }//destroy this window's player; nothing if it has none
 
 //asking a file a question rather than playing it, each call from a player of its own that never touches the window's; seconds is how long the page will wait for the answer

@@ -139,7 +139,7 @@ pub async fn media_send(window: WebviewWindow, args: Vec<String>, players: State
 	}).await
 }
 
-/// One property of this window's player as text, by its name in mpv's manual, like time-pos or pause; blank for a property that has no value yet, which time-pos has none of before a file is loaded
+/// One property of this window's player as text, by its name in mpv's manual, like time-pos or pause; blank for a property that has no value yet, which time-pos has none of before a file is loaded; and for a property whose value is a structure, like track-list, JSON, which is how mpv prints one as text, so the page reads a file's tracks, their codecs, sizes and channels, with no command of their own
 #[command]
 pub async fn media_read(window: WebviewWindow, name: String, players: State<'_, Players>) -> Result<String, String> {
 	let player = player_of(&players, window.label())?;

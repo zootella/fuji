@@ -1,6 +1,6 @@
 # Security
 
-Fuji's threat model, where it parses bytes nobody vouches for, the walls it has, the walls it is building, and the research behind each, which is the raw material for the security article in Craftsmanship. Every claim about fuji's code was read from the source on the Mac mini on 2026-10-15 or 2026-10-16, and every claim about the world is in a research section below with its source.
+Fuji's threat model, where it parses bytes nobody vouches for, the walls it has, the walls it is building, and the research behind each, which is the raw material for the security article in Craftsmanship. Every claim about fuji's code was read from the source on the Mac mini between 2026-10-15 and 2026-10-18, and every claim about the world is in a research section below with its source.
 
 ## The threat model
 
