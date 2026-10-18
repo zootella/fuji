@@ -1,6 +1,6 @@
 # Scout
 
-Fuji's own reader of a file's first bytes. Given the start of a file and the file's size, it says what format the bytes are and what the common formats keep in their header, the size a picture shows at among them. It reads no pixels and no samples.
+Fuji's own reader of a file's first bytes. Given the first 64 KiB of a file and the file's size, it says what format the bytes are and what the common formats keep in their header: the size a picture or a video shows at, its turn, the running time of a sound or a video. When the first bytes say where the rest of an answer lies, a phone's video index after its data or an Ogg's last page, it asks for one more 64 KiB slice at that offset and answers again from both: two reads at most, and never a search of the file. It reads no pixels and no samples.
 
 It is a Rust crate of its own, so it builds and tests here with nothing of Fuji around it. Fuji's Rust depends on it by path, and nothing publishes it.
 
@@ -21,4 +21,4 @@ fuzz/         the crate cargo-fuzz runs, which keeps what it finds in fuzz/corpu
 
 ## How Fuji uses it
 
-`desktop/src-tauri/src/scout.rs` is the command the page calls with a path. It reads the start of the file and hands it to the reader here, and `desktop/src/scout.js` wraps the command for the page.
+`desktop/src-tauri/src/scout.rs` is the command the page calls with a path. It reads the start of the file, and the second slice when the reader asks for one, and hands them to the reader here; `desktop/src/scout.js` wraps the command for the page.

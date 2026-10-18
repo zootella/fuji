@@ -1,7 +1,16 @@
 #![no_main]
-//the scout under libFuzzer. pnpm fuzz in the scout folder runs it, seeded from the sample files, and keeps what it finds in fuzz/corpus; a panic anywhere in the reader is a finding, written to fuzz/artifacts
+//the scout under libFuzzer. pnpm fuzz in the scout folder runs it, seeded from the sample files, and keeps what it finds in fuzz/corpus; a panic anywhere in the reader is a finding, written to fuzz/artifacts. Each input is read twice over: as the command reads a file, a tip of at most 64 KiB and then the slice the answer asks for, and again through a tip cut to half the input, so the second read is exercised by inputs far smaller than a tip
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
-	let tip = data.get(..scout::TIP_BYTES).unwrap_or(data);//at most a tip's worth, as fuji's command reads
-	let _ = scout::scout_bytes(tip, data.len() as u64);
+	scout(data, scout::TIP_BYTES);
+	scout(data, data.len() / 2);
 });
+
+fn scout(data: &[u8], cut: usize) {//the command's two reads over the input as a file: the first cut bytes, then 64 KiB at the offset the first answer names, when it names one
+	let tip = data.get(..cut.min(scout::TIP_BYTES)).unwrap_or(data);
+	let t = scout::scout_bytes(tip, data.len() as u64);
+	if t.slice == 0 { return }
+	let at = usize::try_from(t.slice).unwrap_or(usize::MAX);
+	let slice = at.checked_add(scout::TIP_BYTES).and_then(|end| data.get(at..end.min(data.len()))).unwrap_or(&[]);
+	let _ = scout::scout_slices(tip, slice, t.slice, data.len() as u64);
+}
