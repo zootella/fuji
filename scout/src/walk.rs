@@ -80,7 +80,7 @@ impl Walk {
 		let Pending { item, identity } = pending;
 		if item.kind != Kind::Folder { return item }//a folder the listing already named as Cloud, Reparse or Unreachable, which is never entered
 
-		//another drive: a walk stays on the device it began on, as find -xdev does. On the Mac and Linux a folder on another device is where another file system is mounted: a second volume, a network share, a phone or a share that Linux's gvfs mounts under /run/user, any FUSE file system, a cloud drive mounted as one, Linux's /proc and /sys, whose files can block a read. The Mac's boot drive is one device to this test, though two volumes underneath: the sealed system volume and the data volume beside it report the same device, since the system joins them into the one tree the user sees, so a walk of the boot drive crosses between them as the user does, while Preboot, VM and the rest under /System/Volumes are devices of their own
+		//another drive: a walk stays on the device it began on, as find -xdev does. On the Mac and Linux a folder on another device is where another file system is mounted: a second volume, a network share, a phone or a share that Linux's gvfs mounts under /run/user, any FUSE file system, a cloud drive mounted as one, a btrfs subvolume, a device of its own to this test, which is how Fedora and openSUSE keep /home and openSUSE its snapshots, and Linux's /proc and /sys, whose files can block a read. The Mac's boot drive is one device to this test, though two volumes underneath: the sealed system volume and the data volume beside it report the same device, since the system joins them into the one tree the user sees, so a walk of the boot drive crosses between them as the user does, while Preboot, VM and the rest under /System/Volumes are devices of their own
 		if let (Some((device, _)), Some(start)) = (identity, self.device) { if device != start { return Item { kind: Kind::Mount, ..item } } }
 
 		//a folder reached twice with no link to say so: Time Machine on HFS+, the Mac's backups until Big Sur moved new ones to APFS, made directory hard links, so every backup on such a drive shares the folders unchanged since the one before; a Linux bind mount shows one folder at a second place, possibly inside itself; the Mac's firmlinks show its data volume's folders at a second name, /Users and /System/Volumes/Data/Users; and the Mac's /dev/fd lists every file the process reading it has open, the folder it is listing included. The first arrival is entered and every later one is Seen, so an old backup drive is walked once and none of these can loop
@@ -92,7 +92,7 @@ impl Walk {
 		let listing = match fs::read_dir(&folder) { Ok(listing) => listing, Err(e) => return refused(folder, &e) };//some folders say no, and the walk goes on past them: System Volume Information at the root of every Windows drive and the other users' folders in $RECYCLE.BIN; the places Apple protects, where Desktop, Documents, Downloads, removable drives and network volumes ask the user once, and Mail, Messages and Safari's data answer "Operation not permitted" without Full Disk Access; lost+found at the root of a Linux drive
 		let (mut leaves, mut folders) = (Vec::new(), Vec::new());
 		for entry in listing {//every entry, hidden or not, since the rule looks at everything there: a dot name, a Windows file with the hidden or system attribute, a Mac file with the hidden flag
-			let entry = match entry { Ok(entry) => entry, Err(e) => { leaves.push(refused(folder.clone(), &e)); continue } };//an entry the listing could not hand over, which has no name, so the folder stands in for it
+			let entry = match entry { Ok(entry) => entry, Err(e) => { leaves.push(refused(folder.clone(), &e)); break } };//an entry the listing could not hand over, which has no name, so the folder stands in for it, and the listing ends there: a listing that has failed once is not asked again, and the walk goes on with the names it had
 			let path = entry.path();
 			let meta = match entry.metadata() { Ok(meta) => meta, Err(e) => { leaves.push(refused(path, &e)); continue } };//the one stat, which never follows a link, and on Windows comes from the listing itself with no call of its own. A file in use, like the pagefile.sys at the root of a Windows system drive, describes itself here, since nothing opens it, and refuses its reader instead
 			let kind = classify(&entry.file_name(), &meta);
@@ -161,7 +161,7 @@ fn reparse(_: &fs::Metadata) -> bool { false }
 fn unreachable(_: &OsStr) -> bool { false }//the Mac and Linux open every name as it is
 
 #[cfg_attr(not(windows), allow(dead_code))]//only Windows asks, and the tests ask everywhere
-fn name_unreachable(name: &str) -> bool {//whether Windows' ordinary paths reach something other than the file by this name. Windows reserves con, prn, aux and nul, and com and lpt with a digit, as the names of devices, with any extension and with spaces before it, so a con.jpg or a com1.txt copied onto a shared drive from a Mac opens the console or a serial port, which can block, rather than the file. And Windows strips a dot or a space from the end of a name, so a file the Mac named "photo." is out of reach of its own path. Windows' verbatim paths, written after \\?\, reach both, and fuji does not use them. Pure, so tested on every platform, though only Windows asks
+fn name_unreachable(name: &str) -> bool {//whether Windows' ordinary paths reach something other than the file by this name. Windows reserves con, prn, aux and nul, and com and lpt with a digit, as the names of devices, with any extension and with spaces before it, so a con.jpg or a com1.txt copied onto a shared drive from a Mac opens the console or a serial port, which can block, rather than the file. And Windows strips a dot or a space from the end of a name, so a file the Mac named "photo." is out of reach of its own path. Windows' verbatim paths, written after \\?\, reach both, and fuji writes none. Pure, so tested on every platform, though only Windows asks
 	if name.ends_with('.') || name.ends_with(' ') { return true }
 	let stem = name.split_once('.').map_or(name, |(stem, _)| stem).trim_end_matches(' ').to_uppercase();
 	if matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") { return true }
@@ -169,10 +169,10 @@ fn name_unreachable(name: &str) -> bool {//whether Windows' ordinary paths reach
 	matches!(numbered, Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"))
 }
 
-//the tests: each builds the hazards it can in a temporary folder of its own and walks it. The order and the hidden names run on every platform; links, a link loop, a dangling link, a pipe, a socket and a refused folder on the Mac and Linux; a folder reached again through the Mac's own /dev/fd; and junctions and a junction loop on Windows, where pnpm test runs them. The rest cannot be built without mounting a drive, signing into a cloud service or being root, and is checked by hand: Mount with a second drive, Seen on a Time Machine disk from before Big Sur, Cloud with iCloud Drive on the Mac and OneDrive on Windows, Device with a restored backup of a Linux system, and Unreachable with a file copied onto a shared drive from a Mac
+//the tests: each builds the hazards it can in a temporary folder of its own and walks it. The order and the hidden names run on every platform; links, a link loop, a dangling link, a start that is a link, a pipe, a socket and a refused folder on the Mac and Linux, and a device in their own /dev; a folder reached again through the Mac's own /dev/fd; and junctions and a junction loop on Windows, where pnpm test runs them. The rest cannot be built without mounting a drive, signing into a cloud service or being root, and is checked by hand: Mount with a second drive, Seen on a Time Machine disk from before Big Sur, Cloud with iCloud Drive on the Mac and OneDrive on Windows, and Unreachable with a file copied onto a shared drive from a Mac
 
 #[cfg(test)]
-#[allow(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::arithmetic_side_effects, clippy::panic)]//a test may index, unwrap and add: a mistake in one fails the test, which is the point of it
+#[allow(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::arithmetic_side_effects, clippy::panic)]//a test may index, unwrap and add: a mistake in one fails the test, which is what a test is for
 mod tests {
 	use super::*;
 	use std::path::Path;
@@ -265,6 +265,16 @@ mod tests {
 			row("real/up", Kind::Link),
 		]);
 		assert!(walk(&t.0).filter(|item| item.kind == Kind::Link).all(|item| item.size == 0));
+		let chosen: Vec<(String, Kind)> = walk(t.path("to-folder")).map(|item| (t.relative(&item.path), item.kind)).collect();//a link the user chose as the start is followed, and the walk is of where it leads
+		assert_eq!(chosen, vec![row("to-folder", Kind::Folder), row("to-folder/inside.txt", Kind::File), row("to-folder/up", Kind::Link)]);
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn a_device_is_listed_and_never_opened() {//the system's own /dev, on every Mac and Linux: each node is answered from its stat alone, where a walk that opened one, /dev/zero say, would read forever
+		let items: Vec<Item> = walk("/dev").collect();
+		assert_eq!(items[0].kind, Kind::Folder);
+		assert!(items.iter().any(|item| item.kind == Kind::Device), "{items:?}");
 	}
 
 	#[cfg(unix)]
