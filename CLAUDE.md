@@ -14,7 +14,7 @@ The application displays images in an infinite pannable/zoomable space with keyb
 
 ### The repository is a pnpm monorepo
 
-The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. The second workspace is `site`, the VitePress website and documentation for fujidesktop.app, built to static files that our own reverse proxy serves. The third is `linux`, which builds fuji's four linux packages in docker containers on the mac — it has no dependencies of its own, because everything it does is drive containers whose toolchains live inside them. The fourth is `apple`, the mac release through Apple: everything that depends on Apple's developer program lives there, so `desktop` needs none of it. The fifth is `scout`, fuji's own reader of a file's first bytes, a Rust crate that fuji's Rust depends on by path; its `package.json` has no dependencies and names two cargo commands.
+The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. The second workspace is `site`, the VitePress website and documentation for fujidesktop.app, built to static files that our own reverse proxy serves. The third is `linux`, which builds fuji's four linux packages in docker containers on the mac — it has no dependencies of its own, because everything it does is drive containers whose toolchains live inside them. The fourth is `apple`, the mac release through Apple: everything that depends on Apple's developer program lives there, so `desktop` needs none of it. The fifth is `scout`, fuji's own reader of a file's first bytes and walker of a folder tree, a Rust crate that fuji's Rust depends on by path; its `package.json` has no dependencies and names two cargo commands.
 
 The root has no scripts, deliberately. `pnpm install` runs there and installs every workspace; everything else runs from inside the workspace it belongs to, so `cd desktop` comes first. **Throughout this document a path written `src/` or `src-tauri/` is relative to `desktop/`**, which is how the code refers to itself; only paths written from the root, like the build outputs below, carry the `desktop/` prefix.
 
@@ -96,7 +96,7 @@ That is the third arrangement, and the two it replaced are worth knowing. **Copy
 ### The Scout Workspace
 ```bash
 cd scout
-pnpm test         # cargo test: the reader's tests, pinned to the files in samples/
+pnpm test         # cargo test: the reader's tests, pinned to the files in samples/, and the walker's, on trees they build
 pnpm fuzz         # libFuzzer on the reader, seeded from samples/, until stopped; pnpm fuzz -- -max_total_time=60 runs a minute
 ```
 `scout/README.md` is the guide: what the crate is, its files, and how fuji uses it.

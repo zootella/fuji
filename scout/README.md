@@ -1,11 +1,15 @@
 # Scout
 
-Fuji's own reader of a file's first bytes. Given the first 64 KiB of a file and the file's size, it says what format the bytes are and what the common formats keep in their header: the stored size of a picture or a video and the size to show it at, its turn, the running time of a sound or a video. When the first bytes say where the rest of an answer lies, a phone's video index after its data or an Ogg's last page, it asks for one more 64 KiB slice at that offset and answers again from both: two reads at most, and never a search of the file. It reads no pixels and no samples.
+Fuji's own knowledge of the world its files come from, in two parts: the reader, which knows the formats of the files a collection holds, and the walker, which knows the storage they sit on.
+
+The reader reads a file's first bytes. Given the first 64 KiB of a file and the file's size, it says what format the bytes are and what the common formats keep in their header: the stored size of a picture or a video and the size to show it at, its turn, the running time of a sound or a video. When the first bytes say where the rest of an answer lies, a phone's video index after its data or an Ogg's last page, it asks for one more 64 KiB slice at that offset and answers again from both: two reads at most, and never a search of the file. It reads no pixels and no samples.
+
+The walker walks a folder tree and names every entry in it with what kind of thing it is: a file, a folder, a link, a pipe, a socket, a device, a cloud file not yet downloaded, a folder on another drive, a folder it has already walked, and on Windows a reparse point it can't see behind and a name Windows' paths can't reach. It looks at everything that's there, hidden names included, and avoids only what would interrupt a walk, what isn't really on the disk, and what's somewhere else, so it never follows a link, never leaves the drive it began on, never enters a folder twice, and never opens anything. `src/walk.rs` carries the account of what each platform puts in a walk's way on the line that handles it, beneath a short essay on the rule.
 
 It is a Rust crate of its own, so it builds and tests here with nothing of Fuji around it. Fuji's Rust depends on it by path, and nothing publishes it.
 
 ```
-pnpm test    run the reader's tests, pinned to the files in samples/
+pnpm test    run the reader's tests, pinned to the files in samples/, and the walker's, on trees they build
 pnpm fuzz    run libFuzzer on the reader, seeded from samples/, until stopped
 ```
 
@@ -14,14 +18,15 @@ pnpm fuzz    run libFuzzer on the reader, seeded from samples/, until stopped
 ## The files
 
 ```
-src/lib.rs    the reader, with its essay at the top and its tests at the end
+src/tip.rs    the reader, with its essay at the top and its tests at the end
+src/walk.rs   the walker, the same way
 samples/      small files made by real encoders, each pinned by a test to the answer it must give
 fuzz/         the crate cargo-fuzz runs, which keeps what it finds in fuzz/corpus and fuzz/artifacts, both gitignored
 ```
 
 ## How Fuji uses it
 
-`desktop/src-tauri/src/scout.rs` is the command the page calls with a path. It reads the start of the file, and the second slice when the reader asks for one, and hands them to the reader here; `desktop/src/scout.js` wraps the command for the page.
+`desktop/src-tauri/src/scout.rs` is the command the page calls with a path. It reads the start of the file, and the second slice when the reader asks for one, and hands them to the reader here; `desktop/src/scout.js` wraps the command for the page. Nothing in Fuji calls the walker yet.
 
 ## The answer
 

@@ -1,6 +1,6 @@
 {
 	"name": "scout",
-	"description": "Fuji's own reader of a file's first bytes, a Rust crate tested and fuzzed here",
+	"description": "Fuji's own reader of a file's first bytes and walker of a folder tree, a Rust crate tested and fuzzed here",
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",

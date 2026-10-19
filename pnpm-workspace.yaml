@@ -23,7 +23,7 @@ packages:
   # the self-signed release in desktop never needs it
   - apple
 
-  # The scout, fuji's own reader of a file's first bytes, a Rust crate fuji's Rust depends on
+  # The scout, fuji's own reader of a file's first bytes and walker of a folder tree, a Rust crate fuji's Rust depends on
   # by path. Its package.json has no dependencies and names two cargo commands, test and fuzz,
   # so it answers to pnpm the way every other folder does
   - scout
