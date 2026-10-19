@@ -18,6 +18,7 @@ pnpm fuzz    run libFuzzer on the reader, seeded from samples/, until stopped
 ## The files
 
 ```
+src/lib.rs    the crate's root: its two rules, safe Rust and nothing that can panic, over both parts
 src/tip.rs    the reader, with its essay at the top and its tests at the end
 src/walk.rs   the walker, the same way
 samples/      small files made by real encoders, each pinned by a test to the answer it must give

@@ -6,8 +6,5 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-[lib]
-path = "src/tip.rs" # the reader as the crate's root for one commit, so git records the move from lib.rs as a rename; the next commit gives lib.rs back as the root and removes this
-
 [dependencies]
 serde = { version = "1", features = ["derive"] } # the answer derives Serialize, for the command in fuji that hands it to the page
