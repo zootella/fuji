@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::cell::Cell;
 
 /*
-The reader: fuji's own reader of the first bytes of a file. Given the tip of a file, its first 64 KiB or the whole of a smaller one, and the file's size, scout_bytes says what the bytes are and what the common formats keep in their first bytes: the kind of medium, the stored size of a picture or a video and the size to show it at, both with a phone's quarter turn applied, the running time of a sound or a video, whether a picture is animated, whether the file breaks its format's rules or ends before the part its structure points to, and, for every file, whether its bytes read as text or as binary. When the tip shows where the rest of an answer lies, scout_bytes hands back the offset of one more slice, 64 KiB there, beside its answer, and scout_slices answers again from both. It reads no frame, no pixel and no sample. The file's name and fuji's table of types play no part: the bytes name themselves, which is also why no name can steer the reader.
+The reader: fuji's own reader of the first bytes of a file. Given the tip of a file, its first 64 KiB or the whole of a smaller one, and the file's size, scout_bytes says what the bytes are and what the common formats keep in their first bytes: the kind of medium, the stored size of a picture or a video and the size to show it at, both with a phone's quarter turn applied, the running time of a sound or a video, the times the file states and the place it was taken, whether a picture is animated, whether the file breaks its format's rules or ends before the part its structure points to, and, for every file, whether its bytes read as text or as binary. When the tip shows where the rest of an answer lies, scout_bytes hands back the offset of one more slice, 64 KiB there, beside its answer, and scout_slices answers again from both. It reads no frame, no pixel and no sample. The file's name and fuji's table of types play no part: the bytes name themselves, which is also why no name can steer the reader.
 
 Why fuji writes this itself. Every parser that reads a collection's files reads bytes nobody vouched for, and the history fuji's security page tells is of decoders written in C and C++ made to run code by a file: GDI+'s JPEG, the Windows Metafile engine, ImageIO's JBIG2, libwebp, GStreamer's music decoders, FFmpeg's MagicYUV. A scan asks a question of every file on a drive, so it reaches more hostile files than any click, and the code it runs on them has to be code a file cannot subvert. Safe Rust is that code: the compiler refuses a read or a write outside the memory the program owns, which is the whole class of mistake those exploits were, and the crate's root in lib.rs forbids unsafe code, so the compiler holds that promise for every line below.
 
@@ -51,6 +51,8 @@ pub struct Tip {//what the first bytes of a file say: what the file holds at the
 	pub animated: bool,//true when the format's own flag says the picture is animated; false where it says still, and where the reader could not look
 	pub corrupted: bool,//the reader found a format, then found the file breaking that format's rules where it needed them; a broken part it steps past without needing, a JPEG's EXIF or an AVI's OpenDML header, costs only what it held and is not reported. Like chopped, a reason an answer is missing or may be wrong, and never a verdict on the file
 	pub chopped: bool,//the reader found a format, then found the file's end cut off: a length or an offset it met on the way to its answers points past the end, or the file ends inside the structure it was walking, which is most often why an answer is missing. It can come with a finished reading, where the reader meets the file's stated total on its way, as for a WAV whose data chunk claims more than the file holds, and then seconds is what the header promised. The scout never goes looking for a length its answers do not need, so false on this and on corrupted says only that it met no such evidence: the two say why an answer is missing or may be wrong, and never sort whole files from broken ones
+	pub dates: Dates,//every time the file states, as it wrote them: a camera's shutter time with its zone where the file gave one, a movie's creation time, and the rest, each present or absent by format
+	pub place: Place,//where the picture or the video was taken, from a phone's GPS tags or a movie's location string
 	pub reading: Reading,//how the reading went, apart from what the file holds
 	#[serde(skip)]
 	pixel: (u64, u64),//the shape of one stored pixel as the file states it, width to height and unturned, which a reader records and sizes makes aspect from; 0 on either side when the file states none, which counts as square. Kept out of the answer, which says it as aspect
@@ -73,6 +75,27 @@ pub struct Counts {//how many of the tip's bytes are of each of four kinds, what
 	pub printable: u32,//printable ascii, with that whitespace and escape
 	pub high: u32,//bytes past ascii, which utf-8 text and every binary file have
 }
+#[derive(Serialize, Debug, PartialEq, Default)]
+pub struct Dates {//every time the file states, each as the file wrote it, so a caller sees them all; one it does not state, or writes in a form that spells no date, is all zeros and false. Which is the time to show, and which is a camera's unset clock, is a later judgment and no part of this
+	pub original: When,//EXIF's DateTimeOriginal with its OffsetTimeOriginal and SubSecTimeOriginal: when the shutter fired, which is the time a camera or a phone means
+	pub digitized: When,//EXIF's DateTimeDigitized with its offset and sub-second: when the image became data, the same moment for a camera and the scan's for a scan
+	pub modified: When,//EXIF's DateTime with its offset and sub-second, the last change to the image; and a movie header's modification time, UTC by the format's rule
+	pub gps: When,//EXIF's GPSDateStamp and GPSTimeStamp together, the time of the fix, UTC by the format's rule: the one zoned time in a phone's photo from before the offset tags
+	pub created: When,//a movie header's creation time, UTC by the format's rule, though cameras have written their local clock there; Windows Media's creation date, UTC; and Matroska's DateUTC, which is when the muxer wrote the file
+	pub apple: When,//Apple's creation date key, com.apple.quicktime.creationdate, local digits with their zone, which an iPhone writes beside the movie header's UTC
+}
+#[derive(Serialize, Debug, PartialEq, Clone, Copy, Default)]
+pub struct When {//one time as a file wrote it: its digits, and its zone when the file gave one
+	pub stamp: f64,//seconds since 1970, with any fraction the file wrote: the instant, in UTC, when zoned; otherwise the file's digits read as if they were UTC, which is all a file with no zone can say. Either way the wall clock the file wrote is stamp plus offset minutes. 0 when the file states no such time
+	pub offset: i32,//minutes east of UTC, the zone the file stated; 0 when it stated none, and for a time the format defines as UTC
+	pub zoned: bool,//whether stamp is an instant: the file stated a zone, or the format defines the time as UTC; false leaves stamp a wall clock in a zone nobody knows
+}
+#[derive(Serialize, Debug, PartialEq, Clone, Copy, Default)]
+pub struct Place {//where a picture or a video was taken, as the file states it
+	pub latitude: f64,//degrees, north positive
+	pub longitude: f64,//degrees, east positive
+	pub known: bool,//whether the file states a place at all, since zero and zero is a point in the Gulf of Guinea
+}
 
 /// What the first bytes of a file say, from the tip alone and the file's size in bytes, and beside it the one request the reader makes: the offset of one more 64 KiB slice when the tip says where the rest of an answer lies, which scout_slices takes with the tip, or nothing. Pure: no path, no open, no allocation, and the same answer for the same bytes on every platform; the essay says what is answered and what is promised
 pub fn scout_bytes(tip: &[u8], size: u64) -> (Tip, Option<u64>) { scout(tip, None, size) }
@@ -86,7 +109,7 @@ fn scout(tip: &[u8], second: Option<(u64, &[u8])>, size: u64) -> (Tip, Option<u6
 	let counts = text_counts(tip);
 	let (text, binary) = text_verdict(tip, &counts);
 	let none = Size { width: 0, height: 0 };
-	let mut t = Tip { format: "", medium: "", text, binary, raster: none, aspect: none, orientation: 1, seconds: 0.0, animated: false, corrupted: false, chopped: false, reading: Reading { parsed: false, trouble: false, details: "", reads: if second.is_some() { 2 } else { 1 }, depth: 0, counts }, pixel: (0, 0) };
+	let mut t = Tip { format: "", medium: "", text, binary, raster: none, aspect: none, orientation: 1, seconds: 0.0, animated: false, corrupted: false, chopped: false, dates: Dates::default(), place: Place::default(), reading: Reading { parsed: false, trouble: false, details: "", reads: if second.is_some() { 2 } else { 1 }, depth: 0, counts }, pixel: (0, 0) };
 	let mut wish = None;
 	if tip.is_empty() { t.reading.details = "empty" }
 	else {
@@ -279,6 +302,73 @@ fn svg(b: &Bytes) -> bool {//whether text is an svg: markup from its first byte,
 	false
 }
 
+//dates and places, as the formats write them: each helper turns a few bytes into a When or a Place, or into nothing, and none is ever a reason to stop
+
+fn civil(year: f64, month: f64, day: f64) -> f64 {//days since 1970 of a calendar date, by Howard Hinnant's days_from_civil: in floats, which are exact at these sizes, where the integer form would need a checked operation at every step
+	let y = if month <= 2.0 { year - 1.0 } else { year };
+	let era = (y / 400.0).floor();
+	let yoe = y - era * 400.0;
+	let doy = ((153.0 * (if month > 2.0 { month - 3.0 } else { month + 9.0 }) + 2.0) / 5.0).floor() + day - 1.0;
+	let doe = yoe * 365.0 + (yoe / 4.0).floor() - (yoe / 100.0).floor() + doy;
+	era * 146097.0 + doe - 719468.0
+}
+fn calendar(year: u32, month: u32, day: u32, hour: u32, minute: u32, second: f64) -> Option<f64> {//seconds since 1970 of a wall clock read as if it were UTC, or none for a time no calendar has: a month of 13, a day of 0, an hour of 24
+	if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || !(0.0..61.0).contains(&second) { return None }
+	Some(civil(f64::from(year), f64::from(month), f64::from(day)) * 86400.0 + f64::from(hour) * 3600.0 + f64::from(minute) * 60.0 + second)
+}
+fn instant(spelled: Option<f64>, fraction: f64, offset: Option<i32>) -> When {//a When from a wall clock, its fraction of a second, and the zone when one was stated: zoned, the instant is the clock less the offset
+	let Some(spelled) = spelled else { return When::default() };
+	match offset { Some(offset) => when(spelled + fraction - f64::from(offset) * 60.0, offset, true), None => when(spelled + fraction, 0, false) }
+}
+fn utc(seconds: f64) -> When { when(seconds, 0, true) }//a When for a time a format defines as UTC, which comes as one number in the format's own epoch, moved to 1970 by the caller
+fn when(stamp: f64, offset: i32, zoned: bool) -> When {//the one way a When is made: a stamp that lands exactly on 1970 is none, since 0 is the answer's word for a time the file does not state, and the one writer known to put 1970 in a file, FFmpeg into Windows Media it was told no time for, means none by it
+	if stamp == 0.0 { When::default() } else { When { stamp, offset, zoned } }
+}
+fn ascii(s: &[u8]) -> &[u8] {//a string as EXIF stores one: up to its first nul byte, and without the spaces around it
+	let s = s.split(|&c| c == 0).next().unwrap_or(&[]);
+	let from = s.iter().position(|c| *c != b' ').unwrap_or(s.len());
+	let to = s.iter().rposition(|c| *c != b' ').map_or(from, |p| p.saturating_add(1));
+	s.get(from..to).unwrap_or(&[])
+}
+fn digits(s: &[u8]) -> Option<u32> {//the number a slice of ASCII digits spells; none for an empty slice, one longer than nine digits, or any byte that is not a digit, the blank a camera writes for a time it does not have among them
+	if s.is_empty() || s.len() > 9 { return None }
+	s.iter().try_fold(0u32, |n, &c| if c.is_ascii_digit() { Some(n.saturating_mul(10).saturating_add(u32::from(c.wrapping_sub(b'0')))) } else { None })
+}
+fn fraction(s: &[u8]) -> f64 {//the fraction a slice of digits spells after a point, as EXIF's sub-second tags and a location's decimals write it: 123 is 0.123 and 7 is 0.7; 0 for anything else
+	match digits(s) { Some(n) => f64::from(n) / 10f64.powi(s.len() as i32), None => 0.0 }
+}
+fn spelled(s: &[u8]) -> Option<f64> {//the wall clock a date string spells, read as if it were UTC: YYYY:MM:DD HH:MM:SS as EXIF writes it and YYYY-MM-DDTHH:MM:SS as Apple's key does, six numbers at the same places in both, whatever sits between them; none for the blanks a camera with no clock writes
+	let field = |from: usize, n: usize| s.get(from..from.checked_add(n)?).and_then(digits);
+	calendar(field(0, 4)?, field(5, 2)?, field(8, 2)?, field(11, 2)?, field(14, 2)?, f64::from(field(17, 2)?))
+}
+fn zone(s: &[u8]) -> Option<i32> {//minutes east of UTC from a zone as EXIF writes one, +HH:MM, as Apple's key writes one, +HHMM, or Z; none for anything else, the blank an unset offset tag holds among them
+	match s {
+		[b'Z'] => Some(0),
+		[sign @ (b'+' | b'-'), h1, h2, rest @ ..] => {
+			let (m1, m2) = match rest { [b':', m1, m2] | [m1, m2] => (*m1, *m2), _ => return None };
+			let (hours, minutes) = (digits(&[*h1, *h2])?, digits(&[m1, m2])?);
+			if hours > 23 || minutes > 59 { return None }
+			let total = i32::try_from(hours.saturating_mul(60).saturating_add(minutes)).ok()?;
+			Some(if *sign == b'-' { total.saturating_neg() } else { total })
+		}
+		_ => None,
+	}
+}
+fn iso8601(s: &[u8]) -> When { instant(spelled(s), 0.0, s.get(19..).and_then(zone)) }//the time Apple's creation date key spells, the digits and then a zone, which an iPhone writes as +HHMM; a key with no zone is kept as a wall clock, and one that spells no date is nothing
+fn iso6709(s: &[u8]) -> Option<Place> {//a location as ISO 6709 writes one and both phones write it: a signed latitude, a signed longitude, an altitude the reader does not take, and a slash, as +37.3315-122.0304+013.405/ has them. Only degrees with decimals are read; the standard's other forms, degrees and minutes with four or five whole digits, read here as angles past the globe and answer nothing
+	let (latitude, rest) = angle(s)?;
+	let (longitude, _) = angle(rest)?;
+	if latitude.abs() > 90.0 || longitude.abs() > 180.0 { return None }
+	Some(Place { latitude, longitude, known: true })
+}
+fn angle(s: &[u8]) -> Option<(f64, &[u8])> {//one signed number from the front of a slice, and what follows it: a sign, whole digits, and a point and decimals when there are any
+	let (sign, s) = match s { [b'+', rest @ ..] => (1.0, rest), [b'-', rest @ ..] => (-1.0, rest), _ => return None };
+	let whole = s.iter().position(|c| !c.is_ascii_digit()).unwrap_or(s.len());
+	let mut value = f64::from(digits(s.get(..whole)?)?);
+	let rest = match s.get(whole..)? { [b'.', after @ ..] => { let n = after.iter().position(|c| !c.is_ascii_digit()).unwrap_or(after.len()); value += fraction(after.get(..n)?); after.get(n..)? } rest => rest };
+	Some((sign * value, rest))
+}
+
 //pictures
 
 fn jpeg(b: &Bytes, t: &mut Tip) -> Step<()> {//a JPEG is segments, each a marker and a length, stepped through by their stated lengths to the start-of-frame segment that holds the size; never searched for, because the EXIF segment can hold a whole small JPEG, the thumbnail, with a frame header of its own. The orientation is a tag in that EXIF segment, read on the way past. A segment that runs past the tip, as a color profile's or a camera's can, is where the second slice begins
@@ -302,8 +392,11 @@ fn jpeg(b: &Bytes, t: &mut Tip) -> Step<()> {//a JPEG is segments, each a marker
 			_ => {
 				let length = usize::from(b.be16(at)?);//the segment's length, which counts these two bytes
 				if length < 2 { return Err(Stop::Corrupted("a segment shorter than its own length field")) }
-				if code == 0xE1 && b.has(add(at, 2)?, b"Exif\0\0") {//the EXIF segment: a TIFF header and its first directory, where the orientation tag lives; a malformed one costs the orientation and nothing else
-					if let Ok(ifd) = ifd_read(b, add(at, 8)?, add(at, length)?) { t.orientation = ifd.orientation }
+				if code == 0xE1 && b.has(add(at, 2)?, b"Exif\0\0") {//the EXIF segment: a TIFF header and its directories, where the orientation, the times and the place live. Whatever stops the reading of them, what it read before stands, so a malformed directory costs what it held and nothing else; a directory past the slices is asked for, as the walk would ask for the segment's end
+					let mut ifd = Ifd::default();
+					let step = ifd_read(b, add(at, 8)?, add(at, length)?, &mut ifd);
+					(t.orientation, t.dates, t.place) = (ifd.orientation, ifd.dates, ifd.place);
+					if let Err(Stop::Ask(..)) = step { return step }
 				}
 				at = add(at, length)?;
 			}
@@ -312,28 +405,111 @@ fn jpeg(b: &Bytes, t: &mut Tip) -> Step<()> {//a JPEG is segments, each a marker
 	Err(Stop::Limit("more segments before the frame header than any picture has"))
 }
 
-struct Ifd { width: u32, height: u32, orientation: u32, reduced: bool, dng: bool }//what the reader takes from a TIFF structure's first directory: the stored size, the orientation, whether the first image is a reduced-size copy of another, and whether the file is a DNG
-fn ifd_read(b: &Bytes, tiff: usize, end: usize) -> Step<Ifd> {//the first image file directory of the TIFF structure at tiff, read no further than end: a byte order, the number 42, the directory's offset, then an entry count and twelve-byte entries of tag, type, count and value. A JPEG's EXIF segment and a TIFF file are both this
+struct Ifd { width: u32, height: u32, orientation: u32, reduced: bool, dng: bool, dates: Dates, place: Place }//what the reader takes from a TIFF structure: from its first directory the stored size, the orientation, whether the first image is a reduced-size copy of another and whether the file is a DNG, and from the EXIF and GPS directories that one points at the times and the place
+impl Default for Ifd { fn default() -> Ifd { Ifd { width: 0, height: 0, orientation: 1, reduced: false, dng: false, dates: Dates::default(), place: Place::default() } } }
+fn ifd_read(b: &Bytes, tiff: usize, end: usize, ifd: &mut Ifd) -> Step<()> {//the TIFF structure at tiff, read no further than end, into ifd as far as the reading gets; a JPEG's EXIF segment, a PNG's EXIF chunk and a TIFF file are all this. A directory's values lie anywhere in the structure, in no order the reader could ask by, so a request for bytes the windows do not hold becomes the request for the slice that begins a field's length before the window holding the structure ends: no gap between the two, and a field that straddles them whole in the slice
+	ifd_structure(b, tiff, end, ifd).map_err(|stop| match stop { Stop::Ask(words, _) => Stop::Ask(words, b.end_of(tiff).saturating_sub(FIELD) as u64), other => other })
+}
+const FIELD: usize = 20;//the longest field the directory readers take in one read, a date's twenty bytes, which every read of theirs is bounded by
+fn ifd_structure(b: &Bytes, tiff: usize, end: usize, ifd: &mut Ifd) -> Step<()> {//a byte order, the number 42, the first directory's offset, then that directory, an entry count and twelve-byte entries of tag, type, count and value; the EXIF directory and the GPS directory, where the first directory points at them, are read after it
 	let little = match b.read(tiff, 2)? { b"II" => true, b"MM" => false, _ => return Err(Stop::Corrupted("not a TIFF header")) };
 	if num16(b, add(tiff, 2)?, little)? != 42 { return Err(Stop::Corrupted("not a TIFF header")) }
 	let directory = add(tiff, to_usize(num32(b, add(tiff, 4)?, little)?.into())?)?;
+	let mut exif = Exif::default();
+	let (mut exif_at, mut gps_at) = (0, 0);
+	ifd_each(b, tiff, directory, end, little, |tag, kind, count, value| {
+		if tag == 0xC612 { ifd.dng = true; return Ok(()) }//DNGVersion, whose four bytes say which DNG and are not read
+		if tag == 0x0132 { exif.modified.spelled = spelled(ascii(b.read(value, count.min(FIELD))?)); return Ok(()) }//DateTime, the one time in the first directory, whose offset and fraction are in the EXIF directory
+		let number = match kind { 3 => u32::from(num16(b, value, little)?), 4 => num32(b, value, little)?, _ => return Ok(()) };//a short or a long, which is all the rest are; a value of either sits in the first bytes of the value field
+		match tag {
+			0x00FE => ifd.reduced = number & 1 == 1,//NewSubfileType's first bit: a reduced-resolution version of another image in the file
+			0x0100 => ifd.width = number,
+			0x0101 => ifd.height = number,
+			0x0112 if (1..=8).contains(&number) => ifd.orientation = number,
+			0x8769 => exif_at = number,//the EXIF directory's offset from the TIFF header, where every camera keeps its times
+			0x8825 => gps_at = number,//and the GPS directory's
+			_ => {}
+		}
+		Ok(())
+	})?;
+	let exif_step = if exif_at > 0 { optional(ifd_exif(b, tiff, add(tiff, to_usize(exif_at.into())?)?, end, little, &mut exif)) } else { Ok(()) };
+	let gps_step = if gps_at > 0 { optional(ifd_gps(b, tiff, add(tiff, to_usize(gps_at.into())?)?, end, little, &mut exif)) } else { Ok(()) };
+	(ifd.dates, ifd.place) = exif.answer();//from whatever the two directories gave before any stop
+	exif_step?;
+	gps_step
+}
+fn optional(step: Step<()>) -> Step<()> {//the stop of a structure the answer can do without: corrupted, or at the reader's limit, it costs what it held and nothing else, while bytes the slices do not hold are asked for and bytes past the file's end are the file chopped, as for any read
+	match step { Err(Stop::Corrupted(_) | Stop::Limit(_)) => Ok(()), other => other }
+}
+fn ifd_each(b: &Bytes, tiff: usize, directory: usize, end: usize, little: bool, mut each: impl FnMut(u16, u16, usize, usize) -> Step<()>) -> Step<()> {//every entry of a directory, handed to each as its tag, its type, its count, and where its value's bytes are: in the entry's own last four bytes when they fit there, and at the offset those four bytes give from the TIFF header when they do not
 	let count = usize::from(num16(b, directory, little)?);
-	let mut ifd = Ifd { width: 0, height: 0, orientation: 1, reduced: false, dng: false };
 	for i in 0..count.min(STEPS) {
 		let entry = add(add(directory, 2)?, mul(i, 12)?)?;
 		if add(entry, 12)? > end { break }//a count that reaches past the structure
-		let tag = num16(b, entry, little)?;
-		if tag == 0xC612 { ifd.dng = true; continue }//DNGVersion, whose four bytes say which DNG and are not read
-		let value = match num16(b, add(entry, 2)?, little)? { 3 => u32::from(num16(b, add(entry, 8)?, little)?), 4 => num32(b, add(entry, 8)?, little)?, _ => continue };//a short or a long, which is all these tags are; a value of either sits in the first bytes of the value field
+		let (tag, kind, n) = (num16(b, entry, little)?, num16(b, add(entry, 2)?, little)?, to_usize(num32(b, add(entry, 4)?, little)?.into())?);
+		let width = match kind { 1 | 2 | 6 | 7 => 1, 3 | 8 => 2, 4 | 9 | 11 => 4, 5 | 10 | 12 => 8, _ => continue };//bytes a value of each type takes: byte, ASCII, signed byte and undefined; short and signed short; long, signed long and float; rational, signed rational and double
+		let value = if mul(n, width)? <= 4 { add(entry, 8)? } else { add(tiff, to_usize(num32(b, add(entry, 8)?, little)?.into())?)? };
+		each(tag, kind, n, value)?;
+	}
+	Ok(())
+}
+#[derive(Default, Clone, Copy)]
+struct Pieces { spelled: Option<f64>, zone: Option<i32>, fraction: f64 }//one EXIF time as its three tags write it: the digits, the offset, and the sub-second
+impl Pieces { fn when(self) -> When { instant(self.spelled, self.fraction, self.zone) } }
+#[derive(Default)]
+struct Exif { original: Pieces, digitized: Pieces, modified: Pieces, fix_day: Option<(u32, u32, u32)>, fix_time: Option<(f64, f64, f64)>, latitude: Option<f64>, longitude: Option<f64>, south: bool, west: bool }//the pieces of the times and the place as EXIF scatters them over two directories, gathered here and put together once both are read
+impl Exif {
+	fn answer(&self) -> (Dates, Place) {
+		let gps = match (self.fix_day, self.fix_time) { (Some((year, month, day)), Some((hour, minute, second))) => instant(calendar(year, month, day, hour as u32, minute as u32, second), 0.0, Some(0)), _ => When::default() };//the fix's hour and minute come as rationals too, whole ones in every file, so they are taken as whole numbers and only the second keeps a fraction
+		let dates = Dates { original: self.original.when(), digitized: self.digitized.when(), modified: self.modified.when(), gps, created: When::default(), apple: When::default() };
+		let place = match (self.latitude, self.longitude) {
+			(Some(latitude), Some(longitude)) if latitude <= 90.0 && longitude <= 180.0 => Place { latitude: if self.south { -latitude } else { latitude }, longitude: if self.west { -longitude } else { longitude }, known: true },
+			_ => Place::default(),
+		};
+		(dates, place)
+	}
+}
+fn ifd_exif(b: &Bytes, tiff: usize, directory: usize, end: usize, little: bool, exif: &mut Exif) -> Step<()> {//the EXIF directory: the three times as digits, each with its zone, which the format added in 2016, and its fraction of a second, nine ASCII tags among the dozens a camera writes
+	ifd_each(b, tiff, directory, end, little, |tag, _, count, value| {
+		if !matches!(tag, 0x9003 | 0x9004 | 0x9010..=0x9012 | 0x9290..=0x9292) { return Ok(()) }
+		let s = ascii(b.read(value, count.min(FIELD))?);//no time or offset is longer, so a count that is lies about bytes the reader does not need
 		match tag {
-			0x00FE => ifd.reduced = value & 1 == 1,//NewSubfileType's first bit: a reduced-resolution version of another image in the file
-			0x0100 => ifd.width = value,
-			0x0101 => ifd.height = value,
-			0x0112 if (1..=8).contains(&value) => ifd.orientation = value,
+			0x9003 => exif.original.spelled = spelled(s),
+			0x9004 => exif.digitized.spelled = spelled(s),
+			0x9010 => exif.modified.zone = zone(s),
+			0x9011 => exif.original.zone = zone(s),
+			0x9012 => exif.digitized.zone = zone(s),
+			0x9290 => exif.modified.fraction = fraction(s),
+			0x9291 => exif.original.fraction = fraction(s),
+			_ => exif.digitized.fraction = fraction(s),
+		}
+		Ok(())
+	})
+}
+fn ifd_gps(b: &Bytes, tiff: usize, directory: usize, end: usize, little: bool, exif: &mut Exif) -> Step<()> {//the GPS directory: the latitude and the longitude as degrees, minutes and seconds, three rationals each, with a letter for the hemisphere before each; and the fix's time as three rationals and its date as digits, UTC both
+	ifd_each(b, tiff, directory, end, little, |tag, _, count, value| {
+		match tag {
+			0x0001 => exif.south = b.u8(value)? == b'S',
+			0x0002 => exif.latitude = degrees(b, value, little)?,
+			0x0003 => exif.west = b.u8(value)? == b'W',
+			0x0004 => exif.longitude = degrees(b, value, little)?,
+			0x0007 => exif.fix_time = rationals(b, value, little)?,
+			0x001D => {
+				let s = ascii(b.read(value, count.min(11))?);
+				let field = |from: usize, n: usize| s.get(from..from.checked_add(n)?).and_then(digits);
+				exif.fix_day = match (field(0, 4), field(5, 2), field(8, 2)) { (Some(year), Some(month), Some(day)) => Some((year, month, day)), _ => None };
+			}
 			_ => {}
 		}
-	}
-	Ok(ifd)
+		Ok(())
+	})
+}
+fn rationals(b: &Bytes, at: usize, little: bool) -> Step<Option<(f64, f64, f64)>> {//three unsigned rationals in a row, each a numerator over a denominator; none when any denominator is zero
+	let one = |i: usize| -> Step<Option<f64>> { let at = add(at, mul(i, 8)?)?; let (n, d) = (num32(b, at, little)?, num32(b, add(at, 4)?, little)?); Ok(if d == 0 { None } else { Some(f64::from(n) / f64::from(d)) }) };
+	Ok(match (one(0)?, one(1)?, one(2)?) { (Some(a), Some(b), Some(c)) => Some((a, b, c)), _ => None })
+}
+fn degrees(b: &Bytes, at: usize, little: bool) -> Step<Option<f64>> {//an angle as EXIF's GPS tags write one: degrees, minutes and seconds as three rationals, which phones fill with decimals in whichever they like
+	Ok(rationals(b, at, little)?.map(|(d, m, s)| d + m / 60.0 + s / 3600.0))
 }
 fn num16(b: &Bytes, at: usize, little: bool) -> Step<u16> { if little { b.le16(at) } else { b.be16(at) } }//a TIFF number in the structure's own byte order
 fn num32(b: &Bytes, at: usize, little: bool) -> Step<u32> { if little { b.le32(at) } else { b.be32(at) } }
@@ -342,12 +518,15 @@ fn tiff(b: &Bytes, t: &mut Tip) -> Step<()> {//a TIFF's size is in its first dir
 	t.format = "tiff"; t.medium = IMAGE;
 	if b.has(8, b"CR") { return Err(Stop::Limit("a camera's raw file, whose first image is a preview")) }//Canon's CR2 puts these two letters after the header
 	ask(b, to_usize(num32(b, 4, b.has(0, b"II"))?.into())?, "first directory past the tip")?;
-	let ifd = ifd_read(b, 0, usize::MAX)?;//bounded by the reads alone, since the directory may sit in either slice
+	let mut ifd = Ifd::default();
+	let step = ifd_read(b, 0, usize::MAX, &mut ifd);//bounded by the reads alone, since the directories may sit in either slice
+	(t.dates, t.place) = (ifd.dates, ifd.place);//whatever the directories gave before any stop
 	if ifd.dng || ifd.reduced { return Err(Stop::Limit("a first image that is a reduced-size copy")) }//a DNG, or any TIFF whose first directory is a thumbnail of a later one, as camera raw files are
-	if ifd.width == 0 || ifd.height == 0 { return Err(Stop::Corrupted("no size in the first directory")) }
+	if ifd.width == 0 || ifd.height == 0 { step?; return Err(Stop::Corrupted("no size in the first directory")) }//the first directory's own stop first, since no size is read until it is whole
 	t.orientation = ifd.orientation;
 	t.raster = Size { width: ifd.width, height: ifd.height };
-	Ok(())
+	step//done, or the EXIF or GPS directory's request for the slice that holds it
+
 }
 
 fn png(b: &Bytes, t: &mut Tip) -> Step<()> {//the header chunk is first by rule, with the size in its first eight bytes; the chunks after it are walked only to see whether an animation control chunk comes before the picture's data, which is what makes an APNG
@@ -361,6 +540,12 @@ fn png(b: &Bytes, t: &mut Tip) -> Step<()> {//the header chunk is first by rule,
 		let length = to_usize(b.be32(at)?.into())?;
 		match &b.four(add(at, 4)?)? {
 			b"acTL" => t.animated = true,
+			b"eXIf" => {//the EXIF chunk, which the format gained in 2017: a TIFF structure, where a screenshot or a phone's export keeps its times; as in a JPEG, what it gave before any stop stands, and a directory past the slices is asked for
+				let mut ifd = Ifd::default();
+				let step = ifd_read(b, add(at, 8)?, add(add(at, 8)?, length)?, &mut ifd);
+				(t.dates, t.place) = (ifd.dates, ifd.place);
+				if let Err(Stop::Ask(..)) = step { return step }
+			}
 			b"IDAT" | b"IEND" => return Ok(()),//the picture's data, or the end: whether it animates is settled
 			_ => {}
 		}
@@ -564,11 +749,15 @@ fn iso_moov(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the 
 		let (kind, data, box_end) = box_head(b, at)?;
 		let box_end = box_end.min(end);
 		match &kind {
-			b"mvhd" => {//version 0 keeps its times in 32 bits and version 1 in 64, which moves the timescale and the duration along
-				let (scale, duration) = if b.u8(data)? == 1 { (b.be32(add(data, 20)?)?, b.be64(add(data, 24)?)?) } else { (b.be32(add(data, 12)?)?, u64::from(b.be32(add(data, 16)?)?)) };
+			b"mvhd" => {//version 0 keeps its times in 32 bits and version 1 in 64, which moves the timescale and the duration along; the creation and modification times count seconds from 1904, UTC by the format's rule, and a zero is the format's own none
+				let (created, modified, scale, duration) = if b.u8(data)? == 1 { (b.be64(add(data, 4)?)?, b.be64(add(data, 12)?)?, b.be32(add(data, 20)?)?, b.be64(add(data, 24)?)?) } else { (u64::from(b.be32(add(data, 4)?)?), u64::from(b.be32(add(data, 8)?)?), b.be32(add(data, 12)?)?, u64::from(b.be32(add(data, 16)?)?)) };
 				if scale > 0 { t.seconds = seconds(duration as f64 / f64::from(scale)) }
+				if created > 0 { t.dates.created = utc(created as f64 - 2_082_844_800.0) }
+				if modified > 0 { t.dates.modified = utc(modified as f64 - 2_082_844_800.0) }
 			}
 			b"trak" => { tracks = tracks.saturating_add(1); if !visual { visual = iso_track(b, data, box_end, t)? } }
+			b"meta" => iso_keys(b, data, box_end, t)?,//the keyed metadata, where an iPhone writes its creation date with its zone and its location
+			b"udta" => iso_udta(b, data, box_end, t)?,//user data, where an Android phone writes its location, and where some writers put the keyed metadata instead
 			_ => {}
 		}
 		at = box_end;
@@ -637,6 +826,55 @@ fn iso_child(b: &Bytes, from: usize, end: usize, want: &[u8; 4]) -> Step<Option<
 		let (kind, data, box_end) = box_head(b, at)?;
 		if &kind == want { return Ok(Some((data, box_end.min(end)))) }
 		at = box_end.min(end);
+	}
+	Err(Stop::Limit("more boxes than the walk allows"))
+}
+
+fn iso_udta(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the user data box: the ©xyz box, an Android phone's location as a two-byte length, a two-byte language code and the ISO 6709 string, which the first iPhones wrote too; and the keyed metadata box, which FFmpeg writes here rather than in the movie box
+	let mut at = from;
+	for _ in 0..STEPS {
+		if at >= end { return Ok(()) }
+		let (kind, data, box_end) = box_head(b, at)?;
+		let box_end = box_end.min(end);
+		match &kind {
+			[0xA9, b'x', b'y', b'z'] => {
+				let string = add(data, 4)?;
+				if let Some(place) = iso6709(b.read(string, usize::from(b.be16(data)?).min(64).min(box_end.saturating_sub(string)))?) { t.place = place }
+			}
+			b"meta" => iso_keys(b, data, box_end, t)?,
+			_ => {}
+		}
+		at = box_end;
+	}
+	Err(Stop::Limit("more boxes than the walk allows"))
+}
+
+fn iso_keys(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the keyed metadata box: a handler, a keys box naming each key, and an item list holding each key's value under the key's index, counted from one. QuickTime's box has no version and flags before its children and ISO's has four bytes of them, so the first child's name is at one place or the other
+	let start = if matches!(b.four(add(from, 4)?), Ok(ref kind) if matches!(kind, b"hdlr" | b"keys" | b"ilst" | b"mhdr")) { from } else { add(from, 4)? };
+	let (Some((keys, keys_end)), Some((list, list_end))) = (iso_child(b, start, end, b"keys")?, iso_child(b, start, end, b"ilst")?) else { return Ok(()) };
+	let (mut date, mut place) = (0u32, 0u32);//the indices of the two keys the reader wants, 0 for one the file does not name
+	let mut at = add(keys, 8)?;//past the version, the flags and the count
+	for index in 1..=b.be32(add(keys, 4)?)?.min(STEPS as u32) {
+		if at >= keys_end { break }
+		let n = to_usize(b.be32(at)?.into())?;
+		if n < 8 { return Err(Stop::Corrupted("a key shorter than its header")) }
+		let name = b.read(add(at, 8)?, sub(n, 8)?.min(64))?;//after the namespace; a name longer than any the reader knows is cut, and matches nothing
+		if name == b"com.apple.quicktime.creationdate" { date = index } else if name == b"com.apple.quicktime.location.ISO6709" { place = index }
+		at = add(at, n)?;
+	}
+	let mut at = list;
+	for _ in 0..STEPS {
+		if at >= list_end { return Ok(()) }
+		let (kind, item, item_end) = box_head(b, at)?;
+		let item_end = item_end.min(list_end);
+		let index = u32::from_be_bytes(kind);
+		if index > 0 && (index == date || index == place) {
+			if let Some((data, data_end)) = iso_child(b, item, item_end, b"data")? {//the value, after four bytes of type and four of locale; longer than any date or location, it is cut
+				let value = b.read(add(data, 8)?, data_end.saturating_sub(add(data, 8)?).min(64))?;
+				if index == date { t.dates.apple = iso8601(value) } else if let Some(found) = iso6709(value) { t.place = found }
+			}
+		}
+		at = item_end;
 	}
 	Err(Stop::Limit("more boxes than the walk allows"))
 }
@@ -717,6 +955,7 @@ fn ebml_float(b: &Bytes, data: usize, n: usize) -> Step<f64> {//a float element,
 fn ebml_info(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the running time is a float in timecode-scale units, nanoseconds by default and a millisecond in nearly every file
 	let scale = match ebml_child(b, from, end, 0x2A_D7B1)? { Some((data, n)) => ebml_uint(b, data, n)?, None => 1_000_000 };
 	if let Some((data, n)) = ebml_child(b, from, end, 0x4489)? { t.seconds = seconds(ebml_float(b, data, n)? * scale as f64 / 1e9) }
+	if let Some((data, 8)) = ebml_child(b, from, end, 0x4461)? { t.dates.created = utc(i64::from_be_bytes(array(b.read(data, 8)?)?) as f64 / 1e9 + 978_307_200.0) }//DateUTC, when the muxer made the segment: a signed count of nanoseconds since 2001, which a muxer given a recording's time writes from it
 	Ok(())
 }
 fn ebml_tracks(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//each track entry says its type, 1 for a picture, and a picture track carries a video element with its size in pixels and, where the pixels are not square, its display size; the first picture track's sizes are the answer, and a file with none is a sound file
@@ -876,8 +1115,9 @@ fn asf(b: &Bytes, t: &mut Tip) -> Step<()> {//Windows Media, video and audio ali
 		if n < 24 { return Err(Stop::Corrupted("an object shorter than its header")) }
 		let data = add(at, 24)?;
 		if guid == ASF_FILE {
-			let (play, preroll) = (b.le64(add(data, 40)?)?, b.le64(add(data, 56)?)?);
+			let (created, play, preroll) = (b.le64(add(data, 24)?)?, b.le64(add(data, 40)?)?, b.le64(add(data, 56)?)?);//the creation date after the file id and the file size, then the play duration and the preroll past the packet count and the send duration
 			t.seconds = seconds(play as f64 / 1e7 - preroll as f64 / 1e3);
+			if created > 0 { t.dates.created = utc(created as f64 / 1e7 - 11_644_473_600.0) }//a Windows file time, hundreds of nanoseconds since 1601, UTC, moved to 1970; 0 where the writer left it, as FFmpeg does unless told a time
 		} else if guid == ASF_STREAM {
 			let kind = b.read(data, 16)?;
 			if kind == ASF_VIDEO {
@@ -1228,6 +1468,93 @@ mod tests {
 		assert_eq!((t.reading.details, t.corrupted), ("no marker where the format puts one", true));
 	}
 
+	fn entry(tag: u16, kind: u16, bytes: &[u8]) -> (u16, u16, Vec<u8>) { (tag, kind, bytes.to_vec()) }//a directory entry as a test writes one: the tag, the type, and the value's bytes, whose count is their length over the type's width
+	fn string(tag: u16, s: &str) -> (u16, u16, Vec<u8>) { let mut v = s.as_bytes().to_vec(); v.push(0); (tag, 2, v) }//an ASCII entry, nul-terminated as the format writes it
+	fn rational(tag: u16, pairs: &[(u32, u32)]) -> (u16, u16, Vec<u8>) { (tag, 5, pairs.iter().flat_map(|&(n, d)| [be32(n), be32(d)].concat()).collect()) }
+	fn tiff_build(first: &[(u16, u16, Vec<u8>)], exif: &[(u16, u16, Vec<u8>)], gps: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {//a big-endian TIFF: the header, the first directory with a pointer to each of the EXIF and GPS directories that has entries, those two, and every value longer than four bytes after the three; a directory is a count, twelve bytes an entry and a next pointer of zero
+		let width = |kind: u16| -> usize { match kind { 3 => 2, 4 => 4, 5 => 8, _ => 1 } };
+		let length = |n: usize| 2 + 12 * n + 4;
+		let pointers = usize::from(!exif.is_empty()) + usize::from(!gps.is_empty());
+		let at_exif = 8 + length(first.len() + pointers);
+		let at_gps = at_exif + if exif.is_empty() { 0 } else { length(exif.len()) };
+		let mut values_at = at_gps + if gps.is_empty() { 0 } else { length(gps.len()) };
+		let mut values: Vec<u8> = vec![];
+		let mut directory = |entries: &[(u16, u16, Vec<u8>)], pointers: &[(u16, usize)]| -> Vec<u8> {
+			let mut v = ((entries.len() + pointers.len()) as u16).to_be_bytes().to_vec();
+			for (tag, kind, bytes) in entries {
+				v.extend(tag.to_be_bytes()); v.extend(kind.to_be_bytes()); v.extend(be32((bytes.len() / width(*kind)) as u32));
+				if bytes.len() <= 4 { let mut inline = bytes.clone(); inline.resize(4, 0); v.extend(inline) } else { v.extend(be32(values_at as u32)); values.extend(bytes); values_at += bytes.len() }
+			}
+			for &(tag, at) in pointers { v.extend(tag.to_be_bytes()); v.extend(4u16.to_be_bytes()); v.extend(be32(1)); v.extend(be32(at as u32)) }
+			v.extend(be32(0));
+			v
+		};
+		let mut pointers = vec![];
+		if !exif.is_empty() { pointers.push((0x8769, at_exif)) }
+		if !gps.is_empty() { pointers.push((0x8825, at_gps)) }
+		let mut v = b"MM\0\x2A".to_vec(); v.extend(be32(8));
+		v.extend(directory(first, &pointers));
+		if !exif.is_empty() { v.extend(directory(exif, &[])) }
+		if !gps.is_empty() { v.extend(directory(gps, &[])) }
+		v.extend(values);
+		v
+	}
+	fn dated_jpeg(first: &[(u16, u16, Vec<u8>)], exif: &[(u16, u16, Vec<u8>)], gps: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {//a JPEG whose EXIF segment holds the TIFF, then a frame
+		let mut segment = b"Exif\0\0".to_vec(); segment.extend(tiff_build(first, exif, gps));
+		let mut v = vec![0xFF, 0xD8]; v.extend(jpeg_segment(0xE1, &segment)); v.extend(jpeg_frame(640, 480));
+		v
+	}
+	fn is(w: When, stamp: f64, offset: i32, zoned: bool) -> bool { (w.stamp - stamp).abs() < 0.001 && w.offset == offset && w.zoned == zoned }//a When against the three it should hold, the stamp within a millisecond
+	fn near(a: f64, b: f64) -> bool { (a - b).abs() < 1e-5 }//a degree against the one it should be, within what the rationals round to
+	const TAKEN: f64 = 1_691_860_893.0;//2023-08-12 17:21:33 UTC, the instant every dated test and sample was given, as 10:21:33 in a zone seven hours west
+	const TIMES: [(u16, &str); 8] = [(0x9003, "2023:08:12 10:21:33"), (0x9004, "2023:08:12 10:21:34"), (0x9010, "+09:00"), (0x9011, "-07:00"), (0x9012, "-07:00"), (0x9290, "7"), (0x9291, "123"), (0x9292, "456")];//the EXIF directory's nine tags less one: the three times, their three offsets, their three fractions
+	const FIX: [(u16, u32, u32); 3] = [(0x0002, 37, 19), (0x0004, 122, 1), (0x0007, 17, 21)];//the GPS directory's three rationals, each given its whole first two here and its third below
+
+	#[test]
+	fn calendars_zones_and_angles() {//the helpers alone: the calendar against known instants, the strings both formats write for a zone, and the strings both phones write for a place
+		assert_eq!(calendar(2023, 8, 12, 17, 21, 33.0), Some(TAKEN));
+		assert_eq!(calendar(1970, 1, 1, 0, 0, 0.0), Some(0.0));
+		assert_eq!(calendar(1904, 1, 1, 0, 0, 0.0), Some(-2_082_844_800.0));//QuickTime's epoch, the number a movie header's times are moved by
+		assert_eq!(calendar(1601, 1, 1, 0, 0, 0.0), Some(-11_644_473_600.0));//Windows', the number a file time is moved by
+		assert_eq!(calendar(2001, 1, 1, 0, 0, 0.0), Some(978_307_200.0));//Matroska's
+		assert_eq!(calendar(2024, 2, 29, 12, 0, 30.5), Some(1_709_208_030.5));//a leap day
+		assert_eq!((calendar(2023, 13, 1, 0, 0, 0.0), calendar(2023, 1, 0, 0, 0, 0.0), calendar(2023, 1, 1, 24, 0, 0.0), calendar(2023, 1, 1, 0, 0, 61.0)), (None, None, None, None));
+		assert_eq!((spelled(b"2023:08:12 17:21:33"), spelled(b"2023-08-12T17:21:33"), spelled(b"    :  :     :  :  "), spelled(b"2023:08:12"), spelled(b"")), (Some(TAKEN), Some(TAKEN), None, None, None));
+		assert_eq!((zone(b"+09:00"), zone(b"-07:00"), zone(b"-0700"), zone(b"Z"), zone(b"+00:00"), zone(b"   :  "), zone(b"+25:00"), zone(b"")), (Some(540), Some(-420), Some(-420), Some(0), Some(0), None, None, None));
+		assert_eq!((fraction(b"123"), fraction(b"7"), fraction(b""), fraction(b"x")), (0.123, 0.7, 0.0, 0.0));
+		assert_eq!(ascii(b"  2023:08:12 10:21:33\0junk"), b"2023:08:12 10:21:33");
+		assert_eq!(iso8601(b"2023-08-12T10:21:33-0700"), when(TAKEN, -420, true));
+		assert_eq!(iso8601(b"2023-08-12T17:21:33Z"), when(TAKEN, 0, true));
+		assert_eq!(iso8601(b"2023-08-12T10:21:33"), when(TAKEN - 7.0 * 3600.0, 0, false));//no zone: the digits as a wall clock
+		assert_eq!(iso8601(b"not a date at all"), When::default());
+		let p = iso6709(b"+37.3315-122.0304+013.405/").unwrap();//an iPhone's, with its altitude
+		assert!(p.known && near(p.latitude, 37.3315) && near(p.longitude, -122.0304));
+		let p = iso6709(b"+37.4220-122.0841/").unwrap();//an Android's
+		assert!(p.known && near(p.latitude, 37.422) && near(p.longitude, -122.0841));
+		assert_eq!((iso6709(b"+4012.22-07500.25/"), iso6709(b"+91.0+0.0/"), iso6709(b"37.3-122.0/"), iso6709(b"")), (None, None, None, None));//degrees and minutes, past the pole, unsigned, empty
+	}
+
+	#[test]
+	fn jpeg_times_and_place_from_its_exif_and_gps_directories() {
+		let exif: Vec<_> = TIMES.iter().map(|&(tag, s)| string(tag, s)).collect();
+		let gps = [string(0x0001, "N"), rational(0x0002, &[(37, 1), (19, 1), (5340, 100)]), string(0x0003, "W"), rational(0x0004, &[(122, 1), (1, 1), (4944, 100)]), rational(0x0007, &[(17, 1), (21, 1), (305, 10)]), string(0x001D, "2023:08:12")];
+		let v = dated_jpeg(&[string(0x0132, "2023:08:13 09:00:00"), entry(0x0112, 3, &[0, 6])], &exif, &gps);
+		let t = scout(&v);
+		assert_eq!((t.format, t.raster, t.orientation, t.reading.details), ("jpeg", size(480, 640), 6, ""));
+		assert!(is(t.dates.original, TAKEN + 0.123, -420, true) && is(t.dates.digitized, TAKEN + 1.456, -420, true) && is(t.dates.modified, TAKEN + 23_907.7, 540, true) && is(t.dates.gps, TAKEN - 2.5, 0, true), "{:?}", t.dates);
+		assert!(t.place.known && near(t.place.latitude, 37.3315) && near(t.place.longitude, -122.0304), "{:?}", t.place);
+		let t = scout(&dated_jpeg(&[], &[string(0x9003, "2023:08:12 10:21:33"), string(0x9011, "   :  ")], &[]));//a time with no zone, which a camera from before 2016 writes, and the blank a later one writes for a zone it does not know
+		assert_eq!((t.dates.original, t.dates.digitized, t.place.known), (when(TAKEN - 7.0 * 3600.0, 0, false), When::default(), false));
+		let t = scout(&dated_jpeg(&[string(0x0132, "    :  :     :  :  ")], &[string(0x9003, "2000:13:01 00:00:00")], &[string(0x0001, "N"), rational(0x0002, &[(37, 1), (19, 0), (0, 1)])]));//a camera with no clock, a month no calendar has, and a zero denominator
+		assert_eq!((t.dates, t.place), (Dates::default(), Place::default()));
+		let mut v = dated_jpeg(&[], &exif, &gps);//the GPS pointer sent past the end of the file: the place is lost, the times are not, and the picture is neither chopped nor stopped
+		let at = v.windows(4).position(|w| w == [0x88, 0x25, 0, 4]).unwrap(); v[at + 8..at + 12].copy_from_slice(&be32(0x7FFF_FFF0));
+		let t = scout(&v);
+		assert!(is(t.dates.original, TAKEN + 0.123, -420, true) && !t.place.known && !t.chopped && t.reading.details.is_empty(), "{:?} {:?} {}", t.dates, t.place, t.reading.details);
+		let (t, wish) = scout_bytes(&v[..v.len() - 40], 1 << 20);//cut before the GPS values, in a longer file: the reader asks for the slice where the GPS directory's values are
+		assert!(wish.is_some() && t.reading.details == PAST && is(t.dates.original, TAKEN + 0.123, -420, true), "{:?} {:?}", wish, t.dates);
+	}
+
 	#[test]
 	fn gif_bmp_webp_and_psd() {
 		let mut v = b"GIF89a".to_vec(); v.extend(320u16.to_le_bytes()); v.extend(200u16.to_le_bytes()); v.extend([0x80, 0, 0]); v.extend([0; 6]);//a two-color global table
@@ -1291,6 +1618,44 @@ mod tests {
 		assert_eq!((t.format, t.medium, t.reading.parsed, t.reading.trouble, t.reading.details, t.corrupted, t.chopped), ("heic", IMAGE, true, true, "item properties not read", false, false));
 	}
 
+	fn keys(names: &[&[u8]]) -> Vec<u8> {//a keys box naming each key in the mdta namespace, counted from one
+		let mut v = vec![0; 4]; v.extend(be32(names.len() as u32));
+		for name in names { v.extend(be32(name.len() as u32 + 8)); v.extend(b"mdta"); v.extend(*name) }
+		iso_box(b"keys", &v)
+	}
+	fn item(index: u32, value: &[u8]) -> Vec<u8> {//an item under its key's index, holding a data box of UTF-8 type, no locale, and the value
+		let mut data = vec![0, 0, 0, 1, 0, 0, 0, 0]; data.extend(value);
+		iso_box(&be32(index), &iso_box(b"data", &data))
+	}
+	fn xyz(s: &[u8]) -> Vec<u8> {//the ©xyz box as Android writes it: a length, the language code for English, the string
+		let mut v = (s.len() as u16).to_be_bytes().to_vec(); v.extend(0x15C7u16.to_be_bytes()); v.extend(s);
+		iso_box(&[0xA9, b'x', b'y', b'z'], &v)
+	}
+	fn mvhd(created: u64, modified: u64, version: u8) -> Vec<u8> {//a movie header of either version: the two times as seconds since 1904, a timescale of 1000 and a duration of one second
+		let mut v = vec![version, 0, 0, 0];
+		if version == 1 { v.extend(created.to_be_bytes()); v.extend(modified.to_be_bytes()); v.extend(be32(1000)); v.extend(1000u64.to_be_bytes()) } else { v.extend(be32(created as u32)); v.extend(be32(modified as u32)); v.extend(be32(1000)); v.extend(be32(1000)) }
+		v.extend([0; 80]);
+		iso_box(b"mvhd", &v)
+	}
+	#[test]
+	fn mp4_times_from_its_header_and_apple_keys_and_a_place_from_user_data() {
+		let one = 1 << 16;
+		let picture = { let mut v = tkhd(32, 20, [one, 0, 0, one]); v.extend(media(b"vide", 32, 20)); iso_box(b"trak", &v) };
+		let film = |mvhd: &[u8], extra: &[u8]| { let mut moov = mvhd.to_vec(); moov.extend(&picture); moov.extend(extra); let mut v = iso_box(b"ftyp", b"qt  \0\0\0\0qt  "); v.extend(iso_box(b"moov", &moov)); v.extend(iso_box(b"mdat", &[0; 16])); v };
+		let meta = { let mut v = iso_box(b"hdlr", &[0; 24]); v.extend(keys(&[b"com.apple.quicktime.make", b"com.apple.quicktime.location.ISO6709", b"com.apple.quicktime.creationdate"])); let mut list = item(1, b"Apple"); list.extend(item(2, b"+37.3315-122.0304+013.405/")); list.extend(item(3, b"2023-08-12T10:21:33-0700")); v.extend(iso_box(b"ilst", &list)); v };
+		let t = scout(&film(&mvhd(3_774_705_693, 3_774_705_700, 0), &iso_box(b"meta", &meta)));//QuickTime's meta, with no version and flags, in the movie box, as an iPhone writes it
+		assert_eq!((t.format, t.seconds, t.raster, t.reading.details), ("mov", 1.0, size(32, 20), ""));
+		assert!(is(t.dates.created, TAKEN, 0, true) && is(t.dates.modified, TAKEN + 7.0, 0, true) && is(t.dates.apple, TAKEN, -420, true), "{:?}", t.dates);
+		assert!(t.place.known && near(t.place.latitude, 37.3315) && near(t.place.longitude, -122.0304), "{:?}", t.place);
+		let mut versioned = vec![0; 4]; versioned.extend(&meta);
+		let t = scout(&film(&mvhd(3_774_705_693, 3_774_705_700, 1), &iso_box(b"udta", &iso_box(b"meta", &versioned))));//ISO's meta, with its four bytes of version and flags, inside the user data box, as FFmpeg writes it; and the header's times in 64 bits
+		assert!(is(t.dates.created, TAKEN, 0, true) && is(t.dates.modified, TAKEN + 7.0, 0, true) && is(t.dates.apple, TAKEN, -420, true) && t.place.known, "{:?} {:?}", t.dates, t.place);
+		let t = scout(&film(&mvhd(3_774_705_693, 0, 0), &iso_box(b"udta", &xyz(b"+37.4220-122.0841/"))));//an Android's location, and no modification time
+		assert!(t.place.known && near(t.place.latitude, 37.422) && near(t.place.longitude, -122.0841) && !t.dates.apple.zoned && t.dates.modified == When::default(), "{:?} {:?}", t.dates, t.place);
+		let t = scout(&film(&mvhd(0, 0, 0), &[]));//the header's zeros, which are the format's none
+		assert_eq!((t.dates, t.place), (Dates::default(), Place::default()));
+	}
+
 	#[test]
 	fn wav_and_flac_time_themselves() {
 		let mut v = b"RIFF".to_vec(); v.extend(36u32.to_le_bytes()); v.extend(b"WAVEfmt "); v.extend(16u32.to_le_bytes()); v.extend([1, 0, 1, 0]); v.extend(8000u32.to_le_bytes()); v.extend(16000u32.to_le_bytes()); v.extend([2, 0, 16, 0]); v.extend(b"data"); v.extend(32000u32.to_le_bytes());
@@ -1334,7 +1699,7 @@ mod tests {
 		assert_eq!((t.reading.details, t.chopped), ("a tag longer than the tip", true));
 	}
 
-	//the sample files in the samples folder, made by real encoders on the mac mini on 2026-10-17 with ImageMagick 7.1, exiftool 13 and ffmpeg 8: every picture a 32 by 20 red-to-blue gradient, the eight orientations written by exiftool onto one JPEG and a 16 by 10 thumbnail embedded in another, every video a one-second test pattern at ten frames a second, the turned ones with ffmpeg's -noautorotate -display_rotation, which counts counter-clockwise, and every sound a one-second tone, at 8 kHz for the uncompressed kinds and 44.1 for the rest. On 2026-10-18 with ffmpeg 9 came video.vob, a DVD's program stream at the same size, and nine that carry a pixel's shape or a track that is no picture: the dvd ones at a DVD's 720 by 480, vcd.mpg at a Video CD's 352 by 240, the three MPEG streams among them thirty frames at NTSC's 29.97 a second, and audiobook.m4b, a tone beside a subtitle track; their rows say what each was flagged. Each row is what the maker was told to make, checked against ffprobe, exiftool and the files' own bytes, and the test pins the reader to it
+	//the sample files in the samples folder, made by real encoders on the mac mini on 2026-10-17 with ImageMagick 7.1, exiftool 13 and ffmpeg 8: every picture a 32 by 20 red-to-blue gradient, the eight orientations written by exiftool onto one JPEG and a 16 by 10 thumbnail embedded in another, every video a one-second test pattern at ten frames a second, the turned ones with ffmpeg's -noautorotate -display_rotation, which counts counter-clockwise, and every sound a one-second tone, at 8 kHz for the uncompressed kinds and 44.1 for the rest. On 2026-10-18 with ffmpeg 9 came video.vob, a DVD's program stream at the same size, and nine that carry a pixel's shape or a track that is no picture: the dvd ones at a DVD's 720 by 480, vcd.mpg at a Video CD's 352 by 240, the three MPEG streams among them thirty frames at NTSC's 29.97 a second, and audiobook.m4b, a tone beside a subtitle track; their rows say what each was flagged. On 2026-10-19 came the dated ones: taken.jpg, taken.png and taken.tif are picture.jpg, picture.png and picture.tif given three EXIF times with their offsets and fractions and a GPS fix by exiftool 13.55, and taken.mov, located.mov, taken.mp4, taken.wmv and taken.mkv are video.mov, moov-first.mp4, video.wmv and video.mkv remuxed by ffmpeg 9.0.2 with a creation time, taken.mov with Apple's keys and located.mov with a location in its user data. Each row is what the maker was told to make, checked against ffprobe, exiftool and the files' own bytes, and the test pins the reader to it
 
 	fn sample(name: &str) -> Vec<u8> { std::fs::read(format!("{}/samples/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap_or_else(|e| panic!("sample {name}: {e}")) }
 	fn scout_sample(name: &str) -> Tip { scout_file(&sample(name), TIP_BYTES) }
@@ -1363,6 +1728,9 @@ mod tests {
 			("animated.webp", "webp", IMAGE, (32, 20), (32, 20), 1, 0.0, true, (false, true), (true, false), ""),
 			("picture.tif", "tiff", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
 			("picture.psd", "psd", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+		("taken.jpg", "jpeg", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),//the dated ones, which the test below reads for their times and places
+		("taken.png", "png", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
+		("taken.tif", "tiff", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
 			("picture.heic", "heic", IMAGE, (0, 0), (0, 0), 1, 0.0, false, (false, true), (true, true), "item properties not read"),
 			("picture.avif", "avif", IMAGE, (0, 0), (0, 0), 1, 0.0, false, (false, true), (true, true), "item properties not read"),
 			("picture.svg", "svg", IMAGE, (0, 0), (0, 0), 1, 0.0, false, (true, false), (true, false), ""),
@@ -1372,6 +1740,9 @@ mod tests {
 			("ccw-180.mp4", "mp4", VIDEO, (32, 20), (32, 20), 3, 1.0, false, (false, true), (true, false), ""),
 			("ccw-270.mp4", "mp4", VIDEO, (20, 32), (20, 32), 6, 1.0, false, (false, true), (true, false), ""),//and three quarters counter-clockwise is a quarter clockwise, EXIF's 6, the turn a phone held upright records
 			("video.mov", "mov", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+		("taken.mov", "mov", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+		("located.mov", "mov", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+		("taken.mp4", "mp4", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
 			("dvd-16x9.mp4", "mp4", VIDEO, (720, 480), (853, 480), 1, 1.0, false, (false, true), (true, false), ""),//720 by 480 flagged 16:9, which FFmpeg writes as a pasp box of 32 to 27 and a track header of 853.33 by 480, and mpv draws at 853 by 480
 			("dvd-16x9.mov", "mov", VIDEO, (720, 480), (853, 480), 1, 1.0, false, (false, true), (true, false), ""),//the same as QuickTime, whose track header FFmpeg leaves at 720 by 480, so the pasp box alone holds the shape
 			("audiobook.m4b", "m4a", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),//a tone and a subtitle track whose header has a size, 320 by 60, which is no picture
@@ -1390,6 +1761,8 @@ mod tests {
 			("dvd-4x3.webm", "webm", VIDEO, (720, 480), (720, 540), 1, 1.0, false, (false, true), (true, false), ""),//and 4:3, written as 640 by 480, which mpv draws at 720 by 540 rather than shrink the width
 			("video.flv", "flv", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
 			("video.wmv", "asf", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+		("taken.wmv", "asf", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
+		("taken.mkv", "matroska", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
 			("video.rm", "realmedia", VIDEO, (32, 20), (32, 20), 1, 1.0, false, (false, true), (true, false), ""),
 			("audio.wav", "wav", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
 			("audio.aiff", "aiff", AUDIO, (0, 0), (0, 0), 1, 1.0, false, (false, true), (true, false), ""),
@@ -1418,6 +1791,24 @@ mod tests {
 			if t.corrupted || t.chopped { wrong.push(format!("{name}: read as corrupted or chopped")) }
 		}
 		assert!(wrong.is_empty(), "\n{}", wrong.join("\n"));
+	}
+
+	#[test]
+	fn dated_samples_say_when_and_where() {//the samples given a time and a place: the pictures hold the three EXIF times with their offsets and fractions and a GPS fix, the movies a creation time of 17:21:33 UTC, taken.mov with Apple's keys beside it and located.mov with the ©xyz box
+		for name in ["taken.jpg", "taken.png", "taken.tif"] {
+			let t = scout_sample(name);
+			assert!(is(t.dates.original, TAKEN + 0.123, -420, true) && is(t.dates.digitized, TAKEN + 1.456, -420, true) && is(t.dates.modified, TAKEN + 23_907.7, 540, true) && is(t.dates.gps, TAKEN - 2.5, 0, true), "{name}: {:?}", t.dates);
+			assert!(t.place.known && near(t.place.latitude, 37.3315) && near(t.place.longitude, -122.0304), "{name}: {:?}", t.place);
+		}
+		let t = scout_sample("taken.mov");
+		assert!(is(t.dates.created, TAKEN, 0, true) && is(t.dates.modified, TAKEN, 0, true) && is(t.dates.apple, TAKEN, -420, true), "{:?}", t.dates);
+		assert!(t.place.known && near(t.place.latitude, 37.3315) && near(t.place.longitude, -122.0304), "{:?}", t.place);
+		let t = scout_sample("located.mov");
+		assert!(is(t.dates.created, TAKEN, 0, true) && !t.dates.apple.zoned && t.place.known && near(t.place.latitude, 37.422) && near(t.place.longitude, -122.0841), "{:?} {:?}", t.dates, t.place);
+		let t = scout_sample("taken.mp4");
+		assert!(is(t.dates.created, TAKEN, 0, true) && !t.place.known, "{:?} {:?}", t.dates, t.place);//FFmpeg writes an MP4's location as the 3GPP box, which the reader does not take
+		for name in ["taken.wmv", "taken.mkv"] { let t = scout_sample(name); assert!(is(t.dates.created, TAKEN, 0, true), "{name}: {:?}", t.dates) }
+		for name in ["picture.jpg", "video.mov", "video.wmv", "video.mkv"] { let t = scout_sample(name); assert_eq!((name, t.dates, t.place), (name, Dates::default(), Place::default())) }//and the originals, given none
 	}
 
 	#[test]
@@ -1541,7 +1932,7 @@ mod tests {
 			for cut in [512, 1024, 2048, 4096] {
 				if cut >= bytes.len() { continue }
 				let t = scout_file(&bytes, cut);
-				assert_eq!((&name, cut, t.format, t.medium, t.raster, t.aspect, t.orientation, t.animated, (t.corrupted, t.chopped), (t.reading.parsed, t.reading.trouble), t.reading.details), (&name, cut, whole.format, whole.medium, whole.raster, whole.aspect, whole.orientation, whole.animated, (whole.corrupted, whole.chopped), (whole.reading.parsed, whole.reading.trouble), whole.reading.details));
+				assert_eq!((&name, cut, t.format, t.medium, t.raster, t.aspect, t.orientation, t.animated, (t.corrupted, t.chopped), (t.reading.parsed, t.reading.trouble), t.reading.details, (&t.dates, t.place)), (&name, cut, whole.format, whole.medium, whole.raster, whole.aspect, whole.orientation, whole.animated, (whole.corrupted, whole.chopped), (whole.reading.parsed, whole.reading.trouble), whole.reading.details, (&whole.dates, whole.place)));
 				assert!((t.seconds - whole.seconds).abs() < 0.001, "{name} cut at {cut}: {} seconds against {}", t.seconds, whole.seconds);
 			}
 		}
@@ -1556,6 +1947,7 @@ mod tests {
 	fn every_cut_and_every_mutation_returns() {
 		let mut inputs: Vec<Vec<u8>> = vec![png_header(640, 480)];
 		let mut v = vec![0xFF, 0xD8]; v.extend(exif(6)); v.extend(jpeg_frame(640, 480)); inputs.push(v);
+		inputs.push(dated_jpeg(&[string(0x0132, "2023:08:13 09:00:00")], &TIMES.iter().map(|&(tag, s)| string(tag, s)).collect::<Vec<_>>(), &FIX.iter().map(|&(tag, a, b)| rational(tag, &[(a, 1), (b, 1), (5340, 100)])).collect::<Vec<_>>()));
 		let folder = format!("{}/samples", env!("CARGO_MANIFEST_DIR"));
 		for entry in std::fs::read_dir(&folder).unwrap() { let path = entry.unwrap().path(); if path.is_file() { inputs.push(std::fs::read(path).unwrap()) } }
 		let mut random = Random(0x9E37_79B9_7F4A_7C15);
