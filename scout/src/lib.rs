@@ -50,8 +50,8 @@ pub struct Tip {//what the first bytes of a file say: what the file holds at the
 	pub orientation: u32,//the turn or flip the file asks for, in EXIF's numbering, 1 for none through 8, as a finding only: raster and aspect already have it applied, so a caller uses them as they are and never turns them again, which would swap them back. It says the file is one an older program, which ignores the instruction, would show turned
 	pub seconds: f64,//the running time of a sound or a video; 0 when the slices do not say, and an estimate where the comment on the reader says so
 	pub animated: bool,//true when the format's own flag says the picture is animated; false where it says still, and where the reader could not look
-	pub corrupted: bool,//the reader found a format, then found the file breaking that format's rules where it needed them; a broken part it steps past without needing, a JPEG's EXIF or an AVI's OpenDML header, costs only what it held and is not reported
-	pub chopped: bool,//the reader found a format, then found the file's end cut off: a length or an offset points past the end, or the file ends inside the structure it was walking. It can come with a finished reading, as for a WAV whose data chunk claims more than the file holds. False on this and on corrupted says no such evidence was seen, and never that the file is good
+	pub corrupted: bool,//the reader found a format, then found the file breaking that format's rules where it needed them; a broken part it steps past without needing, a JPEG's EXIF or an AVI's OpenDML header, costs only what it held and is not reported. Like chopped, a reason an answer is missing or may be wrong, and never a verdict on the file
+	pub chopped: bool,//the reader found a format, then found the file's end cut off: a length or an offset it met on the way to its answers points past the end, or the file ends inside the structure it was walking, which is most often why an answer is missing. It can come with a finished reading, where the reader meets the file's stated total on its way, as for a WAV whose data chunk claims more than the file holds, and then seconds is what the header promised. The scout never goes looking for a length its answers do not need, so false on this and on corrupted says only that it met no such evidence: the two say why an answer is missing or may be wrong, and never sort whole files from broken ones
 	pub reading: Reading,//how the reading went, apart from what the file holds
 	#[serde(skip)]
 	pixel: (u64, u64),//the shape of one stored pixel as the file states it, width to height and unturned, which a reader records and sizes makes aspect from; 0 on either side when the file states none, which counts as square. Kept out of the answer, which says it as aspect
@@ -158,7 +158,7 @@ const SIGNATURES: &[(&[u8], &str, &str)] = &[//formats the reader names from the
 	(b"#!AMR", "amr", AUDIO),
 	(b"Creative Voice File", "voc", AUDIO),
 	(b"MThd", "midi", AUDIO),
-	(&[0x0B, 0x77], "ac3", AUDIO),
+	(&[0x0B, 0x77], "ac3", AUDIO),//two bytes, the weakest signature here: a binary file of another kind can open with them, and nothing in the answer says otherwise, which is acceptable because a caller reads the answer beside the file's name
 	(b"FWS", "swf", ""),
 	(b"CWS", "swf", ""),
 	(b"PK\x03\x04", "zip", ""),
