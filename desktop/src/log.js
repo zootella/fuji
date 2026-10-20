@@ -2,6 +2,7 @@ import {homeDir} from '@tauri-apps/api/path'
 import {invoke} from '@tauri-apps/api/core'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import parse from 'path-browserify'
+import {tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {forwardize} from './components/library.js'
 import {brandStem} from './brand.js'
 
@@ -36,7 +37,7 @@ export function logStart({label, record, notes = []}) {//name this run and hand 
 	if (!logRecording) return
 	logWindow = getCurrentWindow().label
 
-	let stamp = sayStamp(new Date())
+	let stamp = sayStamp(Date.now())
 	homeDir()
 		.then(home => invoke('log_start', {path: parse.join(forwardize(home), logFolder, `${brandStem}-log-${stamp}.txt`)}))
 		.then(() => { logStarted = true; logHeader(label, stamp); logLater() })//the header first, then whatever lines gathered while the path was crossing
@@ -49,7 +50,7 @@ export function log(text) {//one line, handed to rust when things go quiet
 		if (!logFull) { logFull = true; logPending.push(`# stopped at ${logCeiling} lines, so this run continued past the end of this file`); logLater() }
 		return
 	}
-	logPending.push(`${logWindow} ${sayClock(new Date())} ${text}`); logTotal++//stamped now, since the batch goes down to rust a second and a half later
+	logPending.push(`${logWindow} ${sayClock(Date.now())} ${text}`); logTotal++//stamped now, since the batch goes down to rust a second and a half later
 	logLater()
 }
 
@@ -119,9 +120,9 @@ function pad(value, width) {
 	return s.length >= width ? s : s + ' '.repeat(width - s.length)
 }
 
-function sayStamp(d) {//utc to the millisecond, sortable, like 2026-09-08T18-29-27-123Z: the colons and the dot of the standard form become dashes, because windows forbids a colon in a file name
-	return d.toISOString().replace(/[:.]/g, '-')
+function sayStamp(t) {//a tick in utc to the millisecond, sortable, like 2026-09-08T18-29-27-123Z: the colons and the dot of ergo's iso form become dashes, because windows forbids a colon in a file name
+	return tickToIso(t).replace(/[:.]/g, '-')
 }
-function sayClock(d) {//utc time of day to the millisecond, like 18:29:27.123, the same form log.rs writes on rust's lines
-	return d.toISOString().slice(11, 23)
+function sayClock(t) {//a tick's utc time of day to the millisecond, like 18:29:27.123, the same form log.rs writes on rust's lines
+	return tickToIso(t).slice(11, 23)
 }

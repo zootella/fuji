@@ -1,7 +1,8 @@
 <script setup>//./.vitepress/theme/components/DownloadLink.vue
 import { ref, computed, onMounted } from 'vue'
 import { useData } from 'vitepress'
-import { fetchSidecar, readableDate, saySizeThin, copyText } from '../downloads.js'
+import { saySize4, Time } from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import { fetchSidecar, readableDate, copyText } from '../downloads.js'
 
 /*
 One download: the outlined box on the download page that offers a file and says what is known about it. downloads.js has the system it belongs to — where a sidecar comes from, what is in one, and why the fetch happens on mount.
@@ -46,7 +47,7 @@ function unhintCopy() { if (status.value == 'Click to copy') status.value = '' }
 async function copyHash() {
 	clearTimeout(fade)
 	status.value = await copyText(sidecar.value.sha256) ? 'Copied' : 'Could not copy'
-	fade = setTimeout(() => { status.value = '' }, 1000)
+	fade = setTimeout(() => { status.value = '' }, Time.second)
 }
 </script>
 
@@ -62,7 +63,7 @@ async function copyHash() {
 			@click="copyHash" @keyup.enter="copyHash"
 			@mouseenter="hintCopy" @mouseleave="unhintCopy"
 		>{{ sidecar.sha256 }}</code></div>
-		<div class="detail">{{ saySizeThin(sidecar.bytes) }} ／ SHA-256 ／ {{ readableDate(sidecar.date) }} ／ Fuji {{ sidecar.version }}<span v-if="status"> ／ {{ status }}</span></div>
+		<div class="detail">{{ saySize4(sidecar.bytes) }} ／ SHA-256 ／ {{ readableDate(sidecar.date) }} ／ Fuji {{ sidecar.version }}<span v-if="status"> ／ {{ status }}</span></div>
 	</template>
 	<div v-else-if="loaded" class="detail">Not yet published</div>
 

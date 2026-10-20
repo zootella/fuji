@@ -1,11 +1,11 @@
 import {spawnSync} from 'node:child_process'
-import {createHash} from 'node:crypto'
 import {appendFileSync, existsSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {Data, Time, sha256, tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 
 /*
-The build log, and the way the pipeline says a time, for every workspace's build and publish on every machine. scripts.js at the root runs the commands, and this file beside it is what the scripts that build share with it: dmg.js and win-setup.js in desktop, build.js in linux, and notarize.js and waiting-room.js in apple. It runs nothing when imported, having nothing to run, and like scripts.js it imports node builtins and nothing else and builds every path from its own location.
+The build log, and the way the pipeline says a time, for every workspace's build and publish on every machine. scripts.js at the root runs the commands, and this file beside it is what the scripts that build share with it: dmg.js and win-setup.js in desktop, build.js in linux, and notarize.js and waiting-room.js in apple. It runs nothing when imported, having nothing to run, and like scripts.js it builds every path from its own location.
 */
 
 const root = fileURLToPath(new URL('.', import.meta.url))
@@ -25,17 +25,17 @@ let begun = new Map()//when each step this process has under way started, so its
 
 //write one line to the build log and say it in the terminal, returning what was said, for a log of the caller's own
 export function buildLog(step, mark, subject = '-', value = '-', words = '') {
-	let now = new Date()
+	let now = Date.now()//a tick, which the line's first field writes in ergo's iso form
 	let also = []
 	if (mark == 'started') {
-		begun.set(step, now.getTime())
+		begun.set(step, now)
 		if (process.env.npm_lifecycle_event) also.push('by pnpm ' + process.env.npm_lifecycle_event)//the script pnpm ran, which is the command a person typed
 	} else if (begun.has(step)) {
 		also.push('took ' + sayDuration(now - begun.get(step), {precise: true}))
 		begun.delete(step)
 	}
 	words = [words.replace(/\s+/g, ' ').trim(), ...also].filter(Boolean).join(', ')//one line, whatever an error message held
-	let fields = [now.toISOString(), String(process.pid).padEnd(7), readCommit().padEnd(9), step.padEnd(8), mark.padEnd(8), subject.padEnd(24), value.padEnd(64)]
+	let fields = [tickToIso(now), String(process.pid).padEnd(7), readCommit().padEnd(9), step.padEnd(8), mark.padEnd(8), subject.padEnd(24), value.padEnd(64)]
 	appendFileSync(buildLogFile, `${fields.join('  ')}  ${words}`.trimEnd() + '\n')
 	let said = [sayTime(now, {precise: true}), `${step} ${mark}`, ...[subject, value].filter(field => field != '-'), words].filter(Boolean).join('  ')
 	if (echoing) console.log(said)
@@ -95,7 +95,8 @@ function isRunning(pid) {//whether a process is still alive, asked with the sign
 	try { process.kill(pid, 0); return true } catch (e) { return e.code == 'EPERM' }
 }
 
-export function readSha256(path) { return createHash('sha256').update(readFileSync(path)).digest('hex') }
+export async function hashSha256(bytes) { return (await sha256(Data({array: bytes}))).base16() }//the sha-256 of bytes in base16, from ergo over web crypto, which is native in node and answers with a promise; all at once, since a package is tens of megabytes at most
+export async function readSha256(path) { return hashSha256(readFileSync(path)) }
 
 /*
 Times as people read them, the same in every workspace and whatever the machine's language: a day like 2026-Oct-9 Fri, a moment like 2026-Oct-9 Fri 2:45 PM, or to the millisecond like 2026-Oct-9 Fri 02:45:07.123 PM for a line in a log, and a duration like 1 hour, 2 minutes, 1 second. In this machine's own time zone, since a person reads them; a time a program reads stays iso, in utc, like the build log's first field.
@@ -116,12 +117,13 @@ export function sayTime(time, {precise = false} = {}) {//like 2026-Oct-9 Fri 2:4
 }
 
 export function sayDuration(milliseconds, {precise = false} = {}) {//like 1 hour, 2 minutes, 1 second: every unit from the largest one reached, zeros included, so a clock keeps its shape as it counts. precise gives the seconds to a tenth, like 4.2 seconds, for a step that has ended
-	let seconds = Math.max(0, milliseconds) / 1000
+	let ms = Math.max(0, milliseconds)
+	let second = ms % Time.minute / Time.second//seconds into the minute, with their fraction
 	let units = [
-		[Math.floor(seconds / 86400),     'day'],
-		[Math.floor(seconds / 3600) % 24, 'hour'],
-		[Math.floor(seconds / 60) % 60,   'minute'],
-		[precise ? Math.floor(seconds % 60 * 10) / 10 : Math.floor(seconds % 60), 'second'],
+		[Math.floor(ms / Time.day),                'day'],
+		[Math.floor(ms % Time.day / Time.hour),    'hour'],
+		[Math.floor(ms % Time.hour / Time.minute), 'minute'],
+		[precise ? Math.floor(second * 10) / 10 : Math.floor(second), 'second'],
 	]
 	let first = units.findIndex(([count]) => count > 0)
 	if (first == -1) first = units.length - 1//0 seconds

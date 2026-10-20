@@ -8,3 +8,4 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] } # the answer derives Serialize, for the command in fuji that hands it to the page
+zootella-ergo = "0.1" # spans of time and sizes in bytes, the same constants fuji's rust and its page use, from the ergo project

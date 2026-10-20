@@ -2,6 +2,7 @@
 
 import {ref, nextTick, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
+import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {mediaVersion, mediaStart, mediaSend, mediaRead, mediaStop, mediaProbe, mediaFrame, mediaFrameUnpack} from '../media.js'
 import {windowVideoMake, windowVideoPlace, windowVideoDrop} from '../window.js'
 import {dialogOpen} from '../dialog.js'
@@ -96,8 +97,8 @@ async function tick() {//the player's position, every half second while the view
 	}
 }
 function clock(seconds) {//1:05 from 65.3, as the player says a time
-	const whole = Math.floor(Number(seconds) || 0)
-	return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+	const ms = (Number(seconds) || 0) * Time.second
+	return `${Math.floor(ms / Time.minute)}:${String(Math.floor(ms % Time.minute / Time.second)).padStart(2, '0')}`
 }
 
 async function onDrop(dropped) {//the shell hands this every file dropped on the window while this view shows
@@ -135,7 +136,7 @@ function sizeChoose(unit, step) {//Fit, or a step in CSS or in Backing
 
 async function shapeWatch(from) {//the shape read each animation frame, for five seconds at most, until the player gives one other than from: after a load, any shape at all, and after the shape is changed, a new one. A newer watch replaces this one
 	const mine = ++watching
-	const until = performance.now() + 5000
+	const until = performance.now() + 5*Time.second
 	while (mine == watching && performance.now() < until) {
 		await shapeRead()
 		if (shape && (!from || shape.w != from.w || shape.h != from.h)) return

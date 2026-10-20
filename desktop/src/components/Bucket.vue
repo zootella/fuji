@@ -1,8 +1,9 @@
 <script setup>//a bucket of thumbnails, all from one folder, arranged by the flow
 
 import {ref, computed} from 'vue'
+import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import TestFlow from './TestFlow.vue'
-import {backize, middleDot, saySizeThin} from './library.js'
+import {backize, middleDot, thinSpace} from './library.js'
 
 //the bucket stays simple and the flow does the work: this takes a width from whatever contains it, hands its images to the flow, and takes back whatever height the flow needed. The bucket exists so the sheet has something it can count — a bucket totals what its canvases cost, and a limit on buckets is what turns that into a real ceiling on the sheet. Named bucket rather than card, which is the table's word for the box around its picture
 //there is one flow, so this names it directly; a register and a prop come back when there is a second one to choose between
@@ -24,7 +25,7 @@ const bucketCaption = computed(() => {//the folder the bucket's images are in, w
 	let range = `Images ${props.first} through ${last} of ${props.total}`
 	if (props.first == last) range = `Image ${last} of ${props.total}`//a bucket holding one image, which the plural would make read oddly
 	if (bucketRefused.value > 0) range += ` (${bucketRefused.value} did not load)`//so a bucket showing fewer thumbnails than its range, or none, says why
-	return `${folder} ${middleDot} ${range} ${middleDot} ${saySizeThin(bucketBytes.value)}`//the cost grows as the bucket fills, and stays at 0 bytes for a bucket of imgs alone
+	return `${folder} ${middleDot} ${range} ${middleDot} ${saySize4(bucketBytes.value).replace(' ', thinSpace)}`//the cost grows as the bucket fills, and stays at 0 bytes for a bucket of imgs alone; a thin space before its unit, since this caption is proportional text
 })
 
 </script>

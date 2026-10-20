@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::sync::{mpsc, OnceLock};
 use std::time::Duration;
 use tauri::{command, WebviewWindow};
+use zootella_ergo::size;
 use crate::run_blocking;
 
 /*
@@ -51,7 +52,7 @@ pub async fn memory_report(window: WebviewWindow) -> Result<Report, String> {
 /// The machine's physical memory in bytes, asked once; 8 GB when the platform will not say, which is a floor rather than a guess about any real machine
 pub fn memory_total() -> u64 {
 	static MEMORY: OnceLock<u64> = OnceLock::new();
-	*MEMORY.get_or_init(|| { let m = platform::total(); if m > 0 { m } else { 8 << 30 } })
+	*MEMORY.get_or_init(|| { let m = platform::total(); if m > 0 { m } else { 8 * size::GB } })
 }
 
 fn row(name: &str, bytes: u64) -> Row { Row { name: name.to_string(), bytes } }
@@ -124,6 +125,7 @@ mod platform {
 	use windows::Win32::System::SystemInformation::{GetPhysicallyInstalledSystemMemory, GlobalMemoryStatusEx, MEMORYSTATUSEX};
 	use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
 	use webview2_core::Interface;//for cast, from the windows-core webview2-com is built on rather than fuji's own, under the name Cargo.toml gives it and explains
+	use zootella_ergo::size;
 	use super::{row, Row};
 
 	fn status() -> Option<MEMORYSTATUSEX> {//the one call task manager's memory panel is mostly made of
@@ -134,7 +136,7 @@ mod platform {
 	pub fn total() -> u64 { status().map(|s| s.ullTotalPhys).unwrap_or(0) }//what windows can use, after the hardware's reservations
 	pub fn installed() -> u64 {//what the box was bought with, from the firmware's own table, so 16 GB reads as 16 GB rather than the 15.9 windows has the use of
 		let mut kilobytes = 0u64;
-		unsafe { GetPhysicallyInstalledSystemMemory(&mut kilobytes).ok().map(|_| kilobytes * 1024).unwrap_or_else(|| total()) }
+		unsafe { GetPhysicallyInstalledSystemMemory(&mut kilobytes).ok().map(|_| kilobytes * size::KB).unwrap_or_else(|| total()) }
 	}
 
 	pub fn machine(total: u64) -> (u64, u64, Vec<Row>) {//used, available, and the rest of task manager's memory panel: Committed against its limit, and Cached
@@ -192,11 +194,12 @@ mod platform {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 mod platform {
+	use zootella_ergo::size;
 	use super::{row, Row};
 
 	fn kilobytes(text: &str, key: &str) -> u64 {//one line of a kernel listing, in kilobytes there, as bytes; 0 for a key it lacks
 		let line = text.lines().find(|line| line.starts_with(key)).unwrap_or("");
-		line.split_whitespace().nth(1).and_then(|kb| kb.parse::<u64>().ok()).map(|kb| kb * 1024).unwrap_or(0)
+		line.split_whitespace().nth(1).and_then(|kb| kb.parse::<u64>().ok()).map(|kb| kb * size::KB).unwrap_or(0)
 	}
 	fn meminfo(key: &str) -> u64 { kilobytes(&std::fs::read_to_string("/proc/meminfo").unwrap_or_default(), key) }
 

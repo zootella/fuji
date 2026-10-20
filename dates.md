@@ -37,6 +37,6 @@ None of this changes the decision. It is why the date under a thumbnail will som
 
 - **Local time.** A JavaScript `Date` made from the milliseconds, read with its local getters, so a file modified at 23:30 UTC is still that day for a user to the west of Greenwich.
 - **Fuji's own month names**, a three-letter English list, `Sep` among them, rather than `Intl`'s, so the caption reads the same on every machine whatever its language.
-- **Thin spaces around the month**, U+2009, written as `${thinSpace}` in the code, the house rule for a character that looks like another.
+- **Thin spaces around the month in proportional text, and ordinary ones in fixed-width text.** `sayDay` writes ordinary spaces, which the caption under the table's picture shows as they are, since it is set in the mono face, and the caption under each thumbnail turns into thin spaces, U+2009, through `thinSpace`. A fixed-width face draws a thin space a full cell wide, or lacks it and borrows one from another font, which knocks the rest of the line off the grid.
 - **No time of day.**
 - **Nothing at all for a file with no modified time**, which the listing reports as 0, rather than a day in 1970.

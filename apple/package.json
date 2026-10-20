@@ -8,6 +8,7 @@
 		"waiting-room": "node --env-file-if-exists=../.env waiting-room.js"
 	},
 	"dependencies": {
-		"@inquirer/core": "^12.0.4"
+		"@inquirer/core": "^12.0.4",
+		"@zootella/ergo": "^0.1.3"
 	}
 }

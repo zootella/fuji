@@ -2,9 +2,9 @@
 	"file": "fuji.arm64.deb",
 	"version": "0.1.0",
 	"arch": "arm64",
-	"bytes": 16892492,
-	"sha256": "3a71e3accc0954c6d5c915919073c48497e86b71cf100423e768b1dfba5ad84b",
-	"date": "2026-10-15",
+	"bytes": 16984884,
+	"sha256": "9d9943a20babce6aebf99b3e63a96fdfa35ecb17d31eb9562d37c8d56e46baae",
+	"date": "2026-10-20",
 	"libmpv": {
 		"file": "libmpv.so.2",
 		"bytes": 23769664,

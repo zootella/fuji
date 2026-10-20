@@ -98,6 +98,7 @@ name = "scout"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "zootella-ergo",
 ]
 
 [[package]]
@@ -160,3 +161,12 @@ name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
+
+[[package]]
+name = "zootella-ergo"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0837c9810878bb4a4f345e500a3ca6b2e0b0a01be5df289d4624b0eb6e062d0"
+dependencies = [
+ "getrandom",
+]

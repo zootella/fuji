@@ -99,7 +99,7 @@ async function main() {
 	buildLog('dmg', 'started', file, '-', `with ${dmgbuild}, of the app tauri just signed with Fuji Desktop`)
 	let made = await dmgMake({app: join(bundled, `macos/${brandName}.app`), file: join(folder, file), output: 'inherit'})
 	if (!made.success) { buildLog('dmg', 'failed', file, '-', made.outcome); process.exitCode = 1; return }
-	buildLog('dmg', 'finished', file, readSha256(join(folder, file)), 'in the bundle folder, where pnpm hash finds it')
+	buildLog('dmg', 'finished', file, await readSha256(join(folder, file)), 'in the bundle folder, where pnpm hash finds it')
 }
 
 //only when run, so the apple workspace can import dmgMake without making a dmg. said with realpath rather than import.meta.main, which node before 22.18 lacks, and would skip this in silence and leave the last build's dmg for hash to find

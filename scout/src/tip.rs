@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 use std::cell::Cell;
+use zootella_ergo::{size, time};
 
 /*
 The reader: fuji's own reader of the first bytes of a file. Given the tip of a file, its first 64 KiB or the whole of a smaller one, and the file's size, scout_bytes says what the bytes are and what the common formats keep in their first bytes: the kind of medium, the stored size of a picture or a video and the size to show it at, both with a phone's quarter turn applied, the running time of a sound or a video, the times the file states with the one among them that says when it was taken, the place it was taken, whether a picture is animated, whether the file breaks its format's rules or ends before the part its structure points to, and, for every file, whether its bytes read as text or as binary. When the tip shows where the rest of an answer lies, scout_bytes hands back the offset of one more slice, 64 KiB there, beside its answer, and scout_slices answers again from both. It reads no frame, no pixel and no sample. The file's name and fuji's table of types play no part: the bytes name themselves, which is also why no name can steer the reader.
@@ -17,7 +18,7 @@ What the reader does not try is chosen as carefully as what it does, and each re
 Where it runs. Today the command in fuji's scout.rs makes the two reads in fuji's own process on the blocking pool, which is safe because the reader is; the overnight scan will run the same function in a sandboxed process of fuji's own, where a hang on a dead disk can be killed, and nothing about the reader changes for that.
 */
 
-pub const TIP_BYTES: usize = 64 << 10;//how much of a file fuji's command reads, and the most scout_bytes is ever handed: 64 KiB, the one constant the essay argues
+pub const TIP_BYTES: usize = 64 * size::KB as usize;//how much of a file fuji's command reads, and the most scout_bytes is ever handed: 64 KiB, the one constant the essay argues
 const STEPS: usize = 256;//the most steps any walk below takes through a file's segments, chunks, boxes or elements before it gives up; more than any real file has before its answers, and the ceiling that bounds a loop a hostile file would otherwise keep going
 
 const PAST: &str = "not in the slices";//the limit every reader can meet: a read of bytes the file holds and the slices in hand do not; after the first read it is also the request for the second slice, at the offset read asks for
@@ -169,7 +170,7 @@ fn taken(d: &Dates, medium: &str) -> Taken {//the one step that picks the answer
 		return Taken { stamp: w.stamp, offset: w.offset, zoned: true, from, zone: if rule { "Rule" } else { "Stated" } }
 	}
 	match borrowed(w.stamp, clock) {
-		Some(offset) => Taken { stamp: w.stamp - f64::from(offset) * 60_000.0, offset, zoned: true, from, zone: "Borrowed" },//the camera's clock for the moment and the second clock for the zone alone
+		Some(offset) => Taken { stamp: w.stamp - f64::from(offset) * time::MINUTE as f64, offset, zoned: true, from, zone: "Borrowed" },//the camera's clock for the moment and the second clock for the zone alone
 		None => Taken { stamp: w.stamp, offset: 0, zoned: false, from, zone: "" },
 	}
 }
@@ -178,7 +179,7 @@ const DRIFT: f64 = 2.0;//the most minutes a camera's clock and the second clock 
 const ZONES: [i32; 45] = [-720, -660, -600, -570, -540, -510, -480, -420, -360, -300, -270, -240, -210, -180, -150, -120, -60, 0, 60, 120, 180, 210, 240, 270, 300, 330, 345, 360, 390, 420, 480, 510, 525, 540, 570, 585, 600, 630, 660, 690, 720, 765, 780, 825, 840];//every offset from UTC, in minutes, that a place has kept since 1990, summers included: each of the IANA time zone database's 598 zones sampled twice a day from 1990 through 2026, release 2026c on the Mac mini
 fn borrowed(wall: f64, clock: When) -> Option<i32> {//the zone a wall clock was in, from a zoned clock in the same file that read about the same moment: the difference between the two, rounded to the nearest quarter hour, the finest step any zone takes, when the rounding moved it by no more than the drift and lands on an offset a place has kept. A GPS fix can be older than the shutter, and a stale one that rounds to a quarter hour no place keeps lends nothing
 	if !clock.zoned { return None }
-	let minutes = (wall - clock.stamp) / 60_000.0;
+	let minutes = (wall - clock.stamp) / time::MINUTE as f64;
 	let offset = (minutes / 15.0).round() * 15.0;
 	if (minutes - offset).abs() > DRIFT { return None }
 	let offset = offset as i32;//whole, since it is a quarter hour's multiple; a difference of days or years is a number no zone has, and one too large for the integer saturates to one
@@ -351,11 +352,11 @@ fn calendar(year: u32, month: u32, day: u32, hour: u32, minute: u32, second: f64
 	let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
 	let last = match month { 2 if leap => 29, 2 => 28, 4 | 6 | 9 | 11 => 30, _ => 31 };//the month's last day, so a corrupted date is none rather than a day in the month after
 	if !(1..=12).contains(&month) || !(1..=last).contains(&day) || hour > 23 || minute > 59 || !(0.0..61.0).contains(&second) { return None }
-	Some(civil(f64::from(year), f64::from(month), f64::from(day)) * 86_400_000.0 + f64::from(hour) * 3_600_000.0 + f64::from(minute) * 60_000.0 + second * 1000.0)
+	Some(civil(f64::from(year), f64::from(month), f64::from(day)) * time::DAY as f64 + f64::from(hour) * time::HOUR as f64 + f64::from(minute) * time::MINUTE as f64 + second * time::SECOND as f64)
 }
 fn instant(spelled: Option<f64>, fraction: f64, offset: Option<i32>) -> When {//a When from a wall clock, its fraction of a second, and the zone when one was stated: zoned, the instant is the clock less the offset
 	let Some(spelled) = spelled else { return When::default() };
-	match offset { Some(offset) => when(spelled + fraction * 1000.0 - f64::from(offset) * 60_000.0, offset, true), None => when(spelled + fraction * 1000.0, 0, false) }
+	match offset { Some(offset) => when(spelled + fraction * time::SECOND as f64 - f64::from(offset) * time::MINUTE as f64, offset, true), None => when(spelled + fraction * time::SECOND as f64, 0, false) }
 }
 fn utc(milliseconds: f64) -> When { when(milliseconds, 0, true) }//a When for a time a format defines as UTC, which comes as one number in the format's own epoch and unit, moved to milliseconds since 1970 by the caller
 fn when(stamp: f64, offset: i32, zoned: bool) -> When {//the one way a When is made: a stamp that lands exactly on 1970 is none, since 0 is the answer's word for a time the file does not state, and the one writer known to put 1970 in a file, FFmpeg into Windows Media it was told no time for, means none by it
@@ -796,8 +797,8 @@ fn iso_moov(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the 
 			b"mvhd" => {//version 0 keeps its times in 32 bits and version 1 in 64, which moves the timescale and the duration along; the creation and modification times count seconds from 1904, UTC by the format's rule, and a zero is the format's own none
 				let (created, modified, scale, duration) = if b.u8(data)? == 1 { (b.be64(add(data, 4)?)?, b.be64(add(data, 12)?)?, b.be32(add(data, 20)?)?, b.be64(add(data, 24)?)?) } else { (u64::from(b.be32(add(data, 4)?)?), u64::from(b.be32(add(data, 8)?)?), b.be32(add(data, 12)?)?, u64::from(b.be32(add(data, 16)?)?)) };
 				if scale > 0 { t.seconds = seconds(duration as f64 / f64::from(scale)) }
-				if created > 0 { t.dates.created = utc((created as f64 - 2_082_844_800.0) * 1000.0) }
-				if modified > 0 { t.dates.modified = utc((modified as f64 - 2_082_844_800.0) * 1000.0) }
+				if created > 0 { t.dates.created = utc((created as f64 - 2_082_844_800.0) * time::SECOND as f64) }
+				if modified > 0 { t.dates.modified = utc((modified as f64 - 2_082_844_800.0) * time::SECOND as f64) }
 			}
 			b"trak" => { tracks = tracks.saturating_add(1); if !visual { visual = iso_track(b, data, box_end, t)? } }
 			b"meta" => optional(iso_keys(b, data, box_end, t))?,//the keyed metadata, where an iPhone writes its creation date with its zone and its location; a broken one costs what it held, as a JPEG's EXIF does, and never the tracks
@@ -1138,7 +1139,7 @@ fn flv_last_tag(b: &Bytes, t: &mut Tip) -> Step<()> {//the running time from the
 	let tag = sub(last, n)?;
 	if !matches!(b.u8(tag)?, 8 | 9 | 18) || add(to_usize(b.be24(add(tag, 1)?)?.into())?, 11)? != n { return Err(Stop::Chopped("no whole tag at the end")) }//a sound, picture or script tag whose stated size agrees with the size written after it; a file cut short fails here
 	let ms = u64::from(b.be24(add(tag, 4)?)?) | (u64::from(b.u8(add(tag, 7)?)?) << 24);
-	t.seconds = seconds(ms as f64 / 1e3);
+	t.seconds = seconds(ms as f64 / time::SECOND as f64);
 	Ok(())
 }
 
@@ -1161,7 +1162,7 @@ fn asf(b: &Bytes, t: &mut Tip) -> Step<()> {//Windows Media, video and audio ali
 		if guid == ASF_FILE {
 			let (created, play, preroll, flags) = (b.le64(add(data, 24)?)?, b.le64(add(data, 40)?)?, b.le64(add(data, 56)?)?, b.le32(add(data, 64)?)?);//the creation date after the file id and the file size, then the play duration and the preroll past the packet count and the send duration, and the flags
 			if flags & 1 == 0 {//the broadcast flag, which a live stream's header carries and a file saved from one keeps: the format's rule makes the duration and the creation date invalid beside it, and FFmpeg leaves the duration unknown
-				t.seconds = seconds(play as f64 / 1e7 - preroll as f64 / 1e3);
+				t.seconds = seconds(play as f64 / 1e7 - preroll as f64 / time::SECOND as f64);
 				if created > 0 { t.dates.created = utc(created as f64 / 1e4 - 11_644_473_600_000.0) }//a Windows file time, hundreds of nanoseconds since 1601, UTC, moved to 1970; FFmpeg told no time writes 1970's own, which when reads as none
 			}
 		} else if guid == ASF_STREAM {
@@ -1188,7 +1189,7 @@ fn realmedia(b: &Bytes, t: &mut Tip) -> Step<()> {//RealMedia: chunks of a four-
 		let n = to_usize(b.be32(add(at, 4)?)?.into())?;
 		if n < 10 { return Err(Stop::Corrupted("a chunk shorter than its header")) }
 		match &name {
-			b"PROP" => t.seconds = seconds(f64::from(b.be32(add(at, 30)?)?) / 1e3),//after the version, the bit rates, the packet sizes and the packet count
+			b"PROP" => t.seconds = seconds(f64::from(b.be32(add(at, 30)?)?) / time::SECOND as f64),//after the version, the bit rates, the packet sizes and the packet count
 			b"MDPR" => {
 				let description = usize::from(b.u8(add(at, 40)?)?);//a length byte and the stream's description
 				let mime_at = add(at, add(41, description)?)?;
@@ -1463,7 +1464,7 @@ mod tests {
 		assert!(scout(&v).animated);
 		let t = scout(&png_header(640, 480));//the whole file, ending before any picture data
 		assert_eq!((t.raster.width, t.reading.details, t.reading.trouble, t.chopped, t.corrupted), (640, SHORT, true, true, false));
-		let (t, wish) = scout_bytes(&png_header(640, 480), 1 << 20);//a tip cut from a longer file, which asks for the second slice where the chunks ran out
+		let (t, wish) = scout_bytes(&png_header(640, 480), size::MB);//a tip cut from a longer file, which asks for the second slice where the chunks ran out
 		assert_eq!((t.raster.width, t.reading.details, t.chopped, wish), (640, PAST, false, Some(33)));
 	}
 
@@ -1572,7 +1573,7 @@ mod tests {
 		assert_eq!(ascii(b"  2023:08:12 10:21:33\0junk"), b"2023:08:12 10:21:33");
 		assert_eq!(iso8601(b"2023-08-12T10:21:33-0700"), when(TAKEN, -420, true));
 		assert_eq!(iso8601(b"2023-08-12T17:21:33Z"), when(TAKEN, 0, true));
-		assert_eq!(iso8601(b"2023-08-12T10:21:33"), when(TAKEN - 7.0 * 3_600_000.0, 0, false));//no zone: the digits as a wall clock
+		assert_eq!(iso8601(b"2023-08-12T10:21:33"), when(TAKEN - 7.0 * time::HOUR as f64, 0, false));//no zone: the digits as a wall clock
 		assert_eq!(iso8601(b"not a date at all"), When::default());
 		let p = iso6709(b"+37.3315-122.0304+013.405/").unwrap();//an iPhone's, with its altitude
 		assert!(p.known && near(p.latitude, 37.3315) && near(p.longitude, -122.0304));
@@ -1591,14 +1592,14 @@ mod tests {
 		assert!(is(t.dates.original, TAKEN + 123.0, -420, true) && is(t.dates.digitized, TAKEN + 1456.0, -420, true) && is(t.dates.modified, TAKEN + 23_907_700.0, 540, true) && is(t.dates.gps, TAKEN - 2500.0, 0, true), "{:?}", t.dates);
 		assert!(t.place.known && near(t.place.latitude, 37.3315) && near(t.place.longitude, -122.0304), "{:?}", t.place);
 		let t = scout(&dated_jpeg(&[], &[string(0x9003, "2023:08:12 10:21:33"), string(0x9011, "   :  ")], &[]));//a time with no zone, which a camera from before 2016 writes, and the blank a later one writes for a zone it does not know
-		assert_eq!((t.dates.original, t.dates.digitized, t.place.known), (when(TAKEN - 7.0 * 3_600_000.0, 0, false), When::default(), false));
+		assert_eq!((t.dates.original, t.dates.digitized, t.place.known), (when(TAKEN - 7.0 * time::HOUR as f64, 0, false), When::default(), false));
 		let t = scout(&dated_jpeg(&[string(0x0132, "    :  :     :  :  ")], &[string(0x9003, "2000:13:01 00:00:00")], &[string(0x0001, "N"), rational(0x0002, &[(37, 1), (19, 0), (0, 1)])]));//a camera with no clock, a month no calendar has, and a zero denominator
 		assert_eq!((t.dates, t.place), (Dates::default(), Place::default()));
 		let mut v = dated_jpeg(&[], &exif, &gps);//the GPS pointer sent past the end of the file: the place is lost, the times are not, and the picture is neither chopped nor stopped
 		let at = v.windows(4).position(|w| w == [0x88, 0x25, 0, 4]).unwrap(); v[at + 8..at + 12].copy_from_slice(&be32(0x7FFF_FFF0));
 		let t = scout(&v);
 		assert!(is(t.dates.original, TAKEN + 123.0, -420, true) && !t.place.known && !t.chopped && t.reading.details.is_empty(), "{:?} {:?} {}", t.dates, t.place, t.reading.details);
-		let (t, wish) = scout_bytes(&v[..v.len() - 40], 1 << 20);//cut before the GPS values, in a longer file: the reader asks for the slice where the GPS directory's values are
+		let (t, wish) = scout_bytes(&v[..v.len() - 40], size::MB);//cut before the GPS values, in a longer file: the reader asks for the slice where the GPS directory's values are
 		assert!(wish.is_some() && t.reading.details == PAST && is(t.dates.original, TAKEN + 123.0, -420, true), "{:?} {:?}", wish, t.dates);
 	}
 
@@ -1606,11 +1607,11 @@ mod tests {
 	fn a_value_the_reader_does_not_need_or_cannot_trust_costs_only_itself() {//a TIFF's strip offsets kept far from its directory, a JPEG's time pointing outside its segment, and GPS angles written as text: each answers what the rest of the structure holds, and none asks for a slice
 		let exif: Vec<_> = TIMES.iter().map(|&(tag, s)| string(tag, s)).collect();
 		let mut v = tiff_build(&[entry(0x0100, 3, &[0, 32]), entry(0x0101, 3, &[0, 20]), entry(0x0111, 4, &[0, 0, 0, 8, 0, 0, 0, 9]), entry(0x0112, 3, &[0, 6])], &exif, &[]);
-		let at = v.windows(4).position(|w| w == [0x01, 0x11, 0, 4]).unwrap(); v[at + 8..at + 12].copy_from_slice(&be32(1 << 20)); v.resize(2 << 20, 0);//the strip offsets a mebibyte on, in a file of two
+		let at = v.windows(4).position(|w| w == [0x01, 0x11, 0, 4]).unwrap(); v[at + 8..at + 12].copy_from_slice(&be32(size::MB as u32)); v.resize(2 * size::MB as usize, 0);//the strip offsets a mebibyte on, in a file of two
 		let t = scout_file(&v, TIP_BYTES);
 		assert!(t.raster == size(20, 32) && t.orientation == 6 && t.reading.reads == 1 && !t.reading.trouble && is(t.dates.original, TAKEN + 123.0, -420, true), "{t:?}");
 		let mut v = dated_jpeg(&[string(0x0132, "2023:08:13 09:00:00")], &exif, &[]);
-		let at = v.windows(4).position(|w| w == [0x01, 0x32, 0, 2]).unwrap(); v[at + 8..at + 12].copy_from_slice(&be32(1 << 20)); v.resize(2 << 20, 0);//DateTime's value sent a mebibyte past its segment
+		let at = v.windows(4).position(|w| w == [0x01, 0x32, 0, 2]).unwrap(); v[at + 8..at + 12].copy_from_slice(&be32(size::MB as u32)); v.resize(2 * size::MB as usize, 0);//DateTime's value sent a mebibyte past its segment
 		let t = scout_file(&v, TIP_BYTES);
 		assert!(t.raster == size(640, 480) && t.reading.reads == 1 && !t.reading.trouble && t.dates.modified == When::default() && is(t.dates.original, TAKEN + 123.0, -420, true), "{t:?}");
 		let t = scout(&dated_jpeg(&[], &[], &[string(0x0001, "N"), string(0x0002, "37.3315"), string(0x0003, "W"), rational(0x0004, &[(122, 1), (1, 1), (4944, 100)])]));
@@ -1625,13 +1626,13 @@ mod tests {
 		let exif: Vec<_> = TIMES.iter().map(|&(tag, s)| string(tag, s)).collect();
 		assert_eq!(scout(&dated_jpeg(&[], &exif, &fix(21))).taken, picked(TAKEN + 123.0, -420, "Original", "Stated"));//the offset tag, which wins over the GPS clock
 		assert_eq!(scout(&dated_jpeg(&[], &original, &fix(21))).taken, picked(TAKEN + 123.0, -420, "Original", "Borrowed"));//no offset tag: the GPS fix 2.6 seconds before the shutter lends its zone, and the camera's clock keeps the moment
-		assert_eq!(scout(&dated_jpeg(&[], &original, &fix(16))).taken, picked(TAKEN - 7.0 * 3_600_000.0 + 123.0, 0, "Original", ""));//a fix five minutes stale, past the drift: the digits stay a wall clock
-		assert_eq!(scout(&dated_jpeg(&[], &original, &fix(6))).taken, picked(TAKEN - 7.0 * 3_600_000.0 + 123.0, 0, "Original", ""));//a fix fifteen minutes stale, which rounds cleanly to -06:45, an offset no place keeps
+		assert_eq!(scout(&dated_jpeg(&[], &original, &fix(16))).taken, picked(TAKEN - 7.0 * time::HOUR as f64 + 123.0, 0, "Original", ""));//a fix five minutes stale, past the drift: the digits stay a wall clock
+		assert_eq!(scout(&dated_jpeg(&[], &original, &fix(6))).taken, picked(TAKEN - 7.0 * time::HOUR as f64 + 123.0, 0, "Original", ""));//a fix fifteen minutes stale, which rounds cleanly to -06:45, an offset no place keeps
 		assert_eq!(scout(&dated_jpeg(&[], &[string(0x9003, "2023:08:12 22:51:33")], &fix(21))).taken, picked(TAKEN, 330, "Original", "Borrowed"));//and India's half hour, which a place does keep
-		assert_eq!(scout(&dated_jpeg(&[], &[string(0x9004, "2023:08:12 10:21:34"), string(0x9012, "-07:00")], &[])).taken, picked(TAKEN + 1000.0, -420, "Digitized", "Stated"));//no shutter time: the scan's
+		assert_eq!(scout(&dated_jpeg(&[], &[string(0x9004, "2023:08:12 10:21:34"), string(0x9012, "-07:00")], &[])).taken, picked(TAKEN + time::SECOND as f64, -420, "Digitized", "Stated"));//no shutter time: the scan's
 		assert_eq!(scout(&dated_jpeg(&[], &[], &fix(21))).taken, picked(TAKEN - 2500.0, 0, "Gps", "Rule"));//no camera time at all: the fix itself
 		assert_eq!(scout(&dated_jpeg(&[string(0x0132, "2023:08:12 10:21:33")], &[string(0x9010, "-07:00")], &[])).taken, picked(TAKEN, -420, "Modified", "Stated"));//and last, the last change
-		assert_eq!(scout(&dated_jpeg(&[string(0x0132, "2023:08:12 10:21:33")], &[], &[])).taken, picked(TAKEN - 7.0 * 3_600_000.0, 0, "Modified", ""));
+		assert_eq!(scout(&dated_jpeg(&[string(0x0132, "2023:08:12 10:21:33")], &[], &[])).taken, picked(TAKEN - 7.0 * time::HOUR as f64, 0, "Modified", ""));
 		assert_eq!(scout(&dated_jpeg(&[], &[], &[])).taken, Taken::default());//a picture with an EXIF segment and no time in it
 		let zero = rational(0x0002, &[(0, 1), (0, 1), (0, 1)]);
 		assert!(!scout(&dated_jpeg(&[], &[], &[string(0x0001, "N"), zero.clone(), string(0x0003, "E"), rational(0x0004, &[(0, 1), (0, 1), (0, 1)])])).place.known);//and the zeros a writer with no fix fills in, which are no place
@@ -1694,7 +1695,7 @@ mod tests {
 		let mut v = iso_box(b"ftyp", b"isom\0\0\0\0"); v.extend(be32(100_000)); v.extend(b"mdat"); v.extend([0; 16]);
 		let t = scout(&v);
 		assert_eq!((t.format, t.medium, t.seconds, t.reading.details, t.reading.trouble, t.chopped, t.corrupted), ("mp4", VIDEO, 0.0, "index at the end", true, true, false));//a data box that claims past the file's end: nothing to ask for, and the file is chopped where its index should be
-		let (t, wish) = scout_bytes(&v, 1 << 30);
+		let (t, wish) = scout_bytes(&v, size::GB);
 		assert_eq!((t.chopped, wish), (false, Some(100_016)));//in a file that long, the index is asked for where the data box ends
 		let v = iso_box(b"ftyp", b"heic\0\0\0\0mif1heic");
 		let t = scout(&v);
@@ -1728,11 +1729,11 @@ mod tests {
 		let meta = { let mut v = iso_box(b"hdlr", &[0; 24]); v.extend(keys(&[b"com.apple.quicktime.make", b"com.apple.quicktime.location.ISO6709", b"com.apple.quicktime.creationdate"])); let mut list = item(1, b"Apple"); list.extend(item(2, b"+37.3315-122.0304+013.405/")); list.extend(item(3, b"2023-08-12T10:21:33-0700")); v.extend(iso_box(b"ilst", &list)); v };
 		let t = scout(&film(&mvhd(3_774_705_693, 3_774_705_700, 0), &iso_box(b"meta", &meta)));//QuickTime's meta, with no version and flags, in the movie box, as an iPhone writes it
 		assert_eq!((t.format, t.seconds, t.raster, t.reading.details), ("mov", 1.0, size(32, 20), ""));
-		assert!(is(t.dates.created, TAKEN, 0, true) && is(t.dates.modified, TAKEN + 7000.0, 0, true) && is(t.dates.apple, TAKEN, -420, true), "{:?}", t.dates);
+		assert!(is(t.dates.created, TAKEN, 0, true) && is(t.dates.modified, TAKEN + 7.0 * time::SECOND as f64, 0, true) && is(t.dates.apple, TAKEN, -420, true), "{:?}", t.dates);
 		assert!(t.place.known && near(t.place.latitude, 37.3315) && near(t.place.longitude, -122.0304), "{:?}", t.place);
 		let mut versioned = vec![0; 4]; versioned.extend(&meta);
 		let t = scout(&film(&mvhd(3_774_705_693, 3_774_705_700, 1), &iso_box(b"udta", &iso_box(b"meta", &versioned))));//ISO's meta, with its four bytes of version and flags, inside the user data box, as FFmpeg writes it; and the header's times in 64 bits
-		assert!(is(t.dates.created, TAKEN, 0, true) && is(t.dates.modified, TAKEN + 7000.0, 0, true) && is(t.dates.apple, TAKEN, -420, true) && t.place.known, "{:?} {:?}", t.dates, t.place);
+		assert!(is(t.dates.created, TAKEN, 0, true) && is(t.dates.modified, TAKEN + 7.0 * time::SECOND as f64, 0, true) && is(t.dates.apple, TAKEN, -420, true) && t.place.known, "{:?} {:?}", t.dates, t.place);
 		let t = scout(&film(&mvhd(3_774_705_693, 0, 0), &iso_box(b"udta", &xyz(b"+37.4220-122.0841/"))));//an Android's location, and no modification time
 		assert!(t.place.known && near(t.place.latitude, 37.422) && near(t.place.longitude, -122.0841) && !t.dates.apple.zoned && t.dates.modified == When::default(), "{:?} {:?}", t.dates, t.place);
 		let t = scout(&film(&mvhd(0, 0, 0), &[]));//the header's zeros, which are the format's none
@@ -1746,7 +1747,7 @@ mod tests {
 		let t = scout(&film(&mvhd(3_774_705_693, 0, 0), &iso_box(b"meta", &wall)));//which borrows the header's, the two clocks reading the same moment
 		assert_eq!(t.taken, Taken { stamp: TAKEN, offset: -420, zoned: true, from: "Apple", zone: "Borrowed" });
 		let t = scout(&film(&mvhd(0, 3_774_705_700, 0), &[]));//a header with a modification time and no creation time: a movie's last change, UTC by the format's rule as a picture's is not
-		assert_eq!(t.taken, Taken { stamp: TAKEN + 7000.0, offset: 0, zoned: true, from: "Modified", zone: "Rule" });
+		assert_eq!(t.taken, Taken { stamp: TAKEN + 7.0 * time::SECOND as f64, offset: 0, zoned: true, from: "Modified", zone: "Rule" });
 	}
 
 	#[test]
@@ -1786,7 +1787,7 @@ mod tests {
 		let t = scout(b"\xFF\xFEt\0e\0x\0t\0 \0i\0n\0 \0u\0t\0f\0-\x001\x006\0");//a byte order mark that is also a valid frame header, with no second frame behind it
 		assert_eq!((t.format, t.text), ("", true));
 		let mut v = b"ID3\x04\0\0\0\x08\0\0".to_vec(); v.resize(TIP_BYTES, 0);//a tag of 128 KiB, the size a cover picture makes one
-		let (t, wish) = scout_bytes(&v, 1 << 20);
+		let (t, wish) = scout_bytes(&v, size::MB);
 		assert_eq!((t.format, t.reading.details, t.chopped, wish), ("mp3", "a tag longer than the tip", false, Some(131_082)));
 		let t = scout(&v);//and longer than the file
 		assert_eq!((t.reading.details, t.chopped), ("a tag longer than the tip", true));

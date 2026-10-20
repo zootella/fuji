@@ -11,3 +11,4 @@ path = "argon.rs"
 
 [dependencies]
 argon2 = { version = "0.6", features = ["parallel"] } # parallel computes the four lanes on four threads; off by default, and it changes only the speed, never the key
+zootella-ergo = "0.1.3" # spans of time, sizes in bytes and base16, the same as fuji's rust and its page, from the ergo project

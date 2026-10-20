@@ -1,5 +1,6 @@
 import {styleText} from 'node:util'
 import {createPrompt, useState, useEffect, useKeypress, isUpKey, isDownKey} from '@inquirer/core'
+import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {buildLogSize, quietBuildLog, readBuildLog, sayDuration, sayTime, stepsUnderWay} from '../build-log.js'
 import {listApplications, standing, findSubmissions, readHistory, readLive, readStaged, build, notarize, hash, upload} from './notarize.js'
 
@@ -11,7 +12,7 @@ The waiting room the mac release through Apple is made from, named for what a re
 One job runs at a time, and nothing starts without a key. Every step taken on this mac is a line in the build log, which build-log.js describes, as it starts and as it ends, and the waiting room looks at it every second. A new line, from a key here or a pnpm notarize in another terminal, is the news that something happened: the waiting room shows the steps under way from it, and reads the folders, Apple's history and the site again at once, as it does every half minute anyway. Quitting is always safe: a wait on Apple ends at once, since Apple keeps going and n finds the submission again, and work on this mac, a build or a dmg on its way to Apple, finishes before the waiting room closes.
 */
 
-const checkEvery = 30*1000//how often to read the folders, apple and the site again; the clocks between run on the times they gave
+const checkEvery = 30*Time.second//how often to read the folders, apple and the site again; the clocks between run on the times they gave
 
 let job      = false//the promise of the one job running, or false. outside the screen, so ctrl-c can wait for it after the screen has gone
 let quitting = new AbortController()//aborted at q or ctrl-c: a wait on apple ends at once, and work on this mac finishes first
@@ -20,7 +21,7 @@ quietBuildLog()//the steps this process takes appear on its screen as under way,
 
 let screen = createPrompt((configuration, done) => {
 	let [now, setNow]                   = useState(Date.now())
-	let [applications, setApplications] = useState(listApplications)
+	let [applications, setApplications] = useState(configuration.applications)//read before the screen opened, so the first frame lists them rather than none
 	let [chosen, setChosen]             = useState('')//the folder the arrows chose, or blank for the newest, held by name so a row arriving from another terminal never moves the choice
 	let [apple, setApple]               = useState(false)//the latest answer from apple's history, or false before the first
 	let [staged, setStaged]             = useState(readStaged)//the sha256 of the dmg hash staged, or blank
@@ -39,14 +40,14 @@ let screen = createPrompt((configuration, done) => {
 			size = grown
 			setLogged(readBuildLog())
 			setAsks(count => count + 1)//a line from any terminal, so look at everything again now
-		}, 1000)
+		}, Time.second)
 		return () => { clearInterval(timer); drawing = false }//cleanups run as the screen closes, before anything else could draw on it
 	}, [])
 
 	useEffect(() => {
 		let controller = new AbortController()//so quitting cancels an ask still on its way, rather than waiting for it
 		let ask = () => {
-			setApplications(listApplications())
+			listApplications().then(found => { if (!controller.signal.aborted) setApplications(found) }).catch(e => { console.error('🚧 Error:', e); process.exit(1) })//a folder that cannot be read is a bug or a disk gone wrong, and this is its top gate, as it is a job's
 			setStaged(readStaged())
 			readHistory(controller.signal).then(answer => { if (!controller.signal.aborted) setApple(answer) })
 			readLive(controller.signal).then(sha256 => { if (!controller.signal.aborted) setLive(sha256) })
@@ -136,7 +137,7 @@ function sayUnderWay(steps, now) {//each step under way on this mac, like dmg  F
 }
 
 //ctrl-c closes the screen by rejecting with ExitPromptError, the library's way of saying the user left rather than a fault, so it ends like q: a job under way finishes first, with no screen left to show it
-screen({}).catch(e => {
+listApplications().then(applications => screen({applications})).catch(e => {
 	if (e.name != 'ExitPromptError') { console.error('🚧 Error:', e); process.exitCode = 1; return }
 	quitting.abort()
 	if (job) console.log('closing once the work on this mac finishes; ctrl-c again stops it now')

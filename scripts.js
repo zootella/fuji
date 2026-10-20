@@ -1,10 +1,10 @@
 import {execFile, execFileSync, spawnSync} from 'node:child_process'
-import {createHash} from 'node:crypto'
 import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs'
 import {homedir, tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {buildStep} from './build-log.js'
+import {tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {buildStep, hashSha256, readSha256} from './build-log.js'
 
 /*
 The publishing pipeline for every workspace, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri, vitepress or docker is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect, certificate.
@@ -16,8 +16,6 @@ Two machines publish fuji. Windows sends the exe. The mac sends the dmg it built
 One file rather than one per workspace, because the facts worth keeping in one place cross the workspace boundary. The published name is the clearest case: the build writes Fuji_0.1.0_aarch64.dmg, which is right for a build directory and wrong for a download link, so hash stages it as fuji.dmg and a link in a page survives the next version. That name is written by the build side and shipped by the site side, and when these were separate scripts each spelled it out for itself. The targets table below is now the only place any of it is said.
 
 Living at the root also settles the working-directory question by force rather than by discipline. Every workspace calls this file, each from its own folder, so nothing here can be relative to wherever node started; every path is built from this file's own location. The scripts this replaced each had their own answer to that, every one of them correct only because pnpm happened to run it from the right place.
-
-It imports node builtins and nothing else, and has to: the root package.json has no dependencies, and node_modules belongs to the workspaces below it.
 
 Its one companion at the root is build-log.js, which keeps the build log and says times the way the pipeline says them. That is a file of its own so the scripts that build can import it, dmg.js, win-setup.js, linux/build.js and the apple workspace's two, while this file stays something that is only ever run, never imported.
 */
@@ -35,7 +33,7 @@ const icons   = join(root, 'desktop/src-tauri/icons')                    //commi
 const loginKeychain = join(homedir(), 'Library/Keychains/login.keychain-db')//where the signing identity lives on the mac that publishes
 const built   = join(root, 'site/docs/.vitepress/dist')                  //what vitepress builds
 
-function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern: this file imports nothing but node, and one line of toml needs no parser
+function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern, since one line of toml needs no parser
 	let found = readFileSync(manifestFile, 'utf8').match(/^name\s*=\s*"([^"]+)"/m)
 	if (!found) throw new Error('Cargo.toml names no package: ' + manifestFile)
 	return found[1]
@@ -186,13 +184,13 @@ Two things a sidecar must not lie about, and each is read rather than assumed: t
 
 Named with no arguments this means "everything this machine makes", which is one thing on windows and five on the mac. A target that has not been built yet is reported and skipped rather than thrown on, because staging a dmg should not fail merely because nobody has run the linux containers today — but a target asked for by name is an instruction, so that one throws.
 */
-function hash() {
+async function hash() {
 	let {names, demanded} = chosenTargets()
 	let version = readVersion()
-	for (let name of names) hashOne(name, version, demanded)
+	for (let name of names) await hashOne(name, version, demanded)
 }
 
-function hashOne(name, version, demanded) {
+async function hashOne(name, version, demanded) {
 	let target = readTarget(name)
 	let built = findBuilt(target, version)
 	if (!built) {
@@ -206,8 +204,8 @@ function hashOne(name, version, demanded) {
 	let published = target.publish
 	let destination = join(stage, published)
 
-	let {notarized} = buildStep('hash', published, `${built.file}, ${version} ${built.arch}`, () => {
-		let libmpv = readLibrary(name, target, built)//the record of the media library inside, checked before anything is copied, so a refusal stages nothing
+	let {notarized} = await buildStep('hash', published, `${built.file}, ${version} ${built.arch}`, async () => {
+		let libmpv = await readLibrary(name, target, built)//the record of the media library inside, checked before anything is copied, so a refusal stages nothing
 		//copy first, then measure what landed, so every number describes the file the site will ship. a container's output is already sitting in the staging folder under its published name, and copying a file onto itself is both pointless and an error
 		if (join(built.folder, built.file) != destination) copyFileSync(join(built.folder, built.file), destination)
 		let bytes = readFileSync(destination)//whole file into memory; a package is a few megabytes and streaming would buy nothing
@@ -217,8 +215,8 @@ function hashOne(name, version, demanded) {
 			version,
 			arch: built.arch,
 			bytes: bytes.length,
-			sha256: createHash('sha256').update(bytes).digest('hex'),
-			date: new Date().toISOString().slice(0, 10),//iso, because the home page sorts these as text to find the earliest build
+			sha256: await hashSha256(bytes),
+			date: tickToIso(Date.now()).slice(0, 10),//iso, because the home page sorts these as text to find the earliest build
 			libmpv,//the record whole, which readLibrary describes
 		}
 		writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
@@ -239,17 +237,17 @@ The media library inside a package, from the record the recipe writes beside the
 
 Four checks keep the record true, and each refuses rather than warns, since the fix is a command that takes seconds when nothing has changed. The recipe checked out must be the recipe that built the library: the record holds the recipe's hash, and a library built by an older one would otherwise ship, without a word, under a commit whose recipe never made it. On the mac and windows, where the library sits in binaries between builds, it must still be the one the record describes, hashed again here, since either could have been replaced. And on every platform the package must be newer than the record beside it, by the two files' times, since a package carries whatever library was there when it was built: an installer carries what was in binaries when tauri ran, and a linux package what the container took from linux/cache, whose record the container writes out just before the packages; so a pnpm library after the packages were made, which writes a newer record, means building them again before hash accepts them, as does a recipe run on the mac with nothing to rebuild, which still writes the record afresh. The containers take the library from linux/cache, where pnpm library put it beside its record, and each writes the record out under its architecture's name; the rpm and the flatpak carry the amd64 library. And the library must have an entry in its platform's library file at the root, which only the command that compiles it writes, so no release carries a library the ledger does not know.
 */
-function readLibrary(name, target, built) {
+async function readLibrary(name, target, built) {
 	let bundle = target.source == 'bundle'
 	let folder = bundle ? join(root, 'desktop/src-tauri/binaries') : staged.linux
 	let record = join(folder, bundle ? 'libmpv.json' : `libmpv.${built.arch == 'x86_64' ? 'amd64' : built.arch}.json`)
 	let again = bundle ? 'pnpm library and then the installer, in desktop' : 'pnpm library and then pnpm build, in linux'
 	if (!existsSync(record)) throw new Error(`${name}: no record of the media library at ${record} — run ${again}, then hash`)
 	let library = JSON.parse(readFileSync(record, 'utf8'))
-	let recipe = createHash('sha256').update(readFileSync(join(root, 'desktop/libmpv/build.py'))).digest('hex')
+	let recipe = await readSha256(join(root, 'desktop/libmpv/build.py'))
 	if (library.recipe != recipe) throw new Error(`${name}: the media library was built by a recipe other than desktop/libmpv/build.py as checked out — run ${again}, then hash`)
 	if (bundle) {
-		let sha256 = createHash('sha256').update(readFileSync(join(folder, library.file))).digest('hex')
+		let sha256 = await readSha256(join(folder, library.file))
 		if (sha256 != library.sha256) throw new Error(`${name}: ${library.file} in binaries is not the library its record describes — run ${again}, then hash`)
 	}
 	if (statSync(record).mtimeMs > statSync(join(built.folder, built.file)).mtimeMs) throw new Error(`${name}: the media library's record is newer than ${built.file}, which carries the library before it — run ${bundle ? 'the installer' : 'pnpm build'}, then hash`)
@@ -341,7 +339,7 @@ function uploadSite() {//ship the built site, mirroring so a file dropped from t
 }
 
 //Ship what this machine staged: every package it makes, and the sidecar beside each. Named with no arguments this is one file on windows and five on the mac, and the same word means "this machine's work" in both places — which is the whole reason a command is not named per platform.
-function uploadInstaller() {
+async function uploadInstaller() {
 	let {names, demanded} = chosenTargets()
 	let version = readVersion()
 
@@ -357,7 +355,7 @@ function uploadInstaller() {
 			continue
 		}
 		let sidecar = JSON.parse(readFileSync(join(stage, sidecarName), 'utf8'))
-		checkSidecar(name, stage, sidecar, sidecarName, version)
+		await checkSidecar(name, stage, sidecar, sidecarName, version)
 		sending.push({name, stage, file: sidecar.file, sidecarName, sha256: sidecar.sha256})
 	}
 	if (!sending.length) throw new Error('nothing staged to upload — run pnpm hash first')
@@ -385,10 +383,10 @@ function send(folder, name) {//copy one file into the downloads directory as the
 }
 
 //catch a sidecar left from a previous release, which would otherwise publish a hash describing a file nobody can download. it cannot see a stale build — a sidecar truthfully describing a package compiled before the last source change passes — and it defends against nobody who can write here
-function checkSidecar(name, stage, sidecar, sidecarName, version) {
+async function checkSidecar(name, stage, sidecar, sidecarName, version) {
 	if (!existsSync(join(stage, sidecar.file))) throw new Error(`${name}: ${sidecarName} names ${sidecar.file}, which is not beside it`)
 	let bytes = readFileSync(join(stage, sidecar.file))
-	let sha256 = createHash('sha256').update(bytes).digest('hex')
+	let sha256 = await hashSha256(bytes)
 
 	if (sidecar.version != version)    throw new Error(`${name}: sidecar says version ${sidecar.version}, tauri.conf.json says ${version}; re-run pnpm hash`)
 	if (sidecar.bytes != bytes.length) throw new Error(`${name}: sidecar says ${sidecar.bytes} bytes, the file is ${bytes.length}; re-run pnpm hash`)
@@ -478,9 +476,9 @@ const commands = {
 	'certificate':      certificate,
 }
 
-function main() {//one gate in, one gate out
+async function main() {//one gate in, one gate out
 	let command = commands[process.argv[2]]
 	if (!command) throw new Error('say which: ' + Object.keys(commands).join(', '))
-	command()
+	await command()
 }
-try { main() } catch (e) { console.error('🚧 Error:', e); process.exitCode = 1 }
+main().catch(e => { console.error('🚧 Error:', e); process.exitCode = 1 })

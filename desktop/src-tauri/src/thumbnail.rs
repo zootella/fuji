@@ -15,6 +15,7 @@ The Mac body is short because ImageIO does the whole job in one call given three
 */
 
 use tauri::ipc::Response;
+use zootella_ergo::say_size4;
 use crate::run_blocking;
 
 pub struct Thumbnail {//what a platform hands back, before it is packed into the one buffer
@@ -82,7 +83,7 @@ fn check_size(width: u32, height: u32) -> Result<(), String> {
 	if width == 0 || height == 0 { return Err(format!("thumbnail: the library gave no size for this picture, {width} by {height}")) }
 	let raster = (width as u64).saturating_mul(height as u64).saturating_mul(4);//saturating, because two u32 sizes times four can pass u64, and a release build would wrap that to a small number the ceiling lets through: a header claiming 2^31 by 2^31 is the one file this wall is for, and it must not walk past it on arithmetic
 	let ceiling = crate::memory::memory_total() / 2;
-	if raster > ceiling { return Err(format!("thumbnail: {width} by {height} pixels would need {} MB to decode, more than half of this machine's {} MB", raster >> 20, crate::memory::memory_total() >> 20)) }
+	if raster > ceiling { return Err(format!("thumbnail: {width} by {height} pixels would need {} to decode, more than half of this machine's {}", say_size4(raster), say_size4(crate::memory::memory_total()))) }
 	Ok(())
 }
 

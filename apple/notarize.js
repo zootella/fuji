@@ -5,6 +5,7 @@ import {basename, join} from 'node:path'
 import {setTimeout as sleep} from 'node:timers/promises'
 import {fileURLToPath} from 'node:url'
 import {promisify} from 'node:util'
+import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {dmgFile, dmgMake} from '../desktop/dmg.js'
 import {buildLog, readSha256, sayDate, sayDuration, sayTime} from '../build-log.js'
 
@@ -31,7 +32,7 @@ const liveSidecar   = new URL(`${brandStem}.dmg.json`, configuration.bundle.home
 
 const identity    = 'Developer ID Application'//the kind of certificate rather than its holder's name, which the README explains
 const credentials = ['APPLE_API_KEY', 'APPLE_API_ISSUER', 'APPLE_API_KEY_PATH']//the api key's three values in .env, under the names tauri reads
-const checkEvery  = 30*1000//how often a wait asks apple again
+const checkEvery  = 30*Time.second//how often a wait asks apple again
 const folderName  = /^\d{4}-[A-Z][a-z]{2}-\d{1,2} [A-Z][a-z]{2} (\S+) ([0-9a-f]{8})$/ //an application's folder: the day it was built, its version and its tag
 const quit        = {success: false, outcome: 'Quit'}//what notarize comes to after q, which starts nothing new and leaves the rest to the next n
 const hashes      = new Map()//each notarized dmg's sha256 by its path, hashed once rather than every time the waiting room looks, since a notarized dmg never changes again
@@ -39,14 +40,14 @@ const hashes      = new Map()//each notarized dmg's sha256 by its path, hashed o
 // Applications
 
 //every application, newest first
-export function listApplications() {
+export async function listApplications() {
 	if (!existsSync(applications)) return []
-	let found = readdirSync(applications).filter(folder => folderName.test(folder)).map(readApplication)
+	let found = await Promise.all(readdirSync(applications).filter(folder => folderName.test(folder)).map(readApplication))
 	return found.sort((a, b) => b.made - a.made)//by when b made each folder
 }
 
 //one application, as its folder has it
-export function readApplication(folder) {
+export async function readApplication(folder) {
 	let [, version, tag] = folder.match(folderName)
 	let path = join(applications, folder)
 	let dmg = join(path, dmgFile(version))
@@ -60,12 +61,12 @@ export function readApplication(folder) {
 		begun:    existsSync(log) ? statSync(log).birthtimeMs : made,//when b started, since the log was opened then and kept through the rename
 		sent:     notarized ? readSent(path) : 0,//when apple received the app
 		finished: notarized ? statSync(verify).mtimeMs : 0,//when the last check passed
-		sha256:   notarized ? hashOnce(dmg) : '',//the hash hash will publish
+		sha256:   notarized ? await hashOnce(dmg) : '',//the hash hash will publish
 	}
 }
 
-function hashOnce(dmg) {
-	if (!hashes.has(dmg)) hashes.set(dmg, readSha256(dmg))
+async function hashOnce(dmg) {
+	if (!hashes.has(dmg)) hashes.set(dmg, await readSha256(dmg))//kept only once it is in hand, so a read that fails leaves nothing behind and the next look tries again
 	return hashes.get(dmg)
 }
 
@@ -123,7 +124,7 @@ async function buildSigned(building, version) {
 	let codeHash = readCodeHash(app)
 	if (!codeHash) return {success: false, outcome: 'codesign shows no code hash for ' + app}
 	let tag = codeHash.slice(0, 8)
-	let same = listApplications().find(application => application.tag == tag)//built unchanged signs to the same code hash, on any day, and the application already kept is the one to carry on with
+	let same = (await listApplications()).find(application => application.tag == tag)//built unchanged signs to the same code hash, on any day, and the application already kept is the one to carry on with
 	if (same) return {success: true, outcome: `nothing changed: this build is the same code as ${same.folder}`, application: same, subject: tag, value: codeHash}
 	let folder = `${sayDate(new Date())} ${version} ${tag}`
 	let path = join(applications, folder)
@@ -132,7 +133,7 @@ async function buildSigned(building, version) {
 	renameSync(building, log)
 	let copied = await run('ditto', [app, join(path, `${brandName}.app`)], {log})//apple's own copy for a bundle, which keeps the signature whole
 	if (!copied.success) return {...copied, subject: tag, log}
-	return {success: true, outcome: `Built ${folder}`, application: readApplication(folder), subject: tag, value: codeHash, log}
+	return {success: true, outcome: `Built ${folder}`, application: await readApplication(folder), subject: tag, value: codeHash, log}
 }
 
 function findIdentities() {//the names of the valid code signing identities containing the words in identity, which are the ones codesign would choose among
@@ -201,7 +202,7 @@ async function makeDmg(application) {
 	if (!made.success) return made
 	let signed = await run('codesign', ['--sign', identity, '--timestamp', application.dmg], {log})
 	if (!signed.success) return signed
-	return {success: true, outcome: 'signed with the Developer ID', value: readSha256(application.dmg)}
+	return {success: true, outcome: 'signed with the Developer ID', value: await readSha256(application.dmg)}
 }
 
 //send one part to apple under the application's name, from a private temporary folder: this mac's send step, the zip and the upload, and then apple's step, which starts once apple has it
@@ -259,7 +260,7 @@ async function check(application) {
 	if (!passed) return {success: false, outcome: 'a check failed after stapling, and verifying.txt in its folder has the verdicts'}
 
 	renameSync(verifying, join(application.path, 'verify.txt'))
-	return {success: true, outcome: 'the app and the dmg each carry a ticket, and Gatekeeper accepts both', value: readSha256(application.dmg)}
+	return {success: true, outcome: 'the app and the dmg each carry a ticket, and Gatekeeper accepts both', value: await readSha256(application.dmg)}
 }
 
 //leave the application's dmg in tauri's bundle folder, where pnpm installer leaves its own and hash looks, emptied first as dmg.js empties it, so hash finds exactly this one
@@ -269,7 +270,7 @@ function deliver(application) {
 		rmSync(folder, {recursive: true, force: true})
 		mkdirSync(folder, {recursive: true})
 		copyFileSync(application.dmg, join(folder, basename(application.dmg)))
-		return {success: true, outcome: 'in the bundle folder, where pnpm hash finds it', value: application.sha256 || readSha256(application.dmg)}
+		return {success: true, outcome: 'in the bundle folder, where pnpm hash finds it', value: application.sha256 || await readSha256(application.dmg)}
 	})
 }
 

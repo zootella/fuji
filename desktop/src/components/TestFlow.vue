@@ -1,13 +1,14 @@
 <script setup>//every thumbnail sized by a fit, and the tiles flow like words; the pixels come from the operating system or from the page, decided per file
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
+import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {cacheNeed, cacheRelease} from '../cache.js'
 import {governorRun} from '../governor.js'
 import {settings, settingsThumbnailBeam} from '../settings.js'
 import {fitSize} from '../fit.js'
 import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logBucket} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
-import {xy, platform, sayDay, sayDimensions, saySizeThin, middleDot, backize} from './library.js'
+import {xy, platform, sayDay, sayDimensions, middleDot, thinSpace, backize} from './library.js'
 import {fileTypesSheet} from '../fileTypes.js'
 
 /*
@@ -135,9 +136,9 @@ function flowImgLoad(tile, event) {//an img tile, sized by the fit once the engi
 }
 
 function flowDetails(tile) {//the caption's second line: the day the file was last modified, its size, and the size the picture shows at, each left out until it is known, so a missing one never leaves a divider standing alone
-	let parts = [sayDay(tile.file.mtime), saySizeThin(tile.file.size)]
+	let parts = [sayDay(tile.file.mtime), saySize4(tile.file.size)]
 	if (tile.natural) parts.push(sayDimensions(tile.natural))//known once the thumbnail lands, and never for a file fuji refused
-	return parts.filter(part => part).join(` ${middleDot} `)//full spaces around the dot, which separates things, where a thin space joins a number to its unit; chosen 2026-10-06 over a fullwidth slash, two spaces and a plain slash
+	return parts.filter(part => part).map(part => part.replaceAll(' ', thinSpace)).join(` ${middleDot} `)//thin spaces within each part, since this caption is proportional text, and full spaces around the dot, which separates the parts; the dot chosen 2026-10-06 over a fullwidth slash, two spaces and a plain slash
 }
 
 function flowCopy(path) {//a click on a caption: the picture's whole path onto the clipboard, written the way the platform's own file manager writes it; nothing on screen says so yet

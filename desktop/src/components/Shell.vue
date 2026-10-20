@@ -3,6 +3,7 @@
 import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
+import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {dialogOpen} from '../dialog.js'//the system's open box, which rust puts up
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
@@ -145,7 +146,7 @@ onMounted(async () => {
 	})
 	reportTrouble(async () => activeView()?.onFocus?.(await w.isFocused()))//and once now, since the focus arrived with the reveal, before there was anyone listening for it
 })
-const restAfter = 2000//milliseconds after the first frame to read fuji's footprint at rest: long enough for the engine to settle, and short enough to come before the user has opened anything on most launches
+const restAfter = 2*Time.second//how long after the first frame to read fuji's footprint at rest: long enough for the engine to settle, and short enough to come before the user has opened anything on most launches
 function logLaunch() {//two lines at the top of every log. The launch timed whole, from the operating system starting the process through the loader, main and the page to the first frame, which is the one measurement that shows what a library added to the build costs and where; and the footprint a moment later, before anything is opened
 	let frame = performance.now()//the page's own clock at the first frame, read before the crossing below so the crossing is not in the page's share
 	uptimeProcess()
@@ -155,7 +156,7 @@ function logLaunch() {//two lines at the top of every log. The launch timed whol
 		.catch(error => logTrouble('shell: asking how long the launch took', error))
 	setTimeout(() => {
 		memoryReport()
-			.then(report => log(`rest: ${report.processes.map(p => `${p.kind} ${p.bytes}`).join(', ')}, in bytes, ${restAfter / 1000} s after the first frame`))
+			.then(report => log(`rest: ${report.processes.map(p => `${p.kind} ${p.bytes}`).join(', ')}, in bytes, ${restAfter / Time.second} s after the first frame`))
 			.catch(error => logTrouble('shell: reading memory at rest', error))
 	}, restAfter)
 }
@@ -412,7 +413,7 @@ async function fullscreenSet(on) {//turn fuji's own fullscreen on or off, and wa
 	let w = getCurrentWindow()
 	if (on && platform() == 'mac' && await w.isFullscreen()) return//already in a macos space, which the table can have as it is
 	fullscreenOurs = on
-	let landed = new Promise(resolve => { resizeWaiting.push(resolve); setTimeout(resolve, 1000) })//the resize that says the window got there, or a second, so a change that moves nothing never hangs
+	let landed = new Promise(resolve => { resizeWaiting.push(resolve); setTimeout(resolve, Time.second) })//the resize that says the window got there, or a second, so a change that moves nothing never hangs
 	if (on) await w.setSimpleFullscreen(true)//instant, no Space and no animation; on windows and linux, the ordinary fullscreen
 	else await windowFullscreenLeave()//the one way fuji leaves it, whether the window is showing or not
 	await getCurrentWebview().setFocus()//hand the keyboard back to the page, after the change, for the reason the essay above gives

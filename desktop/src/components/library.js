@@ -11,7 +11,7 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Data} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {diskRead, diskReadDir, diskPeek} from '../disk.js'//our rust modules
 import {findFolders} from '../find.js'
 import {panelResolution} from '../panel.js'
@@ -97,13 +97,13 @@ export async function listSiblings(path) {//the same listing, ordered and with t
 
 //images
 
-export const errorImageData = `data:image/svg+xml;base64,${btoa(`
+export const errorImageData = `data:image/svg+xml;base64,${Data({text: `
 	<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
 		<rect width="300" height="300" fill="none" stroke="#444" stroke-width="1" stroke-dasharray="2,1"/>
 		<line x1="140" y1="140" x2="160" y2="160" stroke="#444" stroke-width="1"/>
 		<line x1="160" y1="140" x2="140" y2="160" stroke="#444" stroke-width="1"/>
 	</svg>
-`)}`//a dashed box with a cross: what every view shows in place of a picture it could not read
+`}).base64()}`//a dashed box with a cross: what every view shows in place of a picture it could not read
 
 export async function readAndRenderImage(img, path) {
 	let details = await readImage(path)
@@ -271,14 +271,12 @@ export function sayGroupDigits(s, thousandsSeparator = ',') {//pass comma, perio
 	return minus+s
 }
 
-export const thinSpace = '\u2009'//between a number and its unit, and around the parts of a date or the x of a size; named rather than typed, because typed it looks like any other space
+export const thinSpace = '\u2009'//between a number and its unit, and around the parts of a date or the x of a size, in proportional text only: a fixed-width face draws it a full cell wide, or lacks it and borrows one from another font that sets the rest of the line off the grid; named rather than typed, because typed it looks like any other space
 export const multiplicationSign = '\u00d7'//the x of a size, which typed is easy to mistake for the letter
 export const middleDot = '\u00b7'//between things listed on one line, which typed is easy to mistake for a period
 
-export function saySizeThin(n) { return saySize4(n).replace(' ', thinSpace) }//a count of bytes the way fuji writes one, like 117 MB: ergo's saySize4, four digits or less, with a thin space before the unit in place of ergo's ordinary one
-
-export function sayDimensions(size) {//a picture's width by its height, like 1050 × 856, with thin spaces around the sign
-	return `${size.x}${thinSpace}${multiplicationSign}${thinSpace}${size.y}`
+export function sayDimensions(size) {//a picture's width by its height, like 1050 × 856
+	return `${size.x} ${multiplicationSign} ${size.y}`
 }
 
 const sayMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']//fuji's own, rather than Intl's, so a date reads the same on every machine whatever its language
@@ -286,5 +284,5 @@ export function sayDay(milliseconds) {//the day a time falls on, in this machine
 	if (typeof milliseconds != 'number' || milliseconds < 0) throw new Error(`expected milliseconds since 1970: ${milliseconds}`)
 	if (milliseconds == 0) return ''
 	let d = new Date(milliseconds)//read with its local getters, so the day is the user's own
-	return `${d.getFullYear()}${thinSpace}${sayMonths[d.getMonth()]}${thinSpace}${d.getDate()}`
+	return `${d.getFullYear()} ${sayMonths[d.getMonth()]} ${d.getDate()}`
 }

@@ -5,6 +5,7 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
+import {Data} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {diskRead, diskReadDir} from '../disk.js'//our rust module
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
@@ -116,13 +117,13 @@ function fillImage(imgRef, index, list) {//start loading the image on the disk a
 }
 
 //dashed box with center X as a visual placeholder for an image we couldn't render
-const errorData = `data:image/svg+xml;base64,${btoa(`
+const errorData = `data:image/svg+xml;base64,${Data({text: `
 	<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
 		<rect width="300" height="300" fill="none" stroke="#444" stroke-width="1" stroke-dasharray="2,1"/>
 		<line x1="140" y1="140" x2="160" y2="160" stroke="#444" stroke-width="1"/>
 		<line x1="160" y1="140" x2="140" y2="160" stroke="#444" stroke-width="1"/>
 	</svg>
-`)}`
+`}).base64()}`
 
 const img7Ref = ref(null)
 const img8Ref = ref(null)

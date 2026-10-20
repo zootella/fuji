@@ -1,10 +1,9 @@
 import {execFileSync, spawn, spawnSync} from 'node:child_process'
-import {createHash} from 'node:crypto'
 import {appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs'
 import {basename, join} from 'node:path'
 import {createInterface} from 'node:readline'
 import {fileURLToPath} from 'node:url'
-import {buildStep} from '../build-log.js'
+import {buildStep, hashSha256} from '../build-log.js'
 
 /*
 Fuji's linux packages, built on a mac through docker.
@@ -58,7 +57,7 @@ const release = join(here, 'release')       //what comes out, and the only thing
 const cache   = join(here, 'cache')         //the compiled media library between runs, the one exception the essay above argues
 const ledgers = {arm64: 'library-arm.txt', amd64: 'library-amd.txt'}//the two library files at the root, by the architecture debian names a container with
 
-function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern for the reason scripts.js gives: this workspace has no dependencies, and one line of toml needs no parser
+function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern the way scripts.js finds it, since one line of toml needs no parser
 	let found = readFileSync(join(root, 'desktop/src-tauri/Cargo.toml'), 'utf8').match(/^name\s*=\s*"([^"]+)"/m)
 	if (!found) throw new Error('Cargo.toml names no package')
 	return found[1]
@@ -109,7 +108,7 @@ async function together(first, second) {
 function inside(script) { return ['--entrypoint', 'python3', '-v', `${join(here, script)}:/build.py:ro`] }
 
 //what an image is, as a hash of its layers, which names the cache folder beside the architecture, so a rebuilt toolchain never serves a library the old one compiled. not the image's id: docker gives an image a new id on every build, even with every layer cached, three ids from three builds of one unchanged Dockerfile on the Mac mini on 2026-10-15, while the layer digests stayed one, since those are the toolchain's own content
-function imageKey(tag) { return createHash('sha256').update(execFileSync('docker', ['image', 'inspect', '--format', '{{join .RootFS.Layers ","}}', tag], {encoding: 'utf8'}).trim()).digest('hex').slice(0, 12) }
+async function imageKey(tag) { return (await hashSha256(Buffer.from(execFileSync('docker', ['image', 'inspect', '--format', '{{join .RootFS.Layers ","}}', tag], {encoding: 'utf8'}).trim()))).slice(0, 12) }
 
 function say(line) { console.log(line) }
 
@@ -140,7 +139,7 @@ function buildImage(tag) {
 function buildImages() { for (let tag of Object.keys(images)) buildImage(tag) }
 
 //one tauri container as together runs it, in one of inside-tauri.py's two modes: the word library compiles the media library into the cache, and a bundle list builds those packages from it. the bundle list is an argument rather than a change to tauri.conf.json, so what the mac and the windows box are told to build stays exactly as it was. the name carries this process's id, so a run killed partway leaves no name for the next run to collide with
-function tauri(architecture, mode) {
+async function tauri(architecture, mode) {
 	let tag = `${brandStem}-tauri:${architecture}`
 	say(`==> ${tag}  ${mode == 'library' ? 'the media library' : '--bundles ' + mode}`)
 	mkdirSync(release, {recursive: true})
@@ -150,7 +149,7 @@ function tauri(architecture, mode) {
 		'-v', `${stage}:/src:ro`,
 		'-v', `${release}:/out`,
 		'-v', `${cache}:/cache`,
-		'-e', `IMAGE=${imageKey(tag)}`,
+		'-e', `IMAGE=${await imageKey(tag)}`,
 		tag, '/build.py', mode]}
 }
 
@@ -194,9 +193,9 @@ The two steps `build` runs, in the order it runs them. They are grouped by conta
 */
 const steps = {
 	//both tauri containers at once, the native arm64 leg finishing first and stopping the emulated one if it fails, which the essay above says more about
-	distro:  async () => { stageSource(); await together(tauri('arm64', 'deb'), tauri('amd64', 'deb,rpm')) },
+	distro:  async () => { stageSource(); await together(await tauri('arm64', 'deb'), await tauri('amd64', 'deb,rpm')) },
 	flatpak: async () => flatpak(),
-	library: async () => { stageSource(); await together(tauri('arm64', 'library'), tauri('amd64', 'library')); ledgerAppend('arm64'); ledgerAppend('amd64') },
+	library: async () => { stageSource(); await together(await tauri('arm64', 'library'), await tauri('amd64', 'library')); ledgerAppend('arm64'); ledgerAppend('amd64') },
 }
 
 /*

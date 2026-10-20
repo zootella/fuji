@@ -19,29 +19,29 @@ const msysPackages = ['git', 'make', 'diffutils', 'python', ...['gcc', 'meson', 
 const macTools = ['meson', 'ninja', 'pkg-config']//three tools from Homebrew over Apple's clang and Swift, which the Mac already has; pkg-config is pkgconf's name on the path, and cmake and nasm are Windows' alone, since nothing on the Mac is built with cmake and arm64 assembly goes through the compiler
 const macFormulae = 'meson ninja pkgconf'
 
-function main() {
+async function main() {
 	if (process.platform == 'win32') return windows()
 	if (process.platform == 'darwin') return mac()
 	console.log('library: nothing to build off the mac and windows; pnpm library in the linux workspace builds it inside the containers')
 }
-function windows() {
+async function windows() {
 	if (!existsSync(msysBash)) throw new Error(`MSYS2 is not at ${msys}; install it with: winget install --id MSYS2.MSYS2`)
 	let environment = {...process.env, MSYSTEM: 'UCRT64'}//the ucrt64 environment, which is the one whose gcc links against the universal C runtime every Windows 10 has
 	execFileSync(msysBash, ['-lc', `pacman -Q ${msysPackages.join(' ')} >/dev/null 2>&1 || pacman -S --noconfirm --needed ${msysPackages.join(' ')}`], {env: environment, stdio: 'inherit'})//silent when every package is there, and the whole install shown the first time
 	let path = script.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (match, drive) => '/' + drive.toLowerCase())//C:\a\b\build.py as /c/a/b/build.py, which is how msys spells a windows path
-	build(msysBash, ['-lc', `/usr/bin/python3 "${path}"`], environment, 'libmpv-2.dll')
+	await build(msysBash, ['-lc', `/usr/bin/python3 "${path}"`], environment, 'libmpv-2.dll')
 }
-function mac() {
+async function mac() {
 	let missing = macTools.filter(tool => spawnSync('which', [tool]).status != 0)
 	if (missing.length) throw new Error(`${missing.join(', ')} not found; install the tools with: brew install ${macFormulae}`)
-	build('python3', [script], process.env, 'libmpv.2.dylib')
+	await build('python3', [script], process.env, 'libmpv.2.dylib')
 }
-function build(interpreter, args, environment, name) {//run the script and log the library it made, by name and hash
+async function build(interpreter, args, environment, name) {//run the script and log the library it made, by name and hash
 	buildLog('library', 'started', '-', '-', 'from the release tarballs build.py names')
 	let run = spawnSync(interpreter, args, {env: environment, stdio: 'inherit'})
 	if (run.status != 0) throw new Error('build.py failed')
 	let made = join(tauri, 'binaries', name)//where build.py leaves it, and the platform's tauri configuration file finds it
-	buildLog('library', 'finished', name, readSha256(made), `${statSync(made).size} bytes in src-tauri/binaries`)
+	buildLog('library', 'finished', name, await readSha256(made), `${statSync(made).size} bytes in src-tauri/binaries`)
 }
 
-try { main() } catch (e) { buildLog('library', 'failed', '-', '-', e.message || String(e)); console.error('🚧 Error:', e.message || e); process.exitCode = 1 }
+main().catch(e => { buildLog('library', 'failed', '-', '-', e.message || String(e)); console.error('🚧 Error:', e.message || e); process.exitCode = 1 })
