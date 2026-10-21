@@ -20,7 +20,7 @@ Questions: Can the view's rectangle follow a drag on the table frame for frame, 
 
 A video larger than the screen, shown at one of its pixels per panel pixel, the way a phone's video would be on a Retina Mac. The player needs nothing new for it, since mpv draws at any size and the native view can be any size. What needs building is the window. It has no title bar, it grows past the screen to the video's own size, and the drag that moves it from anywhere on the video carries it off any of the four edges of the screen, so the user brings the part they want into view. That holds on Windows, the Mac and Linux alike.
 
-The open question is which window that is: the one fuji already has, moved and sized to the video, or a Tauri window made for the video alone.
+That window is a native window of its own, decided on 2026-10-21: a video window stands beside the contact sheet rather than taking its place, there can be several, and it shares none of a browsing window's state, so it is made for the video alone.
 
 ## Two routes, and the manifest
 

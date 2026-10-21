@@ -31,7 +31,7 @@ let logQuietTimer = null
 let logNotes = []//lines the caller wants at the top of the file, beneath the run's name
 let logWindow = ''//this window's label, window-1 and on, which starts every line it records; read at the start of a run rather than at import, so the module loads outside tauri too
 
-export function logStart({label, record, notes = []}) {//name this run and hand rust the file; the shell calls this once, after settings are read, and passes in what the log needs from them, so the log knows nothing about settings and sits beneath them
+export function logStart({label, record, notes = []}) {//name this run and hand rust the file; each window's root calls this once, after settings are read, and passes in what the log needs from them, so the log knows nothing about settings and sits beneath them
 	logRecording = record; logNotes = notes
 	logPending = []; logTotal = 0; logFull = false; logStarted = false
 	if (!logRecording) return

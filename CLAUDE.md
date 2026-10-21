@@ -128,7 +128,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **The Rust codebase grows for three reasons and no others: speed, operating-system proximity, and a permission or security necessity.** Never because a task is "mostly Rust" or "involves Rust." When a feature needs both layers, the question is what single dumb thing Rust has to do that JavaScript cannot do as well — write that, and put the rest in the page.
 
-**One codebase behaves differently on each platform in exactly one place, and three rules keep it that way.** *Ask the platform question once, where a thing is made, and never where it is used* — `window_build` is the only way a window comes into being, every caller is in `lib.rs`, and nothing downstream ever asks again. *Write for the plural and let the simpler platform be the degenerate case* — paths waiting for a page are keyed by window label everywhere, and Windows runs that map with one entry forever, needing no branch to do it. *Where a rule can be identical for free, make it identical* — settings and the log flush when the last window closes on every platform, not only at a quit. The alternative, per-process on one platform and per-window on another, is what makes every later feature ask which world it is in.
+**One codebase behaves differently on each platform in exactly one place, and three rules keep it that way.** *Ask the platform question once, where a thing is made, and never where it is used* — `window_build` is the only way a window comes into being, and nothing downstream ever asks again. *Write for the plural and let the simpler platform be the degenerate case* — paths waiting for a page are keyed by window label everywhere, and Windows runs that map with one entry forever, needing no branch to do it. *Where a rule can be identical for free, make it identical* — settings and the log flush when the last window closes on every platform, not only at a quit. The alternative, per-process on one platform and per-window on another, is what makes every later feature ask which world it is in.
 
 **A command takes one thing, and a list stays in the page.** The page calls down once per item and owns the loop, the order, and how many are in flight; `thumbnail_render` takes one path and `registry_set` writes one value for that reason. More crossings are the cheap side of that trade, and a command that loops over what the page handed it has pulled a decision down out of the page.
 
@@ -147,12 +147,13 @@ The modules, by what each one answers: the disk (`disk.rs`), the folder tree in 
 
 ### Frontend (desktop/src/)
 
-**Entry point**: `main.js` → `App.vue` → `Shell.vue`, which shows one view at a time.
+**Entry point**: `main.js` → `App.vue` → `Shell.vue` for a browsing window, which shows one view at a time, or `VideoWindow.vue` for a video window.
 
-`main.js` titles the page and mounts the app, and does nothing else; `App.vue` renders the one view directly. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
+`main.js` titles the page and mounts the app, and does nothing else; `App.vue` picks the window's root once, as the page mounts, from the note the window was made with. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Where to read before changing something.** Every component in `src/components/` and every module in `src/` opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
-- `Shell.vue` — the window, which view is showing, and fuji's two fullscreens
+- `Shell.vue` — a browsing window, which view is showing, and fuji's two fullscreens
+- `VideoWindow.vue` — a video window, a native window of its own beside a browsing window or without one
 - `TestFlow.vue` — how a path becomes a thumbnail
 - `DiamondTable.vue` — the quiver, and why a flip shows first and loads last
 - `model.js`, `settings.js`, `cache.js` — what the user is looking at, the one schema for `fuji.toml`, and the store of pictures

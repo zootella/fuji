@@ -4,4 +4,5 @@ import {invoke} from '@tauri-apps/api/core'
 
 export function menuText(id, text) { return invoke('menu_text', {id, text}) }//retitle one of fuji's own items by its id: the View item, which says where a window goes next, Show Light Table from the sheet and Show Contact Sheet from the table
 export function menuEnable(menu, item, enabled) { return invoke('menu_enable', {menu, item, enabled}) }//light or gray one item, by the words the menu bar shows for its menu and for it
+export function menuAnswer(items) { return invoke('menu_answer', {items}) }//the ids of fuji's own items this window answers, in place of whatever it said before; a window that never says answers them all, and an item this window does not answer goes to the window most recently in front that does, brought forward
 export function menuWaiting() { return invoke('menu_waiting') }//the item this window was made to answer, Settings…, About or Fuji Help chosen while fuji had no window, taken away as it answers; blank for every other window, and the shell asks once, at mount

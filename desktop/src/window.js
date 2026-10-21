@@ -3,6 +3,8 @@ import {invoke} from '@tauri-apps/api/core'
 //where this window is and where to put it, as the user sees its frame, in css pixels on every platform; window.rs says why tauri's own outer rectangle is not that on windows
 
 export function windowEngine() { return invoke('window_engine') }//the version of the web engine drawing this window, as the platform reports it; the page names the engine, which is fixed per platform
+export function windowNew(note) { return invoke('window_new', {note}) }//another window of this application, made hidden, whose page takes this note as it mounts; window.rs holds the word and never reads it
+export function windowNote() { return invoke('window_note') }//the note this window was made with, taken away as it answers; blank for a window the operating system, the dock or the menu bar asked for
 export function windowFrame() { return invoke('window_frame') }//{x, y, width, height} of the visible frame
 export function windowFrameSet(frame) { return invoke('window_frame_set', {frame}) }//put the visible frame exactly there, whatever title bar or borders the window has
 export function windowFullscreenLeave() { return invoke('window_fullscreen_leave') }//out of fullscreen without changing whether the window is showing, which tauri's own way does not promise on windows

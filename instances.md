@@ -1,6 +1,6 @@
 # Instances and windows
 
-Built and running. Windows and Linux get a process per double-click, because their shells work that way and their taskbars group the windows; macOS holds as many windows as the user wants in one process, because its Dock draws a tile per process and several fujis would be a row of identical icons.
+Built and running. Windows and Linux get a process per double-click, because their shells work that way and their taskbars group the windows; macOS holds as many windows as the user wants in one process, because its Dock draws a tile per process and several fujis would be a row of identical icons. And on every platform a page can ask for another window in its own process, which is how a video window opens beside the contact sheet, so a process on Windows and Linux can now hold more than one window too.
 
 The reasoning lives with the code. `window.rs` carries why the platforms differ, how a window is made, where it opens and how big, and how long fuji outlives its last one. `open.rs` carries how a picture reaches the window made for it. `lib.rs` carries the rule that decides how many windows a launch makes. `CLAUDE.md` carries the three rules that keep one codebase from forking at every later feature.
 

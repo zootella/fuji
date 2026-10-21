@@ -12,17 +12,17 @@ use crate::open;
 /*
 Making fuji's windows, saying where one is, and deciding how long fuji outlives them. This is here rather than in tauri.conf.json because a window is no longer a thing there is exactly one of: each is made when it is asked for, under a label counted for it.
 
-**How many, and who asks for one.** A window is made for the pictures it will show, and `window_build` is the only way one comes into being. Every launch on every platform makes one through `window_first`, when the application loop is ready, for whatever the command line handed over — unless a double-click on the mac has already made one, which `window_first` explains. On macOS a window is made again whenever the running application is told to open something, and again when the user clicks a dock icon with no windows behind it. Windows and Linux never make a second one, because their shells start another process instead — so the same function serves a platform with many windows and a platform with exactly one, and neither needs to know which it is.
+**How many, and who asks for one.** A window is made for the pictures it will show, and `window_build` is the only way one comes into being. Every launch on every platform makes one through `window_first`, when the application loop is ready, for whatever the command line handed over — unless a double-click on the mac has already made one, which `window_first` explains. On macOS a window is made again whenever the running application is told to open something, and again when the user clicks a dock icon with no windows behind it. Windows and Linux never make a second one for the operating system, because their shells start another process instead. On every platform the page can ask for another window through `window_new`, handing it a note its own page reads as it mounts, which is how a video window comes to sit beside the contact sheet: so a process on Windows and Linux holds one window for a launch and as many more as the page asks for, a process on the Mac holds any number, and the same function serves them all without knowing which.
 
 **Why the platforms differ at all, since a process per window everywhere would be simpler.** Because the macOS Dock will not have it. Measured on the Mac mini, macOS 15.7.4, 2026-09-13: two running copies of one bundle appear to LaunchServices as two foreground applications — separate serial numbers under a single bundle identifier — and the Dock draws a tile per foreground application rather than per bundle. So several fujis would be a row of identical icons with nothing able to merge them. Windows and Linux hide the same architecture — the Windows taskbar combines buttons for one executable, and GNOME and KDE group by `WM_CLASS` — so macOS is the only shell of the three that needs code.
 
 **What it is called.** Each window gets a label of its own, counted from one, and `capabilities/default.json` grants permissions to the pattern rather than to a name. A window whose label the capability does not match is built and then silently has no permissions at all, which looks like a page that loads and cannot do anything, so the two have to be kept in step.
 
-**Where, and how big, is the page's to decide.** Every window is built hidden at whatever size Tauri defaults to, and the shell places it before the reveal: fitted around the picture for a preview, or as the contact sheet, at the size the user last gave one or a preset portion of the work area, somewhere at random inside it, by the rule library.js keeps. Rust reads none of it: the page has the settings file before it places anything. The window is hidden while this happens, so nothing flashes and nothing jumps.
+**Where, and how big, is the page's to decide.** Every window is built hidden at whatever size Tauri defaults to, and its page places it before the reveal: the shell fits a preview around its picture, or places the contact sheet at the size the user last gave one or a preset portion of the work area, somewhere at random inside it, by the rule library.js keeps, and a video window places itself at its own size by the same rule. Rust reads none of it: the page has the settings file before it places anything. The window is hidden while this happens, so nothing flashes and nothing jumps.
 
 Fuji places its windows itself because neither platform does it well. Windows cascades new ones down a fixed staircase without checking that they fit — measured on 2026-09-13, three windows 1062 tall on a work area 1160 deep, the last two hanging 6 and 40 under the taskbar. A work area 1160 deep on that 1200-row screen is what 100 percent leaves, so css and backing pixels were one and the numbers need no unit. macOS places nothing at all, and tao centers every window it is given no position for, so two windows of one size stack exactly on top of each other.
 
-**How long fuji outlives its last window** is the one place fuji deliberately behaves differently on each platform, and `window_stays_resident` below is the whole of it. On Windows and Linux, closing the window closes fuji, which is what those desktops mean by closing a window. On macOS an application is a place the user is in rather than a window they have open: the dock icon stays, with its dot, which is how a Mac user reopens it, learns they can keep it there, and decides what to quit when the machine is busy. Going with that grain costs almost nothing here, because a fuji with no windows has destroyed its webviews and is the Rust host alone — and the Rust is dumb, so it is doing nothing.
+**How long fuji outlives its last window** is the one place fuji deliberately behaves differently on each platform, and `window_stays_resident` below is the whole of it. On Windows and Linux, closing a process's last window closes fuji, which is what those desktops mean by closing a window. On macOS an application is a place the user is in rather than a window they have open: the dock icon stays, with its dot, which is how a Mac user reopens it, learns they can keep it there, and decides what to quit when the machine is busy. Going with that grain costs almost nothing here, because a fuji with no windows has destroyed its webviews and is the Rust host alone — and the Rust is dumb, so it is doing nothing.
 */
 
 /*
@@ -32,7 +32,7 @@ Windows and Linux start a copy of fuji for each picture opened, and Explorer sta
 
 Three rules answer it. A copy's first window takes a turn, holding a lock on a file until its page begins to load, when the web engine is up and the next copy can join it. A flurry opens one window: the copy that takes the turn stamps the file with its launch moment, as the file's modified time, which other copies can read through the lock, and a copy launched within WINDOW_FLURRY of the stamp leaves before making anything. A user who opens a folder's worth of pictures has one to look at, and the rest a flip or a contact sheet away; a copy launched later is a deliberate second launch, and waits its turn for a window of its own. And a copy whose first page never begins to load exits after WINDOW_ARRIVAL_WAIT, so whatever goes wrong, nothing is left running without a window. The one failure that last rule cannot see is a page that begins to load and then never reveals its window, since arriving is all it checks; none has been seen. Tauri's page load was seen reaching the watchdog with WebView2 on the Windows box and with WKWebView on the Mac mini on 2026-09-30, where a development window stayed past the twenty seconds; WebKitGTK is still to be seen, and win2linux.md asks.
 
-The mac opens a selection as one window already, since Finder hands it over in one event: seen on the Mac mini on 2026-09-30, five pictures opened together making one window whether fuji was running or not. Its later windows never take a turn, because they join a web engine already running in the same process.
+The mac opens a selection as one window already, since Finder hands it over in one event: seen on the Mac mini on 2026-09-30, five pictures opened together making one window whether fuji was running or not. A process's later windows never take a turn, on the Mac or anywhere a page asks for one, because they join a web engine already running in the same process.
 */
 const WINDOW_TURN_FILE: &str = "window-turn.lock";//empty, in the app's local data folder beside the web engine's own; its modified time is the stamp
 const WINDOW_TURN_WAIT: Duration = Duration::from_secs(4);//the longest a deliberate launch waits behind another copy's turn before going ahead regardless: meant to outlast a cold start on a slow machine, which is reasoned rather than measured, and harmless when long, since a waiting copy goes the moment the turn is free
@@ -44,12 +44,15 @@ static WINDOW_COUNT: AtomicUsize = AtomicUsize::new(0);//how many windows this p
 static WINDOW_TURN: Mutex<Option<File>> = Mutex::new(None);//the locked file while this copy has the turn; dropping it lets the next copy go
 static WINDOW_ARRIVED: AtomicBool = AtomicBool::new(false);//whether a page in this process has begun to load
 static WINDOW_LAUNCHED: OnceLock<SystemTime> = OnceLock::new();//when this copy started, which window_flurry compares with the stamp
+static WINDOW_NOTES: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());//the note each window was made with, by label, until its page takes it; a handful at most, so a list rather than a map
 fn window_label() -> String { format!("window-{}", WINDOW_COUNT.fetch_add(1, Ordering::Relaxed) + 1) }//counted rather than reused, so a label never names two windows even after one closes; capabilities/default.json grants to window-*
+fn window_notes() -> std::sync::MutexGuard<'static, Vec<(String, String)>> { WINDOW_NOTES.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) }//take the list even if a previous holder panicked
 
-/// Make a hidden window for these pictures, for its page to place and reveal, and answer its label, for a caller with something else to hold for it
-pub fn window_build(app: &AppHandle, paths: Vec<String>) -> tauri::Result<String> {
+/// Make a hidden window for these pictures, holding this note for its page, for the page to place and reveal, and answer its label, for a caller with something else to hold for it
+pub fn window_build(app: &AppHandle, paths: Vec<String>, note: String) -> tauri::Result<String> {
 	let label = window_label();
 	open::open_hold(app, &label, paths);//before the window exists, so its page finds them the moment it mounts and asks
+	if !note.is_empty() { window_notes().push((label.clone(), note)) }//the same, for the note
 	let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
 		.title(&app.package_info().name)//brandName, the product name from tauri.conf.json, until the page titles the window for what it shows
 		.visible(false)//the page places it and then shows it, once it has something to draw
@@ -139,7 +142,21 @@ fn window_lost(app: &AppHandle) {
 
 /// Make a window and report trouble to the log rather than to a caller who has nowhere to put it; the run event closure is that caller
 pub fn window_open(app: &AppHandle, paths: Vec<String>) {
-	if let Err(e) = window_build(app, paths) { crate::log::log(&format!("window: could not make a window, {e}")) }//a window that never appears is worth a line, and there is nobody above to tell
+	if let Err(e) = window_build(app, paths, String::new()) { crate::log::log(&format!("window: could not make a window, {e}")) }//a window that never appears is worth a line, and there is nobody above to tell
+}
+
+/// Make another window of this application, holding this note for its page to take as it mounts: the page that asks chooses the word and the page that mounts reads it, and nothing here looks at it. Async, because Tauri's documentation warns that building a window from a plain command deadlocks on Windows, and the body runs on the blocking pool like every command that waits
+#[command]
+pub async fn window_new(app: AppHandle, note: String) -> Result<(), String> {
+	crate::run_blocking(move || window_build(&app, vec![], note).map(|_| ()).map_err(|e| e.to_string())).await
+}
+
+/// The note this window was made with, taken away as it answers; blank for a window made without one, which is every window the operating system, the dock or the menu bar asks for
+#[command]
+pub fn window_note(window: WebviewWindow) -> String {
+	let mut notes = window_notes();
+	let Some(at) = notes.iter().position(|(label, _)| label == window.label()) else { return String::new() };
+	notes.remove(at).1
 }
 
 /// Does fuji keep running once its last window has closed; the essay above is why the platforms answer differently
@@ -299,7 +316,7 @@ mpv draws video on Windows into a window it is handed, through its wid option: i
 On the Mac and on Linux the two commands make and remove a view of fuji's own, the two sections below.
 */
 #[cfg(target_os = "windows")]
-static VIDEO_WINDOWS: Mutex<Vec<(String, isize)>> = Mutex::new(Vec::new());//the video window of each window that has one, by label; one entry on windows and linux, which only ever have one window
+static VIDEO_WINDOWS: Mutex<Vec<(String, isize)>> = Mutex::new(Vec::new());//the video window of each window that has one, by label
 #[cfg(target_os = "windows")]
 static VIDEO_APP: OnceLock<AppHandle> = OnceLock::new();//the application, kept for the window procedure, which Windows calls with nothing of ours in hand
 #[cfg(target_os = "windows")]
@@ -695,7 +712,7 @@ Every Linux desktop fuji ships to runs Wayland, where mpv cannot be handed a win
 The rectangle arrives in backing pixels and GTK lays widgets out in css pixels, so the margins and the size are divided by the window's scale, which GTK keeps whole. The GL functions media.rs asks for are found through the loader of whichever GL the display has, EGL's on Wayland and GLX's on X11, each answering for the context current on the calling thread, the way mpv's own outputs on the two find them. None of this has run on a Linux desktop yet: the containers prove that it compiles and links, and the first smoke test is the Linux desktop's.
 */
 #[cfg(target_os = "linux")]
-static VIDEO_VIEWS: Mutex<Vec<(String, isize)>> = Mutex::new(Vec::new());//the video area of each window that has one, by label, as its address: the wid the page hands back and the key media.rs draws by; one entry, since linux has one window
+static VIDEO_VIEWS: Mutex<Vec<(String, isize)>> = Mutex::new(Vec::new());//the video area of each window that has one, by label, as its address: the wid the page hands back and the key media.rs draws by
 #[cfg(target_os = "linux")]
 static VIDEO_APP: OnceLock<AppHandle> = OnceLock::new();//the application, for the frame callback and the pool to reach the main thread
 #[cfg(target_os = "linux")]

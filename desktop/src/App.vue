@@ -1,6 +1,9 @@
 <script setup>
 
+import {ref, onMounted} from 'vue'
+import {windowNote} from './window.js'
 import Shell from './components/Shell.vue'
+import VideoWindow from './components/VideoWindow.vue'
 
 /*
 Fuji has no router, and this file is where one would go.
@@ -10,11 +13,21 @@ Routing is a browser thing, and a browser is two things: a rendering engine, and
 The test for a route is that a destination should be destroyed when the user leaves it. Fuji's images are the opposite: flipping changes what is inside a view that survives it, and a wheel flick would push fifty entries onto a history stack in a second. Its folders are closer, being deliberate and worth retracing — but back has to move through folders and images as one sequence, so that stack lives in the model where it can hold both.
 
 There are shapes fuji could grow into where a router would earn its place, and none of them has arrived.
+
+What this file does decide is which kind of window it is in, once, as the page mounts, and that is not a route: nothing navigates, and a window stays the kind it was made. A browsing window gets the shell, which shows the preview, the contact sheet, the light table and the panels one at a time; a video window, which a page asked for with the note Video, gets a root of its own, since it shares none of a browsing window's state and stands beside one rather than taking its place.
 */
+
+const kind = ref('')//Browse or Video, blank until the note has been read, so neither root mounts first and has to be taken down
+onMounted(async () => {
+	let note = ''
+	try { note = await windowNote() } catch (error) { console.error('app: asking what this window was made for', error) }//a top gate with no log yet, since the log starts inside the root; a window that cannot say goes on as a browsing window, which reveals itself either way
+	kind.value = note == 'Video' ? 'Video' : 'Browse'
+})
 
 </script>
 <template>
 
-<Shell />
+<Shell v-if="kind == 'Browse'" />
+<VideoWindow v-else-if="kind == 'Video'" />
 
 </template>

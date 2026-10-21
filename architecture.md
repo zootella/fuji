@@ -1,12 +1,13 @@
 # Fuji Architecture
 
-Fuji is four layers: a **shell** that owns the window, one **sheet**, a **settings panel** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
+Fuji is four layers: a **shell** that owns a browsing window, one **sheet**, a **settings panel** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
 
 It says what fuji does, not what it might, and where a question about structure has no answer yet, decide it and write it down here.
 
 ```
-App.vue
-└── Shell.vue            the window: settings, reveal, window events, which view is showing
+App.vue                  which kind of window this is, read once as the page mounts
+├── VideoWindow.vue      a video window: a native window of its own, beside a browsing window or without one
+└── Shell.vue            a browsing window: settings, reveal, window events, which view is showing
     ├── Sheet.vue        v-show   one sheet: a page of buckets, a window onto the pager's list, with Previous and Next
     │   ├── Bucket.vue            a capped number of images, all from one folder
     │   │   └── TestFlow.vue      the flow that sizes and arranges them, and routes each file to a decoder
@@ -34,7 +35,7 @@ App.vue
 
 ## The shell
 
-**The shell owns the window and none of the pixels.** It reads the settings file before anything else needs one, places and reveals the window, decides which view is showing and writes that to the model so a flow can wait on it, and puts the window in fuji's fullscreen for a table and in an ordinary window for the sheet and the settings panel. It draws no background and no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
+**The shell owns a browsing window and none of the pixels.** It reads the settings file before anything else needs one, places and reveals the window, decides which view is showing and writes that to the model so a flow can wait on it, and puts the window in fuji's fullscreen for a table and in an ordinary window for the sheet and the settings panel. It draws no background and no chrome. The sheet is black and the tables have their own surfaces, and neither has to negotiate with a parent about what it looks like.
 
 **It draws one thing, the help panel, and owns its `h` key.** Help has to work in every view, always, for a user who has forgotten a shortcut or gotten lost, so it belongs to the layer every view sits inside — the same reason the shell owns `g` and draws the gamma filters. `HelpPanel.vue` floats over whichever view is showing, lists every key and mouse action fuji has, and takes no clicks, so the view beneath is still the thing being used. A new table adds its keys to the panel's text and inherits the rest.
 
@@ -59,6 +60,8 @@ App.vue
 **The settings panel is the third kind of view, and it lives in the sheet's window.** Which view is showing has four values: the sheet, the settings panel, the audio panel, or a table. The sheet and the panels share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. A panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches each until fuji has a better way in.
 
 **The audio panel is the fourth kind, made like the settings panel.** It plays sound and never a picture, from audio files and video files alike, through the media library, and it is a view in the sheet's window for now so that the library and the builds could be worked on before fuji's windows are; whether it becomes a window of its own is decided after.
+
+**A video window is not a view but a window of its own.** It stands beside a browsing window rather than taking its place, there can be several, and it shares none of the state the views do, so `App.vue` gives it `VideoWindow.vue` for its root instead of the shell. It reads the settings for its look and the log and never writes them, and on the Mac it answers only Fuji Help from the menu bar, which sends every other item past it to the main window behind.
 
 **A setting reaches a view by being read when that view comes on screen.** The shell hands every view `start()` each time it appears, and the sheet is never showing while the panel is, so a view reads what it depends on as it arrives and nothing has to watch a setting change. That is what lets the settings object stay plain, as the section on settings below says.
 
@@ -134,7 +137,7 @@ The model holds the folder, the sort, the ordered list and the current path. Bac
 
 `AlphabetSort` is one of the planned sorts, and it is javascript's own `sort()` kept deliberately. There is one flow, `TestFlow`, named by `Bucket.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of an experiment, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
 
-There is no router and no store library. `App.vue` renders the one view directly and `main.js` titles the page and mounts the app, and does nothing else.
+There is no router and no store library. `App.vue` picks the window's root once, as the page mounts, from the note the window was made with: the shell for a browsing window, and `VideoWindow.vue` for a video window, which shares none of a browsing window's state and stands beside one rather than taking its place. `main.js` titles the page and mounts the app, and does nothing else.
 
 ## The cache, in one paragraph
 

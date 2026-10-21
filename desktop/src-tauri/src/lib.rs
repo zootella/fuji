@@ -11,7 +11,7 @@ The boundary. Everything the page may ask Rust to do is named once in this file,
 
 **The commands are the page's only road past its window.** Tauri's plugins would give it a second one, JavaScript bindings granted in capabilities/default.json with scopes of their own, and fuji grants the page none: that file holds Tauri's core set and the calls the page makes on its own window, and nothing else. So what the page can ask of the machine is read here, in one list written to one rule, and widening it is a Rust change reviewed as code rather than an edit to a policy file. Where a plugin's Rust half does the work well, a command calls it, as dialog.rs calls the dialog plugin's off the Mac, registered below for that and granted to nobody; process.rs opens an address or a file through the crate Tauri's opener plugin wraps, and needs no plugin at all.
 
-**No window is made here.** Every window comes from the event closure below, under one rule: Ready makes a window if there is none. A double-click on the Mac delivers Opened before Ready, so the picture already has its window; on Windows and Linux Opened never fires, so Ready always makes it. Making a window in setup instead is what once opened two for one double-click, one of them blank.
+**No window is made here.** Every window but the ones a page asks for through window_new, and the dock menu's New Window, comes from the event closure below, under one rule: Ready makes a window if there is none. A double-click on the Mac delivers Opened before Ready, so the picture already has its window; on Windows and Linux Opened never fires, so Ready always makes it. Making a window in setup instead is what once opened two for one double-click, one of them blank.
 */
 
 mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
@@ -34,6 +34,10 @@ mod menu {//off the mac there is no menu bar, so the commands the page has for i
 	pub fn menu_waiting() -> String { String::new() }
 	#[tauri::command]
 	pub fn menu_enable(_menu: String, _item: String, _enabled: bool) -> Result<(), String> { Ok(()) }
+	#[tauri::command]
+	pub fn menu_answer(_items: Vec<String>) {}
+	pub fn menu_focused(_label: &str) {}//and the two the window events below call, which with no menu bar have no order to keep
+	pub fn menu_closed(_label: &str) {}
 }
 mod media;//and media.rs: the media library, libmpv, which plays sound and video and answers what a media file is
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
@@ -114,7 +118,10 @@ pub fn run() {
 				menu::menu_text,//and in menu.rs, or its stand-in off the mac
 				menu::menu_waiting,
 				menu::menu_enable,
+				menu::menu_answer,
 				window::window_engine,//and in window.rs
+				window::window_new,
+				window::window_note,
 				window::window_frame,
 				window::window_frame_set,
 				window::window_fullscreen_leave,
@@ -124,7 +131,8 @@ pub fn run() {
 			]
 		)
 		.on_window_event(|window, event| {//a window on its way out takes its player with it, and its video view goes with its window; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking. The view goes first: on linux that frees the player's render context while the area can still be drawn to, so the destroy on the pool after finds nothing left to free
-			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); media::media_window_closed(tauri::Manager::app_handle(window), window.label()) }
+			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); media::media_window_closed(tauri::Manager::app_handle(window), window.label()); menu::menu_closed(window.label()) }//and the menu bar forgets the window, which answers nothing from here
+			if matches!(event, tauri::WindowEvent::Focused(true)) { menu::menu_focused(window.label()) }//the order the menu bar looks through for a window that answers an item the one in front does not
 		})
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
 			#[cfg(target_os = "macos")]

@@ -4,7 +4,7 @@ Every menu fuji has on each platform, what each item does, what fuji has decided
 
 ## What the items do
 
-**New Window** is Rust's, and makes a window. The other five go to the page of the window in front.
+**New Window** is Rust's, and makes a window. The other five go to the page of the window in front when that window answers them, and otherwise to the main window most recently in front, brought forward first, or to a new main window when there is none. A main window answers all five, and a video window answers only Fuji Help, so Settings…, About, Open… and the View item chosen over a video window act on the contact sheet's window behind it.
 
 - **Open…** puts up the system's open box, unfiltered, taking a file or a folder, as one Mac open box can. A folder opens on the contact sheet, a picture on the table the settings name, fullscreen, as a double-click on its thumbnail brings it there, and any other file opens the sheet at its folder.
 - **The View item** switches between the contact sheet in a window and the light table fullscreen, and its title says which way it will go.

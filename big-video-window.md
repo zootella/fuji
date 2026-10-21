@@ -10,9 +10,9 @@
 ## Decided
 
 - A video window is a native window of its own, and there can be none, one or several, beside a browsing window or without one. A browsing window keeps changing shape among the preview, the contact sheet, the light table and the panels, because those replace each other and share one page's state: the model, the pager, the decoded pictures, gamma and the help panel. A video window shares none of that. The path of the file it plays is the one thing it is handed, and it never answers, so a window boundary falls exactly where a state boundary already is. Every native window runs its own page, which is why the browsing views stay in one.
-- Every way to a video window ends in `window_build`: a double-click in Finder or File Explorer, with fuji running or not, and a double-click on the contact sheet, which asks Rust for a window made for that path. The new window's page decides at mount, from the path it was handed, that it is a video window. On Windows and Linux one process can then hold a browsing window and video windows, and closing its last window, of either kind, ends it.
+- Every way to a video window ends in `window_build`. Built so far: v on the contact sheet asks Rust for one through `window_new`, which holds the note Video for the new window, and `App.vue` reads the note as the page mounts and gives the window `VideoWindow.vue` for its root instead of the shell. Still to come: a double-click in Finder or File Explorer, with fuji running or not, and a double-click on the contact sheet, each handing the new window a video's path, from which its page will decide that it is a video window. On Windows and Linux one process can now hold a browsing window and video windows, and closing its last window, of either kind, ends it.
 - Fuji uses each platform's own window drag until a platform shows a limitation. Fuji's own drag, which the next sections call method two, stays in reserve. The hope is never to need it on only one platform, but it could be used that way.
-- The drag starts from anywhere on the window because, without a title bar, any part of the window still on the screen has to be a handle; a window whose title bar had gone past an edge would otherwise be stuck. Pressing v twice brings a lost video window back fresh inside the work area as well.
+- The drag starts from anywhere on the window because, without a title bar, any part of the window still on the screen has to be a handle; a window whose title bar had gone past an edge would otherwise be stuck. A video window lost past an edge closes on v while it has the focus, and the next one opens fresh inside the work area.
 
 ## The drag fuji uses today
 
@@ -25,14 +25,11 @@
 
 ## Taking the title bar off
 
-- Fuji already takes a title bar off and puts one back. The preview loses its title bar as it is placed, and the first main window after a preview gets one back, so the video window can take the same road both ways.
-- The frame is set first and the title bar changed after, never the other way, because tao queues a change of title bar and `window_frame_set` measures the window at the moment it is called.
-- When a title bar arrives, the Mac keeps the content and grows the frame up around it, 28 CSS pixels taller than asked, measured on the Mac mini on 2026-09-30, so the frame is set a second time after the title bar is back. Windows keeps the frame.
-- On the Mac, any change of the title bar drops the keyboard focus, and the shell hands it back to the page after every change.
-- With no title bar, `window_frame` and `window_frame_set` measure no chrome, so the frame fuji sets is the page's own size.
-- Hiding the window during the swap makes one window go and the other appear, which matches the two windows the user sees. On Windows, maximizing a hidden window shows it, so a maximized main window is maximized last, right before it is shown.
-- The title stays: the Mac's Window menu still lists the window as Video, and Windows' taskbar as "Video - Fuji".
-- The buttons go with the title bar: close, minimize and zoom on the Mac, and close, minimize and maximize on Windows. What stays is v, ⌘W on the Mac and Alt+F4 on Windows. Esc does nothing in the video window yet.
+- A video window is built hidden like every window, placed at its size, and has its title bar taken off before it is revealed, the road the preview takes. It never gets one back.
+- The frame is set first and the title bar changed after, never the other way, because tao queues a change of title bar and `window_frame_set` measures the window at the moment it is called. A window keeps its frame as its title bar goes, so the frame fuji sets is the page's own size.
+- On the Mac a change of style mask drops the keyboard focus, so the video window hands it to its page after the reveal and after every change of fuji's fullscreen.
+- The title stays: the Mac's Window menu lists the window as Video, and Windows' taskbar as "Video - Fuji".
+- The buttons go with the title bar: close, minimize and zoom on the Mac, and close, minimize and maximize on Windows. What stays is Esc, v and the Close beside the window's name, ⌘W on the Mac and Alt+F4 on Windows.
 
 ## The Mac
 
@@ -54,9 +51,8 @@
 - One [Windows 11 user reports](https://www.elevenforum.com/t/title-bar-can-no-longer-be-moved-off-screen.23050/) that a recent update stopped windows going above the top edge at all. Nothing official from Microsoft backs it.
 - Believed and not yet seen on fuji: a window goes as far off the left, the right and the bottom as the pointer takes it, and the taskbar draws over whatever goes behind it.
 - Believed and not yet seen: Windows 11 rounds the corners of a window with no title bar that keeps its shadow, and Windows 10 leaves them square.
-- A maximized window has 8 of its 31 backing pixels of title bar off the top of the screen at 100 percent, measured on the Windows box, and `window_frame_set` measures the title bar the window has at that moment, so the shell un-maximizes and waits before it sets a frame.
-- `isFullscreen` reports fuji's own fullscreen here, which is the platform's ordinary fullscreen, so the shell asks about a Space only on the Mac.
-- None of the video window has run on Windows. The letter to the Windows box asks how far a window goes off each edge, whether Windows moves it back on release, whether the taskbar covers it, and whether a drag of its border can make it bigger than the screen.
+- `isFullscreen` reports fuji's own fullscreen here, which is the platform's ordinary fullscreen, so the video window asks about a Space only on the Mac, as the shell does.
+- None of the video window has run on Windows. Still to see there: how far a window goes off each edge, whether Windows moves it back on release, whether the taskbar covers it, and whether a drag of its border can make it bigger than the screen.
 
 ## Linux
 

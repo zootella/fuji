@@ -176,7 +176,7 @@ export async function screenAreas() {//the screen this window is on, whole and l
 	let rect = (at, size) => ({x: at.x / backingPerCss, y: at.y / backingPerCss, width: size.width / backingPerCss, height: size.height / backingPerCss})
 	return {screen: rect(m.position, m.size), work: rect(m.workArea.position, m.workArea.size)}
 }
-export function rectSheet(work, saved) {//where the contact sheet's window goes, in css pixels: the size the user last gave a sheet if it fits the work area, or sheetPreset of the work area if not, and a random place inside it either way, so two sheets opened at once almost never land on each other. saved is the size from settings, a width of 0 meaning none
+export function rectSheet(work, saved) {//where the contact sheet's window goes, in css pixels: the size the user last gave a sheet if it fits the work area, or sheetPreset of the work area if not, and a random place inside it either way, so two sheets opened at once almost never land on each other. saved is the size from settings, a width of 0 meaning none, or a size of a window's own, as a video window passes its 800 by 600
 	let height = Math.round(work.height * sheetPreset.height)
 	let width = Math.min(Math.round(work.width * sheetPreset.width), Math.round(height * sheetWidest))
 	if (saved.width > 0 && saved.width <= Math.round(work.width) && saved.height <= Math.round(work.height)) { width = saved.width; height = saved.height }//a size from a bigger desktop, or from before the dock moved, gives way to the preset. Compared in whole css pixels, because settings keep whole css pixels and a work area at a fractional scale, 150 percent on windows, is fractional in css pixels, so a sheet stretched across the whole work area, saved at 1707, would otherwise fail to fit one 1706.67 wide
@@ -217,7 +217,7 @@ function _away(start, length, size, pointer) {//one axis of rectPreview: where a
 	return Math.round(Math.max(start, Math.min(at, end - size)))//kept inside the work area, sliding toward the far edge when the side is too small
 }
 
-export async function revealWindow() {//show the window, which rust built hidden and the shell has placed
+export async function revealWindow() {//show the window, which rust built hidden and its page has placed
 	await getCurrentWindow().show()
 }
 
