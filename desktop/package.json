@@ -14,9 +14,7 @@
 		"hash": "node ../scripts.js hash --source=bundle",
 		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=bundle",
 		"certificate": "node ../scripts.js certificate",
-
 		"icons": "tauri icon src-tauri/icons/app-icon.svg && tauri icon src-tauri/icons/app-icon-mac.svg -o src-tauri/icons/.mac && tauri icon src-tauri/icons/app-icon-tile.svg -o src-tauri/icons/.tile && node ../scripts.js icons-collect",
-
 		"dev": "vite",
 		"vite-build": "vite build",
 		"tauri": "tauri"
@@ -24,6 +22,7 @@
 	"dependencies": {
 		"@tauri-apps/api": "^2.11.1",
 		"@zootella/ergo": "^0.1.3",
+		"lucide-static": "^1.59.0",
 		"path-browserify": "^1.0.1",
 		"smol-toml": "^1.8.0",
 		"vue": "^3.5.41"
