@@ -151,7 +151,7 @@ Whether backspace closes a table's window beside escape, which is a question abo
 */
 export const backspaceCloses = platform() != 'mac'
 
-export function windowTitle(showing, path, folder) {//what the title bar says: the picture a table is showing, the folder the sheet is showing, Settings or Audio on those panels, and fuji's own name when there is none of those
+export function windowTitle(showing, path, folder) {//what the title bar says: the picture a table is showing, the folder the sheet is showing, Settings, Audio or Video on those panels, and fuji's own name when there is none of those
 	/*
 	The name alone, never a path: a title bar is narrow and a taskbar button narrower, and the leading half of a path is the half nobody needs.
 
@@ -161,6 +161,7 @@ export function windowTitle(showing, path, folder) {//what the title bar says: t
 	if (showing == 'Sheet')    name = folder && parse.basename(folder)
 	if (showing == 'Settings') name = 'Settings'//about fuji rather than about a folder or a picture
 	if (showing == 'Audio')    name = 'Audio'//the same
+	if (showing == 'Video')    name = 'Video'
 	if (!name) return brandName//nothing open yet, or a path with no last segment like a bare root; either way the application's own name and nothing else
 	return platform() == 'windows' ? `${name} - ${brandName}` : name
 }

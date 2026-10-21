@@ -26,6 +26,7 @@ import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import AudioPanel from './AudioPanel.vue'
+import VideoPanel from './VideoPanel.vue'
 import DiamondTable from './DiamondTable.vue'
 import PreviewTable from './PreviewTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -41,7 +42,7 @@ It exists because window events are global and everything else is not. A view's 
 
 There is one sheet and there are several tables, and the two facts are separate: whether the sheet is showing, and which table is behind it. The sheet and the current table swap with v-show and both stay mounted, because that switch is frequent and has to be instant with nothing reloading. Tables swap with each other by :is, which destroys and creates, because a table nobody is using should not be holding decoded images. Adding a table is one entry in the tables object below.
 
-The settings panel is the third kind of view, and it belongs to the sheet's window rather than to the table's fullscreen: s on the sheet brings it and s on the panel goes back. Trading those two changes nothing about the window, so it needs none of the curtain the essay further down describes. The panel comes and goes with v-if, made fresh from the settings each time, because a user visits it rarely and it holds nothing worth keeping. The audio panel is the fourth kind, in the same window and made the same way, brought by a from the sheet or the settings and sent back by a.
+The settings panel is the third kind of view, and it belongs to the sheet's window rather than to the table's fullscreen: s on the sheet brings it and s on the panel goes back. Trading those two changes nothing about the window, so it needs none of the curtain the essay further down describes. The panel comes and goes with v-if, made fresh from the settings each time, because a user visits it rarely and it holds nothing worth keeping. The audio panel is the fourth kind, in the same window and made the same way, brought by a from the sheet or the settings and sent back by a. The video panel is the fifth, made the same way and brought by v from the sheet alone, and it changes the window's size where the other panels leave it alone; the essay above videoShow says how.
 
 Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, the shell places it, and the viewport does not report its size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it each time that view comes on screen, and the view does only once whatever must happen only once. The sheet leans on the repeat, rereading the setting the settings panel may have changed while it was hidden.
 
@@ -67,8 +68,9 @@ const tables = {//everything the shell can show in place of a table; view.table 
 const sheetRef    = ref(null)
 const settingsRef = ref(null)
 const audioRef    = ref(null)
+const videoRef    = ref(null)
 const tableRef    = ref(null)
-const showing     = ref('Table')//Sheet, Settings, Audio or Table: which kind of view the user is looking at
+const showing     = ref('Table')//Sheet, Settings, Audio, Video or Table: which kind of view the user is looking at
 const whichTable  = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
 const helpShowing = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
 
@@ -222,7 +224,7 @@ async function facesShow() {//put the page's text in the fonts the settings name
 	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted; the setting's own word, system, bundled or retro, which index.css keys its rules on
 }
 
-function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
+function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Video: videoRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
 function mediaPlays(path) {//whether this is a sound or a video libmpv plays on this platform, by the type table's kind and its render tags through the roads fileTypes.js keeps; kind first, since a picture FFmpeg decodes carries mpv for a still frame, never for the player
 	const type = fileTypes[path.slice(path.lastIndexOf('.')).toLowerCase()]
@@ -300,9 +302,9 @@ async function reportTrouble(work) {//a window event is where the platform start
 }
 
 /*
-The sheet lives in a window and a table lives fullscreen. That is the whole of fuji's window, and every rule below follows from it: going to the table puts the window in fullscreen, going to the sheet takes it out, and nothing else ever does either. The preview is the one exception, a table in a window with no title bar, and it only ever happens first. The audio panel is the second, since 2026-10-14, and it is the video table to come: a double click on it toggles fuji's own fullscreen with the panel staying, through audioFullscreen below, and a goes back to the sheet's window from either state, because showView leaves fullscreen whenever fuji is in it and the view asked for is not the table.
+The sheet lives in a window and a table lives fullscreen. That is the whole of fuji's window, and every rule below follows from it: going to the table puts the window in fullscreen, going to the sheet takes it out, and nothing else ever does either. The preview is the one exception, a table in a window with no title bar, and it only ever happens first. The audio panel is the second, since 2026-10-14, and the video panel the third: a double click on either toggles fuji's own fullscreen with the panel staying, through panelFullscreen below, and a or v goes back to the sheet's window from either state, because showView leaves fullscreen whenever fuji is in it and the view asked for is not the table, and videoHide does the same for the video panel.
 
-The shell places every window fuji makes, before it is revealed; Rust builds each one hidden at no particular size, and window.rs says why fuji places them rather than the platform. A launch on a picture opens as a preview, fitted around the picture in the work area, the part of the desktop the menu bar, dock and taskbar leave free, and placed out from under the pointer; library.js has the rule. Every other launch, and the first sheet after a preview, is the contact sheet's window. Its size is the one thing fuji remembers about a window across launches, because it is the only window the user thinks of as one: the size goes into settings as the user resizes it, and comes back at a random place whenever it still fits the work area. A sheet snapped or tiled to half the screen is only a size here, and comes back at that size somewhere random rather than against the same edge; the convenience is the size, not the place.
+The shell places every window fuji makes, before it is revealed; Rust builds each one hidden at no particular size, and window.rs says why fuji places them rather than the platform. A launch on a picture opens as a preview, fitted around the picture in the work area, the part of the desktop the menu bar, dock and taskbar leave free, and placed out from under the pointer; library.js has the rule. Every other launch, and the first sheet after a preview, is the contact sheet's window. Its size is the one thing fuji remembers about a window across launches, because it is fuji's main window, the one the user comes back to; the video panel's window is a window to the user too, and is never remembered, which the essay above videoShow says. The sheet's size goes into settings as the user resizes it, and comes back at a random place whenever it still fits the work area. A sheet snapped or tiled to half the screen is only a size here, and comes back at that size somewhere random rather than against the same edge; the convenience is the size, not the place.
 
 Maximized is a state rather than a size, and the one state recorded. A maximized sheet, which on the mac is a zoomed one, sets a flag and leaves the size at what it was before; the next sheet is placed at that size while hidden and maximized last, beside showing it, since on Windows maximizing a hidden window shows it. So restoring goes back to a size the user chose, rather than to a window that fills the work area without being maximized. A minimized sheet and a sheet in a macOS Space record nothing at all, since neither is a size the user gave it, and so fuji never reopens into a Space.
 
@@ -336,14 +338,17 @@ async function placeWindow(w, path) {//put the hidden window where it will first
 }
 
 async function toggleView() {//fuji's own item in the View menu, Show Light Table or Show Contact Sheet: the table fullscreen or the sheet in a window, and from the preview on into the table
+	if (showing.value == 'Video') await showView('Sheet')//the sheet's window back first, because the preview's road below goes around showView
 	if (whichTable.value == 'Preview') {
 		if (previewPath) return previewExpand(previewPath)
 		whichTable.value = settings.view.table//a preview whose picture would not load has nothing to hand over, so the table behind the sheet is the usual one
 	}
 	return showView(showing.value == 'Table' ? 'Sheet' : 'Table')//from the settings as from the sheet, since both are the window
 }
-async function showView(name) {//show the sheet or the settings in a window, or the current table fullscreen; the sheet and the table stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
+async function showView(name) {//show the sheet or a panel in the window, or the current table fullscreen; the sheet and the table stay mounted, so the one going away keeps its scroll, its pan, and its decoded images
 	if (showing.value == name) return
+	if (name == 'Video') return videoShow()
+	if (showing.value == 'Video') { await videoHide(); if (name == 'Sheet') return }//the sheet back in its window first, so every road below starts from the sheet's window, where it always has
 	if (name != 'Table' && previewFramed) return sheetFromPreview(name)//the sheet's window after a preview, with the sheet in it or the settings, which the menu bar can ask for from the preview or from the table it opened onto
 	if (name != 'Table' && showing.value != 'Table' && !fullscreenOurs) {//the sheet and the settings trading places in the one window, which keeps its size, so nothing needs covering; not from the audio panel fullscreen, which goes through the curtain below and out of fullscreen like the table
 		showing.value = name
@@ -393,7 +398,7 @@ async function sheetFromPreview(view) {//the first sheet after a preview, or the
 async function placeSheet(work) { await windowFrameSet(rectSheet(work, settings.sheet)) }//the size the user last gave a sheet, or the preset, somewhere in the work area
 async function maximizeSheet(w) { if (settings.sheet.maximized) await w.maximize() }//over the frame placeSheet gave it, which is where restoring goes; call it right before the window shows, because on windows maximizing a hidden window shows it
 async function recordSheet() {//the sheet's size into settings as the user resizes it, or that it is maximized; cheap, since settings reach the disk only when fuji exits
-	if (showing.value == 'Table' || fullscreenOurs || previewFramed) return//only the sheet's ordinary window is a window to the user, whether the sheet or the settings is in it
+	if (showing.value == 'Table' || showing.value == 'Video' || fullscreenOurs || previewFramed || videoSheet) return//only the sheet's ordinary window is remembered, whether the sheet, the settings or the audio panel is in it; the video panel's window is the panel's, from the moment it takes the sheet's, which is before anything about the window changes
 	let w = getCurrentWindow()
 	let [visible, minimized, fullscreen, maximized] = await Promise.all([w.isVisible(), w.isMinimized(), w.isFullscreen(), w.isMaximized()])
 	if (!visible) return//fuji placing a hidden sheet, as sheetFromPreview does, rather than the user sizing one; recording it would clear the maximized flag in the moment before maximizeSheet reads it
@@ -405,7 +410,63 @@ async function recordSheet() {//the sheet's size into settings as the user resiz
 	}
 	settingsChanged()
 }
-async function audioFullscreen() {//the audio panel was double-clicked: fuji's own fullscreen on or off with the panel staying, behind the curtain, since the window changes size and the native square over it holds still
+
+/*
+The video panel has a window of its own in the user's mind, and borrows the sheet's in fact. v on the sheet brings it and v on the panel goes back, and it comes from the sheet alone, so it always starts from the sheet's window, a state every other change of view already handles.
+
+The panel's window appears at its own size every time, somewhere at random in the work area by the rule a sheet is placed by, and nothing about it is ever kept: while the panel is up recordSheet records nothing, so whatever the user does to that window stays the panel's and goes when the panel does. The sheet's window is kept to give back, its frame and whether it was maximized, which the panel takes off on the way in and puts back on the way out. Every road out of the panel gives the sheet's window back before anything else happens, the v key, the menu bar and a drop alike, and a road to anywhere but the sheet then goes on from the sheet, so no other change of view ever starts from a window the panel left.
+
+A double click takes the panel into fuji's own fullscreen and back by the audio panel's road, and every road out of the panel leaves that fullscreen first, which puts the panel's window back where the platform kept it, before the sheet's is given back over it. A macOS Space is the exception both ways, as it is for the table, since leaving a Space and entering one again is the system's to animate: the panel shows in a sheet's Space as it is, and a panel the user takes into a Space comes back to the sheet there. Only the mac is asked about a Space, as fullscreenSet asks only the mac, because Windows and Linux have none, and there isFullscreen reports fuji's own fullscreen, the platform's ordinary one.
+*/
+const videoSize = {width: 800, height: 600}//the video panel's window every time it appears, in css pixels, as the frame the user sees, title bar included, the way the sheet's size is kept; a size to start from, until the window takes a video's own
+let videoSheet = null//the sheet's window, {frame, maximized}, held while the video panel has it, to give back; null at every other moment
+async function videoShow() {//v on the sheet: the video panel, in the sheet's window at the panel's own size and a new place
+	if (showing.value != 'Sheet') return//the panel comes from the sheet alone
+	let w = getCurrentWindow()
+	let areas = await screenAreas()
+	await curtained(async () => {
+		if (areas && !await windowInSpace(w)) {//a sheet in a macOS Space keeps it, and the panel shows there as it is
+			videoSheet = {frame: null, maximized: await w.isMaximized()}//held before anything changes, so recordSheet records none of what follows
+			await windowMaximized(w, false)
+			videoSheet.frame = await windowFrame()//the sheet's frame, which for a maximized sheet is the one it restores to
+			await windowFrameSet(rectSheet(areas.work, videoSize))//the panel's size, or the sheet's preset on a work area too small for it, at a new random place, as a sheet is placed
+		}
+		showing.value = 'Video'
+		await nextTick()
+		activeView()?.start?.()
+	})
+}
+async function videoHide() {//every road out of the video panel: the sheet back in its window as the panel found it
+	let w = getCurrentWindow()
+	await curtained(async () => {
+		await fullscreenSet(false)//out of fuji's own fullscreen first, if the panel is in it, back to the panel's window as the platform kept it
+		if (videoSheet && !await windowInSpace(w)) {//a panel the user took into a macOS Space comes back to the sheet there
+			await windowMaximized(w, false)//a panel the user maximized comes back first, since window_frame_set measures the title bar the window has now, and a maximized window on windows has part of its own off the top of the screen
+			await windowFrameSet(videoSheet.frame)
+			await windowMaximized(w, videoSheet.maximized)
+		}
+		videoSheet = null//after the sheet's window has arrived, so whatever recordSheet records from here is the sheet's own
+		showing.value = 'Sheet'
+		await nextTick()
+		activeView()?.start?.()
+	})
+}
+async function windowInSpace(w) { return platform() == 'mac' && await w.isFullscreen() }//in a macOS Space; the essay above says why only the mac is asked
+async function windowMaximized(w, on) {//maximize the window or restore it, and wait for it to arrive, which each platform takes its own time over, the mac animating its zoom: until the window says it got there and two frames running read the same frame, or a second, so a change that never lands never hangs
+	if (await w.isMaximized() == on) return
+	if (on) await w.maximize()
+	else await w.unmaximize()
+	let began = performance.now(), last = ''
+	while (performance.now() - began < Time.second) {
+		await raf()
+		let f = await windowFrame()
+		let now = `${f.x} ${f.y} ${f.width} ${f.height}`
+		if (now == last && await w.isMaximized() == on) return
+		last = now
+	}
+}
+
+async function panelFullscreen() {//the audio or the video panel was double-clicked: fuji's own fullscreen on or off with the panel staying, behind the curtain, since the window changes size and the audio panel's native square over it holds still
 	await curtained(() => fullscreenSet(!fullscreenOurs))
 }
 async function fullscreenSet(on) {//turn fuji's own fullscreen on or off, and wait for the window to arrive
@@ -436,9 +497,10 @@ async function closeWindow() {//close the window as the red button or the × wou
 </script>
 <template>
 
-<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @audio="reportTrouble(() => showView('Audio'))" @open="choose => reportTrouble(() => openAsk(choose))" />
+<Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @audio="reportTrouble(() => showView('Audio'))" @video="reportTrouble(() => showView('Video'))" @open="choose => reportTrouble(() => openAsk(choose))" />
 <SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @audio="reportTrouble(() => showView('Audio'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
-<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(audioFullscreen)" /><!-- the fourth kind of view, in the sheet's window like the settings panel, and made fresh each time the same way; the one view besides a table that can have the screen -->
+<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(panelFullscreen)" /><!-- the fourth kind of view, in the sheet's window like the settings panel, and made fresh each time the same way; with the video panel, one of the two views besides a table that can have the screen -->
+<VideoPanel v-if="showing == 'Video'" ref="videoRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(panelFullscreen)" /><!-- the fifth kind, in the sheet's window at a size of its own, which the shell gives it and takes back -->
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
 <div v-if="curtainShowing" class="fixed inset-0 bg-paper"></div><!-- last, so it covers everything while the view and the fullscreen change -->
