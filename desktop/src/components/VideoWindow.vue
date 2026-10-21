@@ -1,13 +1,13 @@
-<script setup>//fuji video: a window of its own, beside a browsing window or without one, and for now the path of its video in the middle, or its own name when v opened it, and a way to close it, the workspace the video viewer is built in a step at a time
+<script setup>//fuji video: a window of its own, beside a browsing window or without one, and for now a placeholder of where the video will play, with the path of its video beneath, or its own name when v opened it, and a way to close it, the workspace the video viewer is built in a step at a time
 
-import {onMounted, onBeforeUnmount} from 'vue'
+import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {platform, backize, revealWindow, windowTitle, screenAreas, rectSheet} from './library.js'
 import {settings, settingsLoad} from '../settings.js'
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'
 import {themeShow, facesShow} from '../appearance.js'
-import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave} from '../window.js'
+import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave} from '../window.js'
 import {menuAnswer, menuEnable} from '../menu.js'//the mac's menu bar, which sends this window Fuji Help alone, and whose Edit items this window grays
 import {processOpen} from '../process.js'
 import {urlHelp} from '../brand.js'
@@ -25,6 +25,8 @@ const props = defineProps({
 })
 
 const videoSize = {width: 800, height: 600}//the window every time it appears, in css pixels, which with no title bar is the page's own size; a size to start from, until the window takes a video's own
+const titleBarAssumed = 28//a title bar's height in css pixels, where this window does not measure its own: always on linux, where the window manager adds the frame only once a window is first shown, or GTK draws it, and nobody has seen whether a hidden window counts it; and on the mac and windows when the measurement comes back with no height. The Mac's own, measured on the Mac mini with Sequoia
+const frame = ref(titleBarAssumed)//the thickness of the frame and the spacer, in css pixels, which the platform's own title bar sets, so this window's chrome is as heavy as a window's with one
 const dragAfter = 4//how far the pointer moves along either axis, in css pixels with the button down, before a press is a drag
 let press = null//where the left button went down, or null while it is up and once the press has become a drag
 let fullscreenOurs = false//fuji's own simple fullscreen is on in this window, which tauri will not report on the mac
@@ -60,9 +62,18 @@ onBeforeUnmount(() => {
 function editGray() { for (let item of ['Undo', 'Redo', 'Cut', 'Copy', 'Paste', 'Select All']) menuEnable('Edit', item, false).catch(error => logTrouble('video: graying the Edit menu', error)) }//nothing here takes typing or holds a selection; the shell lights them again as its window comes to the front
 
 async function placeWindow() {//put the hidden window where it will first be seen
+	let measured = await titleBarMeasure().catch(error => { logTrouble('video: measuring the title bar', error); return 0 })//first, while the window still has its title bar to measure
+	frame.value = measured > 0 ? measured : titleBarAssumed
+	log(`video: frame ${frame.value} css pixels, ${measured > 0 ? 'measured from the title bar' : 'assumed'}`)//a measurement each platform answers its own way, for the log on a machine where the frame looks wrong
 	let areas = await screenAreas()
 	if (areas) await windowFrameSet(rectSheet(areas.work, videoSize))//the window's size, or the contact sheet's preset on a work area too small for it, at a random place, as a contact sheet is placed; no monitor to measure leaves it where the operating system put it
 	await getCurrentWindow().setDecorations(false)//the title bar off after the frame, never before, for the reason placeWindow in Shell.vue gives; a window keeps its frame as its title bar goes, and the page grows to fill it
+}
+async function titleBarMeasure() {//the height of the title bar this hidden window was built with, in css pixels, as its visible frame less its content, the way window_frame_set measures it; rounded to whole backing pixels, so the frame drawn at that thickness lands on the pixel grid. An answer of 0 or less is no measurement, which linux always answers, for the reason titleBarAssumed gives
+	if (platform() == 'linux') return 0
+	let w = getCurrentWindow()
+	let [visible, inner, backingPerCss] = await Promise.all([windowFrame(), w.innerSize(), w.scaleFactor()])//the content from the window rather than the page, whose viewport reports its size only after the reveal
+	return Math.round(visible.height * backingPerCss - inner.height) / backingPerCss//inner is in backing pixels already
 }
 
 function onKey(e) {
@@ -102,13 +113,31 @@ async function reportTrouble(work) {//a window event is where the platform start
 </script>
 <template>
 
-<div class="myVideo myMono bg-paper text-strong w-full h-full p-8 flex items-center justify-center gap-[2ch] wrap-break-word select-none" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu">
-	<span class="min-w-0">{{path ? backize(path) : 'V I D E O'}}</span><!-- free to shrink below a long path, so the path wraps at the window's width rather than running past it -->
-	<button @click="reportTrouble(closeWindow)">Close</button>
+<div class="myVideo myMono bg-paper text-strong w-full h-full flex flex-col overflow-hidden select-none" :style="{'--frame': `${frame}px`}" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu"><!-- hidden overflow, so a window too short for its text cuts the text off rather than growing a scroll bar -->
+	<div class="myStage"><div class="myScreen mx-auto"></div></div><!-- the room for the screen, centered left to right in it -->
+	<div class="myPage grow wrap-break-word">{{path ? backize(path) : 'V I D E O'}}<button class="ml-[2ch]" @click="reportTrouble(closeWindow)">Close</button></div><!-- the page below the spacer, which takes whatever height the screen leaves, its text in plain flow from the top left, wrapping a long path at the window's width -->
 </div>
 
 </template>
 <style scoped>
+
+/* a placeholder layout, the frame, the screen and the spacer in CSS's own red, blue and green, outside fuji's palette in index.css because all three are scaffolding the video will replace */
+.myVideo {
+	border: var(--frame) solid red; /* --frame is the page's, the platform's title bar, set on this element */
+	container-type: size; /* so the room below can measure the window inside the frame */
+}
+.myStage {
+	flex: 0 1 calc(100cqw * 9 / 16); /* as tall as a 16 by 9 screen across the window's whole width, and the one part that gives up height when the window is too short for that, the spacer and the text: a size container counts as empty, so its least height is nothing, where the page's is its spacer and text */
+	container-type: size; /* and the screen inside measures this room */
+}
+.myScreen {
+	width: min(100cqw, 100cqh * 16 / 9); /* the room's whole width, or 16 by 9 at the room's whole height once the room has shrunk, whichever is less, so the screen always fits */
+	aspect-ratio: 16 / 9;
+	background-color: blue;
+}
+.myPage {
+	border-top: var(--frame) solid green; /* the spacer, as thick as the frame */
+}
 
 .myVideo button { /* Close, which the reset leaves bare: underlined, with the hand, as the empty sheet's buttons are */
 	text-decoration: underline;
