@@ -195,6 +195,29 @@ fn window_browser_keys_off(_window: &WebviewWindow) {}//the web views on macOS a
 #[command]
 pub fn window_engine() -> Result<String, String> { tauri::webview_version().map_err(|e| e.to_string()) }//the error is wry's rather than tauri's, so it is turned into text here as the other modules' are
 
+/*
+Fuji's own fullscreen, and what the windows in it share.
+
+Fuji's fullscreen is tao's simple fullscreen, and the page reaches it only through the two commands below, in and out. On the Mac it hides the menu bar and the dock as well, and those belong to the application rather than to a window. tao saves what they were doing as a window goes in and puts that back as the same window comes out, read in tao 0.35.3, which is right for one window and wrong for two: the second window in saves them hidden, so a first that comes out before it brings the menu bar and dock back over a window still in fuji's fullscreen, and the second coming out then hides them again with no window in it, for the rest of the run. So Rust keeps the windows in fuji's fullscreen and answers for the application: while any window is still in it the menu bar and dock stay as they are, and as the last one comes out they go back to what they were doing before the first went in. A window that closes without coming out comes off the list as it goes, so the last one out is never missed. Windows and Linux have nothing to share, since there it is the platform's ordinary fullscreen, which keeps nothing for the application.
+*/
+#[cfg(target_os = "macos")]
+static WINDOW_FULLSCREEN: Mutex<(Vec<String>, objc2_app_kit::NSApplicationPresentationOptions)> = Mutex::new((Vec::new(), objc2_app_kit::NSApplicationPresentationOptions::Default));//the label of every window in fuji's fullscreen, and what the menu bar and dock were doing before the first of them went in
+#[cfg(target_os = "macos")]
+fn window_fullscreen() -> std::sync::MutexGuard<'static, (Vec<String>, objc2_app_kit::NSApplicationPresentationOptions)> { WINDOW_FULLSCREEN.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) }//take the list even if a previous holder panicked
+#[cfg(target_os = "macos")]
+fn window_application() -> Option<objc2::rc::Retained<objc2_app_kit::NSApplication>> { objc2::MainThreadMarker::new().map(objc2_app_kit::NSApplication::sharedApplication) }//AppKit's application, which holds what the menu bar and dock are doing; none off the main thread, where every caller here already is
+
+/// Put the window in fuji's own fullscreen, tao's simple one: the screen it is on, at once, with no Space and no animation, and on Windows and Linux the ordinary fullscreen
+#[command]
+pub fn window_fullscreen_enter(window: WebviewWindow) -> tauri::Result<()> {
+	#[cfg(target_os = "macos")] {
+		let mut fullscreen = window_fullscreen();
+		if fullscreen.0.is_empty() { if let Some(app) = window_application() { fullscreen.1 = app.presentationOptions() } }//the first window in, so what the menu bar and dock are doing now is what the last one out gives back
+		if !fullscreen.0.iter().any(|label| label == window.label()) { fullscreen.0.push(window.label().to_string()) }
+	}
+	window.set_simple_fullscreen(true)
+}
+
 /// Take the window out of fullscreen without changing whether it is showing, which tao's own way does everywhere but windows
 #[command]
 pub fn window_fullscreen_leave(window: WebviewWindow) -> tauri::Result<()> {
@@ -202,9 +225,31 @@ pub fn window_fullscreen_leave(window: WebviewWindow) -> tauri::Result<()> {
 		let w = window.clone();
 		return window.run_on_main_thread(move || window_fullscreen_leave_hidden(&w))//one task on the main thread, where tauri makes each change at once rather than queuing it, so nothing can come between the restore and the hide
 	}
+	#[cfg(target_os = "macos")]
+	let during = window_application().map(|app| app.presentationOptions());//what the menu bar and dock are doing with this window in, which tao is about to undo
 	#[cfg(not(target_os = "windows"))]
-	window.set_simple_fullscreen(false)
+	window.set_simple_fullscreen(false)?;//at once, since a plain command runs on the main thread, so on the mac tao has put back what it saved before the line below looks
+	#[cfg(target_os = "macos")]
+	if let Some(during) = during { window_fullscreen_out(window.label(), during) }
+	#[cfg(not(target_os = "windows"))]
+	Ok(())
 }
+
+//this window has come out of fuji's fullscreen, or is closing: off the list, and the menu bar and dock left as they were while it was in, or, if it was the last, put back as they were before the first went in
+#[cfg(target_os = "macos")]
+fn window_fullscreen_out(label: &str, during: objc2_app_kit::NSApplicationPresentationOptions) {
+	let mut fullscreen = window_fullscreen();
+	let Some(at) = fullscreen.0.iter().position(|l| l == label) else { return };//never in it, or out already, which leaves tao's answer standing
+	fullscreen.0.remove(at);
+	let Some(app) = window_application() else { return };
+	if fullscreen.0.is_empty() { app.setPresentationOptions(fullscreen.1) } else { app.setPresentationOptions(during) }
+}
+
+/// The window with this label is closing: off the list of windows in fuji's fullscreen, so one that goes without coming out never leaves the menu bar and dock hidden behind it
+#[cfg(target_os = "macos")]
+pub fn window_fullscreen_closed(label: &str) { if let Some(app) = window_application() { window_fullscreen_out(label, app.presentationOptions()) } }//nothing has changed them, so while another window is still in, they stay as they are
+#[cfg(not(target_os = "macos"))]
+pub fn window_fullscreen_closed(_label: &str) {}//elsewhere fullscreen keeps nothing for the application
 
 //tao leaves fullscreen on windows by restoring the placement it saved on the way in, and that placement carries a show command, so a window hidden for a transition would flash up at its old frame; measured on the Windows box on 2026-09-28, 76 ms, pressing Esc on a fullscreen table. So a hidden window is cloaked, which the compositor draws as nothing, while tao restores it, and hidden again before the cloak comes off
 #[cfg(target_os = "windows")]

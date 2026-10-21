@@ -1112,6 +1112,10 @@ export function fileTypesTable(extension, platform) {//how a table shows a pictu
 	return ''
 }
 
+export function fileTypesWindow(extension) {//which kind of window a file the operating system hands fuji opens in: Video for a video, by the table's kind alone, whether or not fuji plays it on this platform yet, and Browse for anything else, a picture, a sound, a folder or nothing at all, which the shell sorts among its views
+	return fileTypes[extension]?.kind == 'video' ? 'Video' : 'Browse'
+}
+
 export function fileTypesAssociations(platform) {//the extensions to declare to this platform as kinds fuji opens, in the table's order: an enabled entry with a road on that platform, so a picture's mpv, which fuji takes for no picture, never counts here. associate.js offers the answer for the platform it runs on and the settings show it as the kinds fuji opens; Info.plist types out the Mac's answer by hand and win-setup/registry.js the Windows one
 	return Object.entries(fileTypesEnabled).filter(([, entry]) => fileTypesRender(entry, platform).length > 0).map(([extension]) => extension)
 }

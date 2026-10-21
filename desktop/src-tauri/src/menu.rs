@@ -13,7 +13,7 @@ Fuji's menu bar, which exists on macOS and nowhere else. Tauri applies a menu of
 
 **Rust does one of the six itself and hands the other five to the page.** Making a window is Rust's, because only Rust can make one. Choosing a file or a folder, switching views, showing the settings and About, and opening the site are the page's, because the page already does all of them — the open box answers with a path the page then shows, the fullscreen table is what a double-click already switches to, the settings panel is what s already shows and About is its last section, and the site is an address the page already asks Rust to open. Sending those five down means one implementation of each rather than two, which is the rule in CLAUDE.md about the two layers seen from the menu's side.
 
-**The menu is application-wide and a menu item is not.** macOS shows one menu bar however many windows are open, so an item has to act on a window, and AppKit's own answer is that the window a command acts on need not be the one in front. Each window's page may say which of fuji's items it answers, through menu_answer below, and a window whose page never says answers them all. An item goes to the window in front when that window answers it; otherwise to the window most recently in front that does, brought forward first, which is how Settings… chosen over a video window turns the last contact sheet's window to the settings; and only when no window answers it does it go where it goes with no window open. Rust keeps the windows in the order they were last in front, from lib.rs's window events, and never learns what kind of window any of them is. When fuji is resident with no windows there is no page to send an item to. The View item then goes nowhere. Open… puts the open box up on its own, as a Mac application with no document open does, and makes a window only for what the user chooses, the same window a file the system hands fuji gets, so a cancel leaves nothing behind. Settings…, About and Fuji Help bring a window up, the way a click on the dock icon does: one that first appears showing the settings, or with the site opening in front of it. An event cannot reach that window, because its page is not listening yet, so the item waits here under the new window's label until the page asks for it as it mounts: open.rs's rule for a double-clicked picture, delivered to the window made for it, applied to a menu item.
+**The menu is application-wide and a menu item is not.** macOS shows one menu bar however many windows are open, so an item has to act on a window, and AppKit's own answer is that the window a command acts on need not be the one in front. Each window's page may say which of fuji's items it answers, through menu_answer below, and a window whose page never says answers them all. An item goes to the window in front when that window answers it; otherwise to the window most recently in front that does, brought forward first, which is how Settings… chosen over a video window turns the last contact sheet's window to the settings; and only when no window answers it does it go where it goes with no window open. Rust keeps the windows in the order they were last in front, from lib.rs's window events, and never learns what kind of window any of them is. When fuji is resident with no windows there is no page to send an item to. The View item then goes nowhere. Open… puts the open box up on its own, as a Mac application with no document open does, and makes a window only for what the user chooses, so a cancel leaves nothing behind; the window is made to answer Open… as the items below are, so its page opens the choice the way Open… opens one in a window already open, a picture on the light table rather than in the preview a double-click gets. Settings…, About and Fuji Help bring a window up, the way a click on the dock icon does: one that first appears showing the settings, or with the site opening in front of it. An event cannot reach that window, because its page is not listening yet, so the item waits here under the new window's label until the page asks for it as it mounts: open.rs's rule for a double-clicked picture, delivered to the window made for it, applied to a menu item.
 */
 
 //the ids fuji's own items carry, and the contract between this file and Shell.vue, which matches on these same strings
@@ -56,6 +56,7 @@ pub fn menu_focused(label: &str) {
 pub fn menu_closed(label: &str) {
 	menu_front().retain(|l| l != label);
 	menu_answers().retain(|(l, _)| l != label);
+	MENU_WAITING.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).retain(|(l, _)| l != label);//an item a window was made for and never asked after, as a video window chosen in Open… never does
 }
 
 /// Build the menu bar and make it the application's; lib.rs calls this during setup, on macOS only
@@ -156,14 +157,19 @@ pub fn menu_chosen(app: &AppHandle, event: MenuEvent) {
 	}
 
 	//no window answers it, which on macOS usually means fuji is resident with none open
-	if id == MENU_OPEN {//the open box on its own, and a window only for what the user chooses, made the way one is for a file the system hands fuji; a cancel leaves no window at all
+	if id == MENU_OPEN {//the open box on its own, and a window only for what the user chooses, made to answer Open… as the items below make one to answer them; a cancel leaves no window at all
 		let app = app.clone();
-		crate::dialog::dialog_open_alone(move |path| { if !path.is_empty() { crate::window::window_open(&app, vec![path]) } });
+		crate::dialog::dialog_open_alone(move |path| { if !path.is_empty() { menu_window(&app, vec![path], MENU_OPEN) } });
 		return
 	}
 	if id == MENU_FULLSCREEN { return }//the View item acts on a window, and there is none to act on
-	match crate::window::window_build(app, vec![], String::new()) {//a window, as a click on the dock icon makes, for the item to be answered in
-		Ok(label) => MENU_WAITING.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).push((label, id.to_string())),//held after the window is built and still before its page can ask: menu events and the page's calls both arrive on the main thread, and this has it until it returns
+	menu_window(app, vec![], id)//a window, as a click on the dock icon makes, for the item to be answered in
+}
+
+//make a window to answer a menu item no window could, holding the item for its page and these files with it
+fn menu_window(app: &AppHandle, paths: Vec<String>, id: &str) {
+	match crate::window::window_build(app, paths, String::new()) {
+		Ok(label) => MENU_WAITING.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).push((label, id.to_string())),//held after the window is built and still before its page can ask: menu events, the open box's answer and the page's calls all arrive on the main thread, and this has it until it returns
 		Err(e) => crate::log::log(&format!("menu: could not make a window, {e}")),
 	}
 }

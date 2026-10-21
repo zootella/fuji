@@ -1,24 +1,28 @@
-<script setup>//fuji video: a window of its own, beside a browsing window or without one, and for now its name in the middle and a way to close it, the workspace the video viewer is built in a step at a time
+<script setup>//fuji video: a window of its own, beside a browsing window or without one, and for now the path of its video in the middle, or its own name when v opened it, and a way to close it, the workspace the video viewer is built in a step at a time
 
 import {onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
-import {platform, revealWindow, windowTitle, screenAreas, rectSheet} from './library.js'
+import {platform, backize, revealWindow, windowTitle, screenAreas, rectSheet} from './library.js'
 import {settings, settingsLoad} from '../settings.js'
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'
 import {themeShow, facesShow} from '../appearance.js'
-import {windowFrameSet, windowFullscreenLeave} from '../window.js'
+import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave} from '../window.js'
 import {menuAnswer, menuEnable} from '../menu.js'//the mac's menu bar, which sends this window Fuji Help alone, and whose Edit items this window grays
 import {processOpen} from '../process.js'
 import {urlHelp} from '../brand.js'
 
 /*
-The root of a video window, which App.vue mounts in place of the shell when a page asked for this window with the note Video. It owns its window the way the shell owns a browsing one, and it is much smaller, because a video window is a one-off: the one thing it will be handed is what to play, it never answers, and nothing in another window waits to hear what became of it. So it reads the settings for the look and the log and never writes them, and closing it is the end of it.
+The root of a video window, which App.vue mounts in place of the shell when a page asked for this window with the note Video, or the operating system opened it on a video. It owns its window the way the shell owns a browsing one, and it is much smaller, because a video window is a one-off: the one thing it is handed is the video, which for now it shows by its path, it never answers, and nothing in another window waits to hear what became of it. So it reads the settings for the look and the log and never writes them, and closing it is the end of it.
 
 The window appears at its own size every time, somewhere at random in the work area by the rule the contact sheet's window is placed by, and fuji remembers nothing about it. It has no title bar, so the page fills it, and a drag from anywhere on it moves it, once the pointer has moved a few pixels, so a press that stays put is still half of a double click; the drag waits because once the platform's drag begins, Windows runs the move itself and the release never reaches the page, as the audio panel found. A double click takes it into fuji's own simple fullscreen and back, by the same calls the shell's fullscreenSet makes and without its curtain, since nothing here is drawn to a size yet, and never over a macOS Space. Esc closes it, as its red button would if it had one, and so do v and the Close beside its name.
 
 On the mac the one menu bar serves this window too. It answers Fuji Help itself and says so through menuAnswer; every other item of fuji's, Settings…, About, Open… and the View item, goes past it to the contact sheet's window most recently in front, which menu.rs brings forward, or to a new one, and the Edit items go gray while this window is in front, since it has nothing to type into.
 */
+
+const props = defineProps({
+	path: {type: String, default: ''},//the video the operating system opened this window on, forwardized; blank for one v opened from the contact sheet
+})
 
 const videoSize = {width: 800, height: 600}//the window every time it appears, in css pixels, which with no title bar is the page's own size; a size to start from, until the window takes a video's own
 const dragAfter = 4//how far the pointer moves along either axis, in css pixels with the button down, before a press is a drag
@@ -39,7 +43,7 @@ onMounted(async () => {
 	for (let notice of notices) log(notice)
 	await facesShow()//before the reveal, so the first frame is already in the faces and the colors the settings name
 	await themeShow().catch(error => logTrouble('video: setting the theme', error))
-	await reportTrouble(() => w.setTitle(windowTitle('Video')))//the name the Mac's Window menu and the Windows taskbar show, since there is no title bar to show it
+	await reportTrouble(() => w.setTitle(windowTitle('Video', props.path)))//the name the Mac's Window menu and the Windows taskbar show, since there is no title bar to show it
 	await reportTrouble(placeWindow)
 	await revealWindow()
 	await reportTrouble(() => getCurrentWebview().setFocus())//the title bar went while the window was hidden, which is a change of style mask, so the keyboard is handed to the page
@@ -63,7 +67,7 @@ async function placeWindow() {//put the hidden window where it will first be see
 
 function onKey(e) {
 	if (e.altKey || e.ctrlKey || e.metaKey) return//chords are the system's, and on windows alt is, as the shell leaves it
-	if (e.key == 'Escape' || e.key == 'v') reportTrouble(closeWindow)//escape as the red button would, from fuji's fullscreen too, as escape closes a table's window; and v, the key that opened it from the sheet
+	if ((e.key == 'Escape' || e.key == 'v') && !e.repeat) reportTrouble(closeWindow)//escape as the red button would, from fuji's fullscreen too, as escape closes a table's window; and v, the key that opened it from the sheet. Once for a held key, as the shell closes a table's window, so the window behind, which takes the keyboard as this one goes, never gets the repeats
 }
 function onPress(e) { if (e.button == 0) press = e.target.closest('button') ? null : {x: e.clientX, y: e.clientY} }//a press on Close is the button's, and never starts a drag
 function onMove(e) {//a press that has moved is a drag, and from here the window follows the pointer
@@ -78,11 +82,11 @@ async function fullscreenToggle() {//fuji's own fullscreen on or off, instant, w
 	let w = getCurrentWindow()
 	if (!fullscreenOurs && platform() == 'mac' && await w.isFullscreen()) return//already in a macOS Space, which fuji's fullscreen never stacks on; only the mac is asked, since on windows and linux isFullscreen reports fuji's own
 	fullscreenOurs = !fullscreenOurs
-	if (fullscreenOurs) await w.setSimpleFullscreen(true)
+	if (fullscreenOurs) await windowFullscreenEnter()
 	else await windowFullscreenLeave()//the one way fuji leaves it, which on windows never shows a hidden window
 	await getCurrentWebview().setFocus()//simple fullscreen changes the style mask on the mac, which drops the keyboard, as the essay above fullscreenSet in Shell.vue says
 }
-async function closeWindow() {//close the window as the system's close would, hidden and out of fuji's fullscreen first, so on the mac the menu bar and the dock, which simple fullscreen hides for the whole application, come back for the windows left
+async function closeWindow() {//close the window as the system's close would, hidden and out of fuji's fullscreen first, so on the mac the menu bar and the dock, which simple fullscreen hides for the whole application, come back once no window is left in it
 	let w = getCurrentWindow()
 	if (fullscreenOurs) {
 		await w.hide()
@@ -98,8 +102,8 @@ async function reportTrouble(work) {//a window event is where the platform start
 </script>
 <template>
 
-<div class="myVideo myMono bg-paper text-strong w-full h-full flex items-center justify-center gap-[2ch] select-none" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu">
-	<span>V I D E O</span>
+<div class="myVideo myMono bg-paper text-strong w-full h-full p-8 flex items-center justify-center gap-[2ch] wrap-break-word select-none" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu">
+	<span class="min-w-0">{{path ? backize(path) : 'V I D E O'}}</span><!-- free to shrink below a long path, so the path wraps at the window's width rather than running past it -->
 	<button @click="reportTrouble(closeWindow)">Close</button>
 </div>
 

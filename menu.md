@@ -4,7 +4,7 @@ Every menu fuji has on each platform, what each item does, what fuji has decided
 
 ## What the items do
 
-**New Window** is Rust's, and makes a window. The other five go to the page of the window in front when that window answers them, and otherwise to the main window most recently in front, brought forward first, or to a new main window when there is none. A main window answers all five, and a video window answers only Fuji Help, so Settings…, About, Open… and the View item chosen over a video window act on the contact sheet's window behind it.
+**New Window** is Rust's, and makes a window. The other five go to the page of the window in front when that window answers them, and otherwise to the main window most recently in front, brought forward first, or, when there is none, as each acts with no window open, below. A main window answers all five, and a video window answers only Fuji Help, so Settings…, About, Open… and the View item chosen over a video window act on the contact sheet's window behind it.
 
 - **Open…** puts up the system's open box, unfiltered, taking a file or a folder, as one Mac open box can. A folder opens on the contact sheet, a picture on the table the settings name, fullscreen, as a double-click on its thumbnail brings it there, and any other file opens the sheet at its folder.
 - **The View item** switches between the contact sheet in a window and the light table fullscreen, and its title says which way it will go.
@@ -12,7 +12,7 @@ Every menu fuji has on each platform, what each item does, what fuji has decided
 - **Settings…** shows the settings panel.
 - **Fuji Help** opens `https://fujidesktop.app/help` in the system's browser, an address that forwards to wherever help lives on the site.
 
-**With no window open**, which happens only in an installed copy on the Mac, Open… puts the box up on its own and makes a window only for what is chosen: a picture on the preview, as a double-click in Finder opens it, and a folder on the contact sheet, and a cancel leaves no window. The View item does nothing. About, Settings… and Fuji Help make a window first and answer in it, Fuji Help with the browser opening in front of it.
+**With no window open**, which happens only in an installed copy on the Mac, Open… puts the box up on its own and makes a window only for what is chosen, which opens the choice as Open… does in a window already open: a picture on the light table, never in the preview a double-click gets, a folder on the contact sheet, and a video in a video window. A cancel leaves no window. The View item does nothing. About, Settings… and Fuji Help make a window first and answer in it, Fuji Help with the browser opening in front of it.
 
 ## macOS
 
@@ -80,7 +80,7 @@ Dock icon
 
 ## Windows and Linux
 
-No menu bar and no tray icon, so the window has only its own frame, and closing it ends the process. A menu belongs along the top of the screen on the Mac and inside the window everywhere else, and fuji puts none there. Until there is a toolbar, the empty contact sheet's welcome carries the open box and a link to the help address, and those are the only way to either. Its open box is two buttons, one for a file and one for a folder, on every platform, since the open boxes of Windows and GTK choose one or the other and never both. Settings… is `s` from the sheet, and About is the end of the settings panel.
+No menu bar and no tray icon, so a window has only its own frame, and closing a process's last window ends the process, a video window opened from the sheet included. A menu belongs along the top of the screen on the Mac and inside the window everywhere else, and fuji puts none there. Until there is a toolbar, the empty contact sheet's welcome carries the open box and a link to the help address, and those are the only way to either. Its open box is two buttons, one for a file and one for a folder, on every platform, since the open boxes of Windows and GTK choose one or the other and never both. Settings… is `s` from the sheet, and About is the end of the settings panel.
 
 ```
 Windows

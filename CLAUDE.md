@@ -149,7 +149,7 @@ The modules, by what each one answers: the disk (`disk.rs`), the folder tree in 
 
 **Entry point**: `main.js` → `App.vue` → `Shell.vue` for a browsing window, which shows one view at a time, or `VideoWindow.vue` for a video window.
 
-`main.js` titles the page and mounts the app, and does nothing else; `App.vue` picks the window's root once, as the page mounts, from the note the window was made with. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
+`main.js` titles the page and mounts the app, and does nothing else; `App.vue` picks the window's root once, as the page mounts, from the note the window was made with and the files it was opened with. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
 
 **Where to read before changing something.** Every component in `src/components/` and every module in `src/` opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
 - `Shell.vue` — a browsing window, which view is showing, and fuji's two fullscreens

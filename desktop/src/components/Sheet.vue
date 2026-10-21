@@ -39,7 +39,7 @@ const emit = defineEmits(['table', 'settings', 'audio', 'video', 'open'])//a dou
 function onKey(e) {
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('settings')//a temporary way in, until fuji has a better place for one
 	if (e.key == 'a' && !e.ctrlKey && !e.metaKey) emit('audio')//the same, for the audio panel
-	if (e.key == 'v' && !e.ctrlKey && !e.metaKey) emit('video')//and for a video window, the same way in from the keyboard until the sheet lists videos
+	if (e.key == 'v' && !e.ctrlKey && !e.metaKey && !e.repeat) emit('video')//and for a video window, the same way in from the keyboard until the sheet lists videos; once for a held key, which would otherwise ask for a window with every repeat
 }
 async function onDrop(path) {//a picture dropped or opened here: the model lists its folder for the table, and the pager starts at that folder
 	await modelOpen(path)

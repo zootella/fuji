@@ -13,7 +13,6 @@
 		"core:window:allow-maximize",
 		"core:window:allow-set-decorations",
 		"core:window:allow-set-fullscreen",
-		"core:window:allow-set-simple-fullscreen",
 		"core:window:allow-set-title",
 		"core:window:allow-set-theme",
 		"core:window:allow-show",

@@ -7,6 +7,7 @@ export function windowNew(note) { return invoke('window_new', {note}) }//another
 export function windowNote() { return invoke('window_note') }//the note this window was made with, taken away as it answers; blank for a window the operating system, the dock or the menu bar asked for
 export function windowFrame() { return invoke('window_frame') }//{x, y, width, height} of the visible frame
 export function windowFrameSet(frame) { return invoke('window_frame_set', {frame}) }//put the visible frame exactly there, whatever title bar or borders the window has
+export function windowFullscreenEnter() { return invoke('window_fullscreen_enter') }//into fuji's own fullscreen, which on the mac hides the menu bar and the dock until the last window in it comes out
 export function windowFullscreenLeave() { return invoke('window_fullscreen_leave') }//out of fullscreen without changing whether the window is showing, which tauri's own way does not promise on windows
 
 //a native rectangle for a video: on windows a child window above the page, on the mac and linux a GL view of fuji's own above it that mpv draws into when asked, at a rectangle of the page, which the page measures in css pixels and hands over in backing ones, since a native child is placed in those; window.rs says why there is one and how the video gets into it on each

@@ -151,17 +151,17 @@ Whether backspace closes a table's window beside escape, which is a question abo
 */
 export const backspaceCloses = platform() != 'mac'
 
-export function windowTitle(showing, path, folder) {//what the title bar says: the picture a table is showing, the folder the sheet is showing, Settings, Audio or Video on those panels, and fuji's own name when there is none of those
+export function windowTitle(showing, path, folder) {//what the title bar says: the picture a table is showing or the video a video window is, the folder the sheet is showing, Settings or Audio on those panels, Video on a video window with no video, and fuji's own name when there is none of those
 	/*
 	The name alone, never a path: a title bar is narrow and a taskbar button narrower, and the leading half of a path is the half nobody needs.
 
 	The suffix is where the platforms genuinely differ, so this is one of the few places fuji does something different on each. Windows spells a document window 'name - App', which Notepad and Paint still do, and a taskbar button carries that string. macOS spells it just the name, because the application's own name is already in the menu bar an inch away and repeating it there reads as a mistake — Preview and TextEdit both show the bare filename. GNOME agrees with macOS and its file manager shows a bare folder name. KDE would rather have 'name — App' with an em dash, which is a third form and is not followed here.
 	*/
-	let name = path && parse.basename(path)//the picture, on a table
-	if (showing == 'Sheet')    name = folder && parse.basename(folder)
-	if (showing == 'Settings') name = 'Settings'//about fuji rather than about a folder or a picture
-	if (showing == 'Audio')    name = 'Audio'//the same
-	if (showing == 'Video')    name = 'Video'
+	let name = path && parse.basename(path)//the picture, on a table, or the video, in a video window
+	if (showing == 'Sheet')          name = folder && parse.basename(folder)
+	if (showing == 'Settings')       name = 'Settings'//about fuji rather than about a folder or a picture
+	if (showing == 'Audio')          name = 'Audio'//the same
+	if (showing == 'Video' && !path) name = 'Video'//a video window v opened, with no video in it
 	if (!name) return brandName//nothing open yet, or a path with no last segment like a bare root; either way the application's own name and nothing else
 	return platform() == 'windows' ? `${name} - ${brandName}` : name
 }

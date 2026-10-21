@@ -137,7 +137,7 @@ The model holds the folder, the sort, the ordered list and the current path. Bac
 
 `AlphabetSort` is one of the planned sorts, and it is javascript's own `sort()` kept deliberately. There is one flow, `TestFlow`, named by `Bucket.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of an experiment, and both were deleted once it had answered. The thumbnail pipeline document on the site is what the surviving flow does.
 
-There is no router and no store library. `App.vue` picks the window's root once, as the page mounts, from the note the window was made with: the shell for a browsing window, and `VideoWindow.vue` for a video window, which shares none of a browsing window's state and stands beside one rather than taking its place. `main.js` titles the page and mounts the app, and does nothing else.
+There is no router and no store library. `App.vue` picks the window's root once, as the page mounts, from the note the window was made with and the files it was opened with: the shell for a browsing window, and `VideoWindow.vue` for a video window, asked for with the note Video or opened on a video, which shares none of a browsing window's state and stands beside one rather than taking its place. `main.js` titles the page and mounts the app, and does nothing else.
 
 ## The cache, in one paragraph
 

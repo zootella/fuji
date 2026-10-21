@@ -56,7 +56,7 @@ Since 2026-10-20 the root `package.json` has a dependency, ergo, and every works
 
 ## The video window, and how far Windows lets a window go
 
-Since 2026-10-21, v on the contact sheet opens a video window, `VideoWindow.vue`, a native window of its own on top of fuji's other windows, the workspace the video viewer will be built in, which shows only the word VIDEO and a Close for now. `App.vue` picks a window's root as its page mounts, from a note Rust holds for a window a page asked for: the new command `window_new` makes the window with the note, and `window_note` hands the note to the new page. The essay atop `VideoWindow.vue` is the rule, and `window-check.md` at the root describes how every window behaves as the user meets it, platform by platform, which is the background for everything below. All of it was built and smoke tested on the Mac mini, and none of it has run here.
+Since 2026-10-21, v on the contact sheet opens a video window, `VideoWindow.vue`, a native window of its own on top of fuji's other windows, the workspace the video viewer will be built in, which shows only a Close and the word VIDEO for now. A video opened from File Explorer opens one too, showing the video's path in place of the word, as a process whose only window is a video window. `App.vue` picks a window's root as its page mounts, from a note Rust holds for a window a page asked for and from the files the window was opened with: the new command `window_new` makes the window with the note, `window_note` hands the note to the new page, and a first file that is a video by the type table gives the window a video window's root. The essay atop `VideoWindow.vue` is the rule, and `window-check.md` at the root describes how every window behaves as the user meets it, platform by platform, which is the background for everything below. All of it was built and smoke tested on the Mac mini, and none of it has run here.
 
 What the video window does, all of which this machine should match:
 
@@ -64,7 +64,7 @@ What the video window does, all of which this machine should match:
 - Opening and closing it leaves the main window exactly where and as it was, and every v on the sheet opens another, so several can be open at once.
 - A double-click takes it into fuji's own fullscreen, and another brings it back at the same size and place.
 - A drag from anywhere on it moves the window, once the pointer has moved 4 CSS pixels with the button down.
-- Esc closes it, as its red button would if it had one, and so do v and the Close beside its name. Its title, which the taskbar shows, reads "Video - Fuji".
+- Esc closes it, as its red button would if it had one, and so do v and the Close beside its name. Its title, which the taskbar shows, reads "Video - Fuji", or the video's name and " - Fuji" for one opened on a video.
 
 Four things only this machine can show, each with the reason it might go wrong here:
 

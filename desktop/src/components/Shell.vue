@@ -8,20 +8,19 @@ import {dialogOpen} from '../dialog.js'//the system's open box, which rust puts 
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {menuText, menuWaiting, menuEnable} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, which item a new window was made to answer, and which Edit items are lit
-import {modelStart, modelPath, modelFolder, modelOpenFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is, and a folder this window was made for is listed here before any view starts
-import {diskStat} from '../disk.js'//whether a path handed to fuji or chosen in the open box is a folder, which decides the view it opens on
+import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
+import {diskStat} from '../disk.js'//whether a path chosen in the open box is a folder, which decides the view it opens on
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {uptimeProcess} from '../uptime.js'//how long the launch took, for the log's line at the first frame
 import {memoryReport} from '../memory.js'//what fuji's processes take at rest, for the log's line a moment after it
-import {openFiles} from '../open.js'//the pictures the operating system handed fuji, when the user got here by double-clicking one
-import {fileTypes, fileTypesRender} from '../fileTypes.js'//to tell a sound or a video handed over at launch from a picture, by its extension
+import {fileTypes, fileTypesRender} from '../fileTypes.js'//to tell a sound handed over at launch, or a sound or a video dropped, from a picture, by its extension
 import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
 import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
 import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
 import {brandName, urlHelp} from '../brand.js'//for the log lines that say what it did, and the address Fuji Help opens
 import {processOpen} from '../process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
-import {windowFrame, windowFrameSet, windowFullscreenLeave, windowNew} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to leave fullscreen without showing a hidden window, and to ask for a video window beside this one
+import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, and to ask for a video window beside this one
 import {themeShow, facesShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
@@ -65,6 +64,10 @@ const tables = {//everything the shell can show in place of a table; view.table 
 	Space: MySpace,//pink polka dots
 }
 
+const props = defineProps({
+	opened: {type: Array, default: () => []},//the files the operating system handed this window, forwardized, which App.vue took as it chose this window's root
+})
+
 const sheetRef    = ref(null)
 const settingsRef = ref(null)
 const audioRef    = ref(null)
@@ -81,29 +84,18 @@ onMounted(async () => {
 	} catch (error) {
 		notices.push(sayTrouble('shell: reading settings', error))//carry on to the reveal on factory settings rather than leave the window hidden
 	}
-	let opened = []//the pictures the operating system handed fuji, which is empty on an ordinary launch
-	try {
-		opened = (await openFiles()).map(forwardize)//forwardized here, at the same boundary a dropped path crosses; windows hands these over with backslashes and everything below assumes forward ones
-	} catch (error) {
-		notices.push(sayTrouble(`shell: asking what ${brandName} was opened with`, error))//the same reasoning as above: nothing here is worth leaving the window hidden for
-	}
-	let openedFolder = ''//a folder rather than a picture, which this window was made for when File, Open… chose one with no window open; it opens on the contact sheet, so the launch goes on as an ordinary one
-	if (opened.length) {
-		try {
-			if ((await diskStat(opened[0])).is_dir) { openedFolder = opened[0]; opened = [] }
-		} catch (error) {
-			notices.push(sayTrouble(`shell: asking whether ${opened[0]} is a folder`, error))//and again; the path goes on as a picture, which the preview shows or turns away
-		}
-	}
-	let openedMedia = ''//a sound or a video rather than a picture, which opens on the audio panel and plays, since that is where the player lives while Fuji Audio and Fuji Video are products still to come; it goes by what libmpv plays on this platform rather than by the type's enabled flag, which says what fuji lists and offers
-	if (opened.length && mediaPlays(opened[0])) { openedMedia = opened[0]; opened = [] }
-	let waiting = ''//Settings…, About or Fuji Help, when one was chosen from the mac's menu bar while fuji had no window and this window was made to answer it; blank for every other window
+	let opened = [...props.opened]//the pictures the operating system handed fuji, which is empty on an ordinary launch; a copy, since the lines below take a choice or a sound out of it
+	let waiting = ''//Settings…, About, Fuji Help or Open…, when one was chosen from the mac's menu bar while no window could answer it and this window was made to answer it; blank for every other window
 	try {
 		waiting = await menuWaiting()
 	} catch (error) {
-		notices.push(sayTrouble('shell: asking what the menu bar chose', error))//and again
+		notices.push(sayTrouble('shell: asking what the menu bar chose', error))//the same reasoning as above: nothing here is worth leaving the window hidden for
 	}
-	showing.value = opened.length ? 'Table' : openedMedia ? 'Audio' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, a sound or a video on the audio panel, and every other launch on the contact sheet, since the sheet is the view that lives in a window
+	let chosen = ''//what that Open… chose, a file or a folder, which opens after the reveal the way Open… opens one in a window already open: a folder on the contact sheet and a picture on the light table, never in the preview a double-click gets
+	if (waiting == 'menu-open') { chosen = opened[0] || ''; opened = []; waiting = '' }//answered by the choice, so nothing below puts the box up again
+	let openedMedia = ''//a sound rather than a picture, which opens on the audio panel and plays, since that is where the player lives while Fuji Audio is a product still to come; it goes by what libmpv plays on this platform rather than by the type's enabled flag, which says what fuji lists and offers. A video never arrives here, since App.vue gives it a video window
+	if (opened.length && mediaPlays(opened[0])) { openedMedia = opened[0]; opened = [] }
+	showing.value = opened.length ? 'Table' : openedMedia ? 'Audio' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, a sound on the audio panel, and every other launch on the contact sheet, since the sheet is the view that lives in a window
 	whichTable.value = settings.view.table
 	helpShowing.value = settings.hud.help//on at the factory, so a new user is greeted by it
 	if (!tables[whichTable.value]) {//a name settings cannot check, because the tables fuji has are known here and not there
@@ -117,7 +109,6 @@ onMounted(async () => {
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
 	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
-	if (openedFolder) await modelOpenFolder(openedFolder).catch(error => logTrouble(`shell: opening ${openedFolder}`, error))//listed now and shown later: the sheet's start, after the reveal, finds a folder it did not open and starts its pages there
 	await nextTick()//let vue place the right view before the window appears
 	await reportTrouble(() => placeWindow(w, opened[0]))//before the reveal, so the window first appears where it will stay. Only the first picture, because one window shows one picture; a picture opened later gets a window of its own — on the mac inside this same process, and on windows as a whole second fuji the shell starts
 	if (waiting && waiting != 'menu-help') await reportTrouble(() => menuChose(waiting))//before the reveal too, so the window first appears with the settings or their About section up, rather than as a sheet that then changes
@@ -128,6 +119,7 @@ onMounted(async () => {
 	logLaunch()//the first frame is on screen, which is the moment the launch is measured to
 	const started = activeView()?.start?.()
 	if (openedMedia) Promise.resolve(started).then(() => activeView()?.onDrop?.(openedMedia)).catch(error => logTrouble(`shell: playing ${openedMedia}`, error))//once the panel's player is up, the file it was opened with, as a drop would hand it over
+	if (chosen) Promise.resolve(started).then(() => openChosen(chosen)).catch(error => logTrouble(`shell: opening ${chosen}`, error))//once the sheet has started, so it opens the choice exactly as it would in a window already open
 	associateStart().then(line => { if (line) log(line) }).catch(error => logTrouble(`shell: registering what ${brandName} can open`, error))//after the reveal, so registering can never be the reason the window is slow to appear; the line is blank on a platform or a copy with nothing to do, and only an installed copy on windows has anything to say
 
 	window.addEventListener('keydown', onKey)
@@ -251,7 +243,7 @@ function onKey(e) {
 	}
 	if (e.altKey) return//fuji has no alt chords, and on windows alt belongs to the system, for its menus and its window keys, so no view ever sees one
 	let bare = !e.ctrlKey && !e.metaKey//the shell's own keys act only with control and command up, so a chord meant for the system or for a table, like command h on the mac or control plus on a table, passes them by
-	if ((e.key == 'Escape' || (bare && backspaceCloses && e.key == 'Backspace')) && showing.value == 'Table') { reportTrouble(closeWindow); return }//the shell's own keys, never passed down: escape on any table, preview included, closes the window, as the red button or the × would, and so does backspace where its key says Backspace, so there is a key at each top corner of the keyboard; library.js says why not on the Mac. Backspace only bare, since control makes it a delete of another kind
+	if ((e.key == 'Escape' || (bare && backspaceCloses && e.key == 'Backspace')) && showing.value == 'Table') { if (!e.repeat) reportTrouble(closeWindow); return }//the shell's own keys, never passed down: escape on any table, preview included, closes the window, as the red button or the × would, and so does backspace where its key says Backspace, so there is a key at each top corner of the keyboard; library.js says why not on the Mac. Backspace only bare, since control makes it a delete of another kind. Once for a held key: the window behind takes the keyboard the moment this one hides, and the repeats would close it too
 	if (bare && e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
 	if (bare && e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	if (bare && e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in, and control with it too, as browsers zoom
@@ -305,7 +297,7 @@ Fuji has two fullscreens, and that is on purpose. macOS's own moves the window o
 
 Tauri reports only the system's fullscreen on the mac, which is why fullscreenOurs keeps fuji's own record, and which also tells the two apart. The rule that keeps them from stacking is that fuji never lays its fullscreen over a Space: a window already in one takes the table as it is, and leaving the table turns off only what fuji turned on. Windows and Linux have one fullscreen, and there Tauri's simple fullscreen is the ordinary one, which isFullscreen does report, so the Space check is asked only on the mac. The obvious shortcut is a trap: NSWindowCollectionBehaviorFullScreenNone shuts every door into the system's fullscreen at once, and takes Split View and a Space of one's own with it. It was tried and taken back out.
 
-On the mac, simple fullscreen also hides the dock and the menu bar for the whole application rather than the window, and only leaving it puts them back — read out of tao 0.35.3 — so closeWindow leaves it before closing. And it clears the window's Titled style mask, which drops the first responder. tao repairs that with its own content view, a level above the WKWebView, so the mouse still works and no key reaches JavaScript until the user clicks; focusing the webview after every change is the same repair aimed a level lower, and needs core:webview:allow-set-webview-focus.
+On the mac, simple fullscreen also hides the dock and the menu bar for the whole application rather than the window, and only leaving it puts them back, as the last window in fuji's fullscreen comes out, which window.rs keeps track of — so closeWindow leaves it before closing. And it clears the window's Titled style mask, which drops the first responder. tao repairs that with its own content view, a level above the WKWebView, so the mouse still works and no key reaches JavaScript until the user clicks; focusing the webview after every change is the same repair aimed a level lower, and needs core:webview:allow-set-webview-focus.
 */
 let fullscreenOurs = false//fuji's own simple fullscreen is on, which tauri will not report on the mac
 let previewFramed = false//the window still has the frame the preview fitted to one picture, and no title bar
@@ -405,7 +397,7 @@ async function fullscreenSet(on) {//turn fuji's own fullscreen on or off, and wa
 	if (on && platform() == 'mac' && await w.isFullscreen()) return//already in a macos space, which the table can have as it is
 	fullscreenOurs = on
 	let landed = new Promise(resolve => { resizeWaiting.push(resolve); setTimeout(resolve, Time.second) })//the resize that says the window got there, or a second, so a change that moves nothing never hangs
-	if (on) await w.setSimpleFullscreen(true)//instant, no Space and no animation; on windows and linux, the ordinary fullscreen
+	if (on) await windowFullscreenEnter()//instant, no Space and no animation; on windows and linux, the ordinary fullscreen
 	else await windowFullscreenLeave()//the one way fuji leaves it, whether the window is showing or not
 	await getCurrentWebview().setFocus()//hand the keyboard back to the page, after the change, for the reason the essay above gives
 	await landed
