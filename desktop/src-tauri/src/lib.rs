@@ -123,6 +123,7 @@ pub fn run() {
 				window::window_new,
 				window::window_note,
 				window::window_title_hide,
+				window::window_constraint_lift,
 				window::window_frame,
 				window::window_frame_set,
 				window::window_fullscreen_enter,
@@ -133,7 +134,7 @@ pub fn run() {
 			]
 		)
 		.on_window_event(|window, event| {//a window on its way out takes its player with it, and its video view goes with its window; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking. The view goes first: on linux that frees the player's render context while the area can still be drawn to, so the destroy on the pool after finds nothing left to free
-			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); media::media_window_closed(tauri::Manager::app_handle(window), window.label()); menu::menu_closed(window.label()); window::window_fullscreen_closed(window.label()) }//and the menu bar forgets the window, which answers nothing from here, and so does fuji's fullscreen, which the window cannot be in once it has gone
+			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); media::media_window_closed(tauri::Manager::app_handle(window), window.label()); menu::menu_closed(window.label()); window::window_fullscreen_closed(window.label()); window::window_constraint_closed(window.label()) }//and the menu bar forgets the window, which answers nothing from here, and so does fuji's fullscreen, which the window cannot be in once it has gone
 			if matches!(event, tauri::WindowEvent::Focused(true)) { menu::menu_focused(window.label()) }//the order the menu bar looks through for a window that answers an item the one in front does not
 		})
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away

@@ -7,7 +7,7 @@ import {platform, backize, revealWindow, windowTitle, screenAreas, rectSheet} fr
 import {settings, settingsLoad} from '../settings.js'
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'
 import {themeShow, facesShow} from '../appearance.js'
-import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowTitleHide} from '../window.js'
+import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowTitleHide, windowConstraintLift} from '../window.js'
 import {menuAnswer, menuEnable} from '../menu.js'//the mac's menu bar, which sends this window Fuji Help alone, and whose Edit items this window grays
 import {processOpen} from '../process.js'
 import {urlHelp, brandName} from '../brand.js'
@@ -88,6 +88,7 @@ async function placeWindow() {//put the hidden window where it will first be see
 	if (platform() == 'mac') {
 		await w.setTitleBarStyle('overlay')//the title bar kept but drawn transparent, with the page running up under it, so the traffic lights float over the page and the system still rounds the corners; after the frame, never before, for the reason placeWindow in Shell.vue gives
 		await windowTitleHide()//and the title in it not drawn, though the title stays set
+		await windowConstraintLift()//AppKit no longer holds this window below the menu bar or to the screen's height, so where fuji places it, it stays; the mac's own drag still stops at the menu bar, as window.rs says
 	} else {
 		await w.setDecorations(false)//elsewhere the title bar off, and fuji's own buttons in its place; after the frame too, and the page grows to fill the window
 	}

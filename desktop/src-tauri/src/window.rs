@@ -208,6 +208,70 @@ pub fn window_title_hide(window: WebviewWindow) -> tauri::Result<()> {
 }
 
 /*
+Past the edges of the screen, on the Mac.
+
+AppKit keeps a window at the normal level clear of the menu bar, and cuts a resizable window with a title bar to the screen's height, in NSWindow's constrainFrameRect:toScreen:, which it calls as a window is shown, moved and resized, and which Apple's AppKit notes for 10.9 invite a subclass to override "to adjust or prevent this constraining". tao's window class, TaoWindow, has no override, so the first window_constraint_lift adds one to that class at runtime, which gives every window NSWindow's own answer but those on the list the command keeps. Giving one window a subclass of fuji's own is the usual road and is closed here: tao's sendEvent: finds its superclass from the window's class at runtime, and WebKit has already swapped that class for key-value observing. A window on the list also loses AppKit's rescue when its display goes away.
+
+What the override frees is a window fuji places itself. The Mac's own drag still stops at the menu bar with the override in place, seen on the Mac mini on 2026-10-21, because WindowServer runs that drag and holds the window there by itself, and AppKit takes WindowServer's frame as it is while a drag runs, read in a disassembly of AppKit on Sequoia. The first refusals of a run go to the log, as the override's evidence that AppKit asked.
+*/
+#[cfg(target_os = "macos")]
+static WINDOW_UNCONSTRAINED: Mutex<Vec<(String, usize)>> = Mutex::new(Vec::new());//each window the override answers for, by label, and its NSWindow's address, which is all the override is handed
+#[cfg(target_os = "macos")]
+fn window_unconstrained() -> std::sync::MutexGuard<'static, Vec<(String, usize)>> { WINDOW_UNCONSTRAINED.lock().unwrap_or_else(|p| p.into_inner()) }
+
+/// Let this window go anywhere and be any size, past every edge of the screen and over the menu bar, with AppKit's constraint lifted for it alone; the Mac's alone, nothing elsewhere
+#[command]
+pub fn window_constraint_lift(window: WebviewWindow) -> Result<(), String> {
+	#[cfg(target_os = "macos")] {
+		static ADDED: OnceLock<bool> = OnceLock::new();
+		if !*ADDED.get_or_init(window_constraint_add) { return Err("the override could not be added to tao's window class".into()) }
+		let address = window.ns_window().map_err(|e| e.to_string())? as usize;//the NSWindow tauri built, on the main thread, where a plain command runs
+		let mut list = window_unconstrained();
+		if !list.iter().any(|(label, _)| label == window.label()) { list.push((window.label().to_string(), address)) }
+	}
+	#[cfg(not(target_os = "macos"))]
+	let _ = window;
+	Ok(())
+}
+
+/// The window with this label is closing: off the override's list, so a window made later at the same address is constrained as usual
+#[cfg(target_os = "macos")]
+pub fn window_constraint_closed(label: &str) { window_unconstrained().retain(|(l, _)| l != label) }
+#[cfg(not(target_os = "macos"))]
+pub fn window_constraint_closed(_label: &str) {}
+
+#[cfg(target_os = "macos")]
+fn window_constraint_add() -> bool {//the override, added to TaoWindow under NSWindow's own type encoding for the method; false where the class is missing or already has one, which a later tao might add
+	use objc2::{sel, ClassType};
+	use objc2::ffi::{class_addMethod, class_getInstanceMethod, method_getTypeEncoding, objc_getClass};
+	let selector = sel!(constrainFrameRect:toScreen:);
+	unsafe {
+		let tao = objc_getClass(c"TaoWindow".as_ptr());
+		let method = class_getInstanceMethod(objc2_app_kit::NSWindow::class(), selector);
+		if tao.is_null() || method.is_null() { return false }
+		let imp: objc2::runtime::Imp = std::mem::transmute(window_constrain as extern "C-unwind" fn(_, _, _, _) -> _);
+		class_addMethod(tao as *mut _, selector, imp, method_getTypeEncoding(method)).as_bool()
+	}
+}
+
+#[cfg(target_os = "macos")]
+extern "C-unwind" fn window_constrain(this: &objc2::runtime::AnyObject, _command: objc2::runtime::Sel, frame: objc2_foundation::NSRect, screen: *mut objc2::runtime::AnyObject) -> objc2_foundation::NSRect {//AppKit asking where a window may go: exactly where it was asked to, for a window on the list, and NSWindow's own answer for every other, through NSWindow by name rather than by the window's class, which WebKit swapped
+	use objc2::{msg_send, ClassType};
+	let own: objc2_foundation::NSRect = unsafe { msg_send![super(this, objc2_app_kit::NSWindow::class()), constrainFrameRect: frame, toScreen: screen] };
+	if !window_unconstrained().iter().any(|(_, address)| *address == this as *const _ as usize) { return own }
+	if own != frame { window_constraint_said(frame, own) }
+	frame
+}
+
+#[cfg(target_os = "macos")]
+fn window_constraint_said(asked: objc2_foundation::NSRect, own: objc2_foundation::NSRect) {//a line in the log for each of the first twenty times in a run the override left a window where AppKit would have moved it
+	static SAID: AtomicUsize = AtomicUsize::new(0);
+	if SAID.fetch_add(1, Ordering::Relaxed) >= 20 { return }
+	let said = |r: objc2_foundation::NSRect| format!("{},{} {}x{}", r.origin.x, r.origin.y, r.size.width, r.size.height);
+	crate::log::log(&format!("window: AppKit would have moved a window from {} to {}, in points from the bottom left, and the override left it", said(asked), said(own)));
+}
+
+/*
 Fuji's own fullscreen, and what the windows in it share.
 
 Fuji's fullscreen is tao's simple fullscreen, and the page reaches it only through the two commands below, in and out. On the Mac it hides the menu bar and the dock as well, and those belong to the application rather than to a window. tao saves what they were doing as a window goes in and puts that back as the same window comes out, read in tao 0.35.3, which is right for one window and wrong for two: the second window in saves them hidden, so a first that comes out before it brings the menu bar and dock back over a window still in fuji's fullscreen, and the second coming out then hides them again with no window in it, for the rest of the run. So Rust keeps the windows in fuji's fullscreen and answers for the application: while any window is still in it the menu bar and dock stay as they are, and as the last one comes out they go back to what they were doing before the first went in. A window that closes without coming out comes off the list as it goes, so the last one out is never missed. Windows and Linux have nothing to share, since there it is the platform's ordinary fullscreen, which keeps nothing for the application.
