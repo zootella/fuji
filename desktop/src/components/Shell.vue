@@ -414,11 +414,11 @@ async function recordSheet() {//the sheet's size into settings as the user resiz
 /*
 The video panel has a window of its own in the user's mind, and borrows the sheet's in fact. v on the sheet brings it and v on the panel goes back, and it comes from the sheet alone, so it always starts from the sheet's window, a state every other change of view already handles.
 
-The panel's window appears at its own size every time, somewhere at random in the work area by the rule a sheet is placed by, and nothing about it is ever kept: while the panel is up recordSheet records nothing, so whatever the user does to that window stays the panel's and goes when the panel does. The sheet's window is kept to give back, its frame and whether it was maximized, which the panel takes off on the way in and puts back on the way out. Every road out of the panel gives the sheet's window back before anything else happens, the v key, the menu bar and a drop alike, and a road to anywhere but the sheet then goes on from the sheet, so no other change of view ever starts from a window the panel left.
+The panel's window has no title bar, so the page fills it, and the drag from anywhere is how it moves. It appears at its own size every time, somewhere at random in the work area by the rule a sheet is placed by, and nothing about it is ever kept: while the panel is up recordSheet records nothing, so whatever the user does to that window stays the panel's and goes when the panel does. The sheet's window is kept to give back, its frame and whether it was maximized, which the panel takes off on the way in and puts back on the way out, and its title bar, which comes off after the panel's frame is set and goes back on between two settings of the sheet's, the road the preview and the first sheet after it take. Every road out of the panel gives the sheet's window back before anything else happens, the v key, the menu bar and a drop alike, and a road to anywhere but the sheet then goes on from the sheet, so no other change of view ever starts from a window the panel left.
 
 A double click takes the panel into fuji's own fullscreen and back by the audio panel's road, and every road out of the panel leaves that fullscreen first, which puts the panel's window back where the platform kept it, before the sheet's is given back over it. A macOS Space is the exception both ways, as it is for the table, since leaving a Space and entering one again is the system's to animate: the panel shows in a sheet's Space as it is, and a panel the user takes into a Space comes back to the sheet there. Only the mac is asked about a Space, as fullscreenSet asks only the mac, because Windows and Linux have none, and there isFullscreen reports fuji's own fullscreen, the platform's ordinary one.
 */
-const videoSize = {width: 800, height: 600}//the video panel's window every time it appears, in css pixels, as the frame the user sees, title bar included, the way the sheet's size is kept; a size to start from, until the window takes a video's own
+const videoSize = {width: 800, height: 600}//the video panel's window every time it appears, in css pixels, which with no title bar is the page's own size; a size to start from, until the window takes a video's own
 let videoSheet = null//the sheet's window, {frame, maximized}, held while the video panel has it, to give back; null at every other moment
 async function videoShow() {//v on the sheet: the video panel, in the sheet's window at the panel's own size and a new place
 	if (showing.value != 'Sheet') return//the panel comes from the sheet alone
@@ -430,6 +430,8 @@ async function videoShow() {//v on the sheet: the video panel, in the sheet's wi
 			await windowMaximized(w, false)
 			videoSheet.frame = await windowFrame()//the sheet's frame, which for a maximized sheet is the one it restores to
 			await windowFrameSet(rectSheet(areas.work, videoSize))//the panel's size, or the sheet's preset on a work area too small for it, at a new random place, as a sheet is placed
+			await w.setDecorations(false)//the title bar off after the frame, never before, for the reason placeWindow gives; a window keeps its frame as its title bar goes, and the page grows to fill it
+			await getCurrentWebview().setFocus()//a change of title bar drops the keyboard on the mac, as the essay above fullscreenSet says
 		}
 		showing.value = 'Video'
 		await nextTick()
@@ -440,11 +442,15 @@ async function videoHide() {//every road out of the video panel: the sheet back 
 	let w = getCurrentWindow()
 	await curtained(async () => {
 		await fullscreenSet(false)//out of fuji's own fullscreen first, if the panel is in it, back to the panel's window as the platform kept it
-		if (videoSheet && !await windowInSpace(w)) {//a panel the user took into a macOS Space comes back to the sheet there
-			await windowMaximized(w, false)//a panel the user maximized comes back first, since window_frame_set measures the title bar the window has now, and a maximized window on windows has part of its own off the top of the screen
-			await windowFrameSet(videoSheet.frame)
+		if (videoSheet && await windowInSpace(w)) await w.setDecorations(true)//a panel the user took into a macOS Space comes back to the sheet there, given back only its title bar, which tao puts on as the window leaves the Space
+		else if (videoSheet) {
+			await windowMaximized(w, false)//a panel the user maximized comes back first, since window_frame_set measures the window as it is now, and a maximized window on windows has part of itself off the top of the screen
+			await windowFrameSet(videoSheet.frame)//the frame first and the title bar after, for the reason placeWindow gives
+			await w.setDecorations(true)
+			await windowFrameSet(videoSheet.frame)//and the frame again, now that the title bar is there to measure: the mac keeps the content as a title bar arrives and grows the frame up around it, as sheetFromPreview finds, where windows keeps the frame and is asked for the one it has
 			await windowMaximized(w, videoSheet.maximized)
 		}
+		await getCurrentWebview().setFocus()//the change of title bar drops the keyboard on the mac, as the essay above fullscreenSet says
 		videoSheet = null//after the sheet's window has arrived, so whatever recordSheet records from here is the sheet's own
 		showing.value = 'Sheet'
 		await nextTick()
