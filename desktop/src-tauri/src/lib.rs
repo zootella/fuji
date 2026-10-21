@@ -124,6 +124,7 @@ pub fn run() {
 				window::window_note,
 				window::window_title_hide,
 				window::window_constraint_lift,
+				window::window_drag,
 				window::window_frame,
 				window::window_frame_set,
 				window::window_fullscreen_enter,

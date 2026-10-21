@@ -272,6 +272,111 @@ fn window_constraint_said(asked: objc2_foundation::NSRect, own: objc2_foundation
 }
 
 /*
+A drag fuji runs itself.
+
+window_drag moves a window with the pointer from the moment the page asks, while the left button is down, until it comes up, placing the window itself on every move rather than handing the drag to the platform. That is what lets a window go past the top of the screen: the Mac's own drag is WindowServer's, which holds a window below the menu bar whatever AppKit allows, and Windows' own move loop keeps a window's top on the screen, while a window its application places goes where it is put, on the Mac once window_constraint_lift has freed it. It also leaves out what the platforms' drags bring, Snap and shake on Windows, and tiling and the move into another Space on the Mac. Keeping the window on the screen instead, with its contents rolling up inside it at the top, was weighed and set aside, since it needs a drag of fuji's own as well and breaking past the top worked; the one cost expected of a drag fuji runs, that the window would trail the pointer, did not come, and on the Mac mini it was as smooth as the Mac's own.
+
+On the Mac a monitor of the application's mouse events, installed with the first drag and kept for the life of the process as touch.rs keeps its own, follows each drag event with AppKit's own reading of where the pointer is, which a window moving under it cannot throw off, and moves the window's frame at once on the main thread, the way Chromium drags a tab; a window in a macOS Space stays where it is, as under the Mac's own drag. On Windows the window takes the mouse, and a subclass on its window procedure places it on every move, until the button comes up or another window takes the mouse; a maximized window takes Windows' own drag instead, which restores it as the drag begins. Linux takes the desktop's own drag always, since Wayland lets no application place its own window.
+*/
+#[cfg(target_os = "macos")]
+static WINDOW_DRAG: Mutex<Option<(WebviewWindow, (f64, f64), (f64, f64))>> = Mutex::new(None);//the window being dragged, and where the pointer and the window's corner were as the drag began, in points from the bottom left of the main screen; none between drags
+#[cfg(target_os = "windows")]
+static WINDOW_DRAG: Mutex<Option<((i32, i32), (i32, i32))>> = Mutex::new(None);//where the pointer and the dragged window's outer corner were as the drag began, in backing pixels; none between drags, and the window is the one the subclass is on
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn window_drag_held<T>(drag: &'static Mutex<T>) -> std::sync::MutexGuard<'static, T> { drag.lock().unwrap_or_else(|p| p.into_inner()) }//take the drag even if a previous holder panicked
+
+/// Move this window with the pointer until the left button comes up, fuji placing it on every move, so it goes past the screen's edges and the menu bar where the platform's own drag would stop it; on Linux, the desktop's own drag
+#[cfg(target_os = "macos")]
+#[command]
+pub fn window_drag(window: WebviewWindow) -> Result<(), String> {
+	use objc2_app_kit::{NSEvent, NSWindow};
+	static MONITOR: OnceLock<()> = OnceLock::new();
+	MONITOR.get_or_init(window_drag_monitor);
+	if NSEvent::pressedMouseButtons() & 1 == 0 { return Ok(()) }//the button already up, so there is no drag to follow
+	let ns_window: &NSWindow = unsafe { &*(window.ns_window().map_err(|e| e.to_string())? as *const NSWindow) };//the NSWindow tauri built, on the main thread, where a plain command runs
+	if ns_window.styleMask().contains(objc2_app_kit::NSWindowStyleMask::FullScreen) { return Ok(()) }//in a macOS Space, which a drag leaves where it is, as the Mac's own drag does
+	let (pointer, corner) = (NSEvent::mouseLocation(), ns_window.frame().origin);
+	*window_drag_held(&WINDOW_DRAG) = Some((window, (pointer.x, pointer.y), (corner.x, corner.y)));
+	Ok(())
+}
+#[cfg(target_os = "macos")]
+fn window_drag_monitor() {//every left drag and release in the application, before any window sees it, passed on unchanged: a drag moves the window being dragged, if there is one, and a release ends it
+	use block2::RcBlock;
+	use objc2_app_kit::{NSEvent, NSEventMask, NSEventType, NSWindow};
+	use objc2_foundation::NSPoint;
+	let block = RcBlock::new(|event: std::ptr::NonNull<NSEvent>| -> *mut NSEvent {//appkit calls this on the main thread
+		let kind = unsafe { event.as_ref() }.r#type();
+		if kind == NSEventType::LeftMouseUp { window_drag_held(&WINDOW_DRAG).take(); }
+		if kind == NSEventType::LeftMouseDragged {
+			let drag = window_drag_held(&WINDOW_DRAG).clone();//let go of the lock before appkit moves anything
+			if let Some((window, from, corner)) = drag {
+				if let Ok(address) = window.ns_window() {//none once the window has gone, and then nothing moves
+					let ns_window: &NSWindow = unsafe { &*(address as *const NSWindow) };
+					let pointer = NSEvent::mouseLocation();
+					ns_window.setFrameOrigin(NSPoint::new(corner.0 + pointer.x - from.0, corner.1 + pointer.y - from.1));//at once, since this is the main thread, where tao's own set_position would wait a turn
+				}
+			}
+		}
+		event.as_ptr()
+	});
+	let token = unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(NSEventMask::LeftMouseDragged | NSEventMask::LeftMouseUp, &block) };
+	std::mem::forget(token); std::mem::forget(block);//the monitor lives as long as the process, as touch.rs's does
+}
+
+#[cfg(target_os = "windows")]
+const WINDOW_DRAG_SUBCLASS: usize = 0x6472_6167;//the id the drag's subclass goes on the window under, its own, so taking it off touches no other
+#[cfg(target_os = "windows")]
+#[command]
+pub fn window_drag(window: WebviewWindow) -> Result<(), String> {
+	use windows::Win32::Foundation::{HWND, POINT, RECT};
+	use windows::Win32::UI::Input::KeyboardAndMouse::SetCapture;
+	use windows::Win32::UI::Shell::SetWindowSubclass;
+	use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, GetWindowRect, IsZoomed};
+	let h = HWND(window.hwnd().map_err(|e| e.to_string())?.0);
+	if unsafe { IsZoomed(h) }.as_bool() { return window.start_dragging().map_err(|e| e.to_string()) }//maximized: Windows' own drag, which restores the window as it begins, as a title bar's does
+	let (mut pointer, mut outer) = (POINT::default(), RECT::default());
+	unsafe { GetCursorPos(&mut pointer) }.map_err(|e| e.to_string())?;
+	unsafe { GetWindowRect(h, &mut outer) }.map_err(|e| e.to_string())?;//the outer rectangle, invisible border and all, which the drag moves by the pointer's distance and so needs no visible frame
+	*window_drag_held(&WINDOW_DRAG) = Some(((pointer.x, pointer.y), (outer.left, outer.top)));
+	if !unsafe { SetWindowSubclass(h, Some(window_drag_proc), WINDOW_DRAG_SUBCLASS, 0) }.as_bool() { window_drag_held(&WINDOW_DRAG).take(); return Err("the drag could not watch the window".into()) }
+	unsafe { SetCapture(h) };//the mouse is this window's until the button comes up, wherever the pointer goes; a button already up shows on the first move, which ends the drag
+	Ok(())
+}
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn window_drag_proc(h: windows::Win32::Foundation::HWND, message: u32, w: windows::Win32::Foundation::WPARAM, l: windows::Win32::Foundation::LPARAM, _id: usize, _data: usize) -> windows::Win32::Foundation::LRESULT {//the dragged window's messages while the drag lasts, each passed on after
+	use windows::Win32::Foundation::POINT;
+	use windows::Win32::System::SystemServices::MK_LBUTTON;
+	use windows::Win32::UI::Shell::DefSubclassProc;
+	use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, WM_CAPTURECHANGED, WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCDESTROY};
+	let held = w.0 & MK_LBUTTON.0 as usize != 0;//the logical left button, which follows the user's choice to swap the buttons
+	match message {
+		WM_MOUSEMOVE if held => {
+			let drag = *window_drag_held(&WINDOW_DRAG);
+			let mut pointer = POINT::default();
+			if let (Some((from, corner)), Ok(())) = (drag, unsafe { GetCursorPos(&mut pointer) }) {
+				let _ = unsafe { SetWindowPos(h, None, corner.0 + pointer.x - from.0, corner.1 + pointer.y - from.1, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE) };//at once, on the thread that owns the window
+			}
+		}
+		WM_MOUSEMOVE | WM_LBUTTONUP => window_drag_end(h, true),//the button is up, whether the release came or a move without it
+		WM_CAPTURECHANGED | WM_NCDESTROY => window_drag_end(h, false),//another window took the mouse, so the drag is over and there is nothing to release; or the window is going, and Microsoft asks that a subclass come off before it does
+		_ => {}
+	}
+	unsafe { DefSubclassProc(h, message, w, l) }
+}
+#[cfg(target_os = "windows")]
+fn window_drag_end(h: windows::Win32::Foundation::HWND, release: bool) {//the subclass off first, so the release's own WM_CAPTURECHANGED finds nothing of the drag's
+	use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
+	use windows::Win32::UI::Shell::RemoveWindowSubclass;
+	window_drag_held(&WINDOW_DRAG).take();
+	let _ = unsafe { RemoveWindowSubclass(h, Some(window_drag_proc), WINDOW_DRAG_SUBCLASS) };
+	if release { let _ = unsafe { ReleaseCapture() }; }
+}
+
+#[cfg(target_os = "linux")]
+#[command]
+pub fn window_drag(window: WebviewWindow) -> Result<(), String> { window.start_dragging().map_err(|e| e.to_string()) }
+
+/*
 Fuji's own fullscreen, and what the windows in it share.
 
 Fuji's fullscreen is tao's simple fullscreen, and the page reaches it only through the two commands below, in and out. On the Mac it hides the menu bar and the dock as well, and those belong to the application rather than to a window. tao saves what they were doing as a window goes in and puts that back as the same window comes out, read in tao 0.35.3, which is right for one window and wrong for two: the second window in saves them hidden, so a first that comes out before it brings the menu bar and dock back over a window still in fuji's fullscreen, and the second coming out then hides them again with no window in it, for the rest of the run. So Rust keeps the windows in fuji's fullscreen and answers for the application: while any window is still in it the menu bar and dock stay as they are, and as the last one comes out they go back to what they were doing before the first went in. A window that closes without coming out comes off the list as it goes, so the last one out is never missed. Windows and Linux have nothing to share, since there it is the platform's ordinary fullscreen, which keeps nothing for the application.
@@ -794,7 +899,7 @@ fn video_webview(window: &WebviewWindow) -> Result<usize, String> {//the address
 	Ok(web)
 }
 #[cfg(target_os = "macos")]
-fn video_frame(webview: &objc2_app_kit::NSView, parent: &objc2_app_kit::NSView, scale: f64, x: i32, y: i32, width: i32, height: i32) -> objc2_foundation::NSRect {//a rectangle of the page, in backing pixels from the page's top left, as a frame in the superview's points. The page's top left is the top left of the window's content layout rectangle, the part no title bar covers: where the web view starts below a title bar the two are the same, and where it runs up under one, WebKit insets the page by the bar, which showed as a title bar's height of white under the video in a window and none in fuji's fullscreen, on the Mac mini on 2026-10-16
+fn video_frame(webview: &objc2_app_kit::NSView, parent: &objc2_app_kit::NSView, scale: f64, x: i32, y: i32, width: i32, height: i32) -> objc2_foundation::NSRect {//a rectangle of the page, in backing pixels from the page's top left, as a frame in the superview's points. The page's top left is the top left of the window's content layout rectangle, the part no title bar covers: where the web view starts below a title bar the two are the same, and where it runs up under one, WebKit insets the page by the bar, which showed as a title bar's height of white under the video in a window and none in fuji's fullscreen, on the Mac mini on 2026-10-16. A title bar drawn transparent over a full-size page, as a video window's is, insets nothing, so there the page's top left is the window's own and this lands the view a title bar too low, read in WebKit's PageClientImplMac.mm; such a window needs the content view's top left instead, which nothing here does yet
 	use objc2_foundation::{NSPoint, NSRect, NSSize};
 	let (x, y, width, height) = (x as f64 / scale, y as f64 / scale, width as f64 / scale, height as f64 / scale);//into points, which a frame is in
 	let Some(window) = webview.window() else { return NSRect::new(NSPoint::new(x, y), NSSize::new(width, height)) };

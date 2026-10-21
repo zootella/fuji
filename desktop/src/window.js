@@ -5,6 +5,7 @@ import {invoke} from '@tauri-apps/api/core'
 export function windowEngine() { return invoke('window_engine') }//the version of the web engine drawing this window, as the platform reports it; the page names the engine, which is fixed per platform
 export function windowNew(note) { return invoke('window_new', {note}) }//another window of this application, made hidden, whose page takes this note as it mounts; window.rs holds the word and never reads it
 export function windowNote() { return invoke('window_note') }//the note this window was made with, taken away as it answers; blank for a window the operating system, the dock or the menu bar asked for
+export function windowDrag() { return invoke('window_drag') }//move this window with the pointer until the left button comes up, placed by fuji on every move on the mac and windows, so it goes past the screen's edges and the menu bar where the platform's own drag would stop it; on linux, the desktop's own drag
 export function windowConstraintLift() { return invoke('window_constraint_lift') }//let this window go anywhere and be any size, past the screen's edges and over the menu bar, with the mac's constraint lifted for it alone. Nothing elsewhere
 export function windowTitleHide() { return invoke('window_title_hide') }//stop drawing this window's title in its title bar, on the mac, where the bar keeps its buttons; the title stays set for the menus and taskbars that list windows. Nothing elsewhere
 export function windowFrame() { return invoke('window_frame') }//{x, y, width, height} of the visible frame
