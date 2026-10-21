@@ -26,7 +26,7 @@ const props = defineProps({
 
 const videoSize = {width: 800, height: 600}//the window every time it appears, in css pixels, which with no title bar is the page's own size; a size to start from, until the window takes a video's own
 const titleBarAssumed = 28//a title bar's height in css pixels, where this window does not measure its own: always on linux, where the window manager adds the frame only once a window is first shown, or GTK draws it, and nobody has seen whether a hidden window counts it; and on the mac and windows when the measurement comes back with no height. The Mac's own, measured on the Mac mini with Sequoia
-const frame = ref(titleBarAssumed)//the thickness of the frame and the spacer, in css pixels, which the platform's own title bar sets, so this window's chrome is as heavy as a window's with one
+const frame = ref(titleBarAssumed)//the margin around this window's contents and between its screen and its text, in css pixels, as wide as the platform's own title bar, so the edge of a window without one is as deep as the edge of a window with one
 const dragAfter = 4//how far the pointer moves along either axis, in css pixels with the button down, before a press is a drag
 let press = null//where the left button went down, or null while it is up and once the press has become a drag
 let fullscreenOurs = false//fuji's own simple fullscreen is on in this window, which tauri will not report on the mac
@@ -114,29 +114,27 @@ async function reportTrouble(work) {//a window event is where the platform start
 <template>
 
 <div class="myVideo myMono bg-paper text-strong w-full h-full flex flex-col overflow-hidden select-none" :style="{'--frame': `${frame}px`}" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu"><!-- hidden overflow, so a window too short for its text cuts the text off rather than growing a scroll bar -->
-	<div class="myStage"><div class="myScreen mx-auto"></div></div><!-- the room for the screen, centered left to right in it -->
-	<div class="myPage grow wrap-break-word">{{path ? backize(path) : 'V I D E O'}}<button class="ml-[2ch]" @click="reportTrouble(closeWindow)">Close</button></div><!-- the page below the spacer, which takes whatever height the screen leaves, its text in plain flow from the top left, wrapping a long path at the window's width -->
+	<div class="myStage"><div class="myScreen bg-screen mx-auto"></div></div><!-- the room for the screen, centered left to right in it -->
+	<div class="myPage grow wrap-break-word">{{path ? backize(path) : 'V I D E O'}}<button class="ml-[2ch]" @click="reportTrouble(closeWindow)">Close</button></div><!-- the page below the screen, which takes whatever height the screen leaves, its text in plain flow from the top left, wrapping a long path at the window's width -->
 </div>
 
 </template>
 <style scoped>
 
-/* a placeholder layout, the frame, the screen and the spacer in CSS's own red, blue and green, outside fuji's palette in index.css because all three are scaffolding the video will replace */
 .myVideo {
-	border: var(--frame) solid red; /* --frame is the page's, the platform's title bar, set on this element */
-	container-type: size; /* so the room below can measure the window inside the frame */
+	padding: var(--frame); /* a margin as wide as the platform's title bar, which the page sets on this element as --frame */
+	container-type: size; /* so the room below can measure the window inside that margin */
 }
 .myStage {
-	flex: 0 1 calc(100cqw * 9 / 16); /* as tall as a 16 by 9 screen across the window's whole width, and the one part that gives up height when the window is too short for that, the spacer and the text: a size container counts as empty, so its least height is nothing, where the page's is its spacer and text */
+	flex: 0 1 calc(100cqw * 9 / 16); /* as tall as a 16 by 9 screen across the window's whole width, and the one part that gives up height when the window is too short for that, the margin and the text: a size container counts as empty, so its least height is nothing, where the page's is its margin and text */
 	container-type: size; /* and the screen inside measures this room */
 }
 .myScreen {
 	width: min(100cqw, 100cqh * 16 / 9); /* the room's whole width, or 16 by 9 at the room's whole height once the room has shrunk, whichever is less, so the screen always fits */
 	aspect-ratio: 16 / 9;
-	background-color: blue;
 }
 .myPage {
-	border-top: var(--frame) solid green; /* the spacer, as thick as the frame */
+	padding-top: var(--frame); /* the same space again between the screen and the text */
 }
 
 .myVideo button { /* Close, which the reset leaves bare: underlined, with the hand, as the empty sheet's buttons are */
