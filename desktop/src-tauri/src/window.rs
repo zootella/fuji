@@ -195,6 +195,18 @@ fn window_browser_keys_off(_window: &WebviewWindow) {}//the web views on macOS a
 #[command]
 pub fn window_engine() -> Result<String, String> { tauri::webview_version().map_err(|e| e.to_string()) }//the error is wry's rather than tauri's, so it is turned into text here as the other modules' are
 
+/// Stop drawing this window's title in its title bar, which stays, with its buttons; the title itself stays set, for the menus and taskbars that list windows by it. The Mac's alone, where a title bar can keep its buttons without its title, and where tao and tauri hide a title only as a window is built; nothing elsewhere
+#[command]
+pub fn window_title_hide(window: WebviewWindow) -> tauri::Result<()> {
+	#[cfg(target_os = "macos")] {
+		let ns_window: &objc2_app_kit::NSWindow = unsafe { &*(window.ns_window()? as *const objc2_app_kit::NSWindow) };//the NSWindow tauri built, read on the main thread, where a plain command runs and AppKit wants it
+		ns_window.setTitleVisibility(objc2_app_kit::NSWindowTitleVisibility::Hidden);
+	}
+	#[cfg(not(target_os = "macos"))]
+	let _ = window;
+	Ok(())
+}
+
 /*
 Fuji's own fullscreen, and what the windows in it share.
 

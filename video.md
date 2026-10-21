@@ -18,7 +18,7 @@ Questions: Can the view's rectangle follow a drag on the table frame for frame, 
 
 ## Bigger than the screen (nicknamed "BigVideoWindow")
 
-A video larger than the screen, shown at one of its pixels per panel pixel, the way a phone's video would be on a Retina Mac. The player needs nothing new for it, since mpv draws at any size and the native view can be any size. What needs building is the window. It has no title bar, it grows past the screen to the video's own size, and the drag that moves it from anywhere on the video carries it off any of the four edges of the screen, so the user brings the part they want into view. That holds on Windows, the Mac and Linux alike.
+A video larger than the screen, shown at one of its pixels per panel pixel, the way a phone's video would be on a Retina Mac. The player needs nothing new for it, since mpv draws at any size and the native view can be any size. What needs building is the window. It grows past the screen to the video's own size, and the drag that moves it from anywhere on the video carries it off any of the four edges of the screen, so the user brings the part they want into view. That holds on Windows, the Mac and Linux alike.
 
 That window is a native window of its own, decided on 2026-10-21: a video window stands beside the contact sheet rather than taking its place, there can be several, and it shares none of a browsing window's state, so it is made for the video alone.
 
@@ -40,6 +40,7 @@ The recipe leaves mpv's gpl option at its default, on, and FFmpeg's off. The fil
 
 ## Beside playback
 
+- **A double-click on the sheet.** Once the contact sheet lists videos, a double-click on one opens it in a video window, through `window_build` like every other way to one; until then v asks for an empty one.
 - **A frame for the sheet.** A video's thumbnail. The operating system's thumbnailer can make a frame of a video on Windows and the Mac, which `thumbnail.rs` does not ask for. Linux has no native route, and `media_frame` serves it, a frame from any video the library plays, already turned and with its pixels made square, and may serve all three if it is as fast. At what point in the file is a thumbnail question, open now that video is switched on.
 
 ## What could break, and has not yet

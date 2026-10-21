@@ -122,6 +122,7 @@ pub fn run() {
 				window::window_engine,//and in window.rs
 				window::window_new,
 				window::window_note,
+				window::window_title_hide,
 				window::window_frame,
 				window::window_frame_set,
 				window::window_fullscreen_enter,

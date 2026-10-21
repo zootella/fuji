@@ -71,18 +71,15 @@ Every color fuji paints is named here, for the job it does, and the templates an
 	--color-line:      light-dark(#d4d4d4, #404040);/* a border */
 	--color-edge:      light-dark(#a3a3a3, #525252);/* a stronger border, around a card that floats */
 	--color-shade:     light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));/* a shadow */
+	--color-deep:      light-dark(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7));/* a deeper shadow, under the video window's screen */
 	--color-hud-ink:   light-dark(rgba(0, 0, 0, 0.8), rgba(255, 255, 255, 0.8));/* a hud's text, see-through */
 	--color-hud-smoke: light-dark(rgba(255, 255, 255, 0.4), rgba(0, 0, 0, 0.4));/* a hud's plastic, frosted in light and smoky in dark */
 
-	--color-caption-hover:        light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));     /* a window button fuji draws, minimize or maximize, under the pointer: the glyph's own black or white at a tenth, which Chromium copies from Windows 10's own, and fuji's own buttons on linux */
-	--color-caption-press:        light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.2));     /* and pressed, at a fifth */
-	--color-caption-hover-eleven: light-dark(rgba(0, 0, 0, 0.035), rgba(255, 255, 255, 0.06)); /* Windows 11's, fainter: the subtle fills Windows Terminal takes from WinUI for its own copy */
-	--color-caption-press-eleven: light-dark(rgba(0, 0, 0, 0.024), rgba(255, 255, 255, 0.04)); /* and pressed, fainter still, as WinUI has it */
-	--color-close:                #e81123;                                                     /* close under the pointer, Windows 10's red, the same in both */
-	--color-close-press:          rgba(232, 17, 35, 0.6);                                      /* and pressed, the red at the alpha Chromium copies */
-	--color-close-eleven:         #c42b1c;                                                     /* Windows 11's red, which fuji's own buttons on linux take too */
-	--color-close-press-eleven:   rgba(196, 43, 28, 0.9);                                      /* and pressed, at nine tenths, as Windows Terminal has it */
-	--color-on-close:             #ffffff;                                                     /* the glyph on either red, white in both */
+	--color-caption-hover: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));/* a window button fuji draws, minimize or maximize, under the pointer, on every platform: the drawing's own black or white at a tenth, as Chromium copies it from Windows 10's own */
+	--color-caption-press: light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.2));/* and pressed, at a fifth */
+	--color-close:         #e81123;                                                 /* close under the pointer, Windows 10's bright red, the same in both */
+	--color-close-press:   rgba(232, 17, 35, 0.6);                                  /* and pressed, the red at the alpha Chromium copies */
+	--color-on-close:      #ffffff;                                                 /* the drawing on the red, white in both */
 }
 @layer base {
 	html { color-scheme: light dark } /* the page is drawn in both, so every light-dark() above, and the engine's own scrollbars and form controls, follow the window's theme */
