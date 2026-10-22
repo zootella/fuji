@@ -30,7 +30,7 @@ importers:
         specifier: ^0.1.3
         version: 0.1.3
       lucide-static:
-        specifier: 1.59.0
+        specifier: ^1.59.0
         version: 1.59.0
       path-browserify:
         specifier: ^1.0.1

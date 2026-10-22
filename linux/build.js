@@ -24,9 +24,9 @@ Reproducibility is what makes "clean" mean something. pnpm-lock.yaml and Cargo.l
 
 ## The whitelist, and why it is a whitelist
 
-Four things go in — the root package.json, pnpm-workspace.yaml, pnpm-lock.yaml, and the desktop workspace. Nothing else, and the list is stated positively rather than as a set of exclusions, because a whitelist fails closed. The concrete thing it keeps out is the .env at the repository root, which holds the deploy host, both account names and the path to the installer upload key; that file has no business inside a container or baked into an image layer. .git goes the same way.
+The whitelist below names what goes in, and nothing else does. The list is stated positively rather than as a set of exclusions, because a whitelist fails closed. The concrete thing it keeps out is the .env at the repository root, which holds the deploy host, both account names and the path to the installer upload key; that file has no business inside a container or baked into an image layer. .git goes the same way.
 
-Neither the site workspace nor this one goes in, and nothing misses them. pnpm-workspace.yaml names all three and pnpm-lock.yaml has an importer for each, and pnpm simply does not find the two directories and carries on — verified, with --frozen-lockfile, installing 59 packages, all of them desktop's. So the shared lockfile gives reproducibility without dragging the website's dependency tree, or this workspace's own commands, into a build that wants neither.
+The other workspaces stay out, and nothing misses them. pnpm-workspace.yaml names every workspace and pnpm-lock.yaml has an importer for each, and pnpm simply does not find the missing directories and carries on, verified with --frozen-lockfile. So the shared lockfile gives reproducibility without dragging the website's dependency tree, or this workspace's own commands, into a build that wants neither.
 
 Source is mounted read only. A container cannot write into the working tree on the mac; the one writable thing it is given is release/.
 
@@ -76,9 +76,9 @@ const images = {
 	[`${brandStem}-flatpak:amd64`]: {file: 'Dockerfile.flatpak', platform: 'linux/amd64'},
 }
 
-//what goes into a container, said positively. desktop/ is copied whole except for the names below, which are all things a build makes rather than things a build needs
+//what goes into a container, said positively. desktop/ and scout/ are copied whole except for the names below, which are all things a build makes rather than things a build needs
 const whitelist = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'desktop', 'scout']//scout because fuji's rust depends on it by path
-const leaveBehind = ['node_modules', 'target', 'dist', 'release', '.DS_Store']
+const leaveBehind = ['node_modules', 'target', 'dist', 'release', '.DS_Store', 'corpus', 'artifacts']//corpus and artifacts are what pnpm fuzz leaves in scout/fuzz, thousands of small files a build never reads
 
 function run(args, options = {}) {//one place that shells out, so every docker invocation looks the same
 	execFileSync('docker', args, {stdio: 'inherit', ...options})
