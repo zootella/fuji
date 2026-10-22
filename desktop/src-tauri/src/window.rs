@@ -12,7 +12,7 @@ use crate::open;
 /*
 Making fuji's windows, saying where one is, and deciding how long fuji outlives them. This is here rather than in tauri.conf.json because a window is no longer a thing there is exactly one of: each is made when it is asked for, under a label counted for it.
 
-**How many, and who asks for one.** A window is made for the pictures it will show, and `window_build` is the only way one comes into being. Every launch on every platform makes one through `window_first`, when the application loop is ready, for whatever the command line handed over — unless a double-click on the mac has already made one, which `window_first` explains. On macOS a window is made again whenever the running application is told to open something, and again when the user clicks a dock icon with no windows behind it. Windows and Linux never make a second one for the operating system, because their shells start another process instead. On every platform the page can ask for another window through `window_new`, handing it a note its own page reads as it mounts, which is how a video window comes to sit beside the contact sheet: so a process on Windows and Linux holds one window for a launch and as many more as the page asks for, a process on the Mac holds any number, and the same function serves them all without knowing which.
+**How many, and who asks for one.** A window is made for the pictures it will show, and `window_build` is the only way one comes into being. Every launch on every platform makes one through `window_first`, when the application loop is ready, for whatever the command line handed over — unless a double-click on the mac has already made one, which `window_first` explains. On macOS a window is made again whenever the running application is told to open something, and again when the user clicks a dock icon with no windows behind it. Windows and Linux never make a second one for the operating system, because their shells start another process instead. On every platform the page can ask for another window through `window_new`, handing it a note its own page reads as it mounts, which is how a video window comes to sit beside the contact sheet. The Mac is the special case there too: its window joins the process that asked, so the Dock keeps one icon, while everywhere else `window_new` starts a copy of fuji with the note on its command line, and the copy's `window_first` makes the window, as for a launch from the file manager. So a process on the Mac holds any number of windows, and a process anywhere else holds one, whatever opened it, which is what the user sees: two video windows and a contact sheet are three processes, and a decoder that crashes on an old file takes only its own window with it.
 
 **Why the platforms differ at all, since a process per window everywhere would be simpler.** Because the macOS Dock will not have it. Measured on the Mac mini, macOS 15.7.4, 2026-09-13: two running copies of one bundle appear to LaunchServices as two foreground applications — separate serial numbers under a single bundle identifier — and the Dock draws a tile per foreground application rather than per bundle. So several fujis would be a row of identical icons with nothing able to merge them. Windows and Linux hide the same architecture — the Windows taskbar combines buttons for one executable, and GNOME and KDE group by `WM_CLASS` — so macOS is the only shell of the three that needs code.
 
@@ -32,8 +32,10 @@ Windows and Linux start a copy of fuji for each picture opened, and Explorer sta
 
 Three rules answer it. A copy's first window takes a turn, holding a lock on a file until its page begins to load, when the web engine is up and the next copy can join it. A flurry opens one window: the copy that takes the turn stamps the file with its launch moment, as the file's modified time, which other copies can read through the lock, and a copy launched within WINDOW_FLURRY of the stamp leaves before making anything. A user who opens a folder's worth of pictures has one to look at, and the rest a flip or a contact sheet away; a copy launched later is a deliberate second launch, and waits its turn for a window of its own. And a copy whose first page never begins to load exits after WINDOW_ARRIVAL_WAIT, so whatever goes wrong, nothing is left running without a window. The one failure that last rule cannot see is a page that begins to load and then never reveals its window, since arriving is all it checks; none has been seen. Tauri's page load was seen reaching the watchdog with WebView2 on the Windows box and with WKWebView on the Mac mini on 2026-09-30, where a development window stayed past the twenty seconds; WebKitGTK is still to be seen, and win2linux.md asks.
 
-The mac opens a selection as one window already, since Finder hands it over in one event: seen on the Mac mini on 2026-09-30, five pictures opened together making one window whether fuji was running or not. A process's later windows never take a turn, on the Mac or anywhere a page asks for one, because they join a web engine already running in the same process.
+The mac opens a selection as one window already, since Finder hands it over in one event: seen on the Mac mini on 2026-09-30, five pictures opened together making one window whether fuji was running or not. A process's later windows never take a turn, because they join a web engine already running in the same process, which on the Mac is how every window a page asks for comes. Off the Mac a page's ask is a copy of fuji, which takes its turn like any launch, since it is a second process joining the data folder, but is never part of a flurry: it neither leaves for a stamp nor stamps the file, so two quick asks make two windows, and an ask never swallows a launch from the file manager that lands beside it.
 */
+#[cfg(not(target_os = "macos"))]
+const WINDOW_NOTE_SWITCH: &str = "--note=";//off the mac, how window_new hands a copy of fuji the note its window is for, on the command line, as --note=Video; open_argv passes it by, since it names no file
 const WINDOW_TURN_FILE: &str = "window-turn.lock";//empty, in the app's local data folder beside the web engine's own; its modified time is the stamp
 const WINDOW_TURN_WAIT: Duration = Duration::from_secs(4);//the longest a deliberate launch waits behind another copy's turn before going ahead regardless: meant to outlast a cold start on a slow machine, which is reasoned rather than measured, and harmless when long, since a waiting copy goes the moment the turn is free
 const WINDOW_FLURRY: Duration = Duration::from_millis(200);//how close two launches must be to count as one flurry. Explorer started five copies within a tenth of a second, and fifteen across about 430 ms, which made two windows and is fine; a person's second double-click comes later than this
@@ -66,14 +68,15 @@ pub fn window_build(app: &AppHandle, paths: Vec<String>, note: String) -> tauri:
 /// Make fuji's first window, unless something has already made one, which is how a launch produces exactly one window however it was started
 pub fn window_first(app: &AppHandle, paths: Vec<String>) {
 	if !app.webview_windows().is_empty() { return }//a picture opened by double-click has already been given a window: measured on the Mac mini 2026-09-14, macOS delivers that event 39 milliseconds before setup() even runs and 52 before the one that calls this, so by now it is done. Only the second number is load-bearing; the first is worth knowing because a double-click builds fuji's first window before fuji has finished setting itself up, which is the opposite of what anyone adding to setup() would assume. Making a window in setup instead of here is what used to open two, one of them blank
+	let note = window_note_launched();//the note a page started this copy with, off the mac; blank for every launch the operating system makes, and always on the mac
 	let app = app.clone();
-	std::thread::spawn(move || {//nothing has, so this is an ordinary launch: empty from the dock, or on the pictures the command line carried, which is how windows and linux hand over a double-click. On a thread of its own, because taking a turn can mean waiting, and the main thread has to stay free to make the window
-		match window_turn(&app) {//the essay above says why
+	std::thread::spawn(move || {//nothing has, so this is an ordinary launch: empty from the dock, or on the pictures the command line carried, which is how windows and linux hand over a double-click, or off the mac a copy a page started, with its note. On a thread of its own, because taking a turn can mean waiting, and the main thread has to stay free to make the window
+		match window_turn(&app, note.is_empty()) {//the essay above says why, and why a page's copy is never part of a flurry
 			WindowTurn::Flurry => { app.exit(0); return }//launched with the copy that won, which is already opening the one window, so leave having made nothing
 			WindowTurn::Taken(file) => *window_turn_held() = Some(file),//held until the first page begins to load
 			WindowTurn::Without => {}
 		}
-		window_open(&app, paths);
+		window_open_noted(&app, paths, note);
 		std::thread::sleep(WINDOW_ARRIVAL_WAIT);
 		if !WINDOW_ARRIVED.load(Ordering::Relaxed) { window_lost(&app) }//whichever way it failed, including the way tauri reports to nobody
 	});
@@ -86,16 +89,16 @@ enum WindowTurn {
 	Without,//no turn to be had, after WINDOW_TURN_WAIT or for want of the file, so the copy goes ahead regardless
 }
 
-//wait for this copy's turn to bring its web engine up, looking at the stamp before every try, so a copy in a flurry leaves the moment it can tell rather than when the winner is done
-fn window_turn(app: &AppHandle) -> WindowTurn {
+//wait for this copy's turn to bring its web engine up, looking at the stamp before every try, so a copy in a flurry leaves the moment it can tell rather than when the winner is done; a copy a page started passes false, and only waits
+fn window_turn(app: &AppHandle, flurries: bool) -> WindowTurn {
 	let Some(file) = window_turn_file(app) else { return WindowTurn::Without };
 	let began = Instant::now();
 	loop {
-		if window_flurry(&file) { return WindowTurn::Flurry }
+		if flurries && window_flurry(&file) { return WindowTurn::Flurry }
 		match file.try_lock() {
 			Ok(()) => {
-				if window_flurry(&file) { return WindowTurn::Flurry }//the winner can stamp and let go between the look above and this lock
-				let _ = file.set_modified(window_launched());//the stamp is this copy's now; a copy that cannot stamp still opens its window, and only a flurry behind it goes unrecognized
+				if flurries && window_flurry(&file) { return WindowTurn::Flurry }//the winner can stamp and let go between the look above and this lock
+				if flurries { let _ = file.set_modified(window_launched()); }//the stamp is this copy's now; a copy that cannot stamp still opens its window, and only a flurry behind it goes unrecognized
 				return WindowTurn::Taken(file)
 			}
 			Err(TryLockError::WouldBlock) if began.elapsed() < WINDOW_TURN_WAIT => std::thread::sleep(WINDOW_TURN_POLL),
@@ -140,16 +143,40 @@ fn window_lost(app: &AppHandle) {
 	if !window_stays_resident() { app.exit(1) }//the mac keeps its process resident on purpose, window or not
 }
 
-/// Make a window and report trouble to the log rather than to a caller who has nowhere to put it; the run event closure is that caller
-pub fn window_open(app: &AppHandle, paths: Vec<String>) {
-	if let Err(e) = window_build(app, paths, String::new()) { crate::log::log(&format!("window: could not make a window, {e}")) }//a window that never appears is worth a line, and there is nobody above to tell
+/// Make a window and report trouble to the log rather than to a caller who has nowhere to put it; the run event closure is that caller, and the menu bar and the dock, on the mac, the one platform that makes a window after a launch's first for anyone but a page
+#[cfg(target_os = "macos")]
+pub fn window_open(app: &AppHandle, paths: Vec<String>) { window_open_noted(app, paths, String::new()) }
+fn window_open_noted(app: &AppHandle, paths: Vec<String>, note: String) {//the same, holding a note for the page, which only a launch a page asked for carries
+	if let Err(e) = window_build(app, paths, note) { crate::log::log(&format!("window: could not make a window, {e}")) }//a window that never appears is worth a line, and there is nobody above to tell
 }
 
-/// Make another window of this application, holding this note for its page to take as it mounts: the page that asks chooses the word and the page that mounts reads it, and nothing here looks at it. Async, because Tauri's documentation warns that building a window from a plain command deadlocks on Windows, and the body runs on the blocking pool like every command that waits
+/// Make another window of this application, holding this note for its page to take as it mounts: the page that asks chooses the word and the page that mounts reads it, and nothing here looks at it. On the Mac the window joins this process. Async, because Tauri's documentation warns that building a window from a plain command deadlocks on Windows, and the body runs on the blocking pool like every command that waits
+#[cfg(target_os = "macos")]
 #[command]
 pub async fn window_new(app: AppHandle, note: String) -> Result<(), String> {
 	crate::run_blocking(move || window_build(&app, vec![], note).map(|_| ()).map_err(|e| e.to_string())).await
 }
+/// Off the Mac, start a copy of fuji with this note on its command line, whose first window holds it, so the window comes in a process of its own, as one opened from the file manager does; the essay atop this file says why
+#[cfg(not(target_os = "macos"))]
+#[command]
+pub async fn window_new(note: String) -> Result<(), String> {
+	crate::run_blocking(move || {
+		let program = std::env::current_exe().map_err(|e| e.to_string())?;//this program, wherever it was started from, a development build included
+		let mut copy = std::process::Command::new(program).arg(format!("{WINDOW_NOTE_SWITCH}{note}"))
+			.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null())//the copy says what it has to say in its own log, and a terminal shows only the window it started. On purpose: to watch a video window's own output in a development build, start fuji from the terminal on a video's path, as the file manager would, rather than bridging a copy's output back through this one
+			.spawn().map_err(|e| e.to_string())?;
+		std::thread::spawn(move || { let _ = copy.wait(); });//collected when it ends, which linux needs to keep a closed window's process from lingering as a zombie while this one runs, and windows does the same for free
+		Ok(())
+	}).await
+}
+
+//the note a page asked window_new for, off the mac, from this copy's command line; blank for every other launch
+#[cfg(not(target_os = "macos"))]
+fn window_note_launched() -> String {
+	std::env::args_os().skip(1).find_map(|argument| argument.to_str()?.strip_prefix(WINDOW_NOTE_SWITCH).map(String::from)).unwrap_or_default()//args_os, since an argument that is not utf-8 would panic args; such an argument is never the switch
+}
+#[cfg(target_os = "macos")]
+fn window_note_launched() -> String { String::new() }//on the mac a page's ask is a window in this process, so no launch carries a note
 
 /// The note this window was made with, taken away as it answers; blank for a window made without one, which is every window the operating system, the dock or the menu bar asks for
 #[command]

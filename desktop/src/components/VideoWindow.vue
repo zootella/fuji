@@ -7,7 +7,7 @@ import {platform, backize, revealWindow, windowTitle, screenAreas, rectSheet} fr
 import {settings, settingsLoad} from '../settings.js'
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'
 import {themeShow, facesShow} from '../appearance.js'
-import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowTitleHide, windowConstraintLift, windowDrag} from '../window.js'
+import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowTitleHide, windowConstraintLift, windowDrag, windowNew} from '../window.js'
 import {menuAnswer, menuEnable} from '../menu.js'//the mac's menu bar, which sends this window Fuji Help alone, and whose Edit items this window grays
 import {processOpen} from '../process.js'
 import {urlHelp, brandName} from '../brand.js'
@@ -25,7 +25,7 @@ On the mac the one menu bar serves this window too. It answers Fuji Help itself 
 */
 
 const props = defineProps({
-	path: {type: String, default: ''},//the video the operating system opened this window on, forwardized; blank for one v opened from the contact sheet
+	path: {type: String, default: ''},//the video the operating system opened this window on, forwardized; blank for one v opened
 })
 
 const buttonsOnMac = true//fuji draws its own three buttons on the mac as well, beside the real traffic lights, while they are being built and looked at; false leaves the mac its own alone
@@ -105,7 +105,8 @@ async function placeWindow() {//put the hidden window where it will first be see
 
 function onKey(e) {
 	if (e.altKey || e.ctrlKey || e.metaKey) return//chords are the system's, and on windows alt is, as the shell leaves it
-	if ((e.key == 'Escape' || e.key == 'v') && !e.repeat) reportTrouble(closeWindow)//escape as the close button does, from fuji's fullscreen too, as escape closes a table's window; and v, the key that opened it from the sheet. Once for a held key, as the shell closes a table's window, so the window behind, which takes the keyboard as this one goes, never gets the repeats
+	if (e.key == 'v' && !e.repeat) reportTrouble(() => windowNew('Video'))//v asks for another video window, as it does in a browsing window, and this one carries on; nothing here ever goes back to a browsing window
+	if (e.key == 'Escape' && !e.repeat) reportTrouble(closeWindow)//escape as the close button does, from fuji's fullscreen too, as escape closes a table's window. Once for a held key, as the shell closes a table's window, so the window behind, which takes the keyboard as this one goes, never gets the repeats
 }
 async function minimizeWindow() { await getCurrentWindow().minimize() }
 async function maximizeWindow() { await getCurrentWindow().toggleMaximize() }//maximized, or back to where it was; the resize that follows tells the middle button which to show

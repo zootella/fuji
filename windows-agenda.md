@@ -4,15 +4,11 @@ The Windows box's work for the session that began 2026-10-22, after eight days a
 
 ## BuildFloor
 
-**Open: the upload, before any rebuild.** The staged installer, `45e5a88a…`, is the build installed and looked at, its video window included, and its sidecar, `desktop/release/fuji.exe.json`, is already committed, in `e6f1fde`. `pnpm upload` sends it; it goes before VideoProcess builds anything, since a `pnpm hash` after a rebuild would rewrite that sidecar for a build that never went out.
+**Open: the upload, of one of two builds.** The staged installer, `45e5a88a…`, has its sidecar, `desktop/release/fuji.exe.json`, committed in `e6f1fde`, and `pnpm upload` sends it as it is. The bundle folder holds a newer one, `c8df6cd5…`, with `v` as a process of its own, the build installed and looked at last; sending it instead is `pnpm hash`, which rewrites the committed sidecar for it, then `pnpm upload` and a commit of the sidecar, and leaves `e6f1fde` recording a build that never went out.
 
-## VideoProcess
+## VideoSelection
 
-**Open, decided and not built.** The Mac is the special case: one process holds every window there, so the Dock shows one icon. Everywhere else one window is one process, whatever opened it, written in code as not the Mac rather than as Windows and Linux. Today `v` on the sheet calls `window_new`, which puts the video window in the sheet's process on every platform; off the Mac it should start a copy of fuji instead, by the same launch an Explorer double-click takes, so what the user sees is what fuji is doing, and a decoder that crashes on an old file takes down only its own window.
-
-- **Measure first.** With a test folder on the sheet and `v` pressed once, double-click two videos in Explorer, and list the processes: whether the fuji processes share one WebView2 browser process, since they share a data folder, is what each extra window costs.
-- **Two things to settle.** `v` with no video has no path to hand the new copy, so it needs a way to ask for an empty video window; and Windows makes one window of launches that start within 200 milliseconds of each other, for a selection opened together, which two quick presses of `v` must not trip.
-- **The documents that change with it.** `instances.md`'s opening paragraph, `window-check.md`'s How windows come to be and How windows go, and the essays in `window.rs` and `lib.rs` that name `window_new`; and LetterBack, since it changes the Mac's design of 2026-10-21 for every platform but its own.
+**A future question, found on 2026-10-22.** Several videos selected in Explorer and opened together with Enter start a copy of fuji each within milliseconds, and the flurry rule in `window.rs` keeps one window between them, the first copy's video, while the others exit without a window. For pictures that is the design, one window with the rest a flip away. For videos, each a window of its own, it may not be: the choices are a window for every video in the selection, or the one window as now. Nothing opens several videos together yet that the user would meet, so it waits for the contact sheet to list videos and for the user to decide.
 
 ## PanelVideo
 
@@ -28,4 +24,4 @@ The Windows box's work for the session that began 2026-10-22, after eight days a
 
 ## LetterBack
 
-**Open, filled as we go.** `win2mac.md` written fresh in answer to `mac2win.md`, with a section only for what the Mac needs to know or do, since everything else is in git. So far: nothing.
+**Open, filled as we go.** `win2mac.md` written fresh in answer to `mac2win.md`, with a section only for what the Mac needs to know or do, since everything else is in git. So far: one window, one process, everywhere but the Mac, and what the Mac should build and look at for it.
