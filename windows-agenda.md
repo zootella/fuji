@@ -4,16 +4,15 @@ The Windows box's work for the session that began 2026-10-22, after eight days a
 
 ## BuildFloor
 
-**Open: the upload and the release commit, after VideoWindow.** The build is staged, installed and looked at; `pnpm upload` sends it, and the release commit carries its sidecar, `desktop/release/fuji.exe.json`. It waits for VideoWindow because this is the first Windows build with the video window in it, and a fix there would replace the build anyway.
+**Open: the upload, before any rebuild.** The staged installer, `45e5a88a…`, is the build installed and looked at, its video window included, and its sidecar, `desktop/release/fuji.exe.json`, is already committed, in `e6f1fde`. `pnpm upload` sends it; it goes before VideoProcess builds anything, since a `pnpm hash` after a rebuild would rewrite that sidecar for a build that never went out.
 
-## VideoWindow
+## VideoProcess
 
-**Open.** The things in the letter's last section that only this machine can show, on the video window `v` opens from the sheet.
+**Open, decided and not built.** The Mac is the special case: one process holds every window there, so the Dock shows one icon. Everywhere else one window is one process, whatever opened it, written in code as not the Mac rather than as Windows and Linux. Today `v` on the sheet calls `window_new`, which puts the video window in the sheet's process on every platform; off the Mac it should start a copy of fuji instead, by the same launch an Explorer double-click takes, so what the user sees is what fuji is doing, and a decoder that crashes on an old file takes down only its own window.
 
-- **The resize band over the buttons.** Tauri lays a child window, `TAURI_DRAG_RESIZE_WINDOW`, across the top of an undecorated window, `SM_CYFRAME` deep. Bring the pointer slowly down onto fuji's buttons from above the window: the number wanted is how many pixels show the resize arrow before a button lights, at 100 percent and at 150.
-- **Maximize with no title bar.** The middle button should fill the work area with the taskbar still showing, the three buttons whole in the top right corner and the middle one showing restore, and a second press should bring the window back where it was.
-- **Fuji's own drag.** Dragged by its middle, the window should follow the pointer without lagging, snap to nothing, and go past the top of the screen as far as the pointer takes it, staying there on release. A click afterward should be an ordinary click. Maximized, the drag is Windows' own, which restores the window as it begins. A double-click should still go into fuji's fullscreen and back.
-- **Past the edges.** With the window partly above the top or past the taskbar: whether the taskbar covers it or it covers the taskbar, and whether Windows moves it back on its own after a monitor sleeps or when it is restored from the taskbar.
+- **Measure first.** With a test folder on the sheet and `v` pressed once, double-click two videos in Explorer, and list the processes: whether the fuji processes share one WebView2 browser process, since they share a data folder, is what each extra window costs.
+- **Two things to settle.** `v` with no video has no path to hand the new copy, so it needs a way to ask for an empty video window; and Windows makes one window of launches that start within 200 milliseconds of each other, for a selection opened together, which two quick presses of `v` must not trip.
+- **The documents that change with it.** `instances.md`'s opening paragraph, `window-check.md`'s How windows come to be and How windows go, and the essays in `window.rs` and `lib.rs` that name `window_new`; and LetterBack, since it changes the Mac's design of 2026-10-21 for every platform but its own.
 
 ## PanelVideo
 

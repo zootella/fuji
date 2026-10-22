@@ -174,7 +174,7 @@ async function reportTrouble(work) {//a window event is where the platform start
 	padding-top: var(--title-bar); /* the same space again between the screen and the text */
 }
 
-.myButtons button { /* each of the three window buttons, as tall as the band across the top and as wide as Windows 10 makes its own: Microsoft publishes no width, and 46 is the one Firefox and Windows Terminal both draw theirs at. Its drawing in the middle, and the arrow over it, as over a title bar */
+.myButtons button { /* each of the three window buttons, as tall as the band across the top and as wide as Windows 10 makes its own: Microsoft publishes no width, and 46 is the one Firefox and Windows Terminal both draw theirs at. Its drawing in the middle, and the arrow over it, as over a title bar. On Windows the top few pixels of each are the window's top edge rather than the button, Tauri's resize band, SM_CYFRAME deep at the window's DPI: 4 backing pixels at 100 and 125 percent and 5 at 150 and 175, read on the Windows box on 2026-10-22, where Windows' own buttons leave 1. Seen and left, since Tauri takes the band away from a maximized window, where buttons in the screen's corner matter most */
 	width: 46px;
 	height: var(--title-bar);
 	display: flex;
