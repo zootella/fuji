@@ -12,7 +12,7 @@ The Windows installer, made from the pieces Windows already has.
 
 This is the creator: it takes the program tauri built and the files tauri.conf.json says ride beside it, and makes one setup.exe that installs them with no interface at all. It is the descendant of the 2005 Zootella Setup Creator's Create.exe, a dialog box that packed a folder into a self-extracting program; the job is the same, and it moved from C to this file because the pipeline that calls it is already Node, on this machine and the Mac alike, and the only part of a Windows installer that must be native is the part a user runs. That part is setup.c beside this file, and this script compiles it fresh for every release, so everything the setup program knows, the names it uses and the icon and version block that Explorer and Add or Remove Programs show, comes from the configuration and never from a binary kept in the repository.
 
-Four steps, each with a tool Windows or the toolchain already provides. Stage: copy the executable and every resource into one folder laid out exactly as it will be installed. Compress: makecab, part of Windows for a quarter century, packs that folder into one cabinet with LZX, the same format Windows Update uses for its own packages, and the setup program unpacks it with the decompressor in cabinet.dll, so neither end carries compression code of its own. Compile: this script writes build/stamp.h, a header of defines naming the product by its two names, brandName and brandStem as brand.js explains them, with its identifier, version, publisher, home page, icon, installed size, and the list of registry entries uninstall takes back from registry.js beside this file, and the Visual Studio C compiler builds setup.c and its resources with that header included. Append: the cabinet goes on the end of the compiled stub with a 24-byte trailer saying where it starts, how long it is, and the word ENCLOSED, which marks a stub that has a cabinet in it, and the result is the installer, named the way tauri named its own so hash and upload in scripts.js find it unchanged.
+Four steps, each with a tool Windows or the toolchain already provides. Stage: copy the executable and every resource into one folder laid out exactly as it will be installed. Compress: makecab, part of Windows for a quarter century, packs that folder into one cabinet with LZX, the same format Windows Update uses for its own packages, and the setup program unpacks it with the decompressor in cabinet.dll, so neither end carries compression code of its own. Compile: this script writes build/stamp.h, a header of defines naming the product by its two names, brandName and brandStem as brand.js explains them, with its identifier, version, publisher, home page, icon, and installed size; and build/uninstall.h beside it, the list of registry entries uninstall takes back, from registry.js beside this file, one to a line; and the Visual Studio C compiler builds setup.c and its resources with those headers included. Append: the cabinet goes on the end of the compiled stub with a 24-byte trailer saying where it starts, how long it is, and the word ENCLOSED, which marks a stub that has a cabinet in it, and the result is the installer, named the way tauri named its own so hash and upload in scripts.js find it unchanged.
 
 What the installer does is fixed, and that is the reason to write one: per user, into the user's local application data under the product's name, no page asking where, no choice of shortcuts, the program started at the end every time, and an upgrade that writes over the old files without uninstalling first, so nothing the program registered with Windows is ever taken away and given back. The names that vary come from tauri.conf.json and Cargo.toml, the two files that already name the product, so a fork that renames the app gets an installer with its own names, icon, and version by changing nothing here.
 */
@@ -77,7 +77,7 @@ async function main() {
 	let cabinet = readFileSync(join(work, 'payload.cab'))
 	say(`cabinet  ${megabytes(cabinet.length)} MB in ${seconds(compressing)} s`)
 
-	//compile: the stamp header is everything the stub knows, as C defines; setup.rc reads the names for the version block and setup.c reads all of them, then build.cmd runs the compiler
+	//compile: the stamp header is everything the stub knows but the uninstall list, as C defines; setup.rc reads the names for the version block and setup.c reads all of them, then build.cmd runs the compiler
 	let numbers = version.split(/[.+-]/).slice(0, 3).map(n => parseInt(n, 10) || 0)//a semantic version's three numbers, and a fourth of zero, which is what windows' four-part version wants
 	mkdirSync(join(here, 'build'), {recursive: true})
 	writeFileSync(join(here, 'build/stamp.h'), [
@@ -92,7 +92,11 @@ async function main() {
 		`#define SETUP_VERSION ${[...numbers, 0].join(',')}`,
 		`#define SETUP_VERSION_TEXT ${quote(version)}`,
 		`#define SETUP_SIZE_KB ${Math.ceil(bytes / Size.kb)}`,//what the uninstall entry reports as the installed size
-		`#define SETUP_UNINSTALL ${registry.map(instruction => 'L' + quote(instruction) + ', ').join('')}`,//the uninstall list as wide string literals, each followed by a comma, so setup.c can end the array with a null
+		'',
+	].join('\n'))
+	writeFileSync(join(here, 'build/uninstall.h'), [//the uninstall list in a header of its own, which setup.c includes inside its array and setup.rc never reads; as one define in the stamp it outgrew the resource compiler's limit on a macro, RC1011, at 329 instructions and 22,386 characters, once every video and sound was switched on, seen on the Windows box on 2026-10-22
+		'// written by win-setup.js for this build, in UTF-8; setup.c includes it between the braces of its list of uninstall instructions',
+		...registry.map(instruction => 'L' + quote(instruction) + ','),//a wide string literal to a line, each followed by a comma, so setup.c can end the array with a null
 		'',
 	].join('\n'))
 	let compiling = Date.now()
@@ -137,7 +141,7 @@ function list(folder) {
 }
 
 /*
-A JavaScript string as the text of a C string literal, so it can be written into stamp.h and read back by the C compiler as the same string. The header is C source, and three characters in our values break C's rules for what may stand between double quotes. A backslash begins an escape, and the icon's path is full of them, so each becomes two, which C reads as one. A double quote ends the literal, and the uninstall list compares a registry value to "{program}" "%1", quotes included, since that is how a shell-open command is written in the registry, so each becomes a backslash and a quote. A tab separates an instruction's fields, and a literal tab inside a C string is legal but invisible, so each becomes the two characters backslash and t, which C reads back as a tab.
+A JavaScript string as the text of a C string literal, so it can be written into stamp.h or uninstall.h and read back by the C compiler as the same string. Each header is C source, and three characters in our values break C's rules for what may stand between double quotes. A backslash begins an escape, and the icon's path is full of them, so each becomes two, which C reads as one. A double quote ends the literal, and the uninstall list compares a registry value to "{program}" "%1", quotes included, since that is how a shell-open command is written in the registry, so each becomes a backslash and a quote. A tab separates an instruction's fields, and a literal tab inside a C string is legal but invisible, so each becomes the two characters backslash and t, which C reads back as a tab.
 
 The three replacements run in that order on purpose: the first adds backslashes, and the other two add one each in front of a character, so if either ran before the first, the backslash it added would be doubled. With backslashes done first, nothing added later is touched again.
 

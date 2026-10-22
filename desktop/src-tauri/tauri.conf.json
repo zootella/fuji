@@ -45,7 +45,8 @@
 			"icons/tile/tile-small.png": "tile-small.png",
 			"icons/document/document-sheet.ico": "document-sheet.ico",
 			"icons/document/document-image.ico": "document-image.ico",
-			"icons/document/document-video.ico": "document-video.ico"
+			"icons/document/document-video.ico": "document-video.ico",
+			"icons/document/document-audio.ico": "document-audio.ico"
 		}
 	}
 }

@@ -31,7 +31,8 @@ What the platforms do, seen rather than read. Windows shows a one-time chooser o
 Two things elsewhere stay in step with this. bundle.fileAssociations stays out of tauri.conf.json, since Info.plist declares the Mac's types, pasted from what fileTypesAssociations answers for it, this file registers them with Windows at every launch, and Linux declares none yet. And the uninstaller takes back everything this writes, for the extensions win-setup/registry.js names and under the names this file gives them, Fuji.webp for a ProgID, Software\Fuji for the Capabilities block and fuji.exe under Applications, so a change to how this file names a key is a change to the rules there too. The installer never uninstalls first, so an install over an existing copy leaves every registration, and every choice the user saved in Windows' own screens, as it was.
 */
 
-const documentIcon = 'document-image.ico'//what every type fuji opens wears in Explorer, a picture's document icon whatever the kind, beside the executable; fuji's own icon would make a folder of pictures a folder of cyan discs
+const documentIcons = {image: 'document-image.ico', video: 'document-video.ico', audio: 'document-audio.ico'}//what a type fuji opens wears in Explorer, a document icon for its kind beside the executable; fuji's own icon would make a folder of pictures a folder of cyan discs
+const documentIconBlank = 'document-sheet.ico'//and the blank page for a kind with no icon of its own; every kind fuji registers today has one
 const answerNames = ['yes', 'no', 'ask']//the three answers, which are also the three lists in fuji.toml, in the order the file shows them
 
 export const associateAnswers = ref({})//extension to yes, no, or ask; changed only by associateChoose and by following windows
@@ -154,9 +155,12 @@ async function register() {//tell windows what this copy can open, claim the fal
 	let windowsExecutable = backize(executable)//windows' own spelling of the path, which the registry wants
 	let file = parse.basename(executable)//fuji.exe, which is the key windows expects under Applications
 	let command = `"${windowsExecutable}" "%1"`//quoted, because a picture's path will contain spaces; %1 is where windows puts the file
-	let icon = `${windowsExecutable},0`//the executable's own icon, its first, which is still better than none
-	let beside = `${parse.dirname(executable)}/${documentIcon}`//joined by hand, since parse.join would fold a network path's leading // into one
-	try { await diskStat(beside); icon = `${backize(beside)},0` } catch {}//the document icon where it exists; unquoted is safe, since windows splits an icon location at its last comma
+	let icons = {}//where explorer finds the icon for each kind registered, looked for once a pass rather than once a type
+	for (let kind of new Set(associateExtensions.map(extension => fileTypes[extension].kind))) {
+		icons[kind] = `${windowsExecutable},0`//the executable's own icon, its first, which is still better than none
+		let beside = `${parse.dirname(executable)}/${documentIcons[kind] || documentIconBlank}`//joined by hand, since parse.join would fold a network path's leading // into one
+		try { await diskStat(beside); icons[kind] = `${backize(beside)},0` } catch {}//the document icon where it exists; unquoted is safe, since windows splits an icon location at its last comma
+	}
 
 	let application = `Software\\Classes\\Applications\\${file}`
 	let capabilities = `Software\\${brandName}\\Capabilities`
@@ -167,7 +171,7 @@ async function register() {//tell windows what this copy can open, claim the fal
 	for (let extension of associateExtensions) {
 		let program = `${brandName}${extension}`//the progid, so .webp becomes Fuji.webp; the uninstaller's rules in win-setup/registry.js take back only this shape, so change both together
 		await set(`Software\\Classes\\${program}`, '', fileTypes[extension].type)//the progid: what this kind of file is called, which explorer prints in its type column
-		await set(`Software\\Classes\\${program}\\DefaultIcon`, '', icon)//what explorer draws on one
+		await set(`Software\\Classes\\${program}\\DefaultIcon`, '', icons[fileTypes[extension].kind])//what explorer draws on one, by its kind
 		await set(`Software\\Classes\\${program}\\shell\\open\\command`, '', command)//and what opens it
 		await set(`Software\\Classes\\${extension}\\OpenWithProgids`, program, '')//the offer: fuji joins the list of what could open this extension, by name alone
 		await set(`${application}\\SupportedTypes`, extension, '')//so fuji is offered for these and not for everything else

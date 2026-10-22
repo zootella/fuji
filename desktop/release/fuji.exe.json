@@ -2,7 +2,92 @@
 	"file": "fuji.exe",
 	"version": "0.1.0",
 	"arch": "x64",
-	"bytes": 20897486,
-	"sha256": "83b6c43a6a350f10985cb798ee1f2d7f509115354e11a43962c5ba8201712222",
-	"date": "2026-10-14"
+	"bytes": 21055229,
+	"sha256": "45e5a88abf0d1b2c6477fdf61ea2bd38a7fdedc931f5dfe4c6c8cabed71f2d36",
+	"date": "2026-10-22",
+	"libmpv": {
+		"file": "libmpv-2.dll",
+		"bytes": 48202240,
+		"sha256": "1610fa515147051c807dddcfdf29e6465a357764b307ee4163ccbf29c1263a7b",
+		"built": "2026-10-22T14:50:06Z",
+		"recipe": "2bf55610cd6b8de5b48ead03f7005edf2ca912d6fa69d9277facd97632526ae1",
+		"tools": "gcc.exe (Rev5, Built by MSYS2 project) 16.2.0; meson 1.12.1; ninja 1.13.2; NASM version 3.02 compiled on Jul  4 2026",
+		"sources": [
+			{
+				"name": "zlib-1.3.2",
+				"url": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.xz",
+				"sha256": "d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3"
+			},
+			{
+				"name": "freetype-2.15.0",
+				"url": "https://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.15.0.tar.xz",
+				"sha256": "93cd47eb719c325107f2d3cf087d06299e944c3b48a40b55537302304dea1dd5"
+			},
+			{
+				"name": "fribidi-1.0.17",
+				"url": "https://github.com/fribidi/fribidi/releases/download/v1.0.17/fribidi-1.0.17.tar.xz",
+				"sha256": "6949dcde27d41cebad1fd741fcafc36d55a1020d2d872d4a6eb3914caabbada2"
+			},
+			{
+				"name": "harfbuzz-14.6.0",
+				"url": "https://github.com/harfbuzz/harfbuzz/releases/download/14.6.0/harfbuzz-14.6.0.tar.xz",
+				"sha256": "d07a007327277708a2a73ae437887cdbaf282937f6d03ca5467723e9099af586"
+			},
+			{
+				"name": "libass-0.17.5",
+				"url": "https://github.com/libass/libass/releases/download/0.17.5/libass-0.17.5.tar.xz",
+				"sha256": "2dca25c0e0c837ddf00b52011b3f82cac1e4ddd3ad018227806b0c2288864acc"
+			},
+			{
+				"name": "SPIRV-Cross-vulkan-sdk-1.4.363.0",
+				"url": "https://github.com/KhronosGroup/SPIRV-Cross/archive/refs/tags/vulkan-sdk-1.4.363.0.tar.gz",
+				"sha256": "f708982e88b763ef5b0394ed468fc2c3628f68cdab89f2e7a946cd628c04e721"
+			},
+			{
+				"name": "shaderc-2026.4",
+				"url": "https://github.com/google/shaderc/archive/refs/tags/v2026.4.tar.gz",
+				"sha256": "f06ce5bcca94e5df7f34e115743597d0ad2e13c5fe9213c67dc8c76031241947"
+			},
+			{
+				"name": "glslang",
+				"url": "https://github.com/KhronosGroup/glslang.git",
+				"commit": "e1b562a8bed273a02f30b59b66a5d499793cede5"
+			},
+			{
+				"name": "spirv-tools",
+				"url": "https://github.com/KhronosGroup/SPIRV-Tools.git",
+				"commit": "ef96ed763b43b59b33b31b362f09a02b729fa1c9"
+			},
+			{
+				"name": "spirv-headers",
+				"url": "https://github.com/KhronosGroup/SPIRV-Headers.git",
+				"commit": "04fd3caa1e8267e4d95c806cad901181728e1006"
+			},
+			{
+				"name": "lcms2-2.19",
+				"url": "https://github.com/mm2/Little-CMS/releases/download/lcms2.19/lcms2-2.19.tar.gz",
+				"sha256": "49e7e134e4299733dd0eda434fa468997a28ab3d33fa397c642b03644f552216"
+			},
+			{
+				"name": "libplacebo-7.360.1",
+				"url": "https://code.videolan.org/videolan/libplacebo.git",
+				"commit": "cee9b076f2c63104ccfd497fa79c39a867293ec4"
+			},
+			{
+				"name": "dav1d-1.5.4",
+				"url": "https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz",
+				"sha256": "686616b7c69eb88d44459391ab25cac13b6647a3b288835c5784e71c1514a5c5"
+			},
+			{
+				"name": "ffmpeg-9.0.2",
+				"url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+				"sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e"
+			},
+			{
+				"name": "mpv-0.41.0",
+				"url": "https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz",
+				"sha256": "ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209"
+			}
+		]
+	}
 }

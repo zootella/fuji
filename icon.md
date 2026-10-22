@@ -346,19 +346,20 @@ It was looked at **without installing**, which is worth recording because it mak
 
 ## The Windows document icons
 
-The first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are three drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
+The first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are four drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
 
 **Why there are any.** `associate.js` writes a `DefaultIcon` per ProgID. With nothing else to name it named fuji's own executable, and every picture a user let fuji open wore the application icon — a full-bleed cyan disc, identical on every file, most visible in Details view and with Explorer's thumbnails turned off. An application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document.
 
-**Three, and only one is used.**
+**Four, one for each kind fuji registers and a blank.** `documentIcons` in `associate.js` picks one by the kind `fileTypes.js` gives a type.
 
-    icons/document/document-image.ico    every one of fuji's ten types wears this one
-    icons/document/document-video.ico    for if or when fuji plays video as well as showing pictures
-    icons/document/document-sheet.ico    a blank sheet, along for the ride: a more minimal alternative, for fuji or for the user
+    icons/document/document-image.ico    a page with a landscape, worn by every picture fuji registers
+    icons/document/document-video.ico    a page with a strip of film, worn by every video
+    icons/document/document-audio.ico    a page with a note, worn by every sound
+    icons/document/document-sheet.ico    a blank page, for a kind registered later with no icon of its own
 
-The two spares are inert — nothing names them, and they cost about 100 KB of artwork, less than that inside the compressed installer, which is the deliberate trade rather than an oversight. `sheet`, `image` and `video` are all five characters, which is what keeps the resources map and the registry writes reading straight down.
+The blank page is inert until such a kind is registered, about 50 KB of artwork carried ahead of need, less inside the compressed installer. `sheet`, `image`, `video` and `audio` are all five characters, which is what keeps the resources map and the registry writes reading straight down.
 
-**Measured, by reading the directory at the front of each file.** All three are the same shape:
+**Measured, by reading the directory at the front of each file.** All four are the same shape:
 
     layers   256  64  48  40  32  24  20  16
     depth    32bpp throughout

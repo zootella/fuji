@@ -1,5 +1,5 @@
 @echo off
-rem Builds setup.exe, the stub win-setup.js appends a cabinet to, into the build folder. win-setup.js runs this for every release after writing build\stamp.h, which names the product and everything else the stub knows, for setup.rc and setup.c both; run by hand with no stamp, this writes one with placeholder names, so the stub builds and says what it is.
+rem Builds setup.exe, the stub win-setup.js appends a cabinet to, into the build folder. win-setup.js runs this for every release after writing build\stamp.h, which names the product and everything else the stub knows, for setup.rc and setup.c both, and build\uninstall.h, the uninstall list, for setup.c alone; run by hand with neither, this writes both, with placeholder names and an empty list, so the stub builds and says what it is.
 setlocal
 cd /d "%~dp0"
 
@@ -9,7 +9,7 @@ for /f "usebackq delims=" %%i in (`vswhere.exe -latest -products * -requires Mic
 if not defined VSPATH echo Visual Studio with the C++ tools was not found & exit /b 1
 call "%VSPATH%\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 -no_logo || exit /b 1
 
-rem The stamp header, when nothing wrote one: the same defines win-setup.js writes, with placeholder values and an empty uninstall list. Each line puts the redirection first, because cmd reads a line ending in 0>> as a redirection of handle zero and drops the zero
+rem The two headers, when nothing wrote them: the same defines win-setup.js writes, with placeholder values, and an uninstall list with nothing in it. Each line puts the redirection first, because cmd reads a line ending in 0>> as a redirection of handle zero and drops the zero
 if not exist build mkdir build
 if not exist build\stamp.h (
 	>build\stamp.h echo // written by build.cmd for a build by hand; win-setup.js writes the real one
@@ -23,7 +23,9 @@ if not exist build\stamp.h (
 	>>build\stamp.h echo #define SETUP_VERSION 0,0,0,0
 	>>build\stamp.h echo #define SETUP_VERSION_TEXT "0.0.0"
 	>>build\stamp.h echo #define SETUP_SIZE_KB 0
-	>>build\stamp.h echo #define SETUP_UNINSTALL
+)
+if not exist build\uninstall.h (
+	>build\uninstall.h echo // written by build.cmd for a build by hand, with no instructions; win-setup.js writes the real one
 )
 
 rem Plain C at warning level 4, UTF-16 throughout, source read as UTF-8 so the stamp's text can be anything, the static runtime so it needs no redistributable, and control flow guard. The linker embeds no manifest of its own, since setup.rc carries one, and cabinet.dll is delay-loaded so it is looked up only after the program has restricted library loading to the system folder.
