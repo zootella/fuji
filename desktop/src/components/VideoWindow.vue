@@ -81,6 +81,15 @@ onBeforeUnmount(() => {
 })
 function editGray() { for (let item of ['Undo', 'Redo', 'Cut', 'Copy', 'Paste', 'Select All']) menuEnable('Edit', item, false).catch(error => logTrouble('video: graying the Edit menu', error)) }//nothing here takes typing or holds a selection; the shell lights them again as its window comes to the front
 
+/*
+The edge a Windows 10 window keeps on three sides once its title bar is gone, and why fuji leaves it.
+
+On Windows the title bar comes off through setDecorations, and the window keeps its shadow, which is Tauri's default. With the shadow kept, tao still counts the left, the right and the bottom as frame, the resize border about 8 backing pixels deep at 100 percent, and Windows draws its border line there, which Tauri's documentation for set_shadow calls a 1px white border, and which showed dark on the Windows box. At the top tao leaves no frame on Windows 10, because there any frame at the top makes Windows draw a whole title bar, as calculate_insets_for_dpi in tao 0.35.3 says. So on Windows 10 the window's edge runs down both sides and along the bottom and not across the top, seen on the Windows box on 2026-10-22. On Windows 11 tao keeps a pixel of frame at the top as well, so the border goes all the way round, with the rounded corners Windows 11 gives a window with a shadow; that is read in the same function and not yet seen, since there is no Windows 11 box.
+
+Five answers were weighed, and only leaving it passes every test a change here has to: easy, more correct than what it replaces, nothing changed off Windows, and nothing put at risk on Windows 11. Turning the shadow off takes the line away, and takes the shadow with it, and on Windows 11 the rounded corners too. Drawing a matching line across the top in the page would copy a color Windows chooses from the theme, the accent color setting and whether the window is in front, and be wrong whenever one of those changes. Handling the frame message in fuji's own code, as Chromium does, would fight tao's handling of the same message, and risk Windows 11's corners and its snap layouts on a platform fuji has no box to test. And taking the line off all four sides, rather than adding the fourth, has no switch on Windows 10: it means turning the shadow off, which leaves tao no frame and Windows no line, and calling DwmExtendFrameIntoClientArea with a pixel of margin so the window manager draws the shadow again. That moves Tauri's resize band from the top alone to all four edges inside the window, over the page and fuji's buttons, as set_drag_hwnd_rgn in tauri-runtime-wry 2.11.4 lays it; grows the window by its invisible border, on both sides and along the bottom, the moment the title bar comes off, since window_frame_set in window.rs places the frame a window shows while it still has its title bar; wants a Rust command of its own; and leaves unknown whether Windows 11 still rounds such a window's corners. The line is Windows' own border, so the window reads as a Windows 10 window without its title bar, which is what it is. The preview loses its title bar the same way, in Shell.vue, and keeps the same edge.
+
+Windows 11 alone has the switch Windows 10 lacks. DwmSetWindowAttribute with DWMWA_BORDER_COLOR set to DWMWA_COLOR_NONE takes the line off all four sides and keeps the shadow and the rounded corners, from build 22000, and does nothing on Windows 10. It is one call, and it would make Windows 11 differ from Windows 10 in a way nobody has seen, so it is the step to take once there is a Windows 11 box to look at it on, rather than one to ship unseen.
+*/
 async function placeWindow() {//put the hidden window where it will first be seen
 	let w = getCurrentWindow()
 	let areas = await screenAreas()
@@ -90,7 +99,7 @@ async function placeWindow() {//put the hidden window where it will first be see
 		await windowTitleHide()//and the title in it not drawn, though the title stays set
 		await windowConstraintLift()//AppKit no longer holds this window below the menu bar or to the screen's height, so where fuji places it, it stays; the mac's own drag still stops at the menu bar, as window.rs says
 	} else {
-		await w.setDecorations(false)//elsewhere the title bar off, and fuji's own buttons in its place; after the frame too, and the page grows to fill the window
+		await w.setDecorations(false)//elsewhere the title bar off, and fuji's own buttons in its place; after the frame too, and the page grows to fill the window, inside the edge the essay above says Windows 10 keeps on three sides
 	}
 }
 

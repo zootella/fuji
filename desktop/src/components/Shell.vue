@@ -315,7 +315,7 @@ async function placeWindow(w, path) {//put the hidden window where it will first
 	previewPath = path
 	previewCard = {x: frame.x - areas.screen.x, y: frame.y - areas.screen.y, width: frame.width, height: frame.height}//fullscreen fills the screen, so its frame's corner is the screen's
 	await windowFrameSet(frame)//the frame first and the title bar after, never the other way: tao queues a change of title bar onto the main thread rather than making it, and window_frame_set measures the title bar the moment it is called, so placing a window straight after a change would measure the window as it was. A window keeps its frame when its title bar goes, and the content grows inside it; one arriving keeps the frame on windows but the content on the mac, which is why sheetFromPreview places the sheet twice
-	await w.setDecorations(false); previewFramed = true
+	await w.setDecorations(false); previewFramed = true//and on Windows 10 the edge left along both sides and the bottom and not the top, which the essay above placeWindow in VideoWindow.vue says is Windows' own and left on purpose
 }
 
 async function toggleView() {//fuji's own item in the View menu, Show Light Table or Show Contact Sheet: the table fullscreen or the sheet in a window, and from the preview on into the table

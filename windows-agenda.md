@@ -8,9 +8,8 @@ The Windows box's work for the session that began 2026-10-22, after eight days a
 
 ## VideoWindow
 
-**Open.** The five things in the letter's last section that only this machine can show, all on the video window `v` opens from the sheet, none of which has run here.
+**Open.** The things in the letter's last section that only this machine can show, on the video window `v` opens from the sheet.
 
-- **Two windows in one process.** `v` on the sheet should bring a video window up on top within a moment with nothing hanging, and `v` twice should give two. Close the main window with a video window still open: fuji should keep running until that last window closes, and then be gone from Task Manager. A size given to the main window should still reach `fuji.toml` when a video window is the last to close.
 - **The resize band over the buttons.** Tauri lays a child window, `TAURI_DRAG_RESIZE_WINDOW`, across the top of an undecorated window, `SM_CYFRAME` deep. Bring the pointer slowly down onto fuji's buttons from above the window: the number wanted is how many pixels show the resize arrow before a button lights, at 100 percent and at 150.
 - **Maximize with no title bar.** The middle button should fill the work area with the taskbar still showing, the three buttons whole in the top right corner and the middle one showing restore, and a second press should bring the window back where it was.
 - **Fuji's own drag.** Dragged by its middle, the window should follow the pointer without lagging, snap to nothing, and go past the top of the screen as far as the pointer takes it, staying there on release. A click afterward should be an ordinary click. Maximized, the drag is Windows' own, which restores the window as it begins. A double-click should still go into fuji's fullscreen and back.
