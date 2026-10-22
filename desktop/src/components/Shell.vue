@@ -5,6 +5,7 @@ import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {dialogOpen} from '../dialog.js'//the system's open box, which rust puts up
+import {picturesFolder} from '../paths.js'//where that box opens when no folder is on the sheet
 import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {menuText, menuWaiting, menuEnable} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, which item a new window was made to answer, and which Edit items are lit
@@ -179,7 +180,7 @@ watch(showing, value => touchBlock(value == 'Table').catch(error => logTrouble('
 watch([showing, whichTable], menuTitle, {immediate: true})
 
 async function menuChose(id) {//the page's half of the menu bar: rust makes a window itself and sends these five down, because the page already knows how to do all of them
-	if (id == 'menu-open') await openAsk({files: true, folders: true})//the Mac's one Open…, for either
+	if (id == 'menu-open') await openAsk({either: true})//the Mac's one Open…, for a file or a folder in one box, as Mac apps that open both ask; only the Mac has this menu, and anywhere else either would be a box for files
 	else if (id == 'menu-fullscreen') await toggleView()//fuji's own fullscreen rather than macOS's, which is the table: the essay above fullscreenSet says why there are two and how they keep out of each other's way
 	else if (id == 'menu-about') { await showView('Settings'); settingsRef.value?.showAbout() }//About Fuji, from the application menu: the settings panel with its About section scrolled into view, in place of the panel macOS would assemble from Info.plist; from the fullscreen table as well, which showView leaves for the window on the way
 	else if (id == 'menu-settings') await showView('Settings')//Settings… in the application menu, the road s takes from the sheet
@@ -222,8 +223,8 @@ async function viewOpen(path) {//a picture dropped on the window, for the view o
 	if (showing.value == 'Settings') await showView('Sheet')//the settings panel opens nothing, so the sheet comes back to take it
 	await activeView()?.onDrop?.(path)
 }
-async function openAsk(choose) {//the system's open box, and what it answers shown, from the mac's menu bar and from the empty sheet on every platform
-	let chosen = await dialogOpen(choose)//deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter
+async function openAsk(choose) {//the system's open box, and what it answers shown, from the mac's menu bar and from the empty sheet on every platform; choose says folder, either, or neither for a file
+	let [chosen] = await dialogOpen({...choose, start: modelFolder.value || await picturesFolder()})//opened in the folder the sheet shows, or the user's Pictures when it shows none, since a box that names no folder can open in the program's own on Windows. Deliberately unfiltered: a folder is easier to recognise by everything in it, a filtered list is harder to read, and a picture saved without an extension would be hidden by a filter
 	if (chosen) await openChosen(chosen)
 }
 async function openChosen(path) {//a path chosen in the open box: a folder on the contact sheet, and a picture on the table, as a double-clicked thumbnail brings it there

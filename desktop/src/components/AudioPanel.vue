@@ -6,6 +6,8 @@ import {Time} from '@zootella/ergo'//small helpers from the ergo project, the sa
 import {mediaVersion, mediaStart, mediaSend, mediaRead, mediaStop, mediaProbe, mediaFrame, mediaFrameUnpack} from '../media.js'
 import {windowVideoMake, windowVideoPlace, windowVideoDrop} from '../window.js'
 import {dialogOpen} from '../dialog.js'
+import {picturesFolder} from '../paths.js'
+import {modelFolder} from '../model.js'//the folder the sheet shows, where the open box starts
 import {log, logTrouble} from '../log.js'
 import {brandName} from '../brand.js'
 import {backize, xy, raf, sayDimensions, middleDot} from './library.js'
@@ -215,7 +217,7 @@ async function regionPlace() {//the region's rectangle worked out in whole backi
 }
 
 async function ask() {//the open box, then the two questions, each its own call down and timed in the log
-	const chosen = await dialogOpen({files: true, folders: false})
+	const [chosen] = await dialogOpen({start: modelFolder.value || await picturesFolder()})//a file, opened in the folder the sheet shows, or Pictures when it shows none, as the shell's box opens
 	if (!chosen) return//the user cancelled
 	asked.value = chosen
 	answer.value = 'Asking…'

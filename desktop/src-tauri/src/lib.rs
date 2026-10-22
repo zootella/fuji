@@ -15,7 +15,7 @@ The boundary. Everything the page may ask Rust to do is named once in this file,
 */
 
 mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
-mod dialog;//and dialog.rs: the system's own dialog boxes, put up for the page
+mod dialog;//and dialog.rs: the system's boxes for opening files, choosing a folder, and saving a file, put up for the page, or on the Mac for the menu bar with no window
 mod disk;//and disk.rs: file commands, thin wrappers over std::fs
 mod find;//and find.rs: finding things in the folder tree, many folders read in one call through the disk's glance
 mod fit;//and fit.rs: the fits, the arithmetic fit.js has too, which a native thumbnail's size is chosen by
@@ -74,7 +74,7 @@ pub fn run() {
 	log::log_panics();//before anything can panic, so every panic after this has its place in the log; a line held for the log survives a panic run_blocking catches, and is lost with the rest of the held text in one that ends the process
 	window::window_launch();//first of all, so this copy's launch moment is when it started; window.rs tells a flurry of copies from a deliberate second launch by it
 	tauri::Builder::default()//start building the Tauri application
-		.plugin(tauri_plugin_dialog::init())//for its Rust half, which dialog.rs calls to put up the system's open box off the Mac, where AppKit's is called directly; capabilities grant the page none of it
+		.plugin(tauri_plugin_dialog::init())//for its Rust half, which dialog.rs calls to put up the system's open and save boxes off the Mac, where AppKit's are called directly; capabilities grant the page none of it
 		.manage(desktop::ExitFiles::default())//shared state any command can reach: text handed down to be written on the way out
 		.manage(open::OpenFiles::default())//and the paths the operating system handed fuji, waiting for the page to be built and ask for them
 		.manage(media::Players::default())//and the media library's players, one per window, for the window that closes mid-play to be rid of
@@ -89,6 +89,7 @@ pub fn run() {
 				find::find_folders,//and in find.rs
 				desktop::desktop_exit_hold,//and in desktop.rs
 				dialog::dialog_open,//and in dialog.rs
+				dialog::dialog_save,
 				log::log_start,//and in log.rs
 				log::log_append,
 				launch::launch_opens,//and in launch.rs

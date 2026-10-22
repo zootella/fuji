@@ -83,7 +83,7 @@ defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every
 		<div class="flex flex-col gap-[1lh]"><!-- Windows and Linux have no menu bar, so until fuji has a toolbar the welcome is their way to the open box and the help -->
 			<p>{{brandName}}</p>
 			<p>A multimedia file manager designed<br>with privacy and precision in mind</p>
-			<p>Browse <button @click="folderAsk(desktopDir)">Desktop</button>, <button @click="folderAsk(documentDir)">Documents</button>, <button @click="folderAsk(downloadDir)">Downloads</button>,<br>choose a <button @click="emit('open', {files: false, folders: true})">folder</button>, or open a <button @click="emit('open', {files: true, folders: false})">file</button>.</p>
+			<p>Browse <button @click="folderAsk(desktopDir)">Desktop</button>, <button @click="folderAsk(documentDir)">Documents</button>, <button @click="folderAsk(downloadDir)">Downloads</button>,<br>choose a <button @click="emit('open', {folder: true})">folder</button>, or open a <button @click="emit('open', {})">file</button>.</p>
 			<p>S key for settings and options,<br>H key for quick help,<br>and web-based <a :href="sheetHelp" @click.prevent="processOpen(sheetHelp)">User Guide</a>.</p>
 		</div>
 	</div>

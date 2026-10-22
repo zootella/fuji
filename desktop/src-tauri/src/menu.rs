@@ -158,8 +158,9 @@ pub fn menu_chosen(app: &AppHandle, event: MenuEvent) {
 
 	//no window answers it, which on macOS usually means fuji is resident with none open
 	if id == MENU_OPEN {//the open box on its own, and a window only for what the user chooses, made to answer Open… as the items below make one to answer them; a cancel leaves no window at all
+		let start = app.path().picture_dir().ok().and_then(|folder| folder.into_os_string().into_string().ok()).unwrap_or_default();//the user's Pictures folder, where every box fuji shows opens when no contact sheet shows a folder, and with no window none does; blank leaves it to AppKit
 		let app = app.clone();
-		crate::dialog::dialog_open_alone(move |path| { if !path.is_empty() { menu_window(&app, vec![path], MENU_OPEN) } });
+		crate::dialog::dialog_alone(crate::dialog::Asked { either: true, start, ..Default::default() }, move |paths| { if let Some(path) = paths.into_iter().next() { menu_window(&app, vec![path], MENU_OPEN) } });//a file or a folder, as Open… asks for in a window too
 		return
 	}
 	if id == MENU_FULLSCREEN { return }//the View item acts on a window, and there is none to act on
