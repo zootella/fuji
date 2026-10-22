@@ -283,7 +283,7 @@ mod platform {
 			}
 		}
 
-		//the rest of the way with the fant scaler, which reads every source pixel
+		//the rest of the way with the fant scaler, which reads every source pixel. Microsoft says nothing about alpha for it, or for the color transform below, and both run here on a png's straight alpha, where an average that ignored opacity would bleed the colors hidden under transparent pixels into every edge. Neither does: a white disc on transparent pixels hiding bright green, plain and with Windows' sRGB profile, came back clean on the sheet, seen on the Windows box on 2026-10-22
 		if width != want_width || height != want_height {
 			let scaler = factory.CreateBitmapScaler()?;
 			scaler.Initialize(&source, want_width, want_height, WICBitmapInterpolationModeFant)?;

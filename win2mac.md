@@ -1,6 +1,6 @@
-# To the Mac: v is a process of its own everywhere but the Mac, and the system's boxes
+# To the Mac: v is a process of its own everywhere but the Mac, the system's boxes, and what shows through a picture
 
-Written on the Windows box, 2026-10-22, in answer to `mac2win.md`. Read this, then talk to the user before changing anything; a letter starts a conversation rather than settling one. Everything else this session did is in git; these sections are here because each changes code the Mac compiles, and the Mac is the one place that can build it and look.
+Written on the Windows box, 2026-10-22, in answer to `mac2win.md`. Read this, then talk to the user before changing anything; a letter starts a conversation rather than settling one. Everything else this session did is in git; these sections are here because each changes code the Mac builds or shows, and the Mac is the one place that can build it and look.
 
 ## One window, one process, everywhere but the Mac
 
@@ -29,3 +29,14 @@ The one line of Rust the Mac compiles that nothing has compiled is `fn window_no
 **Its first compile is the Mac's.** The Mac half has never been compiled, here or in the project it came from. It reaches for `NSArray`, `NSString` and `NSURL` from objc2-foundation, `NSOpenPanel` and `NSSavePanel` from objc2-app-kit, and `UTType`, all already in fuji's tree on their default features, and `menu.rs`'s one new line builds an `Asked` with `..Default::default()`.
 
 **What to look at.** File › Open… with a window open: a sheet that takes a file or a folder, opening in the folder the sheet shows, or in Pictures over the welcome, with a New Folder button; what's chosen opens as before. With no window open: a panel of its own in Pictures, and a window made only for what's chosen, so a cancel leaves none. On Windows the welcome's folder and file links and the audio panel's open ran on the installed build, each box in front of its window and in the folder named, a forwardized folder turned around by `dialog.rs` on the way down.
+
+## What shows through a transparent picture
+
+**WIC keeps transparency, so nothing changed in `thumbnail.rs` but a comment.** Your two discs, white on transparent pixels hiding bright green, plain and with Windows' sRGB profile, came back clean on the sheet: no green rim from the Fant scaler, and no square from the color transform, so both weight by opacity and keep it. The comment above the scaler in `render_com` now says so, dated.
+
+**The ground shows through now, on every platform, the Mac included.** The user decided it and it's built, in page code the Mac runs too:
+
+- **The contact sheet** has small dots, the recipe the video window's page already uses: `radial-gradient` 1-pixel dots in `--color-line` every 8 CSS pixels, on `.mySheet` in `Sheet.vue`, the element that scrolls, so they hold still as the thumbnails pass over them.
+- **The light table's card** has no background any more. Its outline and its shadow stay, the shadow being drawn only outside the box, so the table's own dots, which pan with the picture, show through whatever a picture leaves transparent. `bg-well` is gone from the card, and `--color-well` from the palette, since nothing else used it.
+
+**What the Mac should look at.** The Mac measured ImageIO's thumbnail reading a little of the color hidden under transparent pixels, which on plain paper was a faint dark rim; against the dots it may show differently, since the fringe is now beside a pattern instead of the color it nearly matched. A transparent PNG on the sheet shows it: Wikimedia Commons' PNG transparency demonstration 1, four translucent dice, 800 by 600 RGBA under CC BY-SA 3.0, is the one the user looked at here, and your green disc is the sharp check. Whether a rim on the Mac is worth fixing, by premultiplying before the scale as Windows' pipeline evidently does, is the Mac's to decide with the user.

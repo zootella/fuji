@@ -105,8 +105,10 @@ defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every
 </template>
 <style scoped>
 
-.mySheet {
+.mySheet { /* the sheet's ground: the paper, with small dots that stay put as the thumbnails scroll over them, since a background on the element that scrolls holds still while its contents move. Through the transparent parts of a picture they show, as the table's dots do, which is the picture and which is the ground */
 	background-color: var(--color-paper);
+	background-image: radial-gradient(circle at center, var(--color-line) 1px, transparent 1px);
+	background-size: 8px 8px;
 }
 .myEmpty {
 	color: var(--color-faint);

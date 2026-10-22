@@ -450,7 +450,7 @@ let here = null//the store's entry for the image on the card, which is where the
 	<!-- Card: rectangular image container; drag to pan around in infinite space; caption text is within card but positioned below card. myRaster while r has the picture showing its own pixels as blocks, which the one rule below reads; without it the card and its picture are styled exactly as they always were -->
 	<div
 		ref="cardRef"
-		class="myCard myShadow myDry myWillChangeTransform bg-well"
+		class="myCard myShadow myDry myWillChangeTransform"
 		:class="{myRaster: raster}"
 	>
 
@@ -475,7 +475,7 @@ let here = null//the store's entry for the image on the card, which is where the
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {} /* not using this yet, but it's here */
-.myCard { outline: 1px solid var(--color-frame) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n */
+.myCard { outline: 1px solid var(--color-frame) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n. The card itself has no background, so the dots show through whatever a picture leaves transparent, while its line and its shadow, which is drawn only outside the box, frame it as before */
 
 /*
 The image on the card is the store's own element: cache.js makes it, an img the engine decoded or a canvas painted from the imaging library's pixels, and cardShow adopts it into the card. Every rule here holds for both, the stretch to the card, the r key's nearest neighbor and the shell's gamma lens. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
