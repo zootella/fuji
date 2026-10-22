@@ -2,8 +2,8 @@
 	"file": "fuji.exe",
 	"version": "0.1.0",
 	"arch": "x64",
-	"bytes": 21055229,
-	"sha256": "45e5a88abf0d1b2c6477fdf61ea2bd38a7fdedc931f5dfe4c6c8cabed71f2d36",
+	"bytes": 21063225,
+	"sha256": "bb5884187bd650bf261b57a4bc95a507869098386dc18fbf6e3b6e99887595d7",
 	"date": "2026-10-22",
 	"libmpv": {
 		"file": "libmpv-2.dll",
