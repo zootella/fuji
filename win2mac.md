@@ -18,7 +18,7 @@ The one line of Rust the Mac compiles that nothing has compiled is `fn window_no
 
 **What the Mac should look at.** `pnpm local`, then `v` from the contact sheet, the light table and the settings: each a video window in the same process, with the Dock keeping one icon. `v` in a video window opens another, and Esc closes one, where `v` used to. The menu bar's routing past a video window is untouched and worth one glance: Settings… with a video window in front still goes to the main window.
 
-The Windows side ran on the installed build and in `pnpm local`, and `instances.md`, `window-check.md` and `mac2linux.md` say what it does now.
+`instances.md`, `window-check.md` and `mac2linux.md` describe the new behavior.
 
 ## The system's boxes
 

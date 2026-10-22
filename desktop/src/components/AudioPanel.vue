@@ -208,7 +208,7 @@ async function regionPlace() {//the region's rectangle worked out in whole backi
 	showingCss.value = sayDimensions(xy(Number((size.x / backingPerCss).toFixed(2)), Number((size.y / backingPerCss).toFixed(2))))
 	showingBacking.value = sayDimensions(size)
 	const at = box.getBoundingClientRect()//where the box landed, in css pixels from the page's top left, which is the web view's
-	const rect = {x: Math.round(at.left * backingPerCss), y: Math.round(at.top * backingPerCss), width: size.x, height: size.y}//the native view over the box, exactly
+	const rect = {x: Math.round(at.left * backingPerCss), y: Math.round(at.top * backingPerCss), width: size.x, height: size.y}//the native view over the box, exactly, wherever the box's corner is a whole backing pixel. At 125 percent the panel's 10-pixel inset puts it at 12.5, which rounds to 13, half a pixel from where the page draws the box, so a sliver of the page or of the blue frame could show along one edge; 150 is a whole 15. Not yet looked at on Windows, where the region was seen whole at 100 percent on 2026-10-22, and to be looked at at 125 percent when this region moves to the video window, which takes the same rounding with it
 	const said = `${rect.x},${rect.y} ${rect.width}x${rect.height}`
 	if (said == placed) return
 	placed = said
