@@ -2,9 +2,9 @@
 	"file": "fuji.dmg",
 	"version": "0.1.0",
 	"arch": "aarch64",
-	"bytes": 18589969,
-	"sha256": "940e9665b819ffd84ff2a8ea7ee3917f427f8cfaaec1635735d2c26524189d6e",
-	"date": "2026-10-20",
+	"bytes": 18439243,
+	"sha256": "666504e239813f8d1bf21c6b3d791f6e5c7e079416a8e6670f49015366f586eb",
+	"date": "2026-10-22",
 	"libmpv": {
 		"file": "libmpv.2.dylib",
 		"bytes": 25717744,

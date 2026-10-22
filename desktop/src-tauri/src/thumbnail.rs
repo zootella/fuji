@@ -15,7 +15,6 @@ The Mac body is short because ImageIO does the whole job in one call given three
 */
 
 use tauri::ipc::Response;
-use zootella_ergo::say_size4;
 use crate::run_blocking;
 
 pub struct Thumbnail {//what a platform hands back, before it is packed into the one buffer
@@ -79,7 +78,9 @@ The ceiling is the wall against a decompression bomb: a header may claim any siz
 
 No size is a different case. On the Mac, properties answers 0 when ImageIO's properties for a file lack a width or a height. Nobody has seen that happen: for every format fuji sends here, the size is a basic part of the file, and ImageIO reports it for any file it can decode. It is refused anyway, as the error it would be, because every size to render at is worked out from the picture's size, a fit's and the picture's own alike, and none can be without one. Windows cannot reach this case the same way, since GetSize either answers or fails, and a failure is already an error.
 */
+#[cfg(any(target_os = "macos", target_os = "windows"))]//the two platforms that ask the system's thumbnailer; linux makes every thumbnail in the page, so nothing there reads a size here
 fn check_size(width: u32, height: u32) -> Result<(), String> {
+	use zootella_ergo::say_size4;
 	if width == 0 || height == 0 { return Err(format!("thumbnail: the library gave no size for this picture, {width} by {height}")) }
 	let raster = (width as u64).saturating_mul(height as u64).saturating_mul(4);//saturating, because two u32 sizes times four can pass u64, and a release build would wrap that to a small number the ceiling lets through: a header claiming 2^31 by 2^31 is the one file this wall is for, and it must not walk past it on arithmetic
 	let ceiling = crate::memory::memory_total() / 2;
