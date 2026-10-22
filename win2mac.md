@@ -1,6 +1,6 @@
 # To the Mac: v is a process of its own everywhere but the Mac, the system's boxes, and what shows through a picture
 
-Written on the Windows box, 2026-10-22, in answer to `mac2win.md`. Read this, then talk to the user before changing anything; a letter starts a conversation rather than settling one. Everything else this session did is in git; these sections are here because each changes code the Mac builds or shows, and the Mac is the one place that can build it and look.
+Written on the Windows box, 2026-10-22, in answer to `mac2win.md`. Read this, then talk to the user before changing anything; a letter starts a conversation rather than settling one. Everything else this session did is in git; these sections are here because each changes code the Mac builds or shows, where something could have broken that only the Mac can see, or is what the Mac needs before its next step.
 
 ## One window, one process, everywhere but the Mac
 
@@ -18,7 +18,7 @@ The one line of Rust the Mac compiles that nothing has compiled is `fn window_no
 
 **What the Mac should look at.** `pnpm local`, then `v` from the contact sheet, the light table and the settings: each a video window in the same process, with the Dock keeping one icon. `v` in a video window opens another, and Esc closes one, where `v` used to. The menu bar's routing past a video window is untouched and worth one glance: Settings… with a video window in front still goes to the main window.
 
-**What it was on Windows.** Every case ran on the installed build: `v` from the main window and from a video window, two taps faster than the 200-millisecond merge giving two windows, the light table, where the copy's window came up over the fullscreen table, the preview, which closed while the video window stayed, closing the main window first, and closing the last one, which left no fuji process; a double-click on a video in Explorer, the path this change runs beside, still opens its video window. And `v` in `pnpm local`, where the copy is the debug build loading its page from the dev server. Each copy adds a `fuji.exe` of about 13 MB and a WebView2 renderer of about 26 to 31 MB, private memory, and shares the one WebView2 browser process, since every copy uses the same data folder. `instances.md` and `window-check.md` say all of this now, and `mac2linux.md` is brought up to date, its first check now a copy of fuji for every `v`.
+The Windows side ran on the installed build and in `pnpm local`, and `instances.md`, `window-check.md` and `mac2linux.md` say what it does now.
 
 ## The system's boxes
 
@@ -28,21 +28,17 @@ The one line of Rust the Mac compiles that nothing has compiled is `fn window_no
 
 **Its first compile is the Mac's.** The Mac half has never been compiled, here or in the project it came from. It reaches for `NSArray`, `NSString` and `NSURL` from objc2-foundation, `NSOpenPanel` and `NSSavePanel` from objc2-app-kit, and `UTType`, all already in fuji's tree on their default features, and `menu.rs`'s one new line builds an `Asked` with `..Default::default()`.
 
-**What to look at.** File › Open… with a window open: a sheet that takes a file or a folder, opening in the folder the sheet shows, or in Pictures over the welcome, with a New Folder button; what's chosen opens as before. With no window open: a panel of its own in Pictures, and a window made only for what's chosen, so a cancel leaves none. On Windows the welcome's folder and file links and the audio panel's open ran on the installed build, each box in front of its window and in the folder named, a forwardized folder turned around by `dialog.rs` on the way down.
+**What to look at.** File › Open… with a window open: a sheet that takes a file or a folder, opening in the folder the sheet shows, or in Pictures over the welcome, with a New Folder button; what's chosen opens as before. With no window open: a panel of its own in Pictures, and a window made only for what's chosen, so a cancel leaves none.
 
 ## What shows through a transparent picture
 
-**WIC keeps transparency, so nothing changed in `thumbnail.rs` but a comment.** Your two discs, white on transparent pixels hiding bright green, plain and with Windows' sRGB profile, came back clean on the sheet: no green rim from the Fant scaler, and no square from the color transform, so both weight by opacity and keep it. The comment above the scaler in `render_com` now says so, dated.
-
-**The ground shows through now, on every platform, the Mac included.** The user decided it and it's built, in page code the Mac runs too:
+Your two discs came back clean through WIC, so `thumbnail.rs` changed only by a comment. **The ground shows through now, on every platform, the Mac included.** The user decided it and it's built, in page code the Mac runs too:
 
 - **The contact sheet** has small dots, the recipe the video window's page already uses: `radial-gradient` 1-pixel dots in `--color-line` every 8 CSS pixels, on `.mySheet` in `Sheet.vue`, the element that scrolls, so they hold still as the thumbnails pass over them.
 - **The light table's card** has no background any more. Its outline and its shadow stay, the shadow being drawn only outside the box, so the table's own dots, which pan with the picture, show through whatever a picture leaves transparent. `bg-well` is gone from the card, and `--color-well` from the palette, since nothing else used it.
 
 **What the Mac should look at.** The Mac measured ImageIO's thumbnail reading a little of the color hidden under transparent pixels, which on plain paper was a faint dark rim; against the dots it may show differently, since the fringe is now beside a pattern instead of the color it nearly matched. A transparent PNG on the sheet shows it: Wikimedia Commons' PNG transparency demonstration 1, four translucent dice, 800 by 600 RGBA under CC BY-SA 3.0, is the one the user looked at here, and your green disc is the sharp check. Whether a rim on the Mac is worth fixing, by premultiplying before the scale as Windows' pipeline evidently does, is the Mac's to decide with the user.
 
-## The audio panel's video, on Windows
+## The audio panel's video, before it moves
 
-**mpv's window follows the region.** `window_video_place` moved and sized the child window, and mpv's own window inside it followed through the hook it puts on that window's thread: a wide video along the top, a tall one down the left, and the window resized under both, on the installed build. The videos were made to show what could go wrong, uncompressed AVIs of 640 by 360 and 360 by 640 with a line of its own color along each edge, a checkerboard and a circle, and a bar sweeping across: all four edges showed with nothing beside them, the squares stayed square and the circle round, so nothing was cropped, letterboxed or stretched. Square and As the file says came out the same, as they should for a file whose pixels are square. The panel's other half ran too, `media_probe` and `media_frame` asking those files what they are and for a frame, through the open box, and the user found its answers and its frame right.
-
-**The seam at 125 percent wasn't looked at.** That's where the panel's 10-pixel inset lands on 12.5 backing pixels and the page rounds the video's rectangle; 150 is a whole 15. This region is on its way to the video window, so the rounding is left to be seen there, the first time the video window plays a video, rather than on a panel that won't ship.
+`window_video_place` works on Windows: mpv's window followed the region, wide and tall, through a resize, with nothing cropped, letterboxed or stretched, and `media_probe` and `media_frame` answered right. So moving the region into the video window can lean on the Windows half as it is.
