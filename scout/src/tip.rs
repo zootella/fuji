@@ -5,7 +5,7 @@ use std::cell::Cell;
 use zootella_ergo::{size, time};
 
 /*
-The reader: fuji's own reader of the first bytes of a file. Given the tip of a file, its first 64 KiB or the whole of a smaller one, and the file's size, scout_bytes says what the bytes are and what the common formats keep in their first bytes: the kind of medium, the stored size of a picture or a video and the size to show it at, both with a phone's quarter turn applied, the running time of a sound or a video, the times the file states with the one among them that says when it was taken, the place it was taken, whether a picture is animated, whether the file breaks its format's rules or ends before the part its structure points to, and, for every file, whether its bytes read as text or as binary. When the tip shows where the rest of an answer lies, scout_bytes hands back the offset of one more slice, 64 KiB there, beside its answer, and scout_slices answers again from both. It reads no frame, no pixel and no sample. The file's name and fuji's table of types play no part: the bytes name themselves, which is also why no name can steer the reader.
+The reader: fuji's own reader of the first bytes of a file. Given the tip of a file, its first 64 KiB or the whole of a smaller one, and the file's size, scout_bytes says what the bytes are and what the common formats keep in their first bytes: the kind of file it is, image, video or audio, the stored size of a picture or a video and the size to show it at, both with a phone's quarter turn applied, the running time of a sound or a video, the times the file states with the one among them that says when it was taken, the place it was taken, whether a picture is animated, whether the file breaks its format's rules or ends before the part its structure points to, and, for every file, whether its bytes read as text or as binary. When the tip shows where the rest of an answer lies, scout_bytes hands back the offset of one more slice, 64 KiB there, beside its answer, and scout_slices answers again from both. It reads no frame, no pixel and no sample. The file's name and fuji's table of types play no part: the bytes name themselves, which is also why no name can steer the reader.
 
 Why fuji writes this itself. Every parser that reads a collection's files reads bytes nobody vouched for, and the history fuji's security page tells is of decoders written in C and C++ made to run code by a file: GDI+'s JPEG, the Windows Metafile engine, ImageIO's JBIG2, libwebp, GStreamer's music decoders, FFmpeg's MagicYUV. A scan asks a question of every file on a drive, so it reaches more hostile files than any click, and the code it runs on them has to be code a file cannot subvert. Safe Rust is that code: the compiler refuses a read or a write outside the memory the program owns, which is the whole class of mistake those exploits were, and the crate's root in lib.rs forbids unsafe code, so the compiler holds that promise for every line below.
 
@@ -24,7 +24,7 @@ const STEPS: usize = 256;//the most steps any walk below takes through a file's 
 const PAST: &str = "not in the slices";//the limit every reader can meet: a read of bytes the file holds and the slices in hand do not; after the first read it is also the request for the second slice, at the offset read asks for
 const SHORT: &str = "past the end of the file";//the other: a read past the file's size, which is a structure claiming more than the file holds, and the file chopped
 const SIGNATURE_ONLY: &str = "signature only";//the details of a format the reader names and reads no further into
-const IMAGE: &str = "image";//the three media, as the answer's medium says them
+const IMAGE: &str = "image";//the three media, as the answer's kind says them
 const VIDEO: &str = "video";
 const AUDIO: &str = "audio";
 
@@ -40,37 +40,59 @@ enum Stop {//why a reader stopped before it had every answer it reads for its fo
 impl Stop { fn words(&self) -> &'static str { match self { Stop::Named(w) | Stop::Limit(w) | Stop::Ask(w, _) | Stop::Corrupted(w) | Stop::Chopped(w) => w } } }
 
 #[derive(Serialize, Debug, PartialEq)]
-pub struct Tip {//what the first bytes of a file say: what the file holds at the top, and how the reading went in reading. Every field is set as far as the bytes allow and left at its 0, false or blank when they do not, and every key is one word, so the answer is spelled the same in rust and on the page
+pub struct Tip {//what the first bytes of a file say: what the file holds at the top, and how the reading went in reading. Every field is set as far as the bytes allow and left at its 0, false or blank when they do not, and every key is one word, so the answer is spelled the same in rust and on the page. Serialized, such a field is left out, as absent says
+	#[serde(skip_serializing_if = "absent")]
 	pub format: &'static str,//the format the first bytes announce, as this file names it: jpeg, png, mp4, matroska, mp3 and so on; blank when they announce nothing the reader knows
-	pub medium: &'static str,//image, video or audio; blank for a format that is none of the three, and for a container whose streams the reader did not reach
+	#[serde(skip_serializing_if = "absent")]
+	pub kind: &'static str,//image, video or audio; blank for a format that is none of the three, and for a container whose streams the reader did not reach
+	#[serde(skip_serializing_if = "absent")]
 	pub text: bool,//the scout is very certain the tip is characters, judged from the counts in the reading alone and apart from every format's reader and signature, so a text file that opens with a signature's letters answers its format and this both; text_verdict says the rule
+	#[serde(skip_serializing_if = "absent")]
 	pub binary: bool,//the scout is very certain the tip is not characters: it holds a zero byte and opens with no byte order mark. Never true with text, and false beside it for an empty file
+	#[serde(skip_serializing_if = "absent")]
 	pub raster: Size,//the stored pixel count of a picture or a video, 0 when the slices do not say, with its turn already applied
+	#[serde(skip)]
 	pub aspect: Size,//the size to show a picture or a video at, in square pixels: raster grown on one side where a header the scout reads says the pixels are not square, so a DVD stored at 720 by 480 and flagged 16:9 answers 853 by 480, the same as raster everywhere else, and turned with it; wherever the scout read the shape, mpv, fuji's player, draws the file at this size unzoomed
+	#[serde(rename = "aspect", skip_serializing_if = "absent")]
+	aspect_written: Size,//aspect as the answer writes it, only where it differs from raster; Rust's own callers read aspect
+	#[serde(skip_serializing_if = "upright")]
 	pub orientation: u32,//the turn or flip the file asks for, in EXIF's numbering, 1 for none through 8, as a finding only: raster and aspect already have it applied, so a caller uses them as they are and never turns them again, which would swap them back. It says the file is one an older program, which ignores the instruction, would show turned
+	#[serde(skip_serializing_if = "absent")]
 	pub seconds: f64,//the running time of a sound or a video; 0 when the slices do not say, and an estimate where the comment on the reader says so
+	#[serde(skip_serializing_if = "absent")]
 	pub animated: bool,//true when the format's own flag says the picture is animated; false where it says still, and where the reader could not look
+	#[serde(skip_serializing_if = "absent")]
 	pub corrupted: bool,//the reader found a format, then found the file breaking that format's rules where it needed them; a broken part it steps past without needing, a JPEG's EXIF or an AVI's OpenDML header, costs only what it held and is not reported. Like chopped, a reason an answer is missing or may be wrong, and never a verdict on the file
+	#[serde(skip_serializing_if = "absent")]
 	pub chopped: bool,//the reader found a format, then found the file's end cut off: a length or an offset it met on the way to its answers points past the end, or the file ends inside the structure it was walking, which is most often why an answer is missing. It can come with a finished reading, where the reader meets the file's stated total on its way, as for a WAV whose data chunk claims more than the file holds, and then seconds is what the header promised. The scout never goes looking for a length its answers do not need, so false on this and on corrupted says only that it met no such evidence: the two say why an answer is missing or may be wrong, and never sort whole files from broken ones
+	#[serde(skip_serializing_if = "absent")]
 	pub dates: Dates,//every time the file states, as it wrote them: a camera's shutter time with its zone where the file gave one, a movie's creation time, and the rest, each present or absent by format
+	#[serde(skip_serializing_if = "absent")]
 	pub taken: Taken,//the one time to show for when the picture or the video was taken, picked from dates by the step at the end, an instant in UTC wherever the file gives enough to make one
+	#[serde(skip_serializing_if = "absent")]
 	pub place: Place,//where the picture or the video was taken, from a phone's GPS tags or a movie's location string
 	pub reading: Reading,//how the reading went, apart from what the file holds
 	#[serde(skip)]
 	pixel: (u64, u64),//the shape of one stored pixel as the file states it, width to height and unturned, which a reader records and sizes makes aspect from; 0 on either side when the file states none, which counts as square. Kept out of the answer, which says it as aspect
 }
-#[derive(Serialize, Debug, PartialEq, Clone, Copy)]
+#[derive(Serialize, Debug, PartialEq, Clone, Copy, Default)]
 pub struct Size { pub width: u32, pub height: u32 }//a width and a height in pixels: as stored in raster, and square in aspect; 0 and 0 when the file did not say
 #[derive(Serialize, Debug, PartialEq)]
 pub struct Reading {//the scout's report on its own reading
+	#[serde(skip_serializing_if = "absent")]
 	pub parsed: bool,//the scout has a reader for this format and ran it past the signature; false for a format it names by its signature alone, for bytes it does not recognize, and for an empty file. Says nothing about trouble: a JPEG cut off at 100 bytes is parsed, with trouble
+	#[serde(skip_serializing_if = "absent")]
 	pub trouble: bool,//the reader stopped before it had every answer it reads for this format: its own limit, past its slices or in a structure it does not read, or the file at fault, which corrupted or chopped then names. Corrupted always comes with trouble; chopped can come without it
+	#[serde(skip_serializing_if = "absent")]
 	pub details: &'static str,//a few words on the condition, why the reader stopped or why it did not parse, as this file's own constants; blank when it parsed with no trouble
+	#[serde(skip_serializing_if = "absent")]
 	pub reads: u32,//how many reads the answer is from, 1 or 2
+	#[serde(skip_serializing_if = "absent")]
 	pub depth: u32,//the farthest byte of the tip the reader looked at, signature probes included, for every file; with reads, what a run over a collection reads to learn whether a smaller first read would do and how often a second is needed
+	#[serde(skip_serializing_if = "absent")]
 	pub counts: Counts,//the evidence behind text and binary
 }
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq, Default)]
 pub struct Counts {//how many of the tip's bytes are of each of four kinds, whatever the format; text_verdict reads them, and a run over a collection sets its thresholds by where the two humps fall
 	pub nul: u32,//zero bytes
 	pub control: u32,//control characters other than the whitespace and escape of text
@@ -79,11 +101,17 @@ pub struct Counts {//how many of the tip's bytes are of each of four kinds, what
 }
 #[derive(Serialize, Debug, PartialEq, Default)]
 pub struct Dates {//every time the file states, each as the file wrote it, so a caller sees them all; one it does not state, or writes in a form that spells no date, is all zeros and false. Which one to show is taken's, picked from these at the end, and which is a camera's clock that was never set is the caller's judgment
+	#[serde(skip_serializing_if = "absent")]
 	pub original: When,//EXIF's DateTimeOriginal with its OffsetTimeOriginal and SubSecTimeOriginal: when the shutter fired, which is the time a camera or a phone means
+	#[serde(skip_serializing_if = "absent")]
 	pub digitized: When,//EXIF's DateTimeDigitized with its offset and sub-second: when the image became data, the same moment for a camera and the scan's for a scan
+	#[serde(skip_serializing_if = "absent")]
 	pub modified: When,//EXIF's DateTime with its offset and sub-second, the last change to the image; and a movie header's modification time, UTC by the format's rule
+	#[serde(skip_serializing_if = "absent")]
 	pub gps: When,//EXIF's GPSDateStamp and GPSTimeStamp together, the time of the fix, UTC by the format's rule: the one zoned time in a phone's photo from before the offset tags
+	#[serde(skip_serializing_if = "absent")]
 	pub created: When,//a movie header's creation time, UTC by the format's rule, though cameras have written their local clock there; Windows Media's creation date, UTC; and Matroska's DateUTC, which is when the muxer wrote the file
+	#[serde(skip_serializing_if = "absent")]
 	pub apple: When,//Apple's creation date key, com.apple.quicktime.creationdate, local digits with their zone, which an iPhone writes beside the movie header's UTC
 }
 #[derive(Serialize, Debug, PartialEq, Clone, Copy, Default)]
@@ -107,6 +135,9 @@ pub struct Place {//where a picture or a video was taken, as the file states it
 	pub known: bool,//whether the file states a place, which located below decides
 }
 
+fn absent<T: Default + PartialEq>(value: &T) -> bool { *value == T::default() }//a missing field means the scout found nothing there; a group is left out only when all of it is, so one it found is written whole
+fn upright(orientation: &u32) -> bool { *orientation == 1 }//EXIF's number for no turn
+
 /// What the first bytes of a file say, from the tip alone and the file's size in bytes, and beside it the one request the reader makes: the offset of one more 64 KiB slice when the tip says where the rest of an answer lies, which scout_slices takes with the tip, or nothing. Pure: no path, no open, no allocation, and the same answer for the same bytes on every platform; the essay says what is answered and what is promised
 pub fn scout_bytes(tip: &[u8], size: u64) -> (Tip, Option<u64>) { scout(tip, None, size) }
 
@@ -119,12 +150,12 @@ fn scout(tip: &[u8], second: Option<(u64, &[u8])>, size: u64) -> (Tip, Option<u6
 	let counts = text_counts(tip);
 	let (text, binary) = text_verdict(tip, &counts);
 	let none = Size { width: 0, height: 0 };
-	let mut t = Tip { format: "", medium: "", text, binary, raster: none, aspect: none, orientation: 1, seconds: 0.0, animated: false, corrupted: false, chopped: false, dates: Dates::default(), taken: Taken::default(), place: Place::default(), reading: Reading { parsed: false, trouble: false, details: "", reads: if second.is_some() { 2 } else { 1 }, depth: 0, counts }, pixel: (0, 0) };
+	let mut t = Tip { format: "", kind: "", text, binary, raster: none, aspect: none, aspect_written: none, orientation: 1, seconds: 0.0, animated: false, corrupted: false, chopped: false, dates: Dates::default(), taken: Taken::default(), place: Place::default(), reading: Reading { parsed: false, trouble: false, details: "", reads: if second.is_some() { 2 } else { 1 }, depth: 0, counts }, pixel: (0, 0) };
 	let mut wish = None;
 	if tip.is_empty() { t.reading.details = "empty" }
 	else {
 		match read_format(&b, size, &mut t) {
-			None => if text && svg(&b) { t.format = "svg"; t.medium = IMAGE; t.reading.parsed = true },//no format: text that draws a picture is an svg, and the rest is text or binary as judged above
+			None => if text && svg(&b) { t.format = "svg"; t.kind = IMAGE; t.reading.parsed = true },//no format: text that draws a picture is an svg, and the rest is text or binary as judged above
 			Some(Ok(())) => t.reading.parsed = true,
 			Some(Err(stop)) => {//the reader stopped: its words, and what else its kind says
 				t.reading.details = stop.words();
@@ -140,7 +171,7 @@ fn scout(tip: &[u8], second: Option<(u64, &[u8])>, size: u64) -> (Tip, Option<u6
 		}
 	}
 	sizes(&mut t);
-	t.taken = taken(&t.dates, t.medium);
+	t.taken = taken(&t.dates, t.kind);
 	t.reading.depth = u32::try_from(b.depth.get()).unwrap_or(u32::MAX);//exact, since the tip is at most 64 KiB
 	(t, wish)
 }
@@ -151,6 +182,7 @@ fn sizes(t: &mut Tip) {//the one step that makes the answer's two sizes from wha
 		t.raster = Size { width: t.raster.height, height: t.raster.width };
 		t.aspect = Size { width: t.aspect.height, height: t.aspect.width };
 	}
+	if t.aspect != t.raster { t.aspect_written = t.aspect }//written only where it says more than raster
 }
 
 fn grow(stored: Size, pixel: (u64, u64)) -> Size {//the size to show stored pixels of this shape at, by mpv's rule in mp_image_params_get_dsize: the side the pixel is long on grows by its shape, so neither side shrinks below the stored count, in whole numbers with the fraction dropped, which keeps the answer to the pixel of what fuji's player draws at full size. A shape the file did not state, a square one, or one that would grow a side past what the answer holds leaves the size as stored
@@ -161,12 +193,12 @@ fn grow(stored: Size, pixel: (u64, u64)) -> Size {//the size to show stored pixe
 	stored
 }
 
-fn taken(d: &Dates, medium: &str) -> Taken {//the one step that picks the answer's taken from the times the readers recorded, as sizes makes aspect from their shapes, so a caller reads one time whichever format wrote it: the first time the file states, in an order that puts the moment of capture first and an edit last, with its own zone, a zone borrowed from a second clock in the file, or none. A picture's shutter comes first and its scan second, then a movie's own local time and its header's, then the GPS fix of a picture with no camera time, and last a picture's last change, which is its shutter's time in a file nothing has edited. The shutter's and the scan's times borrow from the GPS fix and Apple's from the movie header, each a second clock that read the same moment in UTC; an edit's time has no such clock, since nothing else in the file read the moment of the edit
+fn taken(d: &Dates, kind: &str) -> Taken {//the one step that picks the answer's taken from the times the readers recorded, as sizes makes aspect from their shapes, so a caller reads one time whichever format wrote it: the first time the file states, in an order that puts the moment of capture first and an edit last, with its own zone, a zone borrowed from a second clock in the file, or none. A picture's shutter comes first and its scan second, then a movie's own local time and its header's, then the GPS fix of a picture with no camera time, and last a picture's last change, which is its shutter's time in a file nothing has edited. The shutter's and the scan's times borrow from the GPS fix and Apple's from the movie header, each a second clock that read the same moment in UTC; an edit's time has no such clock, since nothing else in the file read the moment of the edit
 	let none = When::default();
 	let order = [(d.original, "Original", d.gps), (d.digitized, "Digitized", d.gps), (d.apple, "Apple", d.created), (d.created, "Created", none), (d.gps, "Gps", none), (d.modified, "Modified", none)];//each time, its name, and the second clock it borrows a zone from
 	let Some(&(w, from, clock)) = order.iter().find(|(w, _, _)| w.stamp != 0.0) else { return Taken::default() };
 	if w.zoned {
-		let rule = matches!(from, "Created" | "Gps") || (from == "Modified" && medium != IMAGE);//a movie header's times, Windows Media's and Matroska's dates and a GPS fix are UTC by their formats' rules, where EXIF's times and Apple's key carry the zone they were written in
+		let rule = matches!(from, "Created" | "Gps") || (from == "Modified" && kind != IMAGE);//a movie header's times, Windows Media's and Matroska's dates and a GPS fix are UTC by their formats' rules, where EXIF's times and Apple's key carry the zone they were written in
 		return Taken { stamp: w.stamp, offset: w.offset, zoned: true, from, zone: if rule { "Rule" } else { "Stated" } }
 	}
 	match borrowed(w.stamp, clock) {
@@ -205,8 +237,8 @@ fn read_format(b: &Bytes, size: u64, t: &mut Tip) -> Option<Step<()>> {//the for
 	else if b.has(0, b".snd") { au(b, t) }
 	else if b.has(0, b"FORM") && (b.has(8, b"AIFF") || b.has(8, b"AIFC")) { aiff(b, t) }
 	else if b.has(0, &[0, 0, 1, 0xBA]) || b.has(0, &[0, 0, 1, 0xB3]) { mpeg(b, 0, t) }
-	else if mpegts(b) { t.format = "mpegts"; t.medium = VIDEO; Err(Stop::Named(SIGNATURE_ONLY)) }
-	else if let Some(&(_, format, medium)) = SIGNATURES.iter().find(|(bytes, _, _)| b.has(0, bytes)) { t.format = format; t.medium = medium; Err(Stop::Named(SIGNATURE_ONLY)) }
+	else if mpegts(b) { t.format = "mpegts"; t.kind = VIDEO; Err(Stop::Named(SIGNATURE_ONLY)) }
+	else if let Some(&(_, format, kind)) = SIGNATURES.iter().find(|(bytes, _, _)| b.has(0, bytes)) { t.format = format; t.kind = kind; Err(Stop::Named(SIGNATURE_ONLY)) }
 	else { return None })
 }
 
@@ -413,7 +445,7 @@ fn angle(s: &[u8]) -> Option<(f64, &[u8])> {//one signed number from the front o
 //pictures
 
 fn jpeg(b: &Bytes, t: &mut Tip) -> Step<()> {//a JPEG is segments, each a marker and a length, stepped through by their stated lengths to the start-of-frame segment that holds the size; never searched for, because the EXIF segment can hold a whole small JPEG, the thumbnail, with a frame header of its own. The orientation is a tag in that EXIF segment, read on the way past. A segment that runs past the tip, as a color profile's or a camera's can, is where the second slice begins
-	t.format = "jpeg"; t.medium = IMAGE;
+	t.format = "jpeg"; t.kind = IMAGE;
 	let mut at = 2;//past the start-of-image marker
 	for _ in 0..STEPS {
 		if b.u8(at)? != 0xFF { return Err(Stop::Corrupted("no marker where the format puts one")) }
@@ -561,7 +593,7 @@ fn num16(b: &Bytes, at: usize, little: bool) -> Step<u16> { if little { b.le16(a
 fn num32(b: &Bytes, at: usize, little: bool) -> Step<u32> { if little { b.le32(at) } else { b.be32(at) } }
 
 fn tiff(b: &Bytes, t: &mut Tip) -> Step<()> {//a TIFF's size is in its first directory, which libtiff and many writers keep at the end of the file, past the tip, so the header's pointer to it is where the second slice begins; and a camera's raw file is a TIFF whose first directory describes a small preview, which would be a wrong answer that looks right, so those are refused by the marks they carry
-	t.format = "tiff"; t.medium = IMAGE;
+	t.format = "tiff"; t.kind = IMAGE;
 	if b.has(8, b"CR") { return Err(Stop::Limit("a camera's raw file, whose first image is a preview")) }//Canon's CR2 puts these two letters after the header
 	ask(b, to_usize(num32(b, 4, b.has(0, b"II"))?.into())?, "first directory past the tip")?;
 	let mut ifd = Ifd::default();
@@ -575,7 +607,7 @@ fn tiff(b: &Bytes, t: &mut Tip) -> Step<()> {//a TIFF's size is in its first dir
 }
 
 fn png(b: &Bytes, t: &mut Tip) -> Step<()> {//the header chunk is first by rule, with the size in its first eight bytes; the chunks after it are walked only to see whether an animation control chunk comes before the picture's data, which is what makes an APNG
-	t.format = "png"; t.medium = IMAGE;
+	t.format = "png"; t.kind = IMAGE;
 	if !b.has(12, b"IHDR") { return Err(Stop::Corrupted("no header chunk first")) }
 	let (width, height) = (b.be32(16)?, b.be32(20)?);
 	if width == 0 || height == 0 || width > 0x7FFF_FFFF || height > 0x7FFF_FFFF { return Err(Stop::Corrupted("a size outside the format's range")) }
@@ -600,7 +632,7 @@ fn png(b: &Bytes, t: &mut Tip) -> Step<()> {//the header chunk is first by rule,
 }
 
 fn gif(b: &Bytes, t: &mut Tip) -> Step<()> {//the size is in the screen descriptor after the six-byte signature. Whether it animates is in the blocks after the color table: the looping extension every animated GIF of the web carries says so, and the first image descriptor ends the walk, because what follows it is the first frame's data and a second frame would be past the tip
-	t.format = "gif"; t.medium = IMAGE;
+	t.format = "gif"; t.kind = IMAGE;
 	let (width, height) = (u32::from(b.le16(6)?), u32::from(b.le16(8)?));
 	if width == 0 || height == 0 { return Err(Stop::Corrupted("a zero size in the screen descriptor")) }
 	t.raster = Size { width, height };
@@ -628,7 +660,7 @@ fn gif(b: &Bytes, t: &mut Tip) -> Step<()> {//the size is in the screen descript
 }
 
 fn bmp(b: &Bytes, size: u64, t: &mut Tip) -> Step<()> {//the file header says the file's size and where the pixels start; the information header after it has a size of its own, twelve for the 1990 OS/2 form with 16-bit sides and forty or more for Windows', with 32-bit sides, the height negative when the rows run top down
-	t.format = "bmp"; t.medium = IMAGE;
+	t.format = "bmp"; t.kind = IMAGE;
 	if u64::from(b.le32(2)?) > size { t.chopped = true }
 	let (width, height) = if b.le32(14)? == 12 { (u32::from(b.le16(18)?), u32::from(b.le16(20)?)) } else { ((b.le32(18)? as i32).unsigned_abs(), (b.le32(22)? as i32).unsigned_abs()) };
 	if width == 0 || height == 0 { return Err(Stop::Corrupted("a zero size in the header")) }
@@ -637,7 +669,7 @@ fn bmp(b: &Bytes, size: u64, t: &mut Tip) -> Step<()> {//the file header says th
 }
 
 fn webp(b: &Bytes, t: &mut Tip) -> Step<()> {//a RIFF whose first chunk is one of three: the lossy bitstream, whose size follows a start code; the lossless one, whose size is two fourteen-bit fields after its signature byte; or the extended header, which carries flags for animation and transparency and the canvas size as two 24-bit fields, less one
-	t.format = "webp"; t.medium = IMAGE;
+	t.format = "webp"; t.kind = IMAGE;
 	let (width, height) = match &b.four(12)? {
 		b"VP8 " => {
 			if !b.has(23, &[0x9D, 0x01, 0x2A]) { return Err(Stop::Corrupted("no start code in the lossy bitstream")) }
@@ -661,7 +693,7 @@ fn webp(b: &Bytes, t: &mut Tip) -> Step<()> {//a RIFF whose first chunk is one o
 fn add_one(n: u32) -> u32 { n.saturating_add(1) }//a size a format stores less one
 
 fn psd(b: &Bytes, t: &mut Tip) -> Step<()> {//Photoshop's header: the signature, a version, six reserved bytes, the channel count, then the height and the width as 32-bit numbers
-	t.format = "psd"; t.medium = IMAGE;
+	t.format = "psd"; t.kind = IMAGE;
 	let (height, width) = (b.be32(14)?, b.be32(18)?);
 	if width == 0 || height == 0 { return Err(Stop::Corrupted("a zero size in the header")) }
 	t.raster = Size { width, height };
@@ -706,7 +738,7 @@ fn riff_list(b: &Bytes, from: usize, end: usize, kind: &[u8; 4]) -> Step<(usize,
 }
 
 fn avi(b: &Bytes, t: &mut Tip) -> Step<()> {//the main header is the first chunk of the header list: the time a frame lasts in microseconds, the frame count, and the size, at fixed offsets. A file past a gigabyte continues in further RIFF chunks, and its whole frame count is in an OpenDML header in the same list, taken when it is there. The pixel's shape is not read: AVI's place for it, the OpenDML video properties chunk, is one few writers fill in, and the shape an AVI carries is usually inside its codec's own stream
-	t.format = "avi"; t.medium = VIDEO;
+	t.format = "avi"; t.kind = VIDEO;
 	let (from, end) = riff_list(b, 12, usize::MAX, b"hdrl")?;
 	let (main, _) = riff_chunk(b, from, end, b"avih")?;
 	let micros = b.le32(main)?;
@@ -722,7 +754,7 @@ fn avi(b: &Bytes, t: &mut Tip) -> Step<()> {//the main header is the first chunk
 }
 
 fn wav(b: &Bytes, size: u64, t: &mut Tip) -> Step<()> {//the format chunk says the bytes a second and the data chunk's stated size is the sound, so the running time is one divided by the other; a data chunk past the tip, which a long list of tags or a picture before the sound can cause, is where the second slice begins
-	t.format = "wav"; t.medium = AUDIO;
+	t.format = "wav"; t.kind = AUDIO;
 	let (format, _) = riff_chunk(b, 12, usize::MAX, b"fmt ")?;
 	let rate = b.le32(add(format, 8)?)?;//bytes a second
 	let (data, n) = riff_chunk(b, 12, usize::MAX, b"data")?;
@@ -755,7 +787,7 @@ fn box_head(b: &Bytes, at: usize) -> Step<([u8; 4], usize, usize)> {//a box's fo
 }
 
 fn iso(b: &Bytes, size: u64, t: &mut Tip) -> Step<()> {//the top-level boxes in order: the file-type box names the family, the movie box holds every answer, and the data box before the movie box is the layout every phone records and a web encoder undoes, stepped over to the movie box behind it, which the second slice holds when the data runs past the tip
-	t.format = "mov"; t.medium = VIDEO;//until the file-type box says otherwise, which the first box nearly always is
+	t.format = "mov"; t.kind = VIDEO;//until the file-type box says otherwise, which the first box nearly always is
 	let mut at = 0;
 	for _ in 0..STEPS {
 		let (kind, data, end) = box_head(b, at)?;
@@ -774,7 +806,7 @@ fn iso(b: &Bytes, size: u64, t: &mut Tip) -> Step<()> {//the top-level boxes in 
 
 fn iso_brand(b: &Bytes, data: usize, t: &mut Tip) -> Step<()> {//the file's major brand, which says which family of file this is; the box lists compatible brands after it, which the reader does not need. A picture's brand ends the reading, since a HEIF picture's size sits in its item properties, a walk through three more boxes the reader does not make
 	let brand = b.four(data)?;
-	(t.format, t.medium) = match &brand {
+	(t.format, t.kind) = match &brand {
 		b"avif" | b"avis" => ("avif", IMAGE),
 		b"heic" | b"heix" | b"hevc" | b"hevx" | b"heim" | b"heis" | b"mif1" | b"msf1" => ("heic", IMAGE),
 		b"qt  " => ("mov", VIDEO),
@@ -783,7 +815,7 @@ fn iso_brand(b: &Bytes, data: usize, t: &mut Tip) -> Step<()> {//the file's majo
 		_ => ("mp4", VIDEO),
 	};
 	if matches!(&brand, b"avis" | b"msf1") { t.animated = true }//the sequence brands of the two picture families
-	if t.medium == IMAGE { return Err(Stop::Limit("item properties not read")) }
+	if t.kind == IMAGE { return Err(Stop::Limit("item properties not read")) }
 	Ok(())
 }
 
@@ -807,7 +839,7 @@ fn iso_moov(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the 
 		}
 		at = box_end;
 	}
-	if tracks > 0 && !visual && t.medium == VIDEO { t.medium = AUDIO }//a movie with no picture is a sound file, whatever its brand said
+	if tracks > 0 && !visual && t.kind == VIDEO { t.kind = AUDIO }//a movie with no picture is a sound file, whatever its brand said
 	Ok(())
 }
 
@@ -927,7 +959,7 @@ fn iso_keys(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//the 
 //Matroska and WebM, whose elements are EBML: an id and a size as variable-length integers, then the data
 
 fn ebml(b: &Bytes, t: &mut Tip) -> Step<()> {//the header names the document type, matroska or webm, and the segment after it holds the information element with the running time and the tracks element with each track's kind and size; both come before the first cluster of frames in every file a common muxer writes
-	t.format = "matroska"; t.medium = VIDEO;
+	t.format = "matroska"; t.kind = VIDEO;
 	let (_, header, header_end) = ebml_head(b, 0)?;
 	if let Some((data, n)) = ebml_child(b, header, header_end, 0x4282)? { if b.read(data, n)? == b"webm" { t.format = "webm" } }
 	let (id, segment, segment_end) = ebml_head(b, header_end)?;
@@ -1027,14 +1059,14 @@ fn ebml_tracks(b: &Bytes, from: usize, end: usize, t: &mut Tip) -> Step<()> {//e
 		}
 		at = entry_end;
 	}
-	if !visual { t.medium = AUDIO }
+	if !visual { t.kind = AUDIO }
 	Ok(())
 }
 
 //the other containers of video
 
 fn mpeg(b: &Bytes, from: usize, t: &mut Tip) -> Step<()> {//an MPEG-1 or MPEG-2 stream, a program stream of packs or the bare video: the size is twelve bits each in the sequence header, found by its start code, which the format defines as the way to find it, and the pixel's shape is in the four bits after them. A program stream's running time is the last pack's clock less the first's, which is how FFmpeg estimates it, and a Video CD or a DVD writes a pack every two kilobytes, so the last is in the last 64 KiB, which the second slice reads; the bare video has no clock
-	t.format = "mpeg"; t.medium = VIDEO;
+	t.format = "mpeg"; t.kind = VIDEO;
 	let header = b.find(from, &[0, 0, 1, 0xB3])?;
 	if let Some(at) = header {
 		let (b0, b1, b2) = (u32::from(b.u8(add(at, 4)?)?), u32::from(b.u8(add(at, 5)?)?), u32::from(b.u8(add(at, 6)?)?));
@@ -1085,9 +1117,9 @@ fn mpegts(b: &Bytes) -> bool {//a transport stream: the sync byte at the head of
 }
 
 fn flv(b: &Bytes, t: &mut Tip) -> Step<()> {//Flash video: a header with flags for its streams, then tags, the first of which is the metadata every common writer puts there, with the running time and the size. A stream captured without it keeps its running time only in its last tag's timestamp, at the end of the file, which the second slice reads
-	t.format = "flv"; t.medium = VIDEO;
+	t.format = "flv"; t.kind = VIDEO;
 	let flags = b.u8(4)?;
-	if flags & 1 == 0 && flags & 4 != 0 { t.medium = AUDIO }//bit 0 for a video stream and bit 2 for a sound one
+	if flags & 1 == 0 && flags & 4 != 0 { t.kind = AUDIO }//bit 0 for a video stream and bit 2 for a sound one
 	let metadata = flv_metadata(b, t);
 	if t.seconds <= 0.0 {
 		ask_end(b, "running time at the end")?;
@@ -1177,7 +1209,7 @@ fn asf(b: &Bytes, t: &mut Tip) -> Step<()> {//Windows Media, video and audio ali
 		}
 		at = add(at, n)?;
 	}
-	t.medium = if visual { VIDEO } else if sound { AUDIO } else { "" };
+	t.kind = if visual { VIDEO } else if sound { AUDIO } else { "" };
 	Ok(())
 }
 
@@ -1209,7 +1241,7 @@ fn realmedia(b: &Bytes, t: &mut Tip) -> Step<()> {//RealMedia: chunks of a four-
 		}
 		at = add(at, n)?;
 	}
-	t.medium = if visual { VIDEO } else if sound { AUDIO } else { "" };
+	t.kind = if visual { VIDEO } else if sound { AUDIO } else { "" };
 	Ok(())
 }
 
@@ -1217,12 +1249,12 @@ fn ogg(b: &Bytes, t: &mut Tip) -> Step<()> {//an Ogg stream's first page carries
 	t.format = "ogg";
 	let payload = add(27, usize::from(b.u8(26)?))?;//the page header, then a lacing table of one byte a segment
 	let serial = b.le32(14)?;//the first stream's serial number, which every page of it carries, so the page read at the end is this stream's and not that of a second stream muxed in or chained on after
-	let (rate, skip, shift) = if b.has(payload, b"\x01vorbis") { t.medium = AUDIO; (f64::from(b.le32(add(payload, 12)?)?), 0, 0) }//the sample rate after the version and the channel count
-		else if b.has(payload, b"OpusHead") { t.medium = AUDIO; (48000.0, u64::from(b.le16(add(payload, 10)?)?), 0) }//Opus counts its granule at 48 kHz whatever the sound's own rate, less the pre-skip after the version and the channel count
-		else if b.has(payload, b"\x7FFLAC") { t.medium = AUDIO; (f64::from((b.be64(add(payload, 27)?)? >> 44) as u32), 0, 0) }//FLAC's stream information block inside the first packet, with its sample rate in the top twenty bits of the same eight bytes the bare file packs
-		else if b.has(payload, b"Speex   ") { t.medium = AUDIO; (f64::from(b.le32(add(payload, 36)?)?), 0, 0) }//the rate after the version string, its id and the header's size
+	let (rate, skip, shift) = if b.has(payload, b"\x01vorbis") { t.kind = AUDIO; (f64::from(b.le32(add(payload, 12)?)?), 0, 0) }//the sample rate after the version and the channel count
+		else if b.has(payload, b"OpusHead") { t.kind = AUDIO; (48000.0, u64::from(b.le16(add(payload, 10)?)?), 0) }//Opus counts its granule at 48 kHz whatever the sound's own rate, less the pre-skip after the version and the channel count
+		else if b.has(payload, b"\x7FFLAC") { t.kind = AUDIO; (f64::from((b.be64(add(payload, 27)?)? >> 44) as u32), 0, 0) }//FLAC's stream information block inside the first packet, with its sample rate in the top twenty bits of the same eight bytes the bare file packs
+		else if b.has(payload, b"Speex   ") { t.kind = AUDIO; (f64::from(b.le32(add(payload, 36)?)?), 0, 0) }//the rate after the version string, its id and the header's size
 		else if b.has(payload, b"\x80theora") {//the picture size after the identification header's version and its frame size in macroblocks, then the frame rate as a fraction and the pixel's shape. A granule position is a keyframe's number and the count of frames since it, split at a shift the header gives, so the frame count is the two added
-			t.medium = VIDEO;
+			t.kind = VIDEO;
 			let (width, height) = (b.be24(add(payload, 14)?)?, b.be24(add(payload, 17)?)?);
 			if width > 0 && height > 0 { t.raster = Size { width, height } }
 			let (numerator, denominator) = (b.be32(add(payload, 22)?)?, b.be32(add(payload, 26)?)?);
@@ -1250,7 +1282,7 @@ fn ogg(b: &Bytes, t: &mut Tip) -> Step<()> {//an Ogg stream's first page carries
 //sound
 
 fn flac(b: &Bytes, from: usize, t: &mut Tip) -> Step<()> {//the stream information block is first by rule, and eight of its bytes pack the sample rate in twenty bits, the channels and bits per sample, and the total samples in thirty-six; from is where the signature sits, the file's start or the end of an ID3 tag
-	t.format = "flac"; t.medium = AUDIO;
+	t.format = "flac"; t.kind = AUDIO;
 	if b.u8(add(from, 4)?)? & 0x7F != 0 { return Err(Stop::Corrupted("the first metadata block is not the stream information")) }
 	let packed = b.be64(add(from, 18)?)?;//after the block header and the block and frame sizes
 	let (rate, samples) = ((packed >> 44) as u32, packed & 0xF_FFFF_FFFF);
@@ -1305,7 +1337,7 @@ fn adts(b: &Bytes, at: usize) -> bool {//raw AAC frames at an offset, which an I
 }
 
 fn mp3(b: &Bytes, size: u64, t: &mut Tip) -> Step<()> {//MPEG audio, which is to say MP3: an ID3 tag first if there is one, then frames. The running time is the frame count in the Xing or Info header a modern encoder writes in a first silent frame, times the samples a frame holds, over the sample rate; without one the file is taken as constant bit rate and timed from its size, which is right for the constant-rate files of the early collections and wrong by its variation for a variable-rate file with no header
-	t.format = "mp3"; t.medium = AUDIO;
+	t.format = "mp3"; t.kind = AUDIO;
 	let mut at = 0;
 	if b.has(0, b"ID3") {//an ID3v2 tag: a ten-byte header whose size is four seven-bit bytes, and a footer of ten more when its flag says so
 		let flags = b.u8(5)?;
@@ -1331,7 +1363,7 @@ fn mp3(b: &Bytes, size: u64, t: &mut Tip) -> Step<()> {//MPEG audio, which is to
 }
 
 fn au(b: &Bytes, t: &mut Tip) -> Step<()> {//Sun's sound file: after the signature, the data's offset, its size, the encoding, the sample rate and the channel count, each four bytes; the running time is the size over the bytes a second, which the encoding fixes
-	t.format = "au"; t.medium = AUDIO;
+	t.format = "au"; t.kind = AUDIO;
 	let (n, encoding, rate, channels) = (b.be32(8)?, b.be32(12)?, b.be32(16)?, b.be32(20)?);
 	let bytes: u32 = match encoding { 1 | 2 | 27 => 1, 3 => 2, 4 => 3, 5 | 6 => 4, 7 => 8, _ => return Err(Stop::Limit("an encoding the reader does not know")) };//µ-law, 8-bit linear and A-law are a byte a sample; then 16, 24 and 32-bit linear, 32-bit float and 64-bit float
 	if n == u32::MAX { return Err(Stop::Limit("a data size the writer never filled in")) }
@@ -1342,7 +1374,7 @@ fn au(b: &Bytes, t: &mut Tip) -> Step<()> {//Sun's sound file: after the signatu
 }
 
 fn aiff(b: &Bytes, t: &mut Tip) -> Step<()> {//Apple's interchange format, chunked like a RIFF with big-endian sizes: the common chunk holds the channel count, the frame count, the bits a sample and the sample rate as an 80-bit extended float, which is the one place the reader meets one
-	t.format = "aiff"; t.medium = AUDIO;
+	t.format = "aiff"; t.kind = AUDIO;
 	let (common, _) = iff_chunk(b, 12, b"COMM")?;
 	let frames = b.be32(add(common, 2)?)?;
 	let exponent = i32::from(b.be16(add(common, 8)?)? & 0x7FFF);//a sign bit and fifteen bits of exponent, biased by 16383
@@ -1403,7 +1435,7 @@ mod tests {
 		let t = scout(b"\x01\x02\x03 control characters, and no zero byte among them");//neither: too many control characters for text, and no zero byte for binary
 		assert!(!t.text && !t.binary);
 		let t = scout(b"<?xml version=\"1.0\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
-		assert_eq!((t.text, t.format, t.medium, t.reading.parsed), (true, "svg", IMAGE, true));
+		assert_eq!((t.text, t.format, t.kind, t.reading.parsed), (true, "svg", IMAGE, true));
 		let t = scout(b"<?xml version=\"1.0\"?>\n<!-- Generator: Adobe Illustrator 24.0.0 -->\n<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\" [\n\t<!ENTITY ns_flows \"http://ns.adobe.com/Flows/1.0/\">\n]>\n<svg version=\"1.1\"/>\n");//a doctype holding declarations of its own
 		assert_eq!(t.format, "svg");
 		let t = scout(b"<!doctype html>\n<html><body><p>A page with a drawing.</p><svg width=\"8\" height=\"8\"></svg></body></html>\n");//a page that holds a drawing is a page
@@ -1413,7 +1445,7 @@ mod tests {
 		let t = scout(b"Get free shipping on every order\n");//a fifth byte that starts one of QuickTime's top boxes
 		assert_eq!((t.text, t.format), (true, ""));
 		let t = scout(b"PK\x03\x04and the rest of a zip");
-		assert_eq!((t.format, t.medium, t.reading.details, t.reading.parsed, t.reading.trouble, t.text, t.binary), ("zip", "", SIGNATURE_ONLY, false, false, false, false));
+		assert_eq!((t.format, t.kind, t.reading.details, t.reading.parsed, t.reading.trouble, t.text, t.binary), ("zip", "", SIGNATURE_ONLY, false, false, false, false));
 		let t = scout(b"ID3 tags, as this text file opens with, name mp3 to the reader\n");//a signature's letters at the head of prose: the format and the text verdict both stand, and the caller sees both. The four letters after the tag's flags read as a size that points past the end
 		assert_eq!((t.format, t.text, t.binary, t.chopped, t.reading.details), ("mp3", true, false, true, "a tag longer than the tip"));
 	}
@@ -1457,7 +1489,7 @@ mod tests {
 		let mut v = png_header(640, 480);
 		v.extend(be32(0)); v.extend(b"IDAT"); v.extend(be32(0));
 		let t = scout(&v);
-		assert_eq!((t.format, t.medium, t.raster, t.aspect, t.animated, t.reading.parsed, t.reading.trouble, t.reading.details), ("png", IMAGE, size(640, 480), size(640, 480), false, true, false, ""));
+		assert_eq!((t.format, t.kind, t.raster, t.aspect, t.animated, t.reading.parsed, t.reading.trouble, t.reading.details), ("png", IMAGE, size(640, 480), size(640, 480), false, true, false, ""));
 		let mut v = png_header(2, 3);
 		v.extend(be32(8)); v.extend(b"acTL"); v.extend([0; 12]);
 		v.extend(be32(0)); v.extend(b"IDAT"); v.extend(be32(0));
@@ -1684,22 +1716,22 @@ mod tests {
 		moov.extend(track(tkhd(1920, 1080, [0, one, -one, 0]), media(b"vide", 1920, 1080)));//then the picture, turned a quarter turn as a phone records it
 		let mut v = iso_box(b"ftyp", b"mp42\0\0\0\0isommp42"); v.extend(iso_box(b"moov", &moov)); v.extend(iso_box(b"mdat", &[0; 16]));
 		let t = scout(&v);
-		assert_eq!((t.format, t.medium, t.raster, t.aspect, t.orientation, t.seconds, t.reading.details), ("mp4", VIDEO, size(1080, 1920), size(1080, 1920), 6, 5.5, ""));
+		assert_eq!((t.format, t.kind, t.raster, t.aspect, t.orientation, t.seconds, t.reading.details), ("mp4", VIDEO, size(1080, 1920), size(1080, 1920), 6, 5.5, ""));
 		let mut sound = iso_box(b"mvhd", &mvhd); sound.extend(track(tkhd(0, 0, [one, 0, 0, one]), media(b"soun", 0, 0))); sound.extend(track(tkhd(320, 60, [one, 0, 0, one]), media(b"sbtl", 0, 0)));
 		let mut v = iso_box(b"ftyp", b"isom\0\0\0\0"); v.extend(iso_box(b"moov", &sound));
 		let t = scout(&v);
-		assert_eq!((t.medium, t.raster), (AUDIO, size(0, 0)));//sound and a subtitle with a size: a sound file, and no size
+		assert_eq!((t.kind, t.raster), (AUDIO, size(0, 0)));//sound and a subtitle with a size: a sound file, and no size
 	}
 	#[test]
 	fn mp4_with_its_index_at_the_end_names_the_stop() {
 		let mut v = iso_box(b"ftyp", b"isom\0\0\0\0"); v.extend(be32(100_000)); v.extend(b"mdat"); v.extend([0; 16]);
 		let t = scout(&v);
-		assert_eq!((t.format, t.medium, t.seconds, t.reading.details, t.reading.trouble, t.chopped, t.corrupted), ("mp4", VIDEO, 0.0, "index at the end", true, true, false));//a data box that claims past the file's end: nothing to ask for, and the file is chopped where its index should be
+		assert_eq!((t.format, t.kind, t.seconds, t.reading.details, t.reading.trouble, t.chopped, t.corrupted), ("mp4", VIDEO, 0.0, "index at the end", true, true, false));//a data box that claims past the file's end: nothing to ask for, and the file is chopped where its index should be
 		let (t, wish) = scout_bytes(&v, size::GB);
 		assert_eq!((t.chopped, wish), (false, Some(100_016)));//in a file that long, the index is asked for where the data box ends
 		let v = iso_box(b"ftyp", b"heic\0\0\0\0mif1heic");
 		let t = scout(&v);
-		assert_eq!((t.format, t.medium, t.reading.parsed, t.reading.trouble, t.reading.details, t.corrupted, t.chopped), ("heic", IMAGE, true, true, "item properties not read", false, false));
+		assert_eq!((t.format, t.kind, t.reading.parsed, t.reading.trouble, t.reading.details, t.corrupted, t.chopped), ("heic", IMAGE, true, true, "item properties not read", false, false));
 	}
 
 	fn keys(names: &[&[u8]]) -> Vec<u8> {//a keys box naming each key in the mdta namespace, counted from one
@@ -1754,7 +1786,7 @@ mod tests {
 	fn wav_and_flac_time_themselves() {
 		let mut v = b"RIFF".to_vec(); v.extend(36u32.to_le_bytes()); v.extend(b"WAVEfmt "); v.extend(16u32.to_le_bytes()); v.extend([1, 0, 1, 0]); v.extend(8000u32.to_le_bytes()); v.extend(16000u32.to_le_bytes()); v.extend([2, 0, 16, 0]); v.extend(b"data"); v.extend(32000u32.to_le_bytes());
 		let (t, wish) = scout_bytes(&v, 32044);
-		assert_eq!((t.format, t.medium, t.seconds, t.chopped, wish), ("wav", AUDIO, 2.0, false, None));
+		assert_eq!((t.format, t.kind, t.seconds, t.chopped, wish), ("wav", AUDIO, 2.0, false, None));
 		let t = scout(&v);//the data chunk claims more than the file holds
 		assert_eq!((t.seconds, t.chopped, t.reading.trouble), (2.0, true, false));
 		let mut unfilled = v.clone(); let n = unfilled.len(); unfilled[n - 4..].copy_from_slice(&u32::MAX.to_le_bytes());//a writer that never came back to fill in the size
@@ -1764,10 +1796,10 @@ mod tests {
 		let packed: u64 = (44100u64 << 44) | (1 << 41) | (15 << 36) | 88200;
 		v.extend(packed.to_be_bytes()); v.extend([0; 16]);
 		let t = scout(&v);
-		assert_eq!((t.format, t.medium, t.seconds), ("flac", AUDIO, 2.0));
+		assert_eq!((t.format, t.kind, t.seconds), ("flac", AUDIO, 2.0));
 		let mut tagged = b"ID3\x04\0\0\0\0\0\x0A".to_vec(); tagged.extend([0; 10]); tagged.extend(&v);//the same FLAC behind an ID3 tag, as some taggers leave one
 		let t = scout(&tagged);
-		assert_eq!((t.format, t.medium, t.seconds), ("flac", AUDIO, 2.0));
+		assert_eq!((t.format, t.kind, t.seconds), ("flac", AUDIO, 2.0));
 	}
 
 	#[test]
@@ -1775,7 +1807,7 @@ mod tests {
 		let header = [0xFF, 0xFB, 0x90, 0x00];//MPEG-1 layer III at 128 kbps and 44100 Hz, stereo, 417 bytes a frame
 		let mut v = header.to_vec(); v.extend([0; 32]); v.extend(b"Xing"); v.extend(be32(1)); v.extend(be32(3828)); v.resize(417, 0); v.extend(header); v.resize(417 * 2, 0);
 		let t = scout(&v);
-		assert_eq!((t.format, t.medium), ("mp3", AUDIO));
+		assert_eq!((t.format, t.kind), ("mp3", AUDIO));
 		assert!((t.seconds - 100.0).abs() < 0.01);
 		let mut v = b"ID3\x04\0\0\0\0\0\x0A".to_vec(); v.extend([0; 10]); v.extend(header); v.resize(20 + 417, 0); v.extend(header); v.resize(20 + 417 * 2, 0);
 		let (t, wish) = scout_bytes(&v, 20 + 160_000);
@@ -1800,7 +1832,7 @@ mod tests {
 
 	#[test]
 	fn samples_answer_as_their_makers_made_them() {
-		type Row = (&'static str, &'static str, &'static str, (u32, u32), (u32, u32), u32, f64, bool, (bool, bool), (bool, bool), &'static str);//the file; its format and medium; its stored size and the size to show it at, both turned; its orientation; its running time, matched within a twentieth of a second and 0 for none; whether it animates; text and binary; parsed and trouble; and the details. No sample is corrupted or chopped, which the loop checks for every row
+		type Row = (&'static str, &'static str, &'static str, (u32, u32), (u32, u32), u32, f64, bool, (bool, bool), (bool, bool), &'static str);//the file; its format and kind; its stored size and the size to show it at, both turned; its orientation; its running time, matched within a twentieth of a second and 0 for none; whether it animates; text and binary; parsed and trouble; and the details. No sample is corrupted or chopped, which the loop checks for every row
 		let rows: &[Row] = &[
 			("picture.png", "png", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
 			("picture.gif", "gif", IMAGE, (32, 20), (32, 20), 1, 0.0, false, (false, true), (true, false), ""),
@@ -1876,10 +1908,10 @@ mod tests {
 			("empty", "", "", (0, 0), (0, 0), 1, 0.0, false, (false, false), (false, false), "empty"),
 		];
 		let mut wrong = vec![];//every row that disagrees, so one run shows them all
-		for &(name, format, medium, raster, aspect, orientation, secs, animated, (text, binary), (parsed, trouble), details) in rows {
+		for &(name, format, kind, raster, aspect, orientation, secs, animated, (text, binary), (parsed, trouble), details) in rows {
 			let t = scout_sample(name);
-			let got = (t.format, t.medium, (t.raster.width, t.raster.height), (t.aspect.width, t.aspect.height), t.orientation, t.animated, (t.text, t.binary), (t.reading.parsed, t.reading.trouble), t.reading.details);
-			let want = (format, medium, raster, aspect, orientation, animated, (text, binary), (parsed, trouble), details);
+			let got = (t.format, t.kind, (t.raster.width, t.raster.height), (t.aspect.width, t.aspect.height), t.orientation, t.animated, (t.text, t.binary), (t.reading.parsed, t.reading.trouble), t.reading.details);
+			let want = (format, kind, raster, aspect, orientation, animated, (text, binary), (parsed, trouble), details);
 			if got != want { wrong.push(format!("{name}: {got:?} against {want:?}")) }
 			if (t.seconds - secs).abs() >= 0.05 { wrong.push(format!("{name}: {} seconds against {secs}", t.seconds)) }
 			if t.corrupted || t.chopped { wrong.push(format!("{name}: read as corrupted or chopped")) }
@@ -1955,7 +1987,7 @@ mod tests {
 			scout(&v)
 		};
 		let t = theora(32, 20, (0, 0));//a shape the encoder did not know, which counts as square
-		assert_eq!((t.format, t.medium, t.raster, t.aspect, t.seconds, t.reading.details), ("ogg", VIDEO, size(32, 20), size(32, 20), 1.0, ""));
+		assert_eq!((t.format, t.kind, t.raster, t.aspect, t.seconds, t.reading.details), ("ogg", VIDEO, size(32, 20), size(32, 20), 1.0, ""));
 		let t = theora(720, 480, (32, 27));
 		assert_eq!((t.raster, t.aspect, t.seconds, t.reading.details), (size(720, 480), size(853, 480), 1.0, ""));
 	}
@@ -2003,7 +2035,7 @@ mod tests {
 		let o = sample("audio.ogg"); let last = o.windows(4).rposition(|w| w == b"OggS").unwrap();
 		let mut v = o.clone(); v.resize(o.len() + pad, 0); v.extend(&o[last..]);//the sample, then silence, then its last page again at the end
 		let (t, wish) = first(&v);
-		assert_eq!((t.format, t.medium, t.seconds, t.reading.details, wish), ("ogg", AUDIO, 0.0, "granule position at the end", Some((v.len() - TIP_BYTES) as u64)));
+		assert_eq!((t.format, t.kind, t.seconds, t.reading.details, wish), ("ogg", AUDIO, 0.0, "granule position at the end", Some((v.len() - TIP_BYTES) as u64)));
 		let t = scout_file(&v, TIP_BYTES);
 		assert!((t.seconds - 1.0).abs() < 0.05 && t.reading.details.is_empty(), "{} {}", t.seconds, t.reading.details);
 		let mut f = sample("video.flv"); let key = f.windows(8).position(|w| w == b"duration").unwrap(); f[key] = b'x';//the running time in the metadata renamed, so the reader has to go to the end for it
@@ -2035,7 +2067,7 @@ mod tests {
 			for cut in [512, 1024, 2048, 4096] {
 				if cut >= bytes.len() { continue }
 				let t = scout_file(&bytes, cut);
-				assert_eq!((&name, cut, t.format, t.medium, t.raster, t.aspect, t.orientation, t.animated, (t.corrupted, t.chopped), (t.reading.parsed, t.reading.trouble), t.reading.details, (&t.dates, t.taken, t.place)), (&name, cut, whole.format, whole.medium, whole.raster, whole.aspect, whole.orientation, whole.animated, (whole.corrupted, whole.chopped), (whole.reading.parsed, whole.reading.trouble), whole.reading.details, (&whole.dates, whole.taken, whole.place)));
+				assert_eq!((&name, cut, t.format, t.kind, t.raster, t.aspect, t.orientation, t.animated, (t.corrupted, t.chopped), (t.reading.parsed, t.reading.trouble), t.reading.details, (&t.dates, t.taken, t.place)), (&name, cut, whole.format, whole.kind, whole.raster, whole.aspect, whole.orientation, whole.animated, (whole.corrupted, whole.chopped), (whole.reading.parsed, whole.reading.trouble), whole.reading.details, (&whole.dates, whole.taken, whole.place)));
 				assert!((t.seconds - whole.seconds).abs() < 0.001, "{name} cut at {cut}: {} seconds against {}", t.seconds, whole.seconds);
 			}
 		}

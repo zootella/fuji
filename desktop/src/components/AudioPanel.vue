@@ -350,22 +350,3 @@ defineExpose({start, started, onDrop, onKey})//the calls of the shell's this vie
 </div>
 
 </template>
-<style scoped>
-
-.myButton { /* a button drawn as one, with an edge and a face, since the reset leaves a button as bare text, which reads as a link */
-	padding: 2px 10px;
-	color: var(--color-ink);
-	background-color: var(--color-surface);
-	border: 1px solid var(--color-line);
-	cursor: pointer;
-}
-.myButton[aria-pressed="true"] { /* the one in force in a row of choices */
-	color: var(--color-strong);
-	border-color: var(--color-strong);
-}
-.myButton:disabled { /* nothing for it to do yet: quieter, and no hand */
-	color: var(--color-fainter);
-	cursor: default;
-}
-
-</style>

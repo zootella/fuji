@@ -1,5 +1,6 @@
 //the walker: every name in a folder tree with what kind of thing it is, which is the scout's knowledge of storage the way tip.rs is its knowledge of formats
 
+use serde::Serialize;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs;
@@ -16,7 +17,7 @@ The answer. Every name the walk meets comes back as an Item with its kind, the a
 What it cannot prevent. Every listing and every stat is a call into the system, and on a dying disk, a scratched disc retrying a sector, a network share that dropped, a USB drive waking from sleep or a permission prompt nobody answers, that call can wait for minutes or forever. The walker has no answer to that, since a thread waiting in the kernel cannot be cancelled: a caller checks for a stop between items, and the lasting answer is a process of its own, which can be killed, as the overnight scan will have.
 */
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Kind {//what a name in the tree is, and so what a caller may do with it: read a File, and only list every other kind. Each is decided where its check is commented below
 	File,//a regular file, which a caller may open and read
 	Folder,//a folder the walker entered, whose entries follow it

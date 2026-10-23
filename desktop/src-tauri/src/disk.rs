@@ -145,6 +145,15 @@ plugin-fs does streaming by:
 so this will be fine for images, but for big files, you'll have to use plugin-fs or implement a fancier read function here of our own!
 */
 
+/// POSIX `open` with `O_APPEND|O_CREAT` + `write` + `close`
+#[command]
+pub async fn disk_append(path: String, text: String) -> Result<(), String> {
+	run_blocking(move || {
+		use std::io::Write;
+		fs::OpenOptions::new().append(true).create(true).open(&path).and_then(|mut file| file.write_all(text.as_bytes())).map_err(|e| e.to_string())
+	}).await
+}
+
 /// "cp" (shallow, files only)
 //also without a caller yet, and correct to be ready: copying is what a backup feature is made of, and the essay below is the research behind doing it well
 #[command]

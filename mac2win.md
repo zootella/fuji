@@ -1,4 +1,4 @@
-# To Windows: a dark fringe on transparent thumbnails, fixed on the Mac and maybe on Windows too
+# To Windows: a dark fringe on transparent thumbnails, and the inventory's file system facts
 
 Written on the Mac mini on 2026-10-23. Read this, then talk with the user before changing anything; a letter starts a conversation rather than settling one.
 
@@ -22,3 +22,11 @@ Written on the Mac mini on 2026-10-23. Read this, then talk with the user before
 **What would settle it is a count.** WIC's thumbnail of `firefox.png` at 210 pixels, through the same steps `thumbnail.rs` takes, against a correct shrink of the same file, counting the partly clear edge pixels whose color, unpremultiplied, is near black; the Mac's 1,215 against 1 is the size of the fault to expect. Then the look the user took here: `firefox.png` and `firefox.svg` side by side on the sheet.
 
 **If WIC bleeds, the fix is likely small.** WIC has premultiplied pixel formats, so converting to one ahead of the scaler, and back to straight alpha in the conversion the pipeline already ends with, would keep the hidden colors out, in WIC's own terms.
+
+## The inventory's file system facts, which only Windows answers its own way
+
+**Three things the inventory reads about each file come through code only Windows runs, and none of it has run there.** The changed time and the count of a file's names both come from `GetFileInformationByHandleEx` on the file the inventory already has open, one struct each, since Rust's standard library reads neither outside its unstable builds; `hidden` comes from the file's hidden attribute. All of it sits behind `#[cfg(windows)]` in `inventory.rs`, with the `Win32_Storage_FileSystem` feature of the `windows` crate newly on in `Cargo.toml`. Fuji's own build can't target Windows from the Mac, so it was type-checked in a scratch crate against the same `windows` 0.62.2, and has never been compiled inside fuji for Windows or run.
+
+**What could be wrong there.** The arithmetic from hundred-nanosecond steps since 1601 to milliseconds since 1970 is checked on the Mac; what the call answers is not. FAT and exFAT keep no change time, and Windows may answer zero there, which the inventory leaves out, or something else, which would show up as a `changed` that means nothing. The inventory also writes every path with forward slashes, turning Windows' backslashes over as it writes each line.
+
+**What to look at.** An inventory of a folder on the NTFS system drive holding: a file renamed after it was last edited, whose `changed` should be later than its `modified`; a hard link made with `mklink /H`, which should carry `"links": 2` under both names; and a file marked hidden in Explorer, which should carry `"hidden": true`. Then an inventory of a USB drive, for what `changed` says there. Every path in the file should read with forward slashes.

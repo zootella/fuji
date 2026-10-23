@@ -19,6 +19,7 @@ mod dialog;//and dialog.rs: the system's boxes for opening files, choosing a fol
 mod disk;//and disk.rs: file commands, thin wrappers over std::fs
 mod find;//and find.rs: finding things in the folder tree, many folders read in one call through the disk's glance
 mod fit;//and fit.rs: the fits, the arithmetic fit.js has too, which a native thumbnail's size is chosen by
+mod inventory;//and inventory.rs: an inventory of a folder's whole tree, every file in it hashed and scouted into a text file of lines
 mod launch;//and launch.rs: launch services, the mac's record of which application opens which kind of file
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
 mod dock;//and dock.rs: the dock icon's own menu, and its one New Window item
@@ -45,7 +46,7 @@ mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
 mod process;//and process.rs: other programs, handed a file or an address the way a double-click would
 mod registry;//and registry.rs: the windows registry, read and written for the page
-mod scout;//and scout.rs: the command for the scout, fuji's own reader of a file's first bytes, the crate of that name at the repository root, which says what the bytes are and what the common formats keep in their header; and the home of the hashing to come
+mod scout;//and scout.rs: the command for the scout, fuji's own reader of a file's first bytes, the crate of that name at the repository root, which says what the bytes are and what the common formats keep in their header
 mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path at a time
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
 mod uptime;//and uptime.rs: how long this process has been running, since the operating system started it and since main began
@@ -78,6 +79,7 @@ pub fn run() {
 		.manage(desktop::ExitFiles::default())//shared state any command can reach: text handed down to be written on the way out
 		.manage(open::OpenFiles::default())//and the paths the operating system handed fuji, waiting for the page to be built and ask for them
 		.manage(media::Players::default())//and the media library's players, one per window, for the window that closes mid-play to be rid of
+		.manage(inventory::Inventories::default())//and the inventories under way, so the page can ask how one is going and tell it to stop
 		.invoke_handler(//the complete list of what javascript may invoke; a name absent here cannot be called at all
 			tauri::generate_handler![
 				disk::disk_readdir, //functions we've written in disk.rs
@@ -85,6 +87,7 @@ pub fn run() {
 				disk::disk_stat,
 				disk::disk_read,
 				disk::disk_write,
+				disk::disk_append,
 				disk::disk_copy,
 				find::find_folders,//and in find.rs
 				desktop::desktop_exit_hold,//and in desktop.rs
@@ -114,6 +117,9 @@ pub fn run() {
 				registry::registry_notify,
 				registry::registry_opens,
 				scout::scout_tip,//and in scout.rs
+				inventory::inventory_take,//and in inventory.rs
+				inventory::inventory_progress,
+				inventory::inventory_stop,
 				touch::touch_block,//and in touch.rs
 				uptime::uptime_process,//and in uptime.rs
 				menu::menu_text,//and in menu.rs, or its stand-in off the mac
@@ -135,8 +141,8 @@ pub fn run() {
 				window::window_video_drop,
 			]
 		)
-		.on_window_event(|window, event| {//a window on its way out takes its player with it, and its video view goes with its window; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking. The view goes first: on linux that frees the player's render context while the area can still be drawn to, so the destroy on the pool after finds nothing left to free
-			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); media::media_window_closed(tauri::Manager::app_handle(window), window.label()); menu::menu_closed(window.label()); window::window_fullscreen_closed(window.label()); window::window_constraint_closed(window.label()) }//and the menu bar forgets the window, which answers nothing from here, and so does fuji's fullscreen, which the window cannot be in once it has gone
+		.on_window_event(|window, event| {//a window on its way out takes its player with it and stops its inventories, and its video view goes with its window; asked to close is the moment, while the window still stands, and destroyed is the backstop for a window that went without asking. The view goes first: on linux that frees the player's render context while the area can still be drawn to, so the destroy on the pool after finds nothing left to free
+			if matches!(event, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) { window::window_video_closed(window.label()); media::media_window_closed(tauri::Manager::app_handle(window), window.label()); inventory::inventory_window_closed(tauri::Manager::app_handle(window), window.label()); menu::menu_closed(window.label()); window::window_fullscreen_closed(window.label()); window::window_constraint_closed(window.label()) }//and the menu bar forgets the window, which answers nothing from here, and so does fuji's fullscreen, which the window cannot be in once it has gone
 			if matches!(event, tauri::WindowEvent::Focused(true)) { menu::menu_focused(window.label()) }//the order the menu bar looks through for a window that answers an item the one in front does not
 		})
 		.setup(|_app| {//before any page exists, which is the whole reason this is here rather than in the page; the underscore is for windows and linux, where both lines that read it are compiled away
