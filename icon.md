@@ -235,35 +235,9 @@ Worth recording that 42 lost. It is the diameter at which a circle has equal are
 
 **Fuji sits at 34, which is Paired Devices exactly.** That is the line to keep if this ever needs defending. Fuji's disc is not a number somebody liked: it is the diameter of a circular icon Apple ships on this operating system, and it sits between Apple's other two.
 
-## How fuji's icons are built now
+## The inset icon, as applied
 
-Applied 2026-09-07, and revised 2026-09-09 when the disc grew off the grid. This is the current arrangement; everything above is why it is this one.
-
-**Three sources, because three places want different things.** The third was added 2026-09-11 for the Windows Start menu tile, and the section on that tile says why.
-
-    src-tauri/icons/app-icon.svg        r="512"   the disc filling its canvas
-    src-tauri/icons/app-icon-mac.svg    r="446"   the same disc drawn for the dock
-    src-tauri/icons/app-icon-tile.svg   r="338"   and drawn for the Start menu tile
-
-That is the entire difference between them: one number each. The house rule that a family shares a leading noun is why they are `app-icon-mac` and `app-icon-tile` rather than `mac-app-icon` and `tile-app-icon`.
-
-**Three destinations, so none can overwrite another, and a scratch tree behind each of the extra runs.**
-
-    src-tauri/icons/          everything tauri icon generates from app-icon.svg
-    src-tauri/icons/mac/      icon.icns alone, generated from app-icon-mac.svg
-    src-tauri/icons/tile/     two logos, generated from app-icon-tile.svg, beside the manifest that names them
-    src-tauri/icons/.mac/     what the app-icon-mac.svg run leaves behind, gitignored
-    src-tauri/icons/.tile/    what the app-icon-tile.svg run leaves behind, gitignored
-
-Each extra run generates a whole tree and only one or two files are wanted out of it, so the run is pointed at a dotted scratch directory and the wanted files are copied into the plain one beside it. `tauri icon` owns the first directory completely and never writes into `mac/` or `tile/`, which is what makes both fixes permanent rather than something to remember. The full-bleed `icons/icon.icns` is still generated and is simply not used by anything.
-
-**One line of configuration selects it.** `bundle.icon` in `tauri.conf.json` lists `icons/mac/icon.icns` where it used to list `icons/icon.icns`. There is no per-platform icon setting in Tauri — the array is picked over by file extension, one `.icns` for macOS and one `.ico` for Windows — so pointing that one entry somewhere else *is* the per-platform mechanism, used as intended rather than worked around.
-
-**One command rebuilds all of it.**
-
-    pnpm icons
-
-runs `tauri icon` over each of the three sources, then calls `scripts.js icons-collect` to copy the files that have to come out from under a generated name — `mac/icon.icns` among them. The copying is JavaScript rather than `cp` because this repository is built on Windows too. Run it after changing artwork, and after a Tauri CLI upgrade — the section above says why the second case is the one that gets forgotten.
+Applied 2026-09-07, and revised 2026-09-09 when the disc grew off the grid.
 
 **Why the macOS icon is generated rather than hand-drawn.** Every other application solves this with a hand-made `.icns`, and fuji does not have to, because its artwork is arithmetic: the macOS disc is a radius of 446 instead of 512 and nothing else changes. Feeding a correctly padded source to `tauri icon` gets a correctly padded icon out — the tool was never wrong about resizing, only about padding, and this hands it a source that needs none. Fuji's simplicity, which made both defects visible, is also what makes this fix a one-line file rather than a binary asset to maintain by hand.
 
