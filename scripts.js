@@ -210,15 +210,15 @@ async function hashOne(name, version, demanded) {
 		if (join(built.folder, built.file) != destination) copyFileSync(join(built.folder, built.file), destination)
 		let bytes = readFileSync(destination)//whole file into memory; a package is a few megabytes and streaming would buy nothing
 
-		let hashed = Date.now()//the moment of hashing, kept twice in the sidecar: as ergo's tick for a program, and as its iso text for a person, so nothing ever reads a date back out of text
+		let hashed = Date.now()//the moment of hashing, kept twice in the sidecar: as ergo's tick in tick, for a program, and as its iso text in date, for a person, so nothing ever reads a date back out of text
 		let sidecar = {
 			file: published,
 			version,
 			arch: built.arch,
-			bytes: bytes.length,
+			size: bytes.length,
 			sha256: await hashSha256(bytes),
 			tick: hashed,
-			iso: tickToIso(hashed),
+			date: tickToIso(hashed),
 			libmpv,//the record whole, which readLibrary describes
 		}
 		writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
@@ -226,7 +226,7 @@ async function hashOne(name, version, demanded) {
 		/*
 		hash, size, filename — and the hash whole, because a cropped hash cannot check a download. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Nothing is padded: every package fuji builds comes to two digits of megabytes, so saySize4 writes each size the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
 		*/
-		console.log(`${sidecar.sha256}  ${saySize4(sidecar.bytes)}  ${published}`)
+		console.log(`${sidecar.sha256}  ${saySize4(sidecar.size)}  ${published}`)
 		let notarized = name != 'dmg' || isNotarized(destination)
 		return {value: sidecar.sha256, words: name == 'dmg' ? (notarized ? 'notarized' : 'not notarized') : '', notarized}
 	})
@@ -391,7 +391,7 @@ async function checkSidecar(name, stage, sidecar, sidecarName, version) {
 	let sha256 = await hashSha256(bytes)
 
 	if (sidecar.version != version)    throw new Error(`${name}: sidecar says version ${sidecar.version}, tauri.conf.json says ${version}; re-run pnpm hash`)
-	if (sidecar.bytes != bytes.length) throw new Error(`${name}: sidecar says ${sidecar.bytes} bytes, the file is ${bytes.length}; re-run pnpm hash`)
+	if (sidecar.size != bytes.length)  throw new Error(`${name}: sidecar says ${sidecar.size} bytes, the file is ${bytes.length}; re-run pnpm hash`)
 	if (sidecar.sha256 != sha256)      throw new Error(`${name}: sidecar hash does not describe this file; re-run pnpm hash`)
 	if (!sidecar.libmpv)               throw new Error(`${name}: sidecar carries no record of the media library inside; re-run pnpm hash`)
 

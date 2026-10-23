@@ -2,9 +2,10 @@
 	"file": "fuji.amd64.deb",
 	"version": "0.1.0",
 	"arch": "amd64",
-	"bytes": 17642506,
+	"size": 17642506,
 	"sha256": "51ec07ffec0b6e624fbe3537497c7ef275095a5972971d9cb5f92d60c1ff7773",
-	"date": "2026-10-22",
+	"tick": 1792702340000,
+	"date": "2026-10-22T20:52:20.000Z",
 	"libmpv": {
 		"file": "libmpv.so.2",
 		"bytes": 28153176,

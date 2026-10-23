@@ -1,7 +1,7 @@
 /*
 Fuji's downloads, end to end: from the machine that built an installer to the page that offers it.
 
-A package is built where it can be — the dmg on a Mac, the exe on Windows, and the four Linux packages in Docker containers on that same Mac — and `pnpm hash` there stages it under a published name, writing a small JSON sidecar beside it: file, version, arch, bytes, sha256, and the moment it was hashed, as ergo's tick and as its iso text. `pnpm upload` sends the pairs to the server. A sidecar each rather than one combined file, because these builds happen on different machines on different days and no single machine ever holds every hash at once.
+A package is built where it can be — the dmg on a Mac, the exe on Windows, and the four Linux packages in Docker containers on that same Mac — and `pnpm hash` there stages it under a published name, writing a small JSON sidecar beside it: file, version, arch, size, sha256, and the moment it was hashed, kept twice: as ergo's tick in tick, and as its iso text in date, which no code reads. `pnpm upload` sends the pairs to the server. A sidecar each rather than one combined file, because these builds happen on different machines on different days and no single machine ever holds every hash at once.
 
 The server answers one hostname from two directories and falls through to downloads on a miss, so an installer and its sidecar sit at the apex: fujidesktop.app/fuji.dmg beside fujidesktop.app/fuji.dmg.json. Nothing in this build knows a hash. A page fetches the sidecars when it opens, and that is the point of the whole arrangement — publishing an installer changes what the site says without the site being rebuilt.
 
@@ -17,7 +17,7 @@ Development has no downloads directory, so config.js stands in for it twice over
 
 **Fetch on mount, never at module scope.** VitePress prerenders components in Node at build time, and Node has fetch — so a module-scope call would run rather than fail loudly, but a relative url has no origin to resolve against there and nothing is serving these files during a build, so every row would bake in as unpublished.
 */
-import { hasTick, sayTick } from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import { hasInt, hasTick, saySize4, sayTick } from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 
 //the published names, in the order the home page lists them. no name carries a version, so a link anyone shares keeps pointing at the current build, and every linux package names its architecture because linux is where architectures multiply and a bare name would read as the default while being the rarer one
 export let installerFiles = [
@@ -49,6 +49,12 @@ export async function fetchSidecar(file) {
 export function sayDay(t) {
 	if (!hasTick(t)) return ''
 	return sayTick(t, 'YYYY Mmmm D')
+}
+
+//a sidecar's size, like "17 MB", or blank for a sidecar with no whole count of bytes, which saySize4 would refuse, so a malformed sidecar shows its hash and version and leaves the size out
+export function saySize(n) {
+	if (!hasInt(n) || n < 0) return ''
+	return saySize4(n)
 }
 
 //copy text to the clipboard, answering whether it worked. the clipboard needs a secure context, which

@@ -2,9 +2,10 @@
 	"file": "fuji.x86_64.rpm",
 	"version": "0.1.0",
 	"arch": "x86_64",
-	"bytes": 17641189,
+	"size": 17641189,
 	"sha256": "4e9bcd2bf9e2016e7f2db59afb3d14c583488613a9f9620220a1dedc412c8c2b",
-	"date": "2026-10-22",
+	"tick": 1792702340000,
+	"date": "2026-10-22T20:52:20.000Z",
 	"libmpv": {
 		"file": "libmpv.so.2",
 		"bytes": 28153176,
