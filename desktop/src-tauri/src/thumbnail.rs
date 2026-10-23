@@ -11,7 +11,7 @@ A thumbnail's size comes from a fit. The page says which fit, the beam, the scre
 
 Both commands return one buffer, so the bytes cross as an ArrayBuffer rather than a json array of numbers — that serialization was measured at about 150 milliseconds a megabyte, flat and linear in file size, which no disk is. Twenty bytes of header — the thumbnail's width and height, whether its pixels are Display P3, and the picture's own width and height as it shows, after its orientation — as little-endian unsigned 32-bit integers, then straight-alpha RGBA, top row first; thumbnail.js unpacks it for ImageData. The thumbnail is the size the fit chose, or the picture's own when that is smaller, because neither library enlarges, and thumbnail_natural's is the picture's own.
 
-The Mac body is short because ImageIO does the whole job in one call given three options, and drawing the result into a bitmap context of the wanted color space is where CoreGraphics does the color management. The Windows body is long because WIC is a pipeline of separate objects, each initialised over the last, and because WIC leaves EXIF orientation to the caller. WIC is a COM library, which is how Windows hands an application an object out of a system DLL: a thread calls CoInitializeEx once before it asks for anything, and then every piece of the pipeline arrives through CoCreateInstance. There is no plain function to call instead, so the initialisation is the price of using the library at all, and it is not the heavier embedding layer of the same name that puts a spreadsheet inside a document. The page owns the color space, since only it knows the screen's gamut, and Windows answers sRGB whatever is asked, which the header says.
+The Mac body is short because ImageIO does the whole job in one call given three options, and drawing the result into a bitmap context of the wanted color space is where CoreGraphics does the color management. A picture with an alpha channel is the exception: ImageIO's resample lets the colors hidden under clear pixels into the edges, so ImageIO hands such a picture back whole, and that same drawing does the shrink. The Windows body is long because WIC is a pipeline of separate objects, each initialised over the last, and because WIC leaves EXIF orientation to the caller. WIC is a COM library, which is how Windows hands an application an object out of a system DLL: a thread calls CoInitializeEx once before it asks for anything, and then every piece of the pipeline arrives through CoCreateInstance. There is no plain function to call instead, so the initialisation is the price of using the library at all, and it is not the heavier embedding layer of the same name that puts a spreadsheet inside a document. The page owns the color space, since only it knows the screen's gamut, and Windows answers sRGB whatever is asked, which the header says.
 */
 
 use tauri::ipc::Response;
@@ -105,9 +105,9 @@ mod platform {
 	use core_foundation::number::{CFNumber, CFNumberRef};
 	use core_foundation::string::{CFString, CFStringRef};
 	use core_foundation::url::{CFURL, CFURLRef};
-	use core_graphics::base::{kCGBitmapByteOrder32Big, kCGImageAlphaPremultipliedLast};
+	use core_graphics::base::{kCGBitmapByteOrder32Big, kCGImageAlphaNone, kCGImageAlphaNoneSkipFirst, kCGImageAlphaNoneSkipLast, kCGImageAlphaPremultipliedLast};
 	use core_graphics::color_space::{kCGColorSpaceDisplayP3, kCGColorSpaceSRGB, CGColorSpace};
-	use core_graphics::context::CGContext;
+	use core_graphics::context::{CGContext, CGInterpolationQuality};
 	use core_graphics::geometry::{CGPoint, CGRect, CGSize};
 	use core_graphics::image::CGImage;
 	use core_graphics::sys::CGImageRef;
@@ -122,6 +122,7 @@ mod platform {
 		fn CGImageSourceCreateWithURL(url: CFURLRef, options: CFDictionaryRef) -> CGImageSourceRef;
 		fn CGImageSourceCopyPropertiesAtIndex(source: CGImageSourceRef, index: usize, options: CFDictionaryRef) -> CFDictionaryRef;
 		fn CGImageSourceCreateThumbnailAtIndex(source: CGImageSourceRef, index: usize, options: CFDictionaryRef) -> CGImageRef;
+		fn CGImageSourceCreateImageAtIndex(source: CGImageSourceRef, index: usize, options: CFDictionaryRef) -> CGImageRef;
 		static kCGImageSourceThumbnailMaxPixelSize: CFStringRef;
 		static kCGImageSourceCreateThumbnailFromImageAlways: CFStringRef;
 		static kCGImageSourceCreateThumbnailWithTransform: CFStringRef;
@@ -129,43 +130,50 @@ mod platform {
 		static kCGImagePropertyPixelHeight: CFStringRef;
 		static kCGImagePropertyOrientation: CFStringRef;
 	}
+	#[link(name = "CoreGraphics", kind = "framework")]
+	extern "C" {
+		fn CGImageGetAlphaInfo(image: CGImageRef) -> u32;//declared by hand too, since the crate leaves it out
+	}
 	extern "C" {
 		fn CFRelease(cf: *const c_void);
 	}
 
 	pub fn render(path: &str, target: Target, wide: bool) -> Result<Thumbnail, String> {
 		let source = open(path)?;
-		let (natural_width, natural_height, maximum) = match natural_and_limit(source, target) {//the picture's size from imageio, before anything decodes, and the longer side the target wants
+		let (natural_width, natural_height, want_width, want_height, alpha) = match natural_and_target(source, target) {//the picture's size from imageio, before anything decodes, the size the target wants, and whether the picture has an alpha channel
 			Ok(sizes) => sizes,
 			Err(problem) => { unsafe { CFRelease(source) }; return Err(problem) }
 		};
 
+		//imageio's own resample averages a picture's colors without weighing them by opacity, so the color a png keeps under its clear pixels bleeds into every edge: a dark fringe on the many pngs that hide black there, measured on the Mac mini under macOS 27.0.1 on 2026-10-23 as 1,215 near-black edge pixels on firefox.png's 210-pixel thumbnail where a correct shrink has 1. So a picture with an alpha channel comes back from imageio whole, decoded and turned, and coregraphics shrinks it below, which works in premultiplied pixels where a clear pixel's hidden color counts for nothing. A picture with no alpha channel hides nothing, and keeps imageio's scaled decode, which is what makes a big jpeg's thumbnail quick
+		let maximum = if alpha { natural_width.max(natural_height) } else { want_width.max(want_height) };
 		let options: CFDictionary<CFString, CFType> = CFDictionary::from_CFType_pairs(&[
-			(key(unsafe { kCGImageSourceThumbnailMaxPixelSize }),          CFNumber::from(maximum as i64).as_CFType()),//the longer side, which is the only size imageio takes: it keeps the aspect, rounds the shorter side itself, and never enlarges
+			(key(unsafe { kCGImageSourceThumbnailMaxPixelSize }),          CFNumber::from(maximum as i64).as_CFType()),//the longer side, which is the only size imageio takes: it keeps the aspect, rounds the shorter side itself, and never enlarges, so the picture's own longer side gets every pixel back
 			(key(unsafe { kCGImageSourceCreateThumbnailFromImageAlways }), CFBoolean::true_value().as_CFType()),//render one from the picture; without this a camera's embedded 160 by 120 preview comes back instead
 			(key(unsafe { kCGImageSourceCreateThumbnailWithTransform }),   CFBoolean::true_value().as_CFType()),//apply the exif orientation, so a portrait from a phone is upright
 		]);
-		let image = unsafe { CGImageSourceCreateThumbnailAtIndex(source, 0, options.as_concrete_TypeRef()) };//scaled decode, resample, orientation: ImageIO does all three in here
+		let image = unsafe { CGImageSourceCreateThumbnailAtIndex(source, 0, options.as_concrete_TypeRef()) };//decode and orientation, and for a picture with no alpha channel the scaled decode and the resample too
 		unsafe { CFRelease(source) };//the thumbnail stands on its own, so the source goes now, on every path below
 		if image.is_null() { return Err(format!("thumbnail: ImageIO could not decode {path}")) }
 		let image = unsafe { CGImage::from_ptr(image as *mut _) };//Create rule again: the wrapper releases it once, when it drops
 
-		let (width, height) = (image.width(), image.height());
+		let (width, height) = if alpha { (want_width as usize, want_height as usize) } else { (image.width(), image.height()) };//the target's size exactly for a picture coregraphics shrinks, and the size imageio already shrank one to otherwise
 		let name = unsafe { if wide { kCGColorSpaceDisplayP3 } else { kCGColorSpaceSRGB } };
 		let space = CGColorSpace::create_with_name(name).ok_or("thumbnail: no such color space")?;
 		let mut context = CGContext::create_bitmap_context(None, width, height, 8, width * 4, &space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);//the crate asserts rather than returns when it cannot make a context, and run_blocking hands that panic to the page as an error. Rgba bytes in that order; premultiplied because that is the only alpha a drawing context accepts, undone below
-		context.draw_image(CGRect::new(&CGPoint::new(0.0, 0.0), &CGSize::new(width as f64, height as f64)), &image);//one to one, so this is a color conversion and not a resample
+		context.set_interpolation_quality(CGInterpolationQuality::CGInterpolationQualityHigh);//the best of coregraphics' filters for the shrink, which a picture drawn one to one never meets: a jpeg's thumbnail comes out byte for byte the same with it as without, in srgb and display p3, measured on the Mac mini on 2026-10-23
+		context.draw_image(CGRect::new(&CGPoint::new(0.0, 0.0), &CGSize::new(width as f64, height as f64)), &image);//a color conversion, and for a picture with an alpha channel the shrink as well
 		let mut pixels = context.data().to_vec();
 		unpremultiply(&mut pixels);
 		Ok(Thumbnail { width: width as u32, height: height as u32, wide, pixels, natural_width, natural_height })
 	}
 
-	fn natural_and_limit(source: CGImageSourceRef, target: Target) -> Result<(u32, u32, u32), String> {//the picture's size as it shows, and the longer side in backing pixels to ask imageio for, which is how any target reaches a library that knows only the square one
+	fn natural_and_target(source: CGImageSourceRef, target: Target) -> Result<(u32, u32, u32, u32, bool), String> {//the picture's size as it shows, the size in backing pixels the target wants it at, and whether it has an alpha channel
 		let (width, height, orientation) = properties(source);
 		super::check_size(width, height)?;//the stored size, since turning a picture does not change its area
 		let (shown_width, shown_height) = if orientation >= 5 { (height, width) } else { (width, height) };//exif's 5 through 8 turn width into height, and the thumbnail is made turned
 		let (target_width, target_height) = target(shown_width, shown_height)?;
-		Ok((shown_width, shown_height, target_width.max(target_height)))
+		Ok((shown_width, shown_height, target_width, target_height, has_alpha(source)))
 	}
 
 	fn open(path: &str) -> Result<CGImageSourceRef, String> {//an image source over the file, which reads nothing until asked; Create in the name, so the caller releases it
@@ -188,6 +196,14 @@ mod platform {
 		let height = number(unsafe { kCGImagePropertyPixelHeight }).max(0) as u32;
 		let orientation = number(unsafe { kCGImagePropertyOrientation });
 		(width, height, if (1..=8).contains(&orientation) { orientation as u32 } else { 1 })
+	}
+
+	fn has_alpha(source: CGImageSourceRef) -> bool {//whether the picture has an alpha channel, from the alpha info of the image imageio would decode, which it reads from the file's header without decoding a pixel, 0.2 ms for an 8000 by 6000 jpeg on the Mac mini. Not from imageio's HasAlpha property, which it writes for a png with alpha and leaves out of every opaque picture among the scout's samples, jpeg, heic, avif, webp, gif and bmp alike, so its absence says nothing. True for a picture imageio can make no image of, since the shrink that handles alpha is right for any picture and only slower
+		let image = unsafe { CGImageSourceCreateImageAtIndex(source, 0, std::ptr::null()) };
+		if image.is_null() { return true }
+		let info = unsafe { CGImageGetAlphaInfo(image) };
+		unsafe { CFRelease(image as *const c_void) };//Create in the name, so released here
+		![kCGImageAlphaNone, kCGImageAlphaNoneSkipLast, kCGImageAlphaNoneSkipFirst].contains(&info)//the three values with no alpha channel; every other carries one, premultiplied or straight
 	}
 
 	fn key(name: CFStringRef) -> CFString {//a constant the framework owns: Get rule, so the wrapper retains it on the way in and releases it on the way out, net nothing
@@ -284,7 +300,7 @@ mod platform {
 			}
 		}
 
-		//the rest of the way with the fant scaler, which reads every source pixel. Microsoft says nothing about alpha for it, or for the color transform below, and both run here on a png's straight alpha, where an average that ignored opacity would bleed the colors hidden under transparent pixels into every edge. Neither does: a white disc on transparent pixels hiding bright green, plain and with Windows' sRGB profile, came back clean on the sheet, seen on the Windows box on 2026-10-22
+		//the rest of the way with the fant scaler, which reads every source pixel. Microsoft says nothing about alpha for it, or for the color transform below, and both run here on a png's straight alpha, where an average that ignored opacity would bleed the colors hidden under transparent pixels into every edge. Neither looked to: a white disc on transparent pixels hiding bright green, plain and with Windows' sRGB profile, looked clean on the sheet on the Windows box on 2026-10-22, judged by eye, the same look that missed this fault in ImageIO's resample on the Mac, where only a count of edge pixels found it, so WIC's answer waits on a count too
 		if width != want_width || height != want_height {
 			let scaler = factory.CreateBitmapScaler()?;
 			scaler.Initialize(&source, want_width, want_height, WICBitmapInterpolationModeFant)?;
