@@ -5,14 +5,14 @@ import {basename, join} from 'node:path'
 import {setTimeout as sleep} from 'node:timers/promises'
 import {fileURLToPath} from 'node:url'
 import {promisify} from 'node:util'
-import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Time, hasTick, sayDuration, textToTick, tickToText} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {dmgFile, dmgMake} from '../desktop/dmg.js'
-import {buildLog, readSha256, sayDate, sayDuration, sayTime} from '../build-log.js'
+import {buildLog, durationTenths, readSha256, sayTime, sayWhen} from '../build-log.js'
 
 /*
 The mac release through Apple, one application at a time: build, notarize, hash and upload. The waiting room draws this, pnpm notarize in desktop runs build and notarize straight through, and README.md beside this file is the guide.
 
-An application is a folder in applications/, made the moment a build is signed and named for the day, the version, and a tag, the first eight hex digits of the app's code hash, which is what Apple's ticket is bound to. Everything after the build happens to the copy in that folder, so pnpm installer can sign the bundle with Fuji Desktop again at any time without touching a release on its way through Apple. Once notarized, the dmg goes back to tauri's bundle folder, where pnpm installer leaves its own, so pnpm hash and pnpm upload publish whichever of the two was made last.
+An application is a folder in applications/, made the moment a build is signed and named for that moment, in utc and in ergo's short form of a tick, which reads back, then the version and a tag, the first eight hex digits of the app's code hash, which is what Apple's ticket is bound to. Everything after the build happens to the copy in that folder, so pnpm installer can sign the bundle with Fuji Desktop again at any time without touching a release on its way through Apple. Once notarized, the dmg goes back to tauri's bundle folder, where pnpm installer leaves its own, so pnpm hash and pnpm upload publish whichever of the two was made last.
 
 Where an application stands is read every time from things that outlast this program: its folder, Apple's history, and the dmg sidecars staged in desktop/release and live on the site. Every submission is named for its application and ends with its tag, so Apple's history says which of an application's two submissions exist and what Apple made of each. So notarize can run again after any interruption: it finds the submissions already made, waits on them or carries on from them, and never submits the same thing twice.
 
@@ -33,7 +33,7 @@ const liveSidecar   = new URL(`${brandStem}.dmg.json`, configuration.bundle.home
 const identity    = 'Developer ID Application'//the kind of certificate rather than its holder's name, which the README explains
 const credentials = ['APPLE_API_KEY', 'APPLE_API_ISSUER', 'APPLE_API_KEY_PATH']//the api key's three values in .env, under the names tauri reads
 const checkEvery  = 30*Time.second//how often a wait asks apple again
-const folderName  = /^\d{4}-[A-Z][a-z]{2}-\d{1,2} [A-Z][a-z]{2} (\S+) ([0-9a-f]{8})$/ //an application's folder: the day it was built, its version and its tag
+const folderName  = /^(\S+) (\S+) ([0-9a-f]{8})$/ //an application's folder: the moment it was made, like 2026oct22.2226.41990, its version and its tag
 const quit        = {success: false, outcome: 'Quit'}//what notarize comes to after q, which starts nothing new and leaves the rest to the next n
 const hashes      = new Map()//each notarized dmg's sha256 by its path, hashed once rather than every time the waiting room looks, since a notarized dmg never changes again
 
@@ -42,19 +42,26 @@ const hashes      = new Map()//each notarized dmg's sha256 by its path, hashed o
 //every application, newest first
 export async function listApplications() {
 	if (!existsSync(applications)) return []
-	let found = await Promise.all(readdirSync(applications).filter(folder => folderName.test(folder)).map(readApplication))
+	let found = await Promise.all(readdirSync(applications).filter(folder => hasTick(readMade(folder))).map(readApplication))
 	return found.sort((a, b) => b.made - a.made)//by when b made each folder
+}
+
+//the moment an application's folder was made, read back from its name, or false for a name that isn't an application's, like one from before the names were utc. a bottom gate: textToTick throws on text that isn't its form, and a folder here can be named anything
+function readMade(folder) {
+	let match = folder.match(folderName)
+	if (!match) return false
+	try { return textToTick(match[1]) } catch (e) { return false }
 }
 
 //one application, as its folder has it
 export async function readApplication(folder) {
-	let [, version, tag] = folder.match(folderName)
+	let [, , version, tag] = folder.match(folderName)
 	let path = join(applications, folder)
 	let dmg = join(path, dmgFile(version))
 	let log = join(path, 'log.txt')
 	let verify = join(path, 'verify.txt')
 	let notarized = existsSync(verify)//written only once the dmg carries its ticket and gatekeeper accepts both
-	let made = statSync(path).birthtimeMs//when b finished, by making the folder
+	let made = readMade(folder)//when b finished, read back from the name it gave the folder
 	return {
 		folder, version, tag, path, dmg, log, notarized, made,
 		app:      join(path, `${brandName}.app`),
@@ -126,7 +133,7 @@ async function buildSigned(building, version) {
 	let tag = codeHash.slice(0, 8)
 	let same = (await listApplications()).find(application => application.tag == tag)//built unchanged signs to the same code hash, on any day, and the application already kept is the one to carry on with
 	if (same) return {success: true, outcome: `nothing changed: this build is the same code as ${same.folder}`, application: same, subject: tag, value: codeHash}
-	let folder = `${sayDate(new Date())} ${version} ${tag}`
+	let folder = `${tickToText(Date.now())} ${version} ${tag}`//this moment in utc, which readMade reads back
 	let path = join(applications, folder)
 	mkdirSync(path)
 	let log = join(path, 'log.txt')
@@ -343,8 +350,8 @@ async function step(log, name, subject, words, work) {
 	return result
 }
 
-function record(log, ...line) {//a line in the build log, and the same words in the application's own log
-	appendFileSync(log, `\n${buildLog(...line)}\n`)
+function record(log, ...line) {//a line in the build log, and the same words in the application's own log, stamped in utc
+	appendFileSync(log, `\n${sayWhen(Date.now())}  ${buildLog(...line)}\n`)
 }
 
 //run one program to its end without holding up the waiting room, with its output added to the log at log, and say how it went. a bottom gate like askApple, for the programs whose work is the point rather than their answer
@@ -359,8 +366,8 @@ function run(command, args, {log, env = process.env, cwd = root}) {
 	})
 }
 
-function note(log, text) {//a line in the log at log, with the time it was written
-	appendFileSync(log, `\n${sayTime(Date.now(), {precise: true})}  ${text}\n`)
+function note(log, text) {//a line in the log at log, with the time it was written, in utc
+	appendFileSync(log, `\n${sayWhen(Date.now())}  ${text}\n`)
 }
 
 function readVersion() {//read fresh rather than once, since the waiting room stays open across a version bump
@@ -371,7 +378,7 @@ function readVersion() {//read fresh rather than once, since the waiting room st
 async function main() {
 	if (process.platform != 'darwin') throw new Error('notarization is apple\'s, and only a mac submits to it')
 	let began = Date.now()
-	let finish = result => console.log(`${sayTime(Date.now(), {precise: true})}  ${result.outcome}, took ${sayDuration(Date.now() - began, {precise: true})}`)
+	let finish = result => console.log(`${sayTime(Date.now(), {precise: true})}  ${result.outcome}, took ${sayDuration(Date.now() - began, durationTenths)}`)
 
 	let built = await build()
 	if (!built.success) { finish(built); process.exitCode = 1; return }

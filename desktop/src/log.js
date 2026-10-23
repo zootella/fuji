@@ -2,7 +2,7 @@ import {homeDir} from '@tauri-apps/api/path'
 import {invoke} from '@tauri-apps/api/core'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import parse from 'path-browserify'
-import {tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {sayTick} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {forwardize} from './components/library.js'
 import {brandStem} from './brand.js'
 
@@ -120,9 +120,9 @@ function pad(value, width) {
 	return s.length >= width ? s : s + ' '.repeat(width - s.length)
 }
 
-function sayStamp(t) {//a tick in utc to the millisecond, sortable, like 2026-09-08T18-29-27-123Z: the colons and the dot of ergo's iso form become dashes, because windows forbids a colon in a file name
-	return tickToIso(t).replace(/[:.]/g, '-')
+function sayStamp(t) {//a tick in utc to the millisecond, sortable, like 2026-09-08T18-29-27-123Z: ergo's iso form with dashes where its colons and its dot go, because windows forbids a colon in a file name
+	return sayTick(t, 'YYYY-MM-DDThh24-mm-ss-tttZ')
 }
-function sayClock(t) {//a tick's utc time of day to the millisecond, like 18:29:27.123, the same form log.rs writes on rust's lines
-	return tickToIso(t).slice(11, 23)
+function sayClock(t) {//a tick's utc time of day to the millisecond, like 18:29:27.123, the same template log.rs writes rust's lines with
+	return sayTick(t, 'hh24:mm:ss.ttt')
 }

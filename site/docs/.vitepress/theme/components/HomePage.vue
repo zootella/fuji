@@ -1,6 +1,6 @@
 <script setup>//./.vitepress/theme/components/HomePage.vue
 import { ref, onMounted } from 'vue'
-import { installerFiles, fetchSidecars, earliestBuild, readableDate, copyText } from '../downloads.js'
+import { installerFiles, fetchSidecars, sayDay, copyText } from '../downloads.js'
 
 /*
 The apex page. index.md carries layout: false, so VitePress renders no navbar, sidebar, or footer, and this component is the whole document.
@@ -12,7 +12,7 @@ Mac and Win are plain downloads, and Hashes opens the hash list below the links.
 
 let showing = ref(false)//whether the hash list is open below the links
 let rows = ref(installerFiles.map(file => ({file, sha256: ''})))//one row per installer, named from the start so opening the list never changes its height; a hash arrives when its sidecar does
-let release = ref(false)//the version and date above the rows, or false before anything is published
+let release = ref(false)//the version and date above the rows, the mac's, or false before the dmg is published
 let loaded = ref(false)//every fetch has settled, so a blank hash now means unpublished rather than unread
 let status = ref('')//the line beneath Close: the hover hint, then the copy confirmation
 
@@ -24,7 +24,7 @@ One consequence of mount rather than load: VitePress navigates between pages on 
 onMounted(async () => {
 	let sidecars = await fetchSidecars()
 	rows.value = installerFiles.map((file, index) => ({file, sha256: sidecars[index] ? sidecars[index].sha256 : ''}))
-	release.value = earliestBuild(sidecars)
+	release.value = sidecars[installerFiles.indexOf('fuji.dmg')]//the mac's build names the release, since the mac publishes the dmg and every linux package, and the download page shows each file's own date
 	loaded.value = true
 })
 
@@ -78,7 +78,7 @@ async function copyHash(row) {
 				</p>
 
 				<div v-if="showing" class="reveal hashes">
-					<p class="heading">SHA-256<span v-if="release" class="apart">Fuji {{ release.version }}</span><span v-if="release" class="apart">{{ readableDate(release.date) }}</span></p>
+					<p class="heading">SHA-256<span v-if="release" class="apart">Fuji {{ release.version }}</span><span v-if="release && sayDay(release.tick)" class="apart">{{ sayDay(release.tick) }}</span></p>
 					<p v-for="row in rows" :key="row.file"><a
 						v-if="row.sha256" class="hash" tabindex="0"
 						@click="copyHash(row)" @keyup.enter="copyHash(row)"

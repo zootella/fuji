@@ -3,7 +3,7 @@ import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileS
 import {homedir, tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {saySize4, tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {buildStep, hashSha256, readSha256} from './build-log.js'
 
 /*
@@ -210,21 +210,23 @@ async function hashOne(name, version, demanded) {
 		if (join(built.folder, built.file) != destination) copyFileSync(join(built.folder, built.file), destination)
 		let bytes = readFileSync(destination)//whole file into memory; a package is a few megabytes and streaming would buy nothing
 
+		let hashed = Date.now()//the moment of hashing, kept twice in the sidecar: as ergo's tick for a program, and as its iso text for a person, so nothing ever reads a date back out of text
 		let sidecar = {
 			file: published,
 			version,
 			arch: built.arch,
 			bytes: bytes.length,
 			sha256: await hashSha256(bytes),
-			date: tickToIso(Date.now()).slice(0, 10),//iso, because the home page sorts these as text to find the earliest build
+			tick: hashed,
+			iso: tickToIso(hashed),
 			libmpv,//the record whole, which readLibrary describes
 		}
 		writeFileSync(join(stage, target.sidecar + '.json'), JSON.stringify(sidecar, null, '\t') + '\n')
 
 		/*
-		hash, size, filename — and the hash whole, because a cropped hash cannot check a download. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Nothing is padded: every package fuji builds is a few megabytes, so the byte counts are the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
+		hash, size, filename — and the hash whole, because a cropped hash cannot check a download. No leading verb: the command is called hash, so saying "staged" on every line is a word that carries nothing, and the lines can be counted by looking at them rather than being totalled underneath. Nothing is padded: every package fuji builds comes to two digits of megabytes, so saySize4 writes each size the same width and the columns line up on their own. If that ever stops being true the columns drift a little, which costs less than machinery to prevent it.
 		*/
-		console.log(`${sidecar.sha256}  ${sidecar.bytes} bytes  ${published}`)
+		console.log(`${sidecar.sha256}  ${saySize4(sidecar.bytes)}  ${published}`)
 		let notarized = name != 'dmg' || isNotarized(destination)
 		return {value: sidecar.sha256, words: name == 'dmg' ? (notarized ? 'notarized' : 'not notarized') : '', notarized}
 	})
@@ -393,7 +395,7 @@ async function checkSidecar(name, stage, sidecar, sidecarName, version) {
 	if (sidecar.sha256 != sha256)      throw new Error(`${name}: sidecar hash does not describe this file; re-run pnpm hash`)
 	if (!sidecar.libmpv)               throw new Error(`${name}: sidecar carries no record of the media library inside; re-run pnpm hash`)
 
-	console.log(`checked  ${sidecar.sha256}  ${bytes.length} bytes  ${sidecar.file}  ${sidecar.version} ${sidecar.arch}`)
+	console.log(`checked  ${sidecar.sha256}  ${saySize4(bytes.length)}  ${sidecar.file}  ${sidecar.version} ${sidecar.arch}`)
 }
 
 //say which scp is about to run. windows carries two openssh installs, and which one a script gets depends on the shell it was launched from; they differ in how they judge a private key's permissions, so this is the first thing anyone will want to know when authentication fails. diagnostic only, so it never throws — a missing scp should be reported by the transfer, not by this

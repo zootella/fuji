@@ -11,7 +11,7 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {Data} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Data, Time, hasTick, sayTick} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {diskRead, diskReadDir, diskPeek} from '../disk.js'//our rust modules
 import {findFolders} from '../find.js'
 import {panelResolution} from '../panel.js'
@@ -280,10 +280,10 @@ export function sayDimensions(size) {//a picture's width by its height, like 105
 	return `${size.x} ${multiplicationSign} ${size.y}`
 }
 
-const sayMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']//fuji's own, rather than Intl's, so a date reads the same on every machine whatever its language
-export function sayDay(milliseconds) {//the day a time falls on, in this machine's time zone, year first like 2026 Oct 6; blank for 0, which is how a listing says the file system had no answer, rather than a day in 1970
+export function sayDay(milliseconds) {//the day a time falls on, in this machine's time zone, year first like 2026 Oct 6, in ergo's english whatever the machine's language; blank for 0, which is how a listing says the file system had no answer, rather than a day in 1970, and blank too for a day outside 1970 through 9999, the years ergo writes, which on a file is a broken date
 	if (typeof milliseconds != 'number' || milliseconds < 0) throw new Error(`expected milliseconds since 1970: ${milliseconds}`)
 	if (milliseconds == 0) return ''
-	let d = new Date(milliseconds)//read with its local getters, so the day is the user's own
-	return `${d.getFullYear()} ${sayMonths[d.getMonth()]} ${d.getDate()}`
+	let local = Math.floor(milliseconds - new Date(milliseconds).getTimezoneOffset() * Time.minute)//the tick whose utc fields are this machine's clock then, since sayTick writes utc and the day is the user's own
+	if (!hasTick(local)) return ''
+	return sayTick(local, 'YYYY Mmm D')
 }

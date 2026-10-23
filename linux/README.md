@@ -10,7 +10,7 @@ Fuji is developed on a Mac and its Linux users are somebody else's machines, so 
 
 In its settings, turn on **Use Rosetta for x86/amd64 emulation**. The x86-64 packages build in an emulated container, and Rosetta is several times faster than the alternative.
 
-Then, from the repository root, `pnpm install` once — it installs every workspace. This one has no dependencies of its own, because everything it does is drive containers whose toolchains live inside them.
+Then, from the repository root, `pnpm install` once — it installs every workspace. Its one dependency is ergo, for how its output says a size, and everything else it does is drive containers whose toolchains live inside them.
 
 ## The commands
 
@@ -71,7 +71,7 @@ linux/release/Fuji_0.1.0_x86_64.flatpak     from  build-flatpak  (wraps the amd6
 
 The `0.1.0` in those names is read from `desktop/src-tauri/tauri.conf.json`, which is the one place Fuji's version is written.
 
-**`pnpm hash` stages them under their published names**, and writes a sidecar beside each — a small JSON file holding the filename, version, architecture, byte count, SHA-256 and build date:
+**`pnpm hash` stages them under their published names**, and writes a sidecar beside each — a small JSON file holding the filename, version, architecture, byte count, SHA-256, and the moment it was hashed, as ergo's tick and as its ISO text:
 
 ```
 linux/release/fuji.arm64.deb            ← Fuji_0.1.0_arm64.deb        + fuji.arm64.deb.json

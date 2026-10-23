@@ -1,13 +1,13 @@
 /*
 Fuji's downloads, end to end: from the machine that built an installer to the page that offers it.
 
-A package is built where it can be — the dmg on a Mac, the exe on Windows, and the four Linux packages in Docker containers on that same Mac — and `pnpm hash` there stages it under a published name, writing a small JSON sidecar beside it: file, version, arch, bytes, sha256, date. `pnpm upload` sends the pairs to the server. A sidecar each rather than one combined file, because these builds happen on different machines on different days and no single machine ever holds every hash at once.
+A package is built where it can be — the dmg on a Mac, the exe on Windows, and the four Linux packages in Docker containers on that same Mac — and `pnpm hash` there stages it under a published name, writing a small JSON sidecar beside it: file, version, arch, bytes, sha256, and the moment it was hashed, as ergo's tick and as its iso text. `pnpm upload` sends the pairs to the server. A sidecar each rather than one combined file, because these builds happen on different machines on different days and no single machine ever holds every hash at once.
 
 The server answers one hostname from two directories and falls through to downloads on a miss, so an installer and its sidecar sit at the apex: fujidesktop.app/fuji.dmg beside fujidesktop.app/fuji.dmg.json. Nothing in this build knows a hash. A page fetches the sidecars when it opens, and that is the point of the whole arrangement — publishing an installer changes what the site says without the site being rebuilt.
 
 	scripts.js                      pnpm hash writes a sidecar, pnpm upload sends it
 	  ↓                             the server's downloads directory — or, in development, .vitepress/config.js
-	theme/downloads.js              this file — the list, the fetch, two small readings and the clipboard call
+	theme/downloads.js              this file — the list, the fetch, one small reading and the clipboard call
 	  ↓
 	components/DownloadLink.vue     one download; download-fuji.md places six of them by hand
 	components/DownloadCommand.vue  the hash written into a fenced install command; download-fuji.md places two
@@ -17,6 +17,7 @@ Development has no downloads directory, so config.js stands in for it twice over
 
 **Fetch on mount, never at module scope.** VitePress prerenders components in Node at build time, and Node has fetch — so a module-scope call would run rather than fail loudly, but a relative url has no origin to resolve against there and nothing is serving these files during a build, so every row would bake in as unpublished.
 */
+import { hasTick, sayTick } from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 
 //the published names, in the order the home page lists them. no name carries a version, so a link anyone shares keeps pointing at the current build, and every linux package names its architecture because linux is where architectures multiply and a bare name would read as the default while being the rarer one
 export let installerFiles = [
@@ -44,25 +45,10 @@ export async function fetchSidecar(file) {
 	} catch (error) { return false }//the network refused, or the body was not json
 }
 
-//the one version and date for a release as a whole, which the home page needs because it has room for a
-//single heading. the earliest of the three builds, understating how fresh the release is rather than overstating it
-export function earliestBuild(sidecars) {
-	let earliest = false
-	for (let sidecar of sidecars) {
-		if (!sidecar) continue
-		if (!earliest || sidecar.date < earliest.date) earliest = sidecar
-	}
-	return earliest
-}
-
-//"2026-09-13" as "2026 September 13". the sidecar stays ISO 8601 so earliestBuild can compare dates as
-//text, and the month name comes from the platform. the parts go into Date as local numbers rather than
-//through its string parser, which reads a bare date as UTC midnight and would render it as the day
-//before for anyone west of Greenwich; the locale is fixed because the rest of the page is English
-export function readableDate(iso) {
-	let [year, month, day] = iso.split('-').map(Number)
-	if (!year || !month || !day) return iso//a date we did not expect shows exactly as it arrived
-	return year + ' ' + new Date(year, month - 1, day).toLocaleDateString('en', {month: 'long'}) + ' ' + day
+//the day a tick falls on in UTC, like "2026 September 13", the one way the site says a day: a sidecar's from the tick it keeps, and an article's last update; blank for no tick, which is a sidecar written before sidecars kept one, until its machine publishes again. UTC, so every reader sees the same day wherever they are
+export function sayDay(t) {
+	if (!hasTick(t)) return ''
+	return sayTick(t, 'YYYY Mmmm D')
 }
 
 //copy text to the clipboard, answering whether it worked. the clipboard needs a secure context, which

@@ -2,6 +2,7 @@ import {execFileSync, spawnSync} from 'node:child_process'
 import {existsSync, statSync} from 'node:fs'
 import {join} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {buildLog, readSha256} from '../../build-log.js'
 
 /*
@@ -41,7 +42,7 @@ async function build(interpreter, args, environment, name) {//run the script and
 	let run = spawnSync(interpreter, args, {env: environment, stdio: 'inherit'})
 	if (run.status != 0) throw new Error('build.py failed')
 	let made = join(tauri, 'binaries', name)//where build.py leaves it, and the platform's tauri configuration file finds it
-	buildLog('library', 'finished', name, await readSha256(made), `${statSync(made).size} bytes in src-tauri/binaries`)
+	buildLog('library', 'finished', name, await readSha256(made), `${saySize4(statSync(made).size)} in src-tauri/binaries`)//the exact count is kept in libmpv.json and the ledger, and these words are for a person
 }
 
 main().catch(e => { buildLog('library', 'failed', '-', '-', e.message || String(e)); console.error('🚧 Error:', e.message || e); process.exitCode = 1 })

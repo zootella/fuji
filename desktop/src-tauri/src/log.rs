@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 use tauri::command;
-use zootella_ergo::{has_tick, tick_to_iso};
+use zootella_ergo::{has_tick, say_tick};
 
 /*
 Fuji's log: one text file per run, holding every line the page or Rust chose to keep. A run is a stretch with windows open rather than the life of the process — the file is written when the last one closes, and on macOS, where fuji stays in the dock after that, a window opened later starts a new file. log.js is the page's half and carries the essay on why a file beats a console. This is the half that holds the text and writes it, because only Rust sees a quit coming — desktop.rs has why RunEvent::Exit is the one place a file can still be written.
@@ -51,10 +51,10 @@ pub fn log_panics() {
 	}));
 }
 
-//utc time of day to the millisecond, like 18:29:27.123, cut from ergo's iso text the way sayClock in log.js cuts it; the day is left out because the file name already carries it
+//utc time of day to the millisecond, like 18:29:27.123, in the template sayClock in log.js writes the page's lines with; the day is left out because the file name already carries it
 fn log_clock() -> String {
 	let tick = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |since| since.as_millis() as i64);//milliseconds since 1970, ergo's tick
-	tick_to_iso(if has_tick(tick) { tick } else { 0 })[11..23].to_string()//a clock before 1970 or past 9999 reads as midnight rather than panicking inside a log line, which the panic hook above would turn into an abort
+	say_tick(if has_tick(tick) { tick } else { 0 }, "hh24:mm:ss.ttt")//a clock before 1970 or past 9999 reads as midnight rather than panicking inside a log line, which the panic hook above would turn into an abort
 }
 
 /// Write the file; called when the last window closes and again from RunEvent::Exit, after which nothing above can be told how it went

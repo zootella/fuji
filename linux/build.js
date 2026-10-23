@@ -3,6 +3,7 @@ import {appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync
 import {basename, join} from 'node:path'
 import {createInterface} from 'node:readline'
 import {fileURLToPath} from 'node:url'
+import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {buildStep, hashSha256} from '../build-log.js'
 
 /*
@@ -224,7 +225,7 @@ function report() {
 	if (!existsSync(release)) return say('    nothing')
 	let names = readdirSync(release).sort()
 	if (!names.length) return say('    nothing')
-	for (let name of names) say('    ' + name.padEnd(34) + statSync(join(release, name)).size + ' bytes')
+	for (let name of names) say('    ' + name.padEnd(34) + saySize4(statSync(join(release, name)).size))
 }
 
 /*

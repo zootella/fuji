@@ -2,7 +2,7 @@
 
 import {ref, nextTick, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
-import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Time, sayTimeRace} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {mediaVersion, mediaStart, mediaSend, mediaRead, mediaStop, mediaProbe, mediaFrame, mediaFrameUnpack} from '../media.js'
 import {windowVideoMake, windowVideoPlace, windowVideoDrop} from '../window.js'
 import {dialogOpen} from '../dialog.js'
@@ -98,9 +98,8 @@ async function tick() {//the player's position, every half second while the view
 		log(`audio: playing ${path.value}: ${clock(duration)} long, video ${params || 'none'}, hwdec ${hwdec || 'none'}, vo configured ${vo || 'no'}, ${dropped || 0} frames dropped`)
 	}
 }
-function clock(seconds) {//1:05 from 65.3, as the player says a time
-	const ms = (Number(seconds) || 0) * Time.second
-	return `${Math.floor(ms / Time.minute)}:${String(Math.floor(ms % Time.minute / Time.second)).padStart(2, '0')}`
+function clock(seconds) {//1'05"300 from 65.3, the player's seconds timed the way ergo times a race
+	return sayTimeRace((Number(seconds) || 0) * Time.second)
 }
 
 async function onDrop(dropped) {//the shell hands this every file dropped on the window while this view shows

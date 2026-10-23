@@ -1,7 +1,7 @@
 import {styleText} from 'node:util'
 import {createPrompt, useState, useEffect, useKeypress, isUpKey, isDownKey} from '@inquirer/core'
-import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {buildLogSize, quietBuildLog, readBuildLog, sayDuration, sayTime, stepsUnderWay} from '../build-log.js'
+import {Time, sayDuration} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {buildLogSize, durationSeconds, quietBuildLog, readBuildLog, sayTime, stepsUnderWay} from '../build-log.js'
 import {listApplications, standing, findSubmissions, readHistory, readLive, readStaged, build, notarize, hash, upload} from './notarize.js'
 
 /*
@@ -113,7 +113,7 @@ let screen = createPrompt((configuration, done) => {
 })
 
 function sayStatus({status, since, until}, now) {//like Notarizing .app... (12 minutes, 3 seconds), the clock counting while Apple examines a part and stopped once a step has finished
-	let said = since > 0 ? `${status} (${sayDuration((until || now) - since)})` : status
+	let said = since > 0 ? `${status} (${sayDuration(Math.max(0, (until || now) - since), durationSeconds)})` : status//since is apple's clock and now this mac's, which can disagree by a few seconds, so a span between them is floored at nothing rather than said with a minus sign
 	return status == 'Rejected' ? styleText('red', said) : said
 }
 
@@ -126,14 +126,14 @@ function sayDetails(application, apple) {//the selected application's two submis
 			if (submission) lines.push(`.${part}    ${submission.id}`, `        sent ${sayTime(submission.createdDate)} · ${submission.status}`)
 		}
 	}
-	if (application.notarized) lines.push(`        notarized ${sayTime(application.finished)}` + (application.sent ? `, in ${sayDuration(application.finished - application.sent)}` : ''))
+	if (application.notarized) lines.push(`        notarized ${sayTime(application.finished)}` + (application.sent ? `, in ${sayDuration(Math.max(0, application.finished - application.sent), durationSeconds)}` : ''))
 	if (application.sha256) lines.push(`sha256  ${application.sha256}`)
 	return lines
 }
 
 function sayUnderWay(steps, now) {//each step under way on this mac, like dmg  Fuji_0.1.0_aarch64.dmg  of the app of ..., by pnpm notarize (4 seconds)
 	let width = Math.max(...steps.map(line => line.subject == '-' ? 0 : line.subject.length))
-	return steps.map(line => `${line.step.padEnd(9)}${(line.subject == '-' ? '' : line.subject).padEnd(width + 2)}${line.words} (${sayDuration(now - line.when)})`)
+	return steps.map(line => `${line.step.padEnd(9)}${(line.subject == '-' ? '' : line.subject).padEnd(width + 2)}${line.words} (${sayDuration(now - line.when, durationSeconds)})`)
 }
 
 //ctrl-c closes the screen by rejecting with ExitPromptError, the library's way of saying the user left rather than a fault, so it ends like q: a job under way finishes first, with no screen left to show it

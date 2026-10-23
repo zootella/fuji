@@ -13,9 +13,7 @@ packages:
   # files that our own reverse proxy serves
   - site
 
-  # Fuji's linux packages — the deb, the rpm and the flatpak — built on a mac
-  # through docker rather than on a linux box. It has no dependencies of its own, because
-  # everything it does is orchestrate containers and the toolchains live inside those
+  # Fuji's linux packages — the deb, the rpm and the flatpak — built on a mac through docker rather than on a linux box. Its one dependency is ergo, for how its output says a size, and everything else it does is orchestrate containers whose toolchains live inside them
   - linux
 
   # The mac release that goes through Apple, signed with a Developer ID and notarized, and

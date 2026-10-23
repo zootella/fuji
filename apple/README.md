@@ -20,8 +20,8 @@ A release spends most of its time here the way a visit to the DMV does, waiting 
 ```
 apple waiting room
 
-❯ 2026-Oct-12 Mon 0.1.1 5be20c7a  Notarizing .app... (12 minutes, 3 seconds)
-  2026-Oct-10 Sat 0.1.0 9c0d1e2f  Uploaded
+❯ 2026oct12.1758.31204 0.1.1 5be20c7a  Notarizing .app... (12 minutes, 3 seconds)
+  2026oct10.2145.51806 0.1.0 9c0d1e2f  Uploaded
 
     .app    3d8a1f52-6c0e-4b7a-9e15-2f4c8b7d1a63
             sent 2026-Oct-12 Mon 2:04 PM · In Progress
@@ -29,13 +29,13 @@ apple waiting room
 b build · n notarize · h hash · u upload · ↑↓ choose · q quit
 ```
 
-Each row is an application, newest first. An application is one build of Fuji, signed with the Developer ID and kept in a folder of its own under `applications/`, named for the day it was built, its version, and a tag: the first eight hex digits of the app's code hash, which is what Apple binds its ticket to. Under the rows are the selected application's submissions, as Apple's history has them, then when it was notarized and how long that took, and the dmg's sha256. A line at the bottom appears only while Apple has not answered yet, or when it cannot be asked.
+Each row is an application, newest first. An application is one build of Fuji, signed with the Developer ID and kept in a folder of its own under `applications/`, named for the moment it was built, in UTC and in ergo's short form of a tick, which reads back, then its version and a tag: the first eight hex digits of the app's code hash, which is what Apple binds its ticket to. Under the rows are the selected application's submissions, as Apple's history has them, then when it was notarized and how long that took, and the dmg's sha256. A line at the bottom appears only while Apple has not answered yet, or when it cannot be asked.
 
 Below those, **under way** lists every step running on this Mac, whichever terminal started it, with how long it has been going:
 
 ```
 under way
-    dmg      Fuji_0.1.1_aarch64.dmg  of the app of 2026-Oct-12 Mon 0.1.1 5be20c7a, stapled, by pnpm notarize (4 seconds)
+    dmg      Fuji_0.1.1_aarch64.dmg  of the app of 2026oct12.1758.31204 0.1.1 5be20c7a, stapled, by pnpm notarize (4 seconds)
 ```
 
 That comes from the build log, which the waiting room looks at every second. Any new line in it, from a key here or a command in another terminal, makes the waiting room read the folders, Apple's history and the site again at once. It also reads them every half minute, for what happens with nothing on this Mac watching, like Apple finishing overnight.
@@ -74,7 +74,7 @@ The app goes to Apple first, then the dmg holding it. Apple's rule for a contain
 - **The checks.** n staples the dmg's ticket to it and asks Gatekeeper what a downloaded copy will meet, writing every verdict to `verify.txt`. Each should say accepted, with source=Notarized Developer ID.
 - **The delivery.** n leaves the dmg in `desktop/src-tauri/target/release/bundle/dmg/`, where `pnpm installer` leaves its own and `pnpm hash` looks. Whichever of the two made a dmg last is the one hash finds, and the loud warning at a dmg that is not notarized says when that was `pnpm installer`.
 
-Each submission is named for its application, `Fuji 2026-Oct-12 Mon 0.1.1 5be20c7a.zip` and the same with `.dmg`, and **n always starts by reading Apple's history for the two whose names end with its tag.** Whatever it finds, it waits on or carries on from, and it never sends either part twice. Pressing n again is safe after a quit, after a failure, and on a row Apple is still examining.
+Each submission is named for its application, `Fuji 2026oct12.1758.31204 0.1.1 5be20c7a.zip` and the same with `.dmg`, and **n always starts by reading Apple's history for the two whose names end with its tag.** Whatever it finds, it waits on or carries on from, and it never sends either part twice. Pressing n again is safe after a quit, after a failure, and on a row Apple is still examining.
 
 Tauri can notarize on its own, but only the app, and only while one process waits for Apple's answer. So b gives Tauri the identity and not the API key, and Tauri signs and stops.
 
@@ -97,10 +97,10 @@ Different things at once are fine, and the same thing twice is not. Two n's on o
 `build-log.txt` at the root of the repository has a line for every step anything takes on this Mac, as it starts and as it ends: the waiting room's keys, `pnpm notarize`, and the desktop and Linux workspaces' `pnpm installer`, `pnpm hash` and `pnpm upload`. It is gitignored, so each machine keeps its own, and it stays readable after the scripts that wrote it have changed. Each line carries the commit the checkout was at, with a + when tracked files had changed since, so a hash in the log can be traced back to the source it came from. The essay atop `build-log.js`, beside `scripts.js` at the root, describes the format.
 
 ```
-2026-10-11T15:26:37.522Z  81234    c1c95420+  send      started   88a2967d.app              -                                                                 as Fuji 2026-Oct-11 Sun 0.1.0 88a2967d.zip, by pnpm notarize
-2026-10-11T15:26:41.880Z  81234    c1c95420+  send      finished  88a2967d.app              3e6a18ec-7934-40ae-82fa-80357ce8df23                              Apple's id for it, took 4.3 seconds
-2026-10-11T15:26:41.884Z  81234    c1c95420+  apple     started   88a2967d.app              3e6a18ec-7934-40ae-82fa-80357ce8df23                              with Apple, by pnpm notarize
-2026-10-11T15:27:12.010Z  81234    c1c95420+  apple     finished  88a2967d.app              Accepted                                                          Apple's answer, took 30.1 seconds
+2026oct11.1526.37522  81234    c1c95420+  send      started   88a2967d.app              -                                                                 as Fuji 2026oct11.1519.48033 0.1.0 88a2967d.zip, by pnpm notarize
+2026oct11.1526.41880  81234    c1c95420+  send      finished  88a2967d.app              3e6a18ec-7934-40ae-82fa-80357ce8df23                              Apple's id for it, took 4.3 seconds
+2026oct11.1526.41884  81234    c1c95420+  apple     started   88a2967d.app              3e6a18ec-7934-40ae-82fa-80357ce8df23                              with Apple, by pnpm notarize
+2026oct11.1527.12010  81234    c1c95420+  apple     finished  88a2967d.app              Accepted                                                          Apple's answer, took 30.1 seconds
 ```
 
 The apple workspace writes build, dmg, send, apple, check and deliver; `pnpm installer` writes dmg on the Mac and exe on Windows, the Linux workspace writes linux, and every workspace's `pnpm hash` and `pnpm upload` write hash and upload. A step on this Mac starts and ends in one process, sending a part among them. Apple's step starts when the send finishes and ends when Apple's answer is recorded, by whichever process learns it, so a quit in between leaves it started, which is true: Apple is still examining it. There is no step for a whole notarization, because a notarization can outlast a shutdown; its time runs from the app's apple started line to the check's finished one.
@@ -108,7 +108,7 @@ The apple workspace writes build, dmg, send, apple, check and deliver; `pnpm ins
 ## Application folders
 
 ```
-applications/2026-Oct-12 Mon 0.1.1 5be20c7a/
+applications/2026oct12.1758.31204 0.1.1 5be20c7a/
 	Fuji.app                  the signed app, copied out of the bundle the moment b made it, and stapled by n
 	Fuji_0.1.1_aarch64.dmg    signed, notarized and stapled
 	log.txt                   every step's lines from the build log, and what each program printed between them
