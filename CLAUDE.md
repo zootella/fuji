@@ -113,11 +113,11 @@ Two rules keep it workable. **It takes packages from the root `package.json`**, 
 
 ### Regenerate the Icons
 ```bash
-pnpm icons        # rebuild every platform's icons from src-tauri/icons/app-icon.svg
+pnpm icons        # rebuild every platform's icons from the sources in src-tauri/icons
 ```
-One run writes the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Store logos, and the mobile trees together, so no platform needs its own run. It reads three sources, not one — `app-icon.svg` for everything shared, `app-icon-mac.svg` for the dock, and `app-icon-tile.svg` for the Windows Start menu tile — because those three want the disc at different sizes and nothing else differs between them. These are committed artifacts, which means a Tauri CLI upgrade does not refresh them — re-run this after one. `icon.md` says why that matters and what it has already cost.
+One run writes the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Start menu tile and, on a Mac with Xcode, the Tahoe icon's `Assets.car`, so no platform needs its own run. These are committed artifacts, which means a Tauri CLI upgrade does not refresh them — re-run this after one. `src-tauri/icons/README.md` has every source, every file a run makes, how each platform's build takes them, and the sizes, and `icon.md` has the history.
 
-**Expect exactly two modified files afterwards, both `.icns`.** `tauri icon` writes that container's records in an unstable order, so `icon.icns` and `mac/icon.icns` come back reordered on every run, on every machine, with every image byte-identical — verified record by record. Committing them is lossless. Any *other* file appearing in `git status` after a run is a real change worth looking at.
+**Expect two modified files afterwards, both `.icns`, and a third, `mac/Assets.car`, on a Mac with Xcode.** `tauri icon` writes that container's records in an unstable order, so `icon.icns` and `mac/icon.icns` come back reordered on every run, on every machine, with every image byte-identical — verified record by record. `actool` writes a new timestamp and new generated names into `Assets.car` on every run. Committing them is lossless. Any *other* file appearing in `git status` after a run is a real change worth looking at.
 
 ### Clean Build Environment
 There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair were yarn-classic-era crutches — that ecosystem needed frequent clean reinstalls; pnpm's store does not. If a genuine mess ever needs clearing, delete `desktop/dist`, `node_modules`, or `desktop/src-tauri/target` by hand — and never delete the tracked lockfiles: pnpm-lock.yaml and Cargo.lock serve both mac and windows, and removing them to fix a problem is the anti-pattern that motivated the pnpm switch.

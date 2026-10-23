@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-	What fuji tells macOS it can open. Tauri merges this file with the Info.plist it generates from tauri.conf.json, so everything else about the bundle — the identifier, the version, the icon, the minimum system — still comes from there and nothing needs repeating here.
+	What fuji tells macOS it can open. Tauri merges this file with the Info.plist it generates from tauri.conf.json, so everything else about the bundle — the identifier, the version, the minimum system — still comes from there and nothing needs repeating here, except the icon's second name below.
 
 	LSHandlerRank is Alternate on every one of these, and that is the whole design: Alternate says fuji can open this kind of file and is not claiming it. Fuji appears in Finder's Open With menu the moment the app is dragged into Applications, and every file on the machine still opens with whatever opened it before. A user who wants fuji uses Get Info and Change All, which macOS confirms with a sheet of its own. Nothing fuji does takes a file type.
 
@@ -11,6 +11,8 @@
 -->
 <plist version="1.0">
 <dict>
+	<!-- The icon Tahoe and later show: AppIcon in the Assets.car that tauri.macos.conf.json puts in Resources, compiled by Xcode's actool from icons/AppIcon.icon, a flat disc on a white tile. Tauri's CFBundleIconFile still names icon.icns, which earlier systems show. -->
+	<key>CFBundleIconName</key><string>AppIcon</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

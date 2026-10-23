@@ -46,7 +46,7 @@ So there is one icon to get right on this platform, not three.
 
 ## The rule macOS actually applies
 
-**macOS does not mask app icons.** iOS clips every icon to its own squircle, so artwork can run to the edge and the system makes it fit. macOS draws the `.icns` exactly as authored, at any shape — which is why a Mac icon can be a hammer or a torn page, and why the inset every well-behaved icon appears to have must be *baked into the file*.
+**Before Tahoe, macOS did not mask app icons.** iOS clips every icon to its own squircle, so artwork can run to the edge and the system makes it fit. macOS drew the `.icns` exactly as authored, at any shape — which is why a Mac icon can be a hammer or a torn page, and why the inset every well-behaved icon appears to have must be *baked into the file*.
 
 **Apple's grid is a 1024 canvas holding an 824 body**: 100 transparent pixels on each side, 80.5% of the canvas. Measured against macOS 15.7.4's own applications, solid body only:
 
@@ -378,7 +378,3 @@ That is **a richer set than `tauri icon` produces** for the application icon: ou
 Fuji ships `32x32.png`, `128x128.png`, and `128x128@2x.png`, listed in `bundle.icon`. All three are full bleed, 100% of the canvas, which is correct here for the same reason as on Windows. They were regenerated with the rest and are clean — decoded on the Windows 10 box 2026-09-13, no fringe, and no opaque pixel that is not the cyan.
 
 **Which desktops fuji targets, and what each expects, is undecided and unresearched.** The freedesktop icon theme specification is the likely authority, and whether GNOME's and KDE's differing conventions matter to a single-window application is the first question to answer.
-
-## macOS 26 and Liquid Glass, later
-
-Tahoe replaces `.icns` with `.icon`, a bundle of layers that Apple's Icon Composer produces, and the system renders the light, dark, clear, and tinted variants from it. Fuji develops on macOS 15.7.4, so nothing here is urgent. Tauri is tracking support in [issue #14207](https://github.com/tauri-apps/tauri/issues/14207); until that lands, an `.icns` remains what a Tauri app can ship, and Tahoe falls back to rendering it.

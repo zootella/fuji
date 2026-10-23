@@ -408,7 +408,7 @@ function reportTransport() {
 	}
 }
 
-//the three tauri icon runs stay in package.json, where pnpm is what puts the tauri cli on the path; this is the part after them. each run writes a folder of its own, and these are the files that have to come out from under a generated name and sit where tauri.conf.json and the windows manifest expect them. they are committed artifacts, because a tauri cli upgrade does not refresh them and only a run of this does
+//the three tauri icon runs stay in package.json, where pnpm is what puts the tauri cli on the path; this is the part after them. each run writes a folder of its own, and these are the files that have to come out from under a generated name and sit where tauri.conf.json and the windows manifest expect them, and then the Tahoe icon, compiled. they are committed artifacts, because a tauri cli upgrade does not refresh them and only a run of this does
 function iconsCollect() {
 	let copies = [
 		['.mac/icon.icns',              'mac/icon.icns'],        //the dock icon, inset to apple's grid, kept where the shared run cannot overwrite it
@@ -420,6 +420,22 @@ function iconsCollect() {
 		copyFileSync(join(icons, from), join(icons, to))
 		console.log('copied   ' + to)
 	}
+	iconsCompile()
+}
+
+//the icon Tahoe and later show, compiled from AppIcon.icon into mac/Assets.car by actool, which comes only with Xcode. the mac keeps the command line tools as its active developer folder, so this reaches Xcode for the one command through DEVELOPER_DIR, and Assets.car is committed, so no build needs Xcode, only a change to this icon. anywhere without Xcode, windows included, it says so and leaves the committed file as it is. the README in the icons folder has the rest
+function iconsCompile() {
+	let xcode = '/Applications/Xcode.app/Contents/Developer'//where Xcode installs itself
+	if (process.platform != 'darwin' || !existsSync(xcode)) { console.log('skipped  mac/Assets.car, which only Xcode on a Mac can compile; the committed one stands'); return }
+	let out = mkdtempSync(join(tmpdir(), 'actool-'))//actool writes three files and only Assets.car is wanted: its own icns falls short of fuji's, and its plist says what Info.plist already does
+	let report = execFileSync('xcrun', ['actool', join(icons, 'AppIcon.icon'), '--compile', out, '--platform', 'macosx', '--target-device', 'mac', '--minimum-deployment-target', '11.0',
+		'--app-icon', 'AppIcon',//the folder's name without .icon, or actool makes nothing and says nothing
+		'--output-partial-info-plist', join(out, 'partial.plist'),
+	], {env: {...process.env, DEVELOPER_DIR: xcode}, encoding: 'utf8'})//actool answers in a plist on standard output, its errors included, and exits 0 even when it makes nothing
+	if (!existsSync(join(out, 'Assets.car'))) throw new Error(`actool made no Assets.car from AppIcon.icon, and reported: ${report.trim()}`)
+	copyFileSync(join(out, 'Assets.car'), join(icons, 'mac/Assets.car'))
+	rmSync(out, {recursive: true, force: true})
+	console.log('compiled mac/Assets.car')
 }
 
 //the signing identity on the mac that publishes, which the signing essay above explains: with nothing after it, say whether the login keychain holds it; make writes a new certificate and its backup, once ever; import brings that backup onto another mac. Either way the identity goes in through the backup, so the first run proves the backup works
