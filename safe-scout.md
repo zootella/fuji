@@ -32,7 +32,7 @@ What decides whether Rust code goes in the scout, the crate at `./scout`, or in 
 
 **Both.** Split it the way the reader is split: the scout gets the core that decides, and fuji gets a thin command that does the reading or the talking to the operating system and hands the data over.
 
-**Ergo's job.** Hashing, dates, times and sizes: fuji's command calls ergo. That's why `scout.rs` places the whole-file hashes on fuji's side, where reading a whole file is a command's disk work and the hashing is ergo's.
+**Ergo's job.** Hashing, dates, times and sizes: fuji's command calls ergo. That's why the whole-file hashes and the fuji tip hash are in `inventory.rs`, on fuji's side, where reading a whole file is a command's disk work and the hashing is ergo's.
 
 ## What the separation costs
 
@@ -42,7 +42,7 @@ What decides whether Rust code goes in the scout, the crate at `./scout`, or in 
 
 **A seam that carries only data.** What crosses between the crates is plain data the page can read, like the reader's answer, and nothing shaped by Tauri.
 
-**Two folder readers.** `find.rs` in fuji reads many folders in one call, and the contact sheet uses it. `walk.rs` in the scout walks a folder tree with every name's kind, and nothing in fuji calls it yet.
+**Two folder readers.** `find.rs` in fuji reads many folders in one call, and the contact sheet uses it. `walk.rs` in the scout walks a folder tree with every name's kind, and the inventory in `inventory.rs` walks with it.
 
 **Testing fuji's own crate.** It works the ordinary way, a `#[cfg(test)]` module in any file and `cargo test` in `desktop/src-tauri`, and its first build compiles all of Tauri. On the Mac the test program dies at launch for want of libmpv, since the library's folder is given only to the app bundle: a test binary of fuji's library crashed that way on the Mac mini on 2026-10-17. A line in `build.rs` giving test builds the same folder is the likely fix, and is untried.
 

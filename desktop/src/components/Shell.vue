@@ -70,14 +70,14 @@ const props = defineProps({
 	opened: {type: Array, default: () => []},//the files the operating system handed this window, forwardized, which App.vue took as it chose this window's root
 })
 
-const sheetRef    = ref(null)
-const settingsRef = ref(null)
-const audioRef    = ref(null)
+const sheetRef     = ref(null)
+const settingsRef  = ref(null)
+const audioRef     = ref(null)
 const inventoryRef = ref(null)
-const tableRef    = ref(null)
-const showing     = ref('Table')//Sheet, Settings, Audio, Inventory or Table: which kind of view the user is looking at
-const whichTable  = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
-const helpShowing = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
+const tableRef     = ref(null)
+const showing      = ref('Table')//Sheet, Settings, Audio, Inventory or Table: which kind of view the user is looking at
+const whichTable   = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
+const helpShowing  = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
 
 onMounted(async () => {
 	let w = getCurrentWindow()
