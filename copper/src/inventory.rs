@@ -226,6 +226,22 @@ fn path_say(path: &Path) -> String {//a name that is not UTF-8 loses those chara
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	struct Tree(std::path::PathBuf);//a folder of one test's own under the system's temporary folder, removed when the test ends, as steel's tests build theirs
+	impl Tree {
+		fn new(name: &str) -> Tree { let path = std::env::temp_dir().join(format!("copper-inventory-{name}-{}", std::process::id())); let _ = std::fs::remove_dir_all(&path); std::fs::create_dir_all(&path).unwrap(); Tree(path) }
+		fn file(&self, relative: &str) { let path = self.0.join(relative); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path, relative).unwrap() }//a small file whose contents are its own name, so its size is the name's length
+		fn text(&self, relative: &str) -> String { let text = self.0.join(relative).to_string_lossy().into_owned(); if cfg!(windows) { text.replace('\\', "/") } else { text } }//the path as the page would send it and as a line says it; on the Mac and Linux a backslash is a letter in a name
+	}
+	impl Drop for Tree { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
+	fn parse(line: &str) -> (String, String, u64, serde_json::Value) {//a line read back by its grammar: the hash, the path as one JSON string, the size, and the JSON
+		let (hash, rest) = line.split_once(' ').unwrap();
+		let mut values = serde_json::Deserializer::from_str(rest).into_iter::<serde_json::Value>();
+		let path = values.next().unwrap().unwrap().as_str().unwrap().to_string();
+		let (size, json) = rest[values.byte_offset()..].trim_start().split_once(' ').unwrap();
+		(hash.to_string(), path, size.parse().unwrap(), serde_json::from_str(json).unwrap())
+	}
+
 	#[test]
 	fn an_inventory_of_the_samples() {//the whole loop over steel's sample files into a file in the system's temporary folder: the counts, and the lines a video and a sound file get
 		let output = std::env::temp_dir().join(format!("copper-inventory-{}.txt", std::process::id()));
@@ -277,5 +293,57 @@ mod tests {
 		let _ = std::fs::remove_file(&output);
 		assert_eq!(text.lines().count(), 1);
 		assert!(text.starts_with("- ") && text.contains("\"kind\":\"Refused\"") && text.contains("\"error\":"), "{text}");
+	}
+
+	#[test]
+	fn every_line_reads_back_whatever_a_name_holds() {//the names a collection holds, each a line that reads back by the grammar: a space, a letter past ascii, a name with no extension, and where the platform allows them a quote, a backslash, a newline and a tab; two names that are one file through a hard link, which their lines show by a links count of two and one hash; a file that refuses to open, which gets its line as an error with the size the walker saw; a time before 1970, left out of stat as the placeholder it is; a file the Mac flags hidden; and the inventory's own output inside the folder, which gets no line
+		let t = Tree::new("names");
+		let mut names = vec!["spa ce.gif", "café.png", "noextension", "deep/er/file.txt", "linked.jpg", "twin.jpg", "early.txt"];
+		#[cfg(unix)] names.extend(["quote\" mark.jpg", "back\\slash.txt", "new\nline.bin", "tab\there.txt", "locked.txt"]);
+		#[cfg(windows)] names.extend(["brackets [1].jpg", "percent %20.jpg", "hash #1.jpg"]);
+		#[cfg(target_os = "macos")] names.push("hidden.txt");
+		for name in &names { if *name != "twin.jpg" { t.file(name) } }
+		std::fs::hard_link(t.0.join("linked.jpg"), t.0.join("twin.jpg")).unwrap();
+		std::fs::File::options().write(true).open(t.0.join("early.txt")).unwrap().set_modified(std::time::UNIX_EPOCH - std::time::Duration::from_secs(1)).unwrap();
+		#[cfg(unix)] let locked_opens = { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(t.0.join("locked.txt"), std::fs::Permissions::from_mode(0o000)).unwrap(); std::fs::File::open(t.0.join("locked.txt")).is_ok() };//root opens it anyway, which leaves that line nothing to test
+		#[cfg(target_os = "macos")] assert!(std::process::Command::new("chflags").arg("hidden").arg(t.0.join("hidden.txt")).status().unwrap().success());
+		let options = Options { sha1: false, sha256: true, blake3: false, indent: false, video: vec![] };
+		let inventory = Inventory::default();
+		run(&t.text(""), &t.text("inventory.txt"), &options, &inventory).unwrap();
+		let text = std::fs::read_to_string(t.0.join("inventory.txt")).unwrap();
+		#[cfg(unix)] { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(t.0.join("locked.txt"), std::fs::Permissions::from_mode(0o644)).unwrap() }//so the tree can be removed
+		let lines: Vec<(String, String, u64, serde_json::Value)> = text.lines().map(parse).collect();
+		let mut paths: Vec<&str> = lines.iter().map(|(_, path, _, _)| path.as_str()).collect(); paths.sort_unstable();
+		let mut expected: Vec<String> = names.iter().map(|name| t.text(name)).collect(); expected.sort();
+		assert_eq!(paths, expected, "every name once, and no line for inventory.txt");
+		assert_eq!((inventory.folders.load(Relaxed), inventory.files.load(Relaxed) as usize), (3, names.len()));
+		let root = format!("{}/", t.text("").trim_end_matches('/'));
+		for (_, path, size, _) in &lines { if !path.ends_with("/twin.jpg") { assert_eq!(*size, path.strip_prefix(&root).unwrap().len() as u64, "{path}") } }//the size the line says is the file's, which is its name's length in bytes; the twin holds linked.jpg's name
+		let line = |name: &str| lines.iter().find(|(_, path, _, _)| *path == t.text(name)).unwrap();
+		let (hash, _, _, said) = line("linked.jpg");
+		let (twin_hash, _, _, twin) = line("twin.jpg");
+		assert_eq!((said["stat"]["links"].as_u64(), twin["stat"]["links"].as_u64(), said["hash"]["sha256"] == twin["hash"]["sha256"], hash == twin_hash), (Some(2), Some(2), true, true), "{said}\n{twin}");
+		assert!(said["hash"]["sha256"].as_str().unwrap().len() == 52 && said["tip"].is_object() && said["stat"]["modified"].is_string(), "{said}");
+		assert!(line("early.txt").3["stat"].get("modified").is_none(), "{}", line("early.txt").3);
+		#[cfg(unix)] if !locked_opens { let (hash, _, size, said) = line("locked.txt"); assert_eq!((hash.as_str(), *size, said["error"].is_string(), said.get("tip").is_none()), ("-", 10, true, true), "{said}") }
+		#[cfg(target_os = "macos")] assert_eq!((line("hidden.txt").3["stat"]["hidden"].as_bool(), line("early.txt").3["stat"].get("hidden").is_none()), (Some(true), true));
+	}
+
+	#[test]
+	fn a_stop_set_partway_through_a_file_ends_the_run_there_with_no_line_for_the_part() {//stop is read before every name and between the pieces of a hash, so one set while a file is being hashed ends the hash, and the file gets no line, since a hash of part of it says nothing true. The test holds the lock on the path the loop records as it begins each file, so the run stands at the first file until the test has set stop and let go, which is how a stop lands partway without a clock
+		let t = Tree::new("stop");
+		for name in ["a.txt", "b.txt", "c.txt"] { t.file(name) }
+		let options = Options { sha1: false, sha256: true, blake3: false, indent: false, video: vec![] };
+		let inventory = Inventory::default();
+		let held = inventory.path.lock().unwrap();
+		std::thread::scope(|s| {
+			let running = s.spawn(|| run(&t.text(""), &t.text("inventory.txt"), &options, &inventory));
+			while inventory.files.load(Relaxed) < 1 { std::thread::yield_now() }//the loop has counted the first file and is waiting for the lock
+			inventory.stop.store(true, Relaxed);
+			drop(held);
+			running.join().unwrap().unwrap();
+		});
+		let p = inventory.progress();
+		assert_eq!((p.folders, p.files, p.bytes, p.stopped, std::fs::read_to_string(t.0.join("inventory.txt")).unwrap().len(), p.path.ends_with("/a.txt")), (1, 1, 0, true, 0, true), "{}", p.path);
 	}
 }

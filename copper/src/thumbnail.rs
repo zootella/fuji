@@ -387,4 +387,51 @@ mod tests {
 		assert_eq!(target(&ask, 3000, 500).unwrap(), (480, 80));//a panorama held to the beam by its longer side
 		assert!(target(&ask, 0, 480).is_err());
 	}
+
+	#[cfg(any(target_os = "macos", target_os = "windows"))]
+	#[test]
+	fn every_exif_orientation_turns_the_picture_the_way_the_tag_says() {//the eight orient samples store one raster, red over blue, 32 by 20, each tagged with a different orientation, so the thumbnail's red half lands where EXIF says: top for 1 and 2, bottom for 3 and 4, left for 5 and 8, right for 6 and 7, and the sideways four come back 20 by 32. The two mirrored diagonals, 5 and 7, are the pair the Windows body once turned a half turn too far
+		let mut wrong = vec![];
+		for (orientation, red) in [(1, "top"), (2, "top"), (3, "bottom"), (4, "bottom"), (5, "left"), (6, "right"), (7, "right"), (8, "left")] {
+			let t = render(&sample(&format!("orient-{orientation}.jpg")), &|w, h| Ok((w, h)), false).unwrap();
+			let (w, h) = (t.width as usize, t.height as usize);
+			let redness = |x0: usize, x1: usize, y0: usize, y1: usize| -> i64 {//red less blue, summed over one region of the thumbnail
+				let mut sum = 0i64;
+				for y in y0..y1 { for x in x0..x1 { let p = (y * w + x) * 4; sum += t.pixels[p] as i64 - t.pixels[p + 2] as i64 } }
+				sum
+			};
+			let (first, second) = if w > h { (redness(0, w, 0, h / 2), redness(0, w, h / 2, h)) } else { (redness(0, w / 2, 0, h), redness(w / 2, w, 0, h)) };//the two halves: top and bottom of a landscape, left and right of a portrait
+			let found = match (w > h, first > 0, second > 0) { (true, true, false) => "top", (true, false, true) => "bottom", (false, true, false) => "left", (false, false, true) => "right", _ => "mixed" };
+			let (width, height) = if orientation >= 5 { (20, 32) } else { (32, 20) };
+			if (t.width, t.height, t.natural_width, t.natural_height, found) != (width, height, width, height, red) { wrong.push(format!("orientation {orientation}: {}x{} showing {}x{} with red at the {found}, against {width}x{height} with red at the {red}", t.width, t.height, t.natural_width, t.natural_height)) }
+		}
+		assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+	}
+
+	#[cfg(any(target_os = "macos", target_os = "windows"))]
+	#[test]
+	fn a_header_claiming_more_than_the_machine_holds_is_refused_through_the_library_before_it_decodes() {//the wall met the way a file meets it: a TIFF of a hundred bytes whose directory claims a square a little past half this machine's memory, so the claim is a bomb on every machine the test runs on. ImageIO declines to say the size of a square that large at all, measured on the Mac mini on 2026-10-24 for 200,000 and for the 46,400 this machine's 16 GB makes, so on the Mac the refusal is the one for no size; a library that reports the size meets the ceiling instead. Either way the answer is a refusal before any decoder allocates, and never the decode that would have been tried
+		let side = ((crate::memory::total() / 8) as f64).sqrt() as u32 + 1;//one more than the square root of the pixels half the memory holds at four bytes each, so the square is past the ceiling
+		let path = std::env::temp_dir().join(format!("copper-thumbnail-bomb-{}.tif", std::process::id()));
+		std::fs::write(&path, tiff(side, side)).unwrap();
+		let refused = render(path.to_str().unwrap(), &|w, h| Ok((w, h)), false);
+		let _ = std::fs::remove_file(&path);
+		let refused = refused.err().unwrap();
+		assert!(refused.contains("would need") || refused.contains("gave no size"), "{refused}");
+		let path = std::env::temp_dir().join(format!("copper-thumbnail-small-{}.tif", std::process::id()));//the same file at 2 by 2 renders, so the refusal above is about the size and not the file
+		std::fs::write(&path, tiff(2, 2)).unwrap();
+		let small = render(path.to_str().unwrap(), &|w, h| Ok((w, h)), false);
+		let _ = std::fs::remove_file(&path);
+		assert_eq!(small.map(|t| (t.width, t.height)), Ok((2, 2)));
+	}
+	#[cfg(any(target_os = "macos", target_os = "windows"))]
+	fn tiff(width: u32, height: u32) -> Vec<u8> {//a little-endian TIFF of one grayscale strip: the header, a directory of nine entries, and four bytes of pixels, which is every pixel of a 2 by 2 and a hundred-byte lie about anything larger
+		let mut t = vec![b'I', b'I', 42, 0, 8, 0, 0, 0];
+		let entries: [(u16, u16, u32); 9] = [(256, 4, width), (257, 4, height), (258, 3, 8), (259, 3, 1), (262, 3, 1), (273, 4, 8 + 2 + 9 * 12 + 4), (277, 3, 1), (278, 4, height), (279, 4, 4)];//width, length, eight bits a sample, no compression, black is zero, the strip's offset just past this directory, one sample a pixel, one strip, and four bytes in it
+		t.extend(9u16.to_le_bytes());
+		for (tag, kind, value) in entries { t.extend(tag.to_le_bytes()); t.extend(kind.to_le_bytes()); t.extend(1u32.to_le_bytes()); t.extend(value.to_le_bytes()) }
+		t.extend(0u32.to_le_bytes());//no directory after this one
+		t.extend([0, 0, 0, 0]);
+		t
+	}
 }

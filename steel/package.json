@@ -6,6 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "cargo test",
-		"fuzz": "cargo +nightly fuzz run scout fuzz/corpus/scout samples"
+		"fuzz": "cargo +nightly fuzz run scout fuzz/corpus/scout samples",
+		"fit-table": "node fit-table.js"
 	}
 }

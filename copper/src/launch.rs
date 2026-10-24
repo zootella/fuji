@@ -82,6 +82,7 @@ mod tests {
 		assert_eq!(o.kind, "public.jpeg");//the kind the Mac files .jpg, .jpeg and .jpe under
 		assert!(!o.name.is_empty() && std::path::Path::new(&o.executable).is_file(), "{} at {}", o.name, o.executable);
 		assert_eq!(opens(".jpeg").unwrap().kind, "public.jpeg");
+		assert!(opens(".zqxnothing").unwrap().kind.starts_with("dyn."), "an extension the system has no kind for still gets one, made up from the extension");
 	}
 	#[cfg(not(target_os = "macos"))]
 	#[test]

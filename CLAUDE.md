@@ -98,6 +98,7 @@ That is the third arrangement, and the two it replaced are worth knowing. **Copy
 cd steel
 pnpm test         # cargo test: the scout's tests, pinned to the files in samples/, the walker's and find's on trees they build, the disk's in a folder of their own, the fits' against the numbers fit.js gives, and the reads'
 pnpm fuzz         # libFuzzer on the reader, seeded from samples/, until stopped; pnpm fuzz -- -max_total_time=60 runs a minute
+pnpm fit-table    # write fit-table.txt, fitSize from fit.js over a grid, which the fits' test reads; run it when the arithmetic changes in both files at once
 ```
 `steel/README.md` is the guide: what the crate is, its files, and how fuji uses it.
 

@@ -135,4 +135,39 @@ mod tests {
 		let f = find(&t.text("nowhere/at/all"), true, wanted(), 10, 50);//a start that is not there: its ancestors are read as far as they exist, the missing ones refused, and the walk goes on from where they would have been
 		assert!(f.refused >= 1 && f.examined >= f.refused, "{} {}", f.refused, f.examined);
 	}
+
+	fn grid(name: &str) -> Tree {//fourteen visible folders in find's order, B, B/B2, a, a/aa, a/ab, a/ab/aba, a/ab/aba/abaa, a/ac, c, d, e, e/e1, e/e1/e11, e/e2, each there for a reason: B before a, since names compare by bytes; a hidden folder find never lists; empty folders in the middle and at the end; pictures at the top, three deep, and two in one folder
+		let t = Tree::new(name);
+		for f in ["B/one.jpg", ".hidden/h.jpg", "a/x.jpg", "a/ab/y.jpg", "a/ab/aba/z.jpg", "a/ac/n.txt", "c/w.jpg", "c/v.jpg", "e/e1/e11/deep.jpg"] { t.file(f) }
+		for d in ["B/B2", "a/aa", "a/ab/aba/abaa", "d", "e/e2"] { t.folder(d) }
+		t
+	}
+	const AFTER_ROOT: [(&str, u32); 6] = [("B", 1), ("a", 1), ("a/ab", 1), ("a/ab/aba", 1), ("c", 2), ("e/e1/e11", 1)];//the six folders of the grid holding a picture, forward from its root
+	const BEFORE_LAST: [(&str, u32); 6] = [("e/e1/e11", 1), ("c", 2), ("a/ab/aba", 1), ("a/ab", 1), ("a", 1), ("B", 1)];//the same six backward from e/e2, the grid's last folder: the deepest last descendant of its earlier sibling first, and each parent after its subfolders
+	fn rows(pairs: &[(&str, u32)]) -> Vec<(String, u32)> { pairs.iter().map(|&(path, files)| row(path, files)).collect() }
+	fn inside(t: &Tree, path: &str) -> bool { Path::new(path).strip_prefix(&t.0).is_ok_and(|rest| !rest.as_os_str().is_empty()) }//strictly below the grid's root; the root itself, finished backward, is where a walk has left the grid
+	fn steps(t: &Tree, from: &str, forward: bool, want: u32, examine: u32, total: usize) -> Vec<(String, u32)> {//the folders found by calls that each continue from where the last stopped, as the page continues, until total folders are found or the walk has left the grid; a call that leaves it reads at most examine folders of the temporary folder and the volume beyond, and a folder found out there, another test's tree, is left out
+		let mut all = vec![];
+		let mut from = t.text(from);
+		loop {
+			let f = find(&from, forward, wanted(), want, examine);
+			all.extend(f.folders.iter().filter(|folder| inside(t, &folder.path)).map(|folder| (t.relative(Path::new(&folder.path)), folder.files)));
+			if all.len() >= total || f.done || !inside(t, &f.stopped) { return all }
+			from = f.stopped;
+		}
+	}
+
+	#[test]
+	fn continuing_from_where_a_call_stopped_finds_the_rest_with_nothing_skipped_and_nothing_repeated() {//the contract across calls, both ways: one call that stops at the last folder, calls that each take one folder, and calls cut by every ceiling from one folder read to eight, which stop at folders with and without pictures and at every depth, all give the same six in the same order
+		let t = grid("find-steps");
+		let one = find(&t.text(""), true, wanted(), 6, 50);
+		assert_eq!((found(&t, &one), t.relative(Path::new(&one.stopped)), one.done), (rows(&AFTER_ROOT), "e/e1/e11".to_string(), false));
+		assert_eq!(steps(&t, "", true, 1, 50, 6), rows(&AFTER_ROOT));
+		for examine in 1..=8 { assert_eq!(steps(&t, "", true, 6, examine, 6), rows(&AFTER_ROOT), "forward, {examine} folders a call") }
+		assert_eq!(steps(&t, ".hidden", true, 6, 50, 6), rows(&AFTER_ROOT));//from a folder find would not list, which has its place among the names all the same
+		let one = find(&t.text("e/e2"), false, wanted(), 6, 50);
+		assert_eq!((found(&t, &one), t.relative(Path::new(&one.stopped)), one.done), (rows(&BEFORE_LAST), "B".to_string(), false));
+		assert_eq!(steps(&t, "e/e2", false, 1, 50, 6), rows(&BEFORE_LAST));
+		for examine in 1..=8 { assert_eq!(steps(&t, "e/e2", false, 6, examine, 6), rows(&BEFORE_LAST), "backward, {examine} folders a call") }
+	}
 }

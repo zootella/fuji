@@ -165,9 +165,11 @@ mod platform {
 mod tests {
 	use super::*;
 	#[test]
-	fn the_machine_and_this_process_have_memory() {
+	fn the_machine_and_this_process_have_memory() {//on the Mac the total is checked against the number sysctl prints for the same key; elsewhere the rest of this is a smoke test, since no second source for the numbers is at hand
 		let total = total();
 		assert!(total >= size::GB, "{total} bytes");
+		#[cfg(target_os = "macos")]
+		assert_eq!(total, String::from_utf8(std::process::Command::new("sysctl").args(["-n", "hw.memsize"]).output().unwrap().stdout).unwrap().trim().parse::<u64>().unwrap());
 		let r = report(vec![("made up".into(), 1)]);
 		assert!(r.installed >= total && r.used <= total && r.available <= total, "installed {} used {} available {} of {total}", r.installed, r.used, r.available);
 		assert_eq!((r.processes.len(), r.processes[0].kind.as_str(), r.processes[0].pid), (2, "host", std::process::id()));

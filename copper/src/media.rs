@@ -113,6 +113,9 @@ pub fn probe(path: &str, seconds: f64) -> Result<Probe, String> {//the question 
 	Ok(probe)
 }
 
+/*
+A frame of an MPEG program stream or transport stream file does not come back today, and the finding is kept here until it is run down. Asked for a frame of steel's video.ts, dvd-16x9.vob, dvd-4x3.vob and vcd.mpg, at 0, 0.1 and 0.5 seconds, the player reaches playback-restart and screenshot-raw then answers "error running command", which frame returns as its refusal, while probe answers all four with their format, codec and running time, and video.mpg, an MPEG-1 program stream, gives its frame at every one of those times. video.rm gives its first frame and refuses the two later times the same way. Measured on the Mac mini on 2026-10-24 with the library the recipe builds. These are whole files on disk, as every file fuji reads is; the word stream is the container's name and nothing more. What leaves the output without a frame, the seek to the asked time, the paused start or the null output, was not determined, and nothing was changed: today only the test panel asks for a frame, and when a fix is tried the four files above are its test.
+*/
 /// One frame of a video at a time in seconds, as one buffer: its width and height as little-endian unsigned 32-bit numbers, then its pixels as RGBA, row after row, at the shape the video shows at, with its turn and the stretch of pixels that are not square already applied; from a player made for the question, paused, decoding in software and drawing nowhere, which seeks exactly to the time as it opens the file. An error for a file with no video, and for one that gives no answer within seconds
 pub fn frame(path: &str, at: f64, seconds: f64) -> Result<Vec<u8>, String> {
 	if !(at.is_finite() && at >= 0.0) { return Err(format!("media_frame: expected a time in seconds, zero or more: {at}")) }
@@ -232,6 +235,7 @@ pub fn error_text(code: c_int) -> String { unsafe { CStr::from_ptr(mpv_error_str
 #[cfg(test)]
 mod tests {
 	use super::*;
+	fn sample(name: &str) -> String { format!("{}/../steel/samples/{name}", env!("CARGO_MANIFEST_DIR")) }
 	#[test]
 	fn the_library_says_its_versions() {
 		let v = version().unwrap();
@@ -243,6 +247,10 @@ mod tests {
 		let (w, h) = (u32::from_le_bytes(bytes[0..4].try_into().unwrap()), u32::from_le_bytes(bytes[4..8].try_into().unwrap()));
 		assert_eq!((w, h, bytes.len()), (32, 20, 8 + 32 * 20 * 4));
 		assert!(frame(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/audio.wav"), 0.0, 10.0).is_err(), "a sound file has no frame");
+		let shape = |name: &str| frame(&sample(name), 0.0, 10.0).map(|b| (u32::from_le_bytes(b[0..4].try_into().unwrap()), u32::from_le_bytes(b[4..8].try_into().unwrap())));
+		assert_eq!(shape("ccw-90.mp4").unwrap(), (20, 32), "a phone's quarter turn, applied");
+		assert_eq!(shape("dvd-16x9.mp4").unwrap(), (853, 480), "a DVD's pixels are not square, so its 720 by 480 shows at 853");
+		for (name, size) in [("video.avi", (32, 20)), ("video.flv", (32, 20)), ("video.wmv", (32, 20)), ("video.rm", (32, 20)), ("video.mov", (32, 20)), ("video.mkv", (32, 20)), ("video.webm", (32, 20)), ("video.mpg", (32, 20)), ("dvd-16x9.webm", (853, 480)), ("animated.gif", (32, 20))] { assert_eq!(shape(name).unwrap(), size, "{name}") }//one sample a codec, mpeg4, flv1, wmv2, rv20, vp8, vp9, mpeg1video and gif: the probe below names a codec from the container alone, and only a decode proves the recipe built its decoder
 	}
 	#[test]
 	fn a_file_the_library_cannot_open_is_refused_with_its_reason() {
@@ -250,6 +258,46 @@ mod tests {
 		assert!(refused.contains("could not open"), "{refused}");
 		assert!(probe("/no/such/file.mp4", 10.0).is_err());
 		assert!(probe(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/video.ts"), 0.0).is_err(), "a deadline of zero is a caller's mistake");
+		assert!(probe("a\0b.mp4", 10.0).err().unwrap().contains("null byte"), "a path c cannot say is refused rather than cut short");
+		assert!(frame(&sample("video.mkv"), -1.0, 10.0).is_err() && frame(&sample("video.mkv"), f64::NAN, 10.0).is_err(), "a time before the start, or no time");
+	}
+
+	#[test]
+	fn the_probe_opens_every_container_a_collection_holds() {//one sample of each container the type table calls video or audio, against the demuxer's name, the codec it names and the running time FFmpeg gives, through the library fuji builds from its own recipe: a row failing here is a demuxer the recipe left out, which is the one way that library can lose a format the system's own players have. The running time is held to a hundredth, so a new FFmpeg that counts a frame differently is not a failure here
+		let rows: &[(&str, &str, &str, &str)] = &[
+			("video.ts",      "mpegts",                  "mpeg2video", "1.0"),
+			("video.mpg",     "mpeg",                    "mpeg1video", "0.82"),
+			("dvd-16x9.vob",  "mpeg",                    "mpeg2video", "0.934267"),
+			("video.avi",     "avi",                     "mpeg4",      "1.0"),
+			("video.flv",     "flv",                     "flv1",       "1.0"),
+			("video.wmv",     "asf",                     "wmv2",       "1.0"),
+			("video.rm",      "rm",                      "rv20",       "1.0"),
+			("video.mov",     "mov,mp4,m4a,3gp,3g2,mj2", "mpeg4",      "1.0"),
+			("moov-last.mp4", "mov,mp4,m4a,3gp,3g2,mj2", "mpeg4",      "1.0"),
+			("dvd-16x9.mov",  "mov,mp4,m4a,3gp,3g2,mj2", "h264",       "1.0"),
+			("video.mkv",     "matroska,webm",           "mpeg4",      "1.0"),
+			("video.webm",    "matroska,webm",           "vp8",        "1.0"),
+			("dvd-16x9.webm", "matroska,webm",           "vp9",        "1.0"),
+			("animated.gif",  "gif",                     "gif",        "0.2"),
+			("audio.wma",     "asf",                     "wmav2",      "1.021"),
+			("audio.aac",     "aac",                     "aac",        "1.044917"),
+			("audio.m4a",     "mov,mp4,m4a,3gp,3g2,mj2", "aac",        "1.0"),
+			("audio.aiff",    "aiff",                    "pcm_s16be",  "1.0"),
+			("audio.au",      "au",                      "pcm_s16be",  "1.0"),
+			("audio.wav",     "wav",                     "pcm_s16le",  "1.0"),
+			("plain.mp3",     "mp3",                     "mp3",        "1.044875"),
+			("audio.flac",    "flac",                    "flac",       "1.0"),
+			("audio.ogg",     "ogg",                     "vorbis",     "1.001361"),
+			("audio.opus",    "ogg",                     "opus",       "1.0065"),
+			("picture.png",   "png_pipe",                "png",        ""),
+		];
+		let mut wrong = vec![];
+		for &(name, format, codec, seconds) in rows {
+			let p = match probe(&sample(name), 10.0) { Ok(p) => p, Err(e) => { wrong.push(format!("{name}: {e}")); continue } };
+			let close = match (p.duration.parse::<f64>(), seconds.parse::<f64>()) { (Ok(a), Ok(b)) => (a - b).abs() < 0.01, (Err(_), Err(_)) => true, _ => false };
+			if p.format != format || !close || !p.tracks.contains(&format!("\"codec\":\"{codec}\"")) { wrong.push(format!("{name}: {} {} {} against {format} {seconds} {codec}", p.format, p.duration, p.tracks)) }
+		}
+		assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 	}
 	#[test]
 	fn the_probe_reads_a_sample() {//one question of one of steel's sample files, which proves this crate's test binary links the media library and finds it at run time through the rpath build.rs gives it

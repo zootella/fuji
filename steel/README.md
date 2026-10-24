@@ -11,6 +11,7 @@ It is a Rust crate of its own, so it builds and tests here with nothing of Fuji 
 ```
 pnpm test    run the scout's tests, pinned to the files in samples/, the walker's and find's on trees they build, the disk's in a folder of their own, the fits' against the numbers fit.js gives, and the reads'
 pnpm fuzz    run libFuzzer on the reader, seeded from samples/, until stopped
+pnpm fit-table  write fit-table.txt, fitSize from fit.js over a grid of pictures, beams and screens, which the fits' test reads; run it when the arithmetic changes in both files at once
 ```
 
 `pnpm fuzz -- -max_total_time=60` runs it for a minute. Fuzzing needs the nightly toolchain and cargo-fuzz, `rustup toolchain install nightly` and `cargo install cargo-fuzz`.
@@ -25,7 +26,9 @@ src/read.rs   a file opened without waiting, and its tip and second slice read f
 src/disk.rs   a folder listed, glanced or stated, and a file read, written, appended or copied
 src/find.rs   the next folders holding a file of a kind, in find's order, many per call
 src/fit.rs    how big a thumbnail is from a picture's size and the beam, the twin of fit.js
-src/testing.rs  a tree a test builds, for the disk's and find's tests
+src/testing.rs  a tree a test builds, for the disk's, find's and the walker's tests
+fit-table.js  fitSize from fit.js over a grid, written into the file below
+fit-table.txt the grid's answers, tracked, which the fits' test holds fit.rs to
 samples/      small files made by real encoders, each pinned by a test to the answer it must give
 fuzz/         the crate cargo-fuzz runs, which keeps what it finds in fuzz/corpus and fuzz/artifacts, both gitignored
 ```

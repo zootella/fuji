@@ -137,7 +137,8 @@ mod tests {
 		entries.sort_by(|a, b| a.name.cmp(&b.name));
 		let seen: Vec<(String, bool, bool, u64)> = entries.iter().map(|e| (e.name.clone(), e.is_file, e.is_dir, e.size)).collect();
 		assert_eq!(seen, vec![(".hidden".into(), true, false, 7), ("a.jpg".into(), true, false, 5), ("b.txt".into(), true, false, 5), ("d".into(), false, true, entries[3].size)]);//a listing shows hidden names, as ls -a does; a file's size is its name's length, and a folder's is whatever the file system says
-		assert!(entries.iter().all(|e| e.mtime > 0), "every entry has a modified time");
+		let now = millis(Ok(std::time::SystemTime::now()));
+		assert!(entries.iter().all(|e| now - 60_000 < e.mtime && e.mtime <= now + 5_000), "every entry was modified this minute: {:?} against {now}", entries.iter().map(|e| e.mtime).collect::<Vec<_>>());
 		assert!(readdir(&t.text("missing")).is_err());
 	}
 
@@ -161,7 +162,10 @@ mod tests {
 		t.file("f.txt"); t.folder("d");
 		let f = stat(&t.text("f.txt")).unwrap();
 		assert_eq!((f.is_file, f.is_dir, f.is_symlink, f.size), (true, false, false, 5));
-		assert!(f.mtime > 0 && f.atime > 0, "the times the file system keeps");
+		let now = millis(Ok(std::time::SystemTime::now()));
+		assert!(now - 60_000 < f.mtime && f.mtime <= now + 5_000 && f.atime > 0, "the times the file system keeps: {} {} against {now}", f.mtime, f.atime);
+		fs::File::options().write(true).open(t.path("f.txt")).unwrap().set_modified(UNIX_EPOCH - std::time::Duration::from_secs(1)).unwrap();//a time before 1970, which a file from a clock that was never set or an archive written by a careless tool can carry
+		assert_eq!(stat(&t.text("f.txt")).unwrap().mtime, 0, "no answer, rather than a number that wrapped");
 		let d = stat(&t.text("d")).unwrap();
 		assert_eq!((d.is_file, d.is_dir, d.is_symlink), (false, true, false));
 		#[cfg(unix)]

@@ -138,8 +138,9 @@ mod tests {
 	use super::*;
 	#[cfg(any(target_os = "macos", target_os = "windows"))]
 	#[test]
-	fn the_main_display_has_pixels() {//on a machine with a display; the Mac mini and the Windows box both have one
-		let r = resolution();
-		assert!(r.x >= 640 && r.y >= 480, "{} by {}", r.x, r.y);
+	fn the_main_display_answers_one_size_every_time() {//a smoke test for the size itself, which only a look at the display's own specification checks; the one fact a test can hold is that twenty readings agree, which the year this file over-released a borrowed mode, the bug the essay tells, would not have let stand for long
+		let first = resolution();
+		assert!(first.x >= 640 && first.y >= 480, "{} by {}", first.x, first.y);
+		for _ in 0..20 { let again = resolution(); assert_eq!((again.x, again.y), (first.x, first.y)) }
 	}
 }

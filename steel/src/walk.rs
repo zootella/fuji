@@ -176,35 +176,17 @@ fn name_unreachable(name: &str) -> bool {//whether Windows' ordinary paths reach
 #[allow(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::arithmetic_side_effects, clippy::panic)]//a test may index, unwrap and add: a mistake in one fails the test, which is what a test is for
 mod tests {
 	use super::*;
-	use std::path::Path;
 
-	struct Tree(PathBuf);//a folder of one test's own under the system's temporary folder, made empty and removed when the test ends, so tests run side by side without meeting
-	impl Tree {
-		fn new(name: &str) -> Tree {
-			let path = std::env::temp_dir().join(format!("steel-walk-{name}-{}", std::process::id()));
-			let _ = fs::remove_dir_all(&path);
-			fs::create_dir_all(&path).unwrap();
-			Tree(path)
-		}
-		fn path(&self, relative: &str) -> PathBuf { self.0.join(relative) }
-		fn file(&self, relative: &str) {//a small file whose contents are its own name, so its size is the name's length
-			let path = self.path(relative);
-			fs::create_dir_all(path.parent().unwrap()).unwrap();
-			fs::write(path, relative).unwrap();
-		}
-		fn folder(&self, relative: &str) { fs::create_dir_all(self.path(relative)).unwrap() }
-		fn listing(&self) -> Vec<(String, Kind)> { walk(&self.0).map(|item| (self.relative(&item.path), item.kind)).collect() }//every item as its path below the tree, with forward slashes, and its kind
-		fn relative(&self, path: &Path) -> String { path.strip_prefix(&self.0).unwrap().to_string_lossy().replace('\\', "/") }
-	}
-	impl Drop for Tree { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+	use crate::testing::Tree;
+	fn listing(t: &Tree) -> Vec<(String, Kind)> { walk(&t.0).map(|item| (t.relative(&item.path), item.kind)).collect() }//every item as its path below the tree, with forward slashes, and its kind
 	fn row(path: &str, kind: Kind) -> (String, Kind) { (path.to_string(), kind) }
 
 	#[test]
 	fn folders_come_first_then_their_files_then_their_folders_by_name_hidden_ones_included() {
-		let t = Tree::new("order");
+		let t = Tree::new("walk-order");
 		for f in ["b.txt", "a.txt", ".DS_Store", "z/c.txt", ".hidden/d.txt", "Q.txt"] { t.file(f) }
 		t.folder("m");
-		assert_eq!(t.listing(), vec![
+		assert_eq!(listing(&t), vec![
 			row("", Kind::Folder),
 			row(".DS_Store", Kind::File),
 			row("Q.txt", Kind::File),//by bytes, so capitals before lowercase
@@ -222,12 +204,23 @@ mod tests {
 
 	#[test]
 	fn a_start_that_is_missing_or_not_a_folder_is_refused() {
-		let t = Tree::new("start");
+		let t = Tree::new("walk-start");
 		t.file("a.txt");
 		let missing: Vec<Item> = walk(t.path("nowhere")).collect();
 		assert_eq!((missing.len(), missing[0].kind, missing[0].error.is_empty()), (1, Kind::Refused, false));
 		let file: Vec<Item> = walk(t.path("a.txt")).collect();
 		assert_eq!((file.len(), file[0].kind, file[0].error.as_str()), (1, Kind::Refused, "not a folder"));
+	}
+
+	#[test]
+	fn a_folder_gone_before_the_walk_reaches_it_is_refused_in_its_place_and_the_walk_goes_on() {//a drive changes under a walk: a folder its parent listed, moved or deleted by the time the walk arrives, is answered Refused with the system's words where it would have been entered, and its siblings follow
+		let t = Tree::new("walk-gone");
+		for f in ["a/x.txt", "b/y.txt", "c/z.txt"] { t.file(f) }
+		let mut items = walk(&t.0);
+		assert_eq!(items.next().unwrap().kind, Kind::Folder);//the root, whose listing has named a, b and c
+		fs::remove_dir_all(t.path("b")).unwrap();
+		let rows: Vec<(String, Kind)> = items.map(|item| (t.relative(&item.path), item.kind)).collect();
+		assert_eq!(rows, vec![row("a", Kind::Folder), row("a/x.txt", Kind::File), row("b", Kind::Refused), row("c", Kind::Folder), row("c/z.txt", Kind::File)]);
 	}
 
 	#[test]
@@ -248,14 +241,14 @@ mod tests {
 	#[cfg(unix)]
 	#[test]
 	fn a_link_is_listed_and_never_followed() {
-		let t = Tree::new("links");
+		let t = Tree::new("walk-links");
 		t.file("real/inside.txt");
 		link(&t, "to-file", "real/inside.txt");
 		link(&t, "to-folder", "real");
 		link(&t, "dangling", "nowhere");
 		link(&t, "loop", ".");//its own folder, which a walk that followed links would enter forever
 		link(&t, "real/up", "..");
-		assert_eq!(t.listing(), vec![
+		assert_eq!(listing(&t), vec![
 			row("", Kind::Folder),
 			row("dangling", Kind::Link),
 			row("loop", Kind::Link),
@@ -281,18 +274,18 @@ mod tests {
 	#[cfg(unix)]
 	#[test]
 	fn a_pipe_and_a_socket_are_listed_and_never_opened() {//a walk that opened the pipe would wait here for a writer that never comes
-		let t = Tree::new("specials");
+		let t = Tree::new("walk-specials");
 		pipe(&t, "pipe");
 		let _socket = std::os::unix::net::UnixListener::bind(t.path("socket")).unwrap();
 		t.file("plain.txt");
-		assert_eq!(t.listing(), vec![row("", Kind::Folder), row("pipe", Kind::Pipe), row("plain.txt", Kind::File), row("socket", Kind::Socket)]);
+		assert_eq!(listing(&t), vec![row("", Kind::Folder), row("pipe", Kind::Pipe), row("plain.txt", Kind::File), row("socket", Kind::Socket)]);
 	}
 
 	#[cfg(unix)]
 	#[test]
 	fn a_folder_that_refuses_is_listed_with_its_words_and_the_walk_goes_on() {
 		use std::os::unix::fs::PermissionsExt;
-		let t = Tree::new("refused");
+		let t = Tree::new("walk-refused");
 		t.file("locked/secret.txt");
 		t.file("open/plain.txt");
 		fs::set_permissions(t.path("locked"), fs::Permissions::from_mode(0o000)).unwrap();
@@ -309,7 +302,7 @@ mod tests {
 	#[test]
 	fn every_hazard_together() {//the tests above in one tree, nested, so the order holds across them all
 		use std::os::unix::fs::PermissionsExt;
-		let t = Tree::new("together");
+		let t = Tree::new("walk-together");
 		for f in [".DS_Store", "a.txt", "deep/.hidden/b.txt", "deep/c.txt", "locked/secret.txt"] { t.file(f) }
 		link(&t, "deep/back", "..");
 		link(&t, "deep/.hidden/gone", "missing");
@@ -317,7 +310,7 @@ mod tests {
 		let _socket = std::os::unix::net::UnixListener::bind(t.path("deep/.hidden/socket")).unwrap();
 		fs::set_permissions(t.path("locked"), fs::Permissions::from_mode(0o000)).unwrap();
 		let readable = fs::read_dir(t.path("locked")).is_ok();//root reads it anyway, as above
-		let rows = t.listing();
+		let rows = listing(&t);
 		fs::set_permissions(t.path("locked"), fs::Permissions::from_mode(0o755)).unwrap();
 		if readable { return }
 		assert_eq!(rows, vec![
@@ -345,18 +338,18 @@ mod tests {
 	}
 
 	#[cfg(windows)]
-	fn junction(t: &Tree, name: &str, target: &Path) {//through mklink, which makes a junction without an administrator, where a symbolic link needs one
+	fn junction(t: &Tree, name: &str, target: &std::path::Path) {//through mklink, which makes a junction without an administrator, where a symbolic link needs one
 		assert!(std::process::Command::new("cmd").arg("/C").arg("mklink").arg("/J").arg(t.path(name)).arg(target).status().unwrap().success());
 	}
 
 	#[cfg(windows)]
 	#[test]
 	fn a_junction_is_listed_and_never_followed() {
-		let t = Tree::new("junctions");
+		let t = Tree::new("walk-junctions");
 		t.file("real/inside.txt");
 		junction(&t, "to-folder", &t.path("real"));
 		junction(&t, "loop", &t.0);//its own folder, the shape of AppData\Local\Application Data
-		assert_eq!(t.listing(), vec![
+		assert_eq!(listing(&t), vec![
 			row("", Kind::Folder),
 			row("loop", Kind::Link),
 			row("to-folder", Kind::Link),

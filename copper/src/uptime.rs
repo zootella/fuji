@@ -58,9 +58,16 @@ mod tests {
 	use super::*;
 	use std::time::Duration;
 	#[test]
-	fn the_process_started_before_now_and_not_long_ago() {
+	fn the_process_started_when_the_system_says_it_did() {
 		let started = started().expect("the operating system's record of when this process started");
 		let ago = SystemTime::now().duration_since(started).expect("a start before now");
 		assert!(ago < Duration::from_secs(3600), "{ago:?} ago");
+		#[cfg(unix)]
+		{//ps reads the same record and prints the time since it as [[days-]hours:]minutes:seconds, so the two agree to the second when the fields above are read in the right units
+			let printed = String::from_utf8(std::process::Command::new("ps").args(["-o", "etime=", "-p", &std::process::id().to_string()]).output().unwrap().stdout).unwrap();
+			let (days, clock) = printed.trim().split_once('-').map_or((0, printed.trim()), |(days, clock)| (days.parse::<u64>().unwrap(), clock));
+			let seconds = clock.split(':').fold(0u64, |total, part| total * 60 + part.parse::<u64>().unwrap()) + days * 86_400;
+			assert!(ago.as_secs().abs_diff(seconds) <= 2, "{} seconds against the {seconds} ps prints", ago.as_secs());
+		}
 	}
 }
