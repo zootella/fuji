@@ -78,7 +78,7 @@ const images = {
 }
 
 //what goes into a container, said positively. desktop/, steel/ and copper/ are copied whole except for the names below, which are all things a build makes rather than things a build needs
-const whitelist = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'desktop', 'steel', 'copper']//steel and copper because fuji's rust depends on them by path
+const whitelist = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'Cargo.toml', 'Cargo.lock', '.cargo', 'desktop', 'steel', 'copper']//steel and copper because fuji's rust depends on them by path, and the three root files because the three crates are one cargo workspace whose lock and target folder are set there
 const leaveBehind = ['node_modules', 'target', 'dist', 'release', '.DS_Store', 'corpus', 'artifacts']//corpus and artifacts are what pnpm fuzz leaves in steel/fuzz, thousands of small files a build never reads
 
 function run(args, options = {}) {//one place that shells out, so every docker invocation looks the same

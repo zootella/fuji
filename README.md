@@ -14,7 +14,7 @@ Made with
 
 ### Workspaces
 
-This repository is a pnpm monorepo: the application, the website, the Linux packaging, the Mac release through Apple, and steel and copper, two Rust crates the application depends on. The planning documents stay at the root.
+This repository is a pnpm monorepo: the application, the website, the Linux packaging, the Mac release through Apple, and steel and copper, two Rust crates the application depends on, the three Rust crates one Cargo workspace. The planning documents stay at the root.
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri

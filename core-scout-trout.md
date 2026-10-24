@@ -11,7 +11,6 @@ The move of fuji's Rust into its three crates, and what is open.
 
 ## Open
 
-- Whether the three become a Cargo workspace with one lockfile and one target folder, which Tauri's tooling and the Linux containers would then meet, and when.
 - Whether steel, which so far only reads, takes disk.rs's writes and copies, which the rule sends there.
 - find.rs and the walker read folders two ways; whether find.rs becomes a thin command over the walker once both are in steel.
 - The line in brass's build.rs that hands its test binary the media library's folder, so a test in brass runs with no environment variable; a test ran with one on the Mac mini on 2026-10-23.

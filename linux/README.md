@@ -52,12 +52,15 @@ This is the part worth reading once. Four directories, and a file changes its na
 linux/.stage/package.json
 linux/.stage/pnpm-workspace.yaml
 linux/.stage/pnpm-lock.yaml
+linux/.stage/Cargo.toml
+linux/.stage/Cargo.lock
+linux/.stage/.cargo/
 linux/.stage/desktop/
 linux/.stage/steel/
 linux/.stage/copper/
 ```
 
-`steel` and `copper` are there because fuji's Rust depends on them by path. Nothing else. Not `.git`, not the root `.env`, not `node_modules`, not `src-tauri/target`, not the fuzzer's corpus. The list is stated positively — a whitelist, not a set of exclusions — because a whitelist fails closed, and the thing it must never let through is the `.env` holding the deploy credentials.
+`steel` and `copper` are there because fuji's Rust depends on them by path, and the root `Cargo.toml`, `Cargo.lock` and `.cargo/` because the three crates are one Cargo workspace. Nothing else. Not `.git`, not the root `.env`, not `node_modules`, not `src-tauri/target`, not the fuzzer's corpus. The list is stated positively — a whitelist, not a set of exclusions — because a whitelist fails closed, and the thing it must never let through is the `.env` holding the deploy credentials.
 
 `.stage` is wiped and rebuilt by every run, and it is mounted **read-only** into the container, so a build can never write back into your working tree.
 

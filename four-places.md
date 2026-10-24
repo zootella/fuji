@@ -66,7 +66,7 @@ From the way they are written, steel and copper are a general library of desktop
 
 One crate would have been simpler to name. Three were chosen for what the boundaries hold. The compiler forbids unsafe code at a crate's root and nowhere smaller, so steel's promise is only possible as a crate; a module can forbid unsafe in itself and still call the rest of its crate's. A crate without Tauri builds and tests in seconds, where a test inside brass compiles all of Tauri first and has to be shown where the media library is. Code that runs only on Windows can be type-checked in copper from a Mac, which Tauri's build script prevents in brass. And a crate can be built into a binary of its own, which a module cannot.
 
-The costs are a feature split across crates, a lockfile per crate that moves with every shared dependency, and a third place to look. Whether the three become a Cargo workspace with one lockfile is open.
+The costs are a feature split across crates and a third place to look. The three are one Cargo workspace, so a dependency resolves once in one lockfile at the root and compiles once into one target folder.
 
 ## What is built today
 

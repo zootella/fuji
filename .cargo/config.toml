@@ -1,0 +1,4 @@
+# cargo's settings for the workspace. The target folder stays where it was before the three crates became one workspace, under the Tauri crate, because the build pipeline, the bundlers, the apple workspace and the linux containers all name that path; a path here is read from the folder holding .cargo, which is the repository root
+
+[build]
+target-dir = "desktop/src-tauri/target"

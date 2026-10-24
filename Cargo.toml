@@ -1,0 +1,5 @@
+# Fuji's Rust as one Cargo workspace: brass, the crate Tauri builds the application from, and steel and copper beside it, which it depends on by path. One Cargo.lock here and one target folder for the three, so every dependency resolves once and compiles once; nothing here publishes. The fuzz crate under steel stays outside, with a workspace table of its own, as cargo-fuzz wants
+
+[workspace]
+resolver = "2"
+members = ["desktop/src-tauri", "steel", "copper"]
