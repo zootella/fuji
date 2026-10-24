@@ -29,22 +29,19 @@ copper = { path = "../../copper" } # fuji's rust that needs neither tauri nor a 
 zootella-ergo = "0.2.0" # small helpers that give the same answers in rust as on the page, from the ergo project, and the hashes; its sha1 and sha2 are a generation newer than the sha2 in tauri's tree, so the lockfile holds both until tauri moves
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Graphics_Imaging", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_System_SystemInformation", "Win32_Foundation", "Win32_System_Registry", "Win32_Security", "Win32_UI_Shell", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Dwm", "Win32_UI_HiDpi", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_System_Ole", "Win32_System_SystemServices"] } # the imaging features are for thumbnail.rs; Registry, Security and Shell are for registry.rs, Security because RegCreateKeyExW takes a security attributes pointer; Dwm and HiDpi are for window.rs, to find where a window's visible frame is; SystemInformation, ProcessStatus and Threading are for memory.rs, the last two to open another process and read its memory counters; Gdi and LibraryLoader are for the video window in window.rs, the black brush its class paints with and the module handle it is registered under, and Ole and SystemServices are its drop target, the interface and the key flags its methods take; KeyboardAndMouse is the drag fuji runs itself in window.rs, which takes the mouse, and Shell is that drag's subclass as well
+windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_UI_Shell", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Dwm", "Win32_UI_HiDpi", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_System_Ole", "Win32_System_SystemServices"] } # all for window.rs: Dwm and HiDpi to find where a window's visible frame is; Gdi and LibraryLoader for the video window, the black brush its class paints with and the module handle it is registered under; Ole and SystemServices for its drop target, the interface and the key flags its methods take; KeyboardAndMouse for the drag fuji runs itself, which takes the mouse, and Shell for that drag's subclass. The registry, the thumbnailer, the memory counters, the process times and the screen metrics are copper's, with their features
 webview2-com = "0.38" # the web view's key event, which window.rs handles to turn off the browser's shortcut keys; tauri already brings this crate at this version, and the controller tauri hands over is its type
 windows-core = "0.62" # the version fuji's own windows crate is built on, named here because the implement macro that makes the video window's drop target in window.rs expands to this crate's bare name, and the bare name has to be the 0.62 whose interfaces the target implements
 webview2-core = { package = "windows-core", version = "0.61" } # the trait window.rs and memory.rs cast webview2-com's types with, from the version that crate is built on; the 0.62 above does not reach them, and tauri already brings this one, so it goes by a name of its own to leave the bare name to the version above
 
 [target.'cfg(target_os = "macos")'.dependencies]
-core-graphics = "0.25.0"
-core-foundation = "0.10" # already beneath core-graphics; named so thumbnail.rs can build ImageIO's option dictionary
-foreign-types-shared = "0.3"
 objc2 = "0.6" # menu.rs turns AppKit's menu validation back on for the View submenu; all three are already in the tree beneath tao
-objc2-app-kit = { version = "0.3", features = ["objc2-uniform-type-identifiers"] } # and the feature that lets NSWorkspace take a UTType, for launch.rs
+objc2-app-kit = { version = "0.3", features = ["objc2-uniform-type-identifiers"] } # and the feature that lets an open panel take a UTType, for dialog.rs
 objc2-foundation = "0.3"
-objc2-uniform-type-identifiers = "0.3" # UTType, the kind of file launch.rs asks NSWorkspace about; new to the tree, from the same family and release as the three above
+objc2-uniform-type-identifiers = "0.3" # UTType, the kinds of file dialog.rs lets an open panel show; from the same family and release as the three above
 block2 = "0.6" # touch.rs hands AppKit the block its scroll monitor calls; already in the tree beneath objc2-app-kit
 objc2-quartz-core = "0.3" # CAOpenGLLayer and CATransaction, the layer window.rs gives the video view on the mac and the commit after each frame; already in the tree beneath objc2-app-kit
-libc = "0.2" # memory.rs asks mach and libproc through it, host_statistics64 and proc_pid_rusage, and sysctlbyname; already in the tree beneath tauri
+libc = "0.2" # dlopen for the GL loader in media.rs's render half; already in the tree beneath tauri
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18" # the GL area a video draws in and the overlay that holds it over the web view, for window.rs; the version tauri's runtime is built on, already in the tree

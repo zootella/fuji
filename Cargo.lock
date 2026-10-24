@@ -385,7 +385,15 @@ dependencies = [
 name = "copper"
 version = "0.1.0"
 dependencies = [
+ "block2",
+ "core-foundation",
+ "core-graphics",
+ "foreign-types-shared",
  "libc",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "objc2-uniform-type-identifiers",
  "serde",
  "serde_json",
  "steel",
@@ -968,10 +976,7 @@ version = "0.1.0"
 dependencies = [
  "block2",
  "copper",
- "core-foundation",
- "core-graphics",
  "display-info",
- "foreign-types-shared",
  "gdk",
  "glib",
  "gtk",

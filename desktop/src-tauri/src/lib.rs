@@ -5,11 +5,11 @@ mod dialog;//and dialog.rs: the system's boxes for opening files, choosing a fol
 mod disk;//and disk.rs: file commands, one line each over steel's disk, and the contract they keep
 mod find;//and find.rs: the command over steel's find, many folders read in one call, and why
 mod inventory;//and inventory.rs: the inventory's commands, which start copper's loop over a folder's whole tree, read its counts and stop it
-mod launch;//and launch.rs: launch services, the mac's record of which application opens which kind of file
+mod launch;//and launch.rs: the two commands over copper's launch services
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
 mod dock;//and dock.rs: the dock icon's own menu, and its one New Window item
 mod log;//and log.rs: the log's text, held from both sides and written on the way out
-mod memory;//and memory.rs: how much memory the machine has and is using, and what this process and its web engine's processes take
+mod memory;//and memory.rs: the command over copper's memory report, with the engine's process ids from this window's webview; how much memory the machine has and is using, and what this process and its web engine's processes take
 #[cfg(target_os = "macos")]//the whole module is macos-only: it calls tauri menu methods that do not exist on other targets, and a menu belongs along the top of the screen only here
 mod menu;//and menu.rs: the menu bar
 #[cfg(not(target_os = "macos"))]
@@ -27,14 +27,14 @@ mod menu {//off the mac there is no menu bar, so the commands the page has for i
 }
 mod media;//and media.rs: the media library, libmpv, which plays sound and video and answers what a media file is
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
-mod panel;//and panel.rs: how many pixels the main display really has
+mod panel;//and panel.rs: the command over copper's panel
 mod paths;//and paths.rs: where this copy of the program is
 mod process;//and process.rs: other programs, handed a file or an address the way a double-click would
-mod registry;//and registry.rs: the windows registry, read and written for the page
+mod registry;//and registry.rs: the five commands over copper's registry
 mod scout;//and scout.rs: the command for the scout, fuji's own reader of a file's first bytes in steel, the safe crate at the repository root, which says what the bytes are and what the common formats keep in their header
-mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path at a time
+mod thumbnail;//and thumbnail.rs: the two commands over copper's thumbnailer, one path at a time
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
-mod uptime;//and uptime.rs: how long this process has been running, since the operating system started it and since main began
+mod uptime;//and uptime.rs: the command over copper's uptime, since the operating system started the process and since main began
 mod window;//and window.rs: making windows, placing them, and how long the process outlives them
 
 //the body of a command that waits, run on tokio's blocking pool inside an autorelease pool, and answered as a value however it ends: what the body returned, or an error if it panicked. The essay above disk_readdir in disk.rs says why every waiting command goes through here, and what it costs, and the one below why every body gets a pool
