@@ -5,7 +5,7 @@ mod dialog;//and dialog.rs: the system's boxes for opening files, choosing a fol
 mod disk;//and disk.rs: file commands, thin wrappers over std::fs
 mod find;//and find.rs: finding things in the folder tree, many folders read in one call through the disk's glance
 mod fit;//and fit.rs: the fits, the arithmetic fit.js has too, which a native thumbnail's size is chosen by
-mod inventory;//and inventory.rs: an inventory of a folder's whole tree, every file in it hashed and scouted into a text file of lines
+mod inventory;//and inventory.rs: the inventory's commands, which start copper's loop over a folder's whole tree, read its counts and stop it
 mod launch;//and launch.rs: launch services, the mac's record of which application opens which kind of file
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
 mod dock;//and dock.rs: the dock icon's own menu, and its one New Window item

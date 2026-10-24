@@ -387,6 +387,10 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "serde",
+ "serde_json",
+ "steel",
+ "windows 0.62.2",
+ "zootella-ergo",
 ]
 
 [[package]]
@@ -3236,6 +3240,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "steel"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "serde",
  "zootella-ergo",
 ]

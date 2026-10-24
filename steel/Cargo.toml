@@ -9,3 +9,6 @@ publish = false
 [dependencies]
 serde = { version = "1", features = ["derive"] } # the answer derives Serialize, for the command in fuji that hands it to the page
 zootella-ergo = "0.2" # spans of time and sizes in bytes, the same constants fuji's rust and its page use, from the ergo project; its own rust holds no unsafe but does not forbid it, and the hashing crates beneath it use unsafe inside, so the wall this crate's root raises covers its own lines and not ergo's, which no file's bytes reach from here
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2" # O_NONBLOCK, the one constant read.rs opens a file with, so a FIFO cannot hold the open; a constant is safe rust, and the crate's root still forbids unsafe
