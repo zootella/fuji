@@ -1,6 +1,6 @@
-# Scout
+# Steel
 
-Fuji's own knowledge of the world its files come from, in two parts: the reader, which knows the formats of the files a collection holds, and the walker, which knows the storage they sit on.
+Fuji's safe Rust: the compiler forbids unsafe code at this crate's root and clippy denies anything that could panic, and it holds Fuji's own knowledge of the world its files come from, in two parts: the scout, the reader, which knows the formats of the files a collection holds, and the walker, which knows the storage they sit on.
 
 The reader reads a file's first bytes. Given the first 64 KiB of a file and the file's size, it says what format the bytes are and what the common formats keep in their header: the stored size of a picture or a video and the size to show it at, its turn, the running time of a sound or a video, the times the file states and the place it was taken. When the first bytes say where the rest of an answer lies, a phone's video index after its data or an Ogg's last page, it asks for one more 64 KiB slice at that offset and answers again from both: two reads at most, and never a search of the file. It reads no pixels and no samples.
 

@@ -21,6 +21,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0
 
+  copper: {}
+
   desktop:
     dependencies:
       '@tauri-apps/api':
@@ -64,8 +66,6 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0
 
-  scout: {}
-
   site:
     devDependencies:
       '@zootella/ergo':
@@ -77,6 +77,8 @@ importers:
       vue:
         specifier: ^3.5.42
         version: 3.5.42
+
+  steel: {}
 
 packages:
 

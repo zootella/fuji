@@ -1,11 +1,11 @@
-//the scout's command: the tip of one file by its path, and the second slice when the tip asks for one, read in fuji's own process and handed to the scout, fuji's own reader of a file's first bytes in safe rust, a crate of its own in the scout folder at the repository root, where its essay says what it answers and what it promises. The reading is crate-visible, because inventory.rs reads every file of a folder the same way
+//the scout's command: the tip of one file by its path, and the second slice when the tip asks for one, read in fuji's own process and handed to the scout, fuji's own reader of a file's first bytes in safe rust, in steel, the safe crate at the repository root, where its essay says what it answers and what it promises. The reading is crate-visible, because inventory.rs reads every file of a folder the same way
 
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
 /// What the first bytes of this file say: its format and kind, the stored size of a picture or a video and the size to show it at, the running time of a sound or a video, whether the file is corrupted or chopped, and the rest of the fields scout_bytes answers, with the scout's report on its own reading beside them. The tip is the first 64 KiB, and when the tip says where the rest of its answer lies, one more 64 KiB slice at the offset it names, which is the last read, never a third. An error for a path that is not a regular file, since opening a FIFO waits for a writer, and for a file that cannot be opened or read
 #[tauri::command]
-pub async fn scout_tip(path: String) -> Result<::scout::tip::Tip, String> {//::scout is the crate, where a bare scout could be read as this module, and tip its reader
+pub async fn scout_tip(path: String) -> Result<steel::tip::Tip, String> {
 	crate::run_blocking(move || {
 		let meta = std::fs::metadata(&path).map_err(|e| format!("scout: {path}: {e}"))?;//follows a link to what it names, since a link to a picture is a picture, and the kind refused below is the target's
 		if !meta.is_file() { return Err(format!("scout: not a regular file: {path}")) }
@@ -14,17 +14,17 @@ pub async fn scout_tip(path: String) -> Result<::scout::tip::Tip, String> {//::s
 	}).await
 }
 
-pub(crate) fn tip_read(file: &mut std::fs::File, size: u64) -> std::io::Result<::scout::tip::Tip> {//what the reader says of a file just opened: the tip from its start, and the reader over both when it asks for the second slice, which is the same read again at the offset that came back beside the answer, and the last read
-	let mut tip = vec![0u8; ::scout::tip::TIP_BYTES];//the allocations, this and the slice's below, are sized by the crate's constant and never by anything in the file
+pub(crate) fn tip_read(file: &mut std::fs::File, size: u64) -> std::io::Result<steel::tip::Tip> {//what the reader says of a file just opened: the tip from its start, and the reader over both when it asks for the second slice, which is the same read again at the offset that came back beside the answer, and the last read
+	let mut tip = vec![0u8; steel::tip::TIP_BYTES];//the allocations, this and the slice's below, are sized by the crate's constant and never by anything in the file
 	let got = read_into(file, &mut tip)?;
 	tip.truncate(got);
-	let (mut t, wish) = ::scout::tip::scout_bytes(&tip, size);
+	let (mut t, wish) = steel::tip::scout_bytes(&tip, size);
 	if let Some(at) = wish {
 		file.seek(SeekFrom::Start(at))?;
-		let mut slice = vec![0u8; ::scout::tip::TIP_BYTES];
+		let mut slice = vec![0u8; steel::tip::TIP_BYTES];
 		let got = read_into(file, &mut slice)?;
 		slice.truncate(got);
-		t = ::scout::tip::scout_slices(&tip, &slice, at, size);
+		t = steel::tip::scout_slices(&tip, &slice, at, size);
 	}
 	Ok(t)
 }

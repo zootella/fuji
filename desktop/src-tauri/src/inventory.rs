@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex, MutexGuard};
 use tauri::{AppHandle, Manager, State, WebviewWindow};
-use ::scout::walk::{Item, Kind};
+use steel::walk::{Item, Kind};
 use zootella_ergo::{has_tick, hash_file, size, tick_to_text, Blake3, Sha1, Sha256};
 use crate::scout::{open_file, tip_read};
 
@@ -108,7 +108,7 @@ const PROBE_SECONDS: f64 = 10.0;//what a file gets to answer mpv before the inve
 fn inventory_run(folder: &str, output: &str, options: &Options, inventory: &Inventory) -> Result<(), String> {
 	let mut out = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(output).map_err(|e| format!("inventory: {output}: {e}"))?;
 	let mut buffer = vec![0u8; HASH_BUFFER];//sized by fuji, never by a file
-	for item in ::scout::walk::walk(folder) {
+	for item in steel::walk::walk(folder) {
 		if inventory.stop.load(Relaxed) { break }
 		if item.kind == Kind::Folder { inventory.folders.fetch_add(1, Relaxed); continue }
 		if item.path == Path::new(output) { continue }//its own output, when the folder holds it
@@ -192,7 +192,7 @@ fn whole_hash(file: &mut std::fs::File, size: u64, options: &Options, inventory:
 fn line_say(hash: &str, path: &Path, size: u64, json: &str) -> String {//the path as a JSON string, so a quote or a newline in a name stays inside its quotes
 	format!("{hash} {} {size} {json}\n", serde_json::Value::from(path_say(path)))
 }
-fn tip_said(tip: &::scout::tip::Tip) -> serde_json::Value {//the scout's answer without its reading, which millions of entries have no room for
+fn tip_said(tip: &steel::tip::Tip) -> serde_json::Value {//the scout's answer without its reading, which millions of entries have no room for
 	let mut said = serde_json::to_value(tip).unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
 	if let Some(fields) = said.as_object_mut() { fields.remove("reading"); }
 	said

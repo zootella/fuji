@@ -1,0 +1,9 @@
+# Copper, fuji's Rust that needs neither Tauri nor a window and cannot be safe Rust: every call into C and into the operating system's own libraries away from a window, as a crate of its own so it builds and tests with nothing of Tauri around it, and so it can be built into a binary of its own. Fuji's Rust depends on it by path. Never published
+
+[package]
+name = "copper"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]

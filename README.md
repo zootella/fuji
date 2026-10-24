@@ -14,14 +14,15 @@ Made with
 
 ### Workspaces
 
-This repository is a pnpm monorepo: the application, the website, the Linux packaging, the Mac release through Apple, and the scout, a Rust crate the application depends on. The planning documents stay at the root.
+This repository is a pnpm monorepo: the application, the website, the Linux packaging, the Mac release through Apple, and steel and copper, two Rust crates the application depends on. The planning documents stay at the root.
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri
 ./site              the website and documentation, made with VitePress
 ./linux             Fuji's Linux packages, built on a Mac through Docker
 ./apple             the Mac release, signed with a Developer ID and notarized by Apple
-./scout             Fuji's own reader of a file's first bytes and walker of a folder tree, a Rust crate
+./steel             Fuji's safe Rust: the scout, its reader of a file's first bytes, and the walker of a folder tree
+./copper            Fuji's Rust that needs neither Tauri nor a window and cannot be safe Rust: the calls into C and the operating system's libraries
 ```
 
 ### Scripts
@@ -56,9 +57,12 @@ $ pnpm upload       send what is staged to the production server
 $ cd apple
 $ pnpm waiting-room build, notarize, hash and upload the Mac release, a key each
 
-$ cd scout
-$ pnpm test         run the scout's tests against its sample files and the trees they build
+$ cd steel
+$ pnpm test         run the scout's tests against its sample files and the walker's on the trees it builds
 $ pnpm fuzz         run libFuzzer on the scout, seeded from the samples, until stopped
+
+$ cd copper
+$ pnpm test         run copper's tests, with nothing of Tauri compiled
 ```
 
 Common flows through the desktop commands include:
@@ -84,9 +88,9 @@ And through the Apple waiting room, a key each:
 
 - **b / n / h / u / commit & push** — build, notarize, hash and upload the Mac release, then commit. `./apple/README.md` is the guide, setting up a Mac included.
 
-The scout is the one workspace that is Rust rather than JavaScript: a crate of its own, which the application depends on by path and nothing publishes, and its two commands are cargo's. Through them:
+Steel and copper are the two workspaces that are Rust rather than JavaScript: crates of their own, which the application depends on by path and nothing publishes, and their commands are cargo's. Through them:
 
-- **test / fuzz** — run its tests against its sample files and the folder trees they build, then let libFuzzer try millions of mutated files on it. `./scout/README.md` is the guide.
+- **test / fuzz** — run its tests against its sample files and the folder trees they build, then let libFuzzer try millions of mutated files on it. `./steel/README.md` is the guide.
 
 `pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI. `icon.md` explains why that second case is easy to forget.
 

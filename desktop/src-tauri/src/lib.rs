@@ -32,7 +32,7 @@ mod panel;//and panel.rs: how many pixels the main display really has
 mod paths;//and paths.rs: where this copy of the program is
 mod process;//and process.rs: other programs, handed a file or an address the way a double-click would
 mod registry;//and registry.rs: the windows registry, read and written for the page
-mod scout;//and scout.rs: the command for the scout, fuji's own reader of a file's first bytes, the crate of that name at the repository root, which says what the bytes are and what the common formats keep in their header
+mod scout;//and scout.rs: the command for the scout, fuji's own reader of a file's first bytes in steel, the safe crate at the repository root, which says what the bytes are and what the common formats keep in their header
 mod thumbnail;//and thumbnail.rs: the operating system's thumbnailer, one path at a time
 mod touch;//and touch.rs: trackpad scrolls dropped before the page sees them, for the windows that asked
 mod uptime;//and uptime.rs: how long this process has been running, since the operating system started it and since main began

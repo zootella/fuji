@@ -30,7 +30,7 @@ App.vue                  which kind of window this is, read once as the page mou
         media.js → media.rs           for the audio panel: the media library, libmpv, which plays a file and answers what one holds
         uptime.js → uptime.rs         for the log's launch line: how long the process has been running, by the system's clock and main's
         find.js → find.rs             for the pager alone: the next folders holding an image, a stretch of the tree per call
-        scout.js → scout.rs           for no view yet: what a file's first bytes say, read in safe rust by the scout crate at the root, which the overnight scan will ask of every file
+        scout.js → scout.rs           for no view yet: what a file's first bytes say, read in safe rust by the scout in steel, the safe crate at the root, which the overnight scan will ask of every file
 ```
 
 ## The shell

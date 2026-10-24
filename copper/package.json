@@ -1,0 +1,10 @@
+{
+	"name": "copper",
+	"description": "Fuji's Rust that needs neither Tauri nor a window and cannot be safe Rust, a crate tested here with nothing of Tauri compiled",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"test": "cargo test"
+	}
+}

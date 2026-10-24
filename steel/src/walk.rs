@@ -1,4 +1,4 @@
-//the walker: every name in a folder tree with what kind of thing it is, which is the scout's knowledge of storage the way tip.rs is its knowledge of formats
+//the walker: every name in a folder tree with what kind of thing it is, which is steel's knowledge of storage the way tip.rs is its knowledge of formats
 
 use serde::Serialize;
 use std::collections::HashSet;
@@ -181,7 +181,7 @@ mod tests {
 	struct Tree(PathBuf);//a folder of one test's own under the system's temporary folder, made empty and removed when the test ends, so tests run side by side without meeting
 	impl Tree {
 		fn new(name: &str) -> Tree {
-			let path = std::env::temp_dir().join(format!("scout-walk-{name}-{}", std::process::id()));
+			let path = std::env::temp_dir().join(format!("steel-walk-{name}-{}", std::process::id()));
 			let _ = fs::remove_dir_all(&path);
 			fs::create_dir_all(&path).unwrap();
 			Tree(path)

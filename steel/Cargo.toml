@@ -1,7 +1,7 @@
-# The scout, fuji's own reader of a file's first bytes and walker of a folder tree, in safe Rust, as a crate of its own: it builds, tests and fuzzes here with nothing of fuji around it, and fuji's Rust depends on it by path. Never published
+# Steel, fuji's safe Rust: the scout, its reader of a file's first bytes, and the walker of a folder tree, as a crate of its own whose root forbids unsafe code, so it builds, tests and fuzzes here with nothing of fuji around it; fuji's Rust depends on it by path. Never published
 
 [package]
-name = "scout"
+name = "steel"
 version = "0.1.0"
 edition = "2021"
 publish = false

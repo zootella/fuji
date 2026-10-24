@@ -172,22 +172,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
-name = "scout"
-version = "0.1.0"
-dependencies = [
- "serde",
- "zootella-ergo",
-]
-
-[[package]]
-name = "scout-fuzz"
-version = "0.0.0"
-dependencies = [
- "libfuzzer-sys",
- "scout",
-]
-
-[[package]]
 name = "serde"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -244,6 +228,22 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "steel"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "zootella-ergo",
+]
+
+[[package]]
+name = "steel-fuzz"
+version = "0.0.0"
+dependencies = [
+ "libfuzzer-sys",
+ "steel",
+]
 
 [[package]]
 name = "syn"
