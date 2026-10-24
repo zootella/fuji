@@ -96,7 +96,7 @@ That is the third arrangement, and the two it replaced are worth knowing. **Copy
 ### The Steel Workspace
 ```bash
 cd steel
-pnpm test         # cargo test: the reader's tests, pinned to the files in samples/, and the walker's, on trees they build
+pnpm test         # cargo test: the scout's tests, pinned to the files in samples/, the walker's and find's on trees they build, the disk's in a folder of their own, the fits' against the numbers fit.js gives, and the reads'
 pnpm fuzz         # libFuzzer on the reader, seeded from samples/, until stopped; pnpm fuzz -- -max_total_time=60 runs a minute
 ```
 `steel/README.md` is the guide: what the crate is, its files, and how fuji uses it.
@@ -104,7 +104,7 @@ pnpm fuzz         # libFuzzer on the reader, seeded from samples/, until stopped
 ### The Copper Workspace
 ```bash
 cd copper
-pnpm test         # cargo test: the crate alone, with nothing of Tauri compiled
+pnpm test         # cargo test: the crate alone, with nothing of Tauri compiled; the registry's test runs only on Windows, and the Mac's launch services' only there
 ```
 `copper/README.md` is the guide.
 

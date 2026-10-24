@@ -9,7 +9,7 @@ The walker walks a folder tree and names every entry in it with what kind of thi
 It is a Rust crate of its own, so it builds and tests here with nothing of Fuji around it. Fuji's Rust depends on it by path, and nothing publishes it.
 
 ```
-pnpm test    run the reader's tests, pinned to the files in samples/, and the walker's, on trees they build
+pnpm test    run the scout's tests, pinned to the files in samples/, the walker's and find's on trees they build, the disk's in a folder of their own, the fits' against the numbers fit.js gives, and the reads'
 pnpm fuzz    run libFuzzer on the reader, seeded from samples/, until stopped
 ```
 

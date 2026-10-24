@@ -71,3 +71,19 @@ mod platform {
 pub fn opens(extension: &str) -> Result<Opener, String> { platform::opens(extension) }
 /// Make the running application the one that opens a file type, and every type sharing its kind
 pub fn set(extension: &str) -> Result<(), String> { platform::set(extension) }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[cfg(target_os = "macos")]
+	#[test]
+	fn the_mac_names_what_opens_a_kind_of_file() {//asks only; set changes the user's own choice, so no test ever calls it
+		let o = opens(".jpg").unwrap();
+		assert_eq!(o.kind, "public.jpeg");//the kind the Mac files .jpg, .jpeg and .jpe under
+		assert!(!o.name.is_empty() && std::path::Path::new(&o.executable).is_file(), "{} at {}", o.name, o.executable);
+		assert_eq!(opens(".jpeg").unwrap().kind, "public.jpeg");
+	}
+	#[cfg(not(target_os = "macos"))]
+	#[test]
+	fn off_the_mac_there_is_no_launch_services() { assert!(opens(".jpg").is_err() && set(".jpg").is_err()) }
+}

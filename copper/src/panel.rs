@@ -132,3 +132,14 @@ mod platform {//everything else, so the file still compiles somewhere new; zero 
 
 /// How many pixels the main display really has, {x, y}, or {0, 0} where the platform will not say
 pub fn resolution() -> Arrow { platform::panel_resolution() }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[cfg(any(target_os = "macos", target_os = "windows"))]
+	#[test]
+	fn the_main_display_has_pixels() {//on a machine with a display; the Mac mini and the Windows box both have one
+		let r = resolution();
+		assert!(r.x >= 640 && r.y >= 480, "{} by {}", r.x, r.y);
+	}
+}

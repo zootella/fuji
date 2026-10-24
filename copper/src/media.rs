@@ -233,6 +233,25 @@ pub fn error_text(code: c_int) -> String { unsafe { CStr::from_ptr(mpv_error_str
 mod tests {
 	use super::*;
 	#[test]
+	fn the_library_says_its_versions() {
+		let v = version().unwrap();
+		assert!(v.mpv.starts_with("mpv ") && v.api.starts_with("2.") && v.ffmpeg.contains('.'), "{} {} {}", v.mpv, v.api, v.ffmpeg);
+	}
+	#[test]
+	fn a_frame_comes_back_at_the_shape_the_video_shows_at() {//the first frame of a 32 by 20 sample, decoded in software and drawn nowhere: the header's two sizes, then that many RGBA pixels
+		let bytes = frame(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/taken.mp4"), 0.0, 10.0).unwrap();
+		let (w, h) = (u32::from_le_bytes(bytes[0..4].try_into().unwrap()), u32::from_le_bytes(bytes[4..8].try_into().unwrap()));
+		assert_eq!((w, h, bytes.len()), (32, 20, 8 + 32 * 20 * 4));
+		assert!(frame(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/audio.wav"), 0.0, 10.0).is_err(), "a sound file has no frame");
+	}
+	#[test]
+	fn a_file_the_library_cannot_open_is_refused_with_its_reason() {
+		let refused = probe(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/text.txt"), 10.0).err().unwrap();
+		assert!(refused.contains("could not open"), "{refused}");
+		assert!(probe("/no/such/file.mp4", 10.0).is_err());
+		assert!(probe(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/video.ts"), 0.0).is_err(), "a deadline of zero is a caller's mistake");
+	}
+	#[test]
 	fn the_probe_reads_a_sample() {//one question of one of steel's sample files, which proves this crate's test binary links the media library and finds it at run time through the rpath build.rs gives it
 		let p = probe(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/video.ts"), 10.0).unwrap();
 		assert_eq!((p.format.as_str(), p.duration.parse::<f64>().unwrap()), ("mpegts", 1.0));

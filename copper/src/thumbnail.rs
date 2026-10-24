@@ -346,3 +346,45 @@ mod platform {
 
 /// A thumbnail of the picture at this path, at the size target chooses once the picture's own size is known, or every pixel when target answers that size back; wide asks for display p3 where the platform can give it. The one wall before any decoder allocates is inside: a header claiming more than half the machine's memory is refused
 pub fn render(path: &str, target: Target, wide: bool) -> Result<Thumbnail, String> { platform::render(path, target, wide) }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	fn sample(name: &str) -> String { format!("{}/../steel/samples/{name}", env!("CARGO_MANIFEST_DIR")) }
+
+	#[cfg(any(target_os = "macos", target_os = "windows"))]
+	#[test]
+	fn the_thumbnailer_renders_a_sample_at_its_own_size_and_at_a_size_asked() {
+		let t = render(&sample("picture.png"), &|w, h| Ok((w, h)), false).unwrap();
+		assert_eq!((t.width, t.height, t.natural_width, t.natural_height, t.pixels.len()), (32, 20, 32, 20, 32 * 20 * 4));
+		let t = render(&sample("picture.png"), &|w, h| Ok((w / 2, h / 2)), false).unwrap();
+		assert_eq!((t.width, t.height, t.natural_width, t.natural_height, t.pixels.len()), (16, 10, 32, 20, 16 * 10 * 4));
+		let t = render(&sample("orient-6.jpg"), &|w, h| Ok((w, h)), false).unwrap();//a quarter turn in the file's EXIF, applied, so the picture shows taller than wide
+		assert_eq!((t.natural_width, t.natural_height, t.width, t.height), (20, 32, 20, 32));
+		#[cfg(target_os = "macos")]
+		{
+			let t = render(&sample("picture.png"), &|w, h| Ok((w, h)), true).unwrap();//display p3, which only the mac produces
+			assert!(t.wide && t.pixels.len() == 32 * 20 * 4);
+		}
+		assert!(render(&sample("text.txt"), &|w, h| Ok((w, h)), false).is_err(), "not a picture");
+		assert!(render(&sample("not-there.png"), &|w, h| Ok((w, h)), false).is_err());
+	}
+
+	#[cfg(any(target_os = "macos", target_os = "windows"))]
+	#[test]
+	fn a_size_the_machine_could_not_decode_is_refused_before_anything_decodes() {
+		assert!(check_size(32, 20).is_ok());
+		assert!(check_size(0, 20).is_err() && check_size(32, 0).is_err(), "no size is refused");
+		assert!(check_size(1 << 30, 1 << 30).is_err(), "a header claiming a billion by a billion");
+		assert!(check_size(u32::MAX, u32::MAX).is_err(), "and the largest a header can claim, which saturates rather than wrapping");
+	}
+
+	#[test]
+	fn the_target_is_the_fit_in_backing_pixels_and_never_past_the_picture() {
+		let ask = Ask { fit: "SquareFit".into(), beam: 240, screen_width: 0, screen_height: 0, backing_per_css: 2.0 };
+		assert_eq!(target(&ask, 640, 480).unwrap(), (480, 360));//the fit's 240 by 180 css pixels, two backing pixels each
+		assert_eq!(target(&ask, 100, 100).unwrap(), (100, 100));//the fit asks for 200, the picture has 100: every pixel the picture has, and no more
+		assert_eq!(target(&ask, 3000, 500).unwrap(), (480, 80));//a panorama held to the beam by its longer side
+		assert!(target(&ask, 0, 480).is_err());
+	}
+}

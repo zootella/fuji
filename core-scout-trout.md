@@ -4,7 +4,6 @@ The move of fuji's Rust into its three crates, and what is open.
 
 ## The move
 
-- **Tests for what moved**, once the sweep is done: a long turn over steel and copper writing the tests the code could not have in brass, where nothing ran without Tauri. In steel, the walk in find's order over a tree a test builds, the disk's listing, stating and writing in a temporary folder, the fits pinned to the numbers fit.js gives, and the reads over the samples. In copper, the display's size, the process's start, the Mac's opener for a kind, the memory counters, a thumbnail of a sample, and the registry under cfg windows, run on the Windows box.
 - **Each step is a commit of its own, and each move is byte-exact.** A whole file moves with mv. A block moves by a script that cuts it between two anchor lines asserted to occur once, writes it to its destination unchanged, and proves the remainder with the cut put back hashes the same as the original. The edits a move forces, an import, a path, a visibility, are small and the compiler checks each. The diff is read with rename detection on, so a moved file shows only what changed in it.
 
 ## Open

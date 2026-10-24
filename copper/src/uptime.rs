@@ -52,3 +52,15 @@ mod platform {
 
 /// When the operating system started this process, from its own record, which is before the loader mapped a single library; none when it will not say
 pub fn started() -> Option<SystemTime> { platform::started() }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::time::Duration;
+	#[test]
+	fn the_process_started_before_now_and_not_long_ago() {
+		let started = started().expect("the operating system's record of when this process started");
+		let ago = SystemTime::now().duration_since(started).expect("a start before now");
+		assert!(ago < Duration::from_secs(3600), "{ago:?} ago");
+	}
+}

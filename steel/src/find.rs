@@ -84,3 +84,55 @@ pub fn find(from: &str, forward: bool, wanted: HashSet<String>, want: u32, exami
 		}
 	}
 }
+
+#[cfg(test)]
+#[allow(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::arithmetic_side_effects, clippy::panic)]//a test may index, unwrap and add: a mistake in one fails the test, which is what a test is for
+mod tests {
+	use super::*;
+	use crate::testing::Tree;
+
+	fn tree(name: &str) -> Tree {//five folders in find's order, a, a/aa, b, b/bb, c, three of them holding pictures: a one, b/bb one, c two; b holds only text and a/aa nothing
+		let t = Tree::new(name);
+		for f in ["a/x.jpg", "b/y.txt", "b/bb/z.jpg", "c/w.jpg", "c/v.jpg", "c/u.txt"] { t.file(f) }
+		t.folder("a/aa");
+		t
+	}
+	fn wanted() -> HashSet<String> { [".jpg".to_string()].into_iter().collect() }
+	fn found(t: &Tree, f: &Found) -> Vec<(String, u32)> { f.folders.iter().map(|folder| (t.relative(Path::new(&folder.path)), folder.files)).collect() }
+	fn row(path: &str, files: u32) -> (String, u32) { (path.to_string(), files) }
+
+	#[test]
+	fn forward_from_a_folder_finds_the_folders_after_it_in_sorted_preorder() {//want stops the walk at the last folder of the tree, since forward from the tree's root the walk would go on into the rest of the temporary folder and the volume after it
+		let t = tree("find-forward");
+		let f = find(&t.text(""), true, wanted(), 3, 50);
+		assert_eq!(found(&t, &f), vec![row("a", 1), row("b/bb", 1), row("c", 2)]);//a before its subfolder aa, which holds nothing; b holds no picture and is not listed, its subfolder is; c last with two
+		assert_eq!((t.relative(Path::new(&f.stopped)), f.done), ("c".to_string(), false));//stopped at the folder just read and not entered, so continuing after it enters c first
+		assert!(f.examined >= 6 && f.refused == 0, "the ancestors above the tree are read too, to find the start's place: {}", f.examined);
+		let more = find(&t.text("a"), true, wanted(), 2, 50);//continuing from a: a's own subfolder first, then on
+		assert_eq!(found(&t, &more), vec![row("b/bb", 1), row("c", 2)]);
+	}
+
+	#[test]
+	fn backward_from_a_folder_finds_the_folders_before_it_with_a_parent_before_its_subfolders() {
+		let t = tree("find-backward");
+		let f = find(&t.text("c"), false, wanted(), 2, 50);
+		assert_eq!(found(&t, &f), vec![row("b/bb", 1), row("a", 1)]);//the deepest last descendant of the earlier sibling first, b/bb, then b itself with nothing, then a/aa with nothing, then a
+		assert_eq!((t.relative(Path::new(&f.stopped)), f.done), ("a".to_string(), false));//stopped at a folder finished, whose subfolders are behind it
+		let one = find(&t.text("b/bb"), false, wanted(), 1, 50);
+		assert_eq!(found(&t, &one), vec![row("a", 1)]);//before b/bb comes its parent b, with nothing, then a's subtree from its end
+	}
+
+	#[test]
+	fn the_ceiling_ends_a_call_with_where_it_stopped() {
+		let t = tree("find-ceiling");
+		let f = find(&t.text("a"), true, wanted(), 10, 1);//one folder read is the ceiling, and the ancestors already cost more than that
+		assert!(f.folders.len() <= 1 && !f.done && !f.stopped.is_empty() && f.examined >= 1, "{:?} {} {}", f.folders.len(), f.stopped, f.examined);
+	}
+
+	#[test]
+	fn a_folder_that_cannot_be_read_is_passed_through_as_empty_and_counted() {
+		let t = tree("find-missing");
+		let f = find(&t.text("nowhere/at/all"), true, wanted(), 10, 50);//a start that is not there: its ancestors are read as far as they exist, the missing ones refused, and the walk goes on from where they would have been
+		assert!(f.refused >= 1 && f.examined >= f.refused, "{} {}", f.refused, f.examined);
+	}
+}

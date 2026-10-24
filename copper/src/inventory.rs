@@ -236,7 +236,46 @@ mod tests {
 		let _ = std::fs::remove_file(&output);
 		assert_eq!((inventory.folders.load(Relaxed), inventory.files.load(Relaxed), text.lines().count()), (1, 72, 72));
 		let line = |name: &str| text.lines().find(|l| l.contains(&format!("/{name}\" "))).unwrap().to_string();
-		assert!(line("video.ts").contains("\"ffmpeg\":{") && line("video.ts").contains("\"sha1\":"));
+		assert!(line("video.ts").contains("\"ffmpeg\":{\"format\":\"mpegts\"") && line("video.ts").contains("\"sha1\":"));
 		assert!(!line("audio.wav").contains("\"ffmpeg\""));
+		assert!(line("picture.png").contains("\"sha1\":\"ca340ae965cd24e99b458d3bfdf5466632658b19\""), "the SHA-1 shasum gives for the same file, in base16: {}", line("picture.png"));
+		assert!(line("picture.png").contains("\"tip\":{") && line("picture.png").contains("\"kind\":\"image\"") && line("picture.png").contains("\"modified\":"), "the scout's answer and the file system's record on the same line");
+	}
+
+	#[test]
+	fn the_probe_is_asked_by_the_scouts_kind_or_by_the_extension_and_a_refusal_is_written_as_an_error() {//with no extension named, video.ts still gets FFmpeg's reading, since the scout calls its bytes video; with .txt named, text.txt is asked too, and what FFmpeg says of a text file is an error under the same key; indent writes each file's JSON across lines
+		let output = std::env::temp_dir().join(format!("copper-inventory-gating-{}.txt", std::process::id()));
+		let options = Options { sha1: false, sha256: false, blake3: false, indent: true, video: vec![".txt".into()] };
+		run(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples"), output.to_str().unwrap(), &options, &Inventory::default()).unwrap();
+		let text = std::fs::read_to_string(&output).unwrap();
+		let _ = std::fs::remove_file(&output);
+		assert!(text.lines().count() > 72, "indented JSON spreads a file over several lines: {}", text.lines().count());
+		let entry = |name: &str| { let at = text.find(&format!("/{name}\" ")).unwrap(); let end = text[at..].find("\n}\n").map(|e| at + e + 3).unwrap(); text[at..end].to_string() };
+		assert!(entry("video.ts").contains("\"ffmpeg\": {") && entry("video.ts").contains("\"format\": \"mpegts\""), "{}", entry("video.ts"));
+		assert!(entry("text.txt").contains("\"ffmpeg\": {\n    \"error\": \"the media library could not open it"), "{}", entry("text.txt"));
+		assert!(!entry("picture.png").contains("\"ffmpeg\""), "{}", entry("picture.png"));
+	}
+
+	#[test]
+	fn a_stop_set_before_the_first_file_leaves_an_empty_file_and_zero_counts() {//stop is read before every name, so one set before the walk begins ends it at the folder itself; the file is still made, as the page expects to append its footer to
+		let output = std::env::temp_dir().join(format!("copper-inventory-stopped-{}.txt", std::process::id()));
+		let options = Options { sha1: false, sha256: false, blake3: false, indent: false, video: vec![] };
+		let inventory = Inventory::default();
+		inventory.stop.store(true, Relaxed);
+		run(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples"), output.to_str().unwrap(), &options, &inventory).unwrap();
+		let text = std::fs::read_to_string(&output).unwrap();
+		let _ = std::fs::remove_file(&output);
+		assert_eq!((text.len(), inventory.folders.load(Relaxed), inventory.files.load(Relaxed), inventory.progress().stopped), (0, 0, 0, true));
+	}
+
+	#[test]
+	fn a_folder_that_is_not_there_gives_one_refused_line_and_no_error() {//the walker answers a missing start as Refused, with the system's words, which the inventory writes as a line like any other name it cannot open
+		let output = std::env::temp_dir().join(format!("copper-inventory-missing-{}.txt", std::process::id()));
+		let options = Options { sha1: false, sha256: false, blake3: false, indent: false, video: vec![] };
+		run("/no/such/folder/anywhere", output.to_str().unwrap(), &options, &Inventory::default()).unwrap();
+		let text = std::fs::read_to_string(&output).unwrap();
+		let _ = std::fs::remove_file(&output);
+		assert_eq!(text.lines().count(), 1);
+		assert!(text.starts_with("- ") && text.contains("\"kind\":\"Refused\"") && text.contains("\"error\":"), "{text}");
 	}
 }

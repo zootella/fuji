@@ -126,3 +126,26 @@ pub fn delete(key: &str, name: &str) -> Result<bool, String> { platform::delete(
 pub fn notify() -> Result<(), String> { platform::notify() }
 /// Which program Windows would open a file type with, the type written with its dot, like .png
 pub fn opens(extension: &str) -> Result<Opener, String> { platform::opens(extension) }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[cfg(target_os = "windows")]
+	#[test]
+	fn a_value_is_written_read_and_deleted_under_the_current_user() {//a key of the test's own under Software, written and removed in one run; this runs on the Windows box, and nowhere else
+		let key = format!("Software\\copper-test-{}", std::process::id());
+		assert_eq!(get(&key, "name").unwrap(), "", "blank before anything is written");
+		assert!(set(&key, "name", "value").unwrap(), "written, so it changed");
+		assert!(!set(&key, "name", "value").unwrap(), "the same value again changes nothing");
+		assert_eq!(get(&key, "name").unwrap(), "value");
+		assert!(delete(&key, "name").unwrap());
+		assert!(!delete(&key, "name").unwrap(), "nothing left to delete");
+		assert_eq!(get(&key, "name").unwrap(), "");
+		assert!(notify().is_ok());
+		let o = opens(".txt").unwrap();
+		assert!(!o.name.is_empty(), "something opens a text file");
+	}
+	#[cfg(not(target_os = "windows"))]
+	#[test]
+	fn off_windows_there_is_no_registry() { assert!(get("Software", "x").is_err() && opens(".txt").is_err()) }
+}

@@ -121,3 +121,73 @@ pub fn write(path: &str, data: &[u8]) -> std::io::Result<()> { fs::write(path, d
 /*
 disk_write truncates and writes in place, on purpose, and is not an atomic save. A process that ends mid-write, a quit landing while a write runs on the blocking pool, can leave the file torn; the usual cure is to write beside the file and rename over it. That is a different operation rather than a safer version of this one — the result is a new file, without the old one's hard links, permissions, Finder tags or Windows access lists, and the rename can be refused where an in-place write would not be — and choosing it, and naming the temporary, are decisions the page owns. So when a caller first needs an atomic save, the plan is disk_rename beside these, one line over fs::rename, and the page writes a temporary of its own naming and renames it over the real file, leaving at worst a stray temporary and never a torn file. Building replacement on each platform's own call, ReplaceFileW on Windows and replaceItemAtURL on the Mac, which keep the old file's attributes, was weighed and set aside as too much platform-specific code for what it adds.
 */
+
+#[cfg(test)]
+#[allow(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::arithmetic_side_effects, clippy::panic)]//a test may index, unwrap and add: a mistake in one fails the test, which is what a test is for
+mod tests {
+	use super::*;
+	use crate::testing::Tree;
+
+	#[test]
+	fn a_listing_names_every_entry_with_its_kind_and_size() {
+		let t = Tree::new("disk-readdir");
+		for f in ["b.txt", "a.jpg", ".hidden"] { t.file(f) }
+		t.folder("d");
+		let mut entries = readdir(&t.text("")).unwrap();
+		entries.sort_by(|a, b| a.name.cmp(&b.name));
+		let seen: Vec<(String, bool, bool, u64)> = entries.iter().map(|e| (e.name.clone(), e.is_file, e.is_dir, e.size)).collect();
+		assert_eq!(seen, vec![(".hidden".into(), true, false, 7), ("a.jpg".into(), true, false, 5), ("b.txt".into(), true, false, 5), ("d".into(), false, true, entries[3].size)]);//a listing shows hidden names, as ls -a does; a file's size is its name's length, and a folder's is whatever the file system says
+		assert!(entries.iter().all(|e| e.mtime > 0), "every entry has a modified time");
+		assert!(readdir(&t.text("missing")).is_err());
+	}
+
+	#[test]
+	fn a_glance_counts_the_wanted_files_and_names_the_visible_folders() {
+		let t = Tree::new("disk-peek");
+		for f in ["one.jpg", "two.JPG", "three.jpeg", "four.txt", ".hidden.jpg", "d/inside.jpg", ".hidden-folder/x.jpg"] { t.file(f) }
+		t.folder("e");
+		#[cfg(unix)]
+		std::os::unix::fs::symlink(t.path("d"), t.path("link")).unwrap();//a link to a folder is neither a file nor a folder to the glance, so a walk never follows one into a loop
+		let p = peek(&t.text(""), vec![".jpg".into()]).unwrap();
+		let mut folders = p.folders.clone(); folders.sort();
+		assert_eq!((p.files, folders), (2, vec!["d".to_string(), "e".to_string()]));//one.jpg and two.JPG, compared lowercased; not .jpeg, not the hidden file, and not the files inside d
+		assert_eq!(peek(&t.text(""), vec![".jpg".into(), ".jpeg".into(), ".txt".into()]).unwrap().files, 4);
+		assert_eq!(peek(&t.text(""), vec![]).unwrap().files, 0);
+	}
+
+	#[test]
+	fn a_stat_describes_a_path_without_following_a_link() {
+		let t = Tree::new("disk-stat");
+		t.file("f.txt"); t.folder("d");
+		let f = stat(&t.text("f.txt")).unwrap();
+		assert_eq!((f.is_file, f.is_dir, f.is_symlink, f.size), (true, false, false, 5));
+		assert!(f.mtime > 0 && f.atime > 0, "the times the file system keeps");
+		let d = stat(&t.text("d")).unwrap();
+		assert_eq!((d.is_file, d.is_dir, d.is_symlink), (false, true, false));
+		#[cfg(unix)]
+		{
+			std::os::unix::fs::symlink(t.path("f.txt"), t.path("link")).unwrap();
+			let l = stat(&t.text("link")).unwrap();
+			assert_eq!((l.is_file, l.is_symlink), (false, true));
+		}
+		assert!(stat(&t.text("missing")).is_err());
+	}
+
+	#[test]
+	fn read_write_append_and_copy_move_the_bytes_they_say() {
+		let t = Tree::new("disk-bytes");
+		write(&t.text("a.bin"), &[1, 2, 3, 255]).unwrap();
+		assert_eq!(read(&t.text("a.bin")).unwrap(), vec![1, 2, 3, 255]);
+		write(&t.text("a.bin"), &[9]).unwrap();//truncated first, as the essay says
+		assert_eq!(read(&t.text("a.bin")).unwrap(), vec![9]);
+		append(&t.text("log.txt"), "one\n").unwrap();//made when it is not there
+		append(&t.text("log.txt"), "two\n").unwrap();
+		assert_eq!(read(&t.text("log.txt")).unwrap(), b"one\ntwo\n");
+		copy(&t.text("log.txt"), &t.text("copy.txt")).unwrap();
+		assert_eq!(read(&t.text("copy.txt")).unwrap(), b"one\ntwo\n");
+		copy(&t.text("a.bin"), &t.text("copy.txt")).unwrap();//written over without asking, as cp does
+		assert_eq!(read(&t.text("copy.txt")).unwrap(), vec![9]);
+		assert!(read(&t.text("missing")).is_err());
+		assert!(copy(&t.text("missing"), &t.text("nowhere")).is_err());
+	}
+}

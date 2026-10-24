@@ -160,3 +160,22 @@ mod platform {
 	}
 	pub fn footprint(pid: u32) -> u64 { kilobytes(&std::fs::read_to_string(format!("/proc/{pid}/status")).unwrap_or_default(), "VmRSS:") }//resident, which is the nearest the kernel's listing comes to the other two platforms' columns
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[test]
+	fn the_machine_and_this_process_have_memory() {
+		let total = total();
+		assert!(total >= size::GB, "{total} bytes");
+		let r = report(vec![("made up".into(), 1)]);
+		assert!(r.installed >= total && r.used <= total && r.available <= total, "installed {} used {} available {} of {total}", r.installed, r.used, r.available);
+		assert_eq!((r.processes.len(), r.processes[0].kind.as_str(), r.processes[0].pid), (2, "host", std::process::id()));
+		#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+		assert!(r.processes[0].bytes > 0, "this process takes memory");
+		assert_eq!((r.processes[1].kind.as_str(), r.processes[1].pid), ("made up", 1));
+		#[cfg(not(target_os = "linux"))]
+		assert_eq!(r.processes[1].bytes, 0, "a process this one may not ask about reads as 0; linux alone lets anyone read a process's status file");
+		assert!(total == super::total(), "asked once and kept");
+	}
+}
