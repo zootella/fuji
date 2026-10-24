@@ -48,7 +48,7 @@ function timeSay() {
 
 <div class="myMono bg-paper w-full h-full overflow-y-auto p-8 wrap-break-word"><!-- only a word too long for a line, like a path, breaks inside -->
 	<h1 class="mb-8 text-strong">{{brandName}} Inventory</h1>
-	<p>Takes an inventory of a folder and every folder in it, writing a line for each file to a text file in Documents: {{brandName}}'s hash of its start, middle and end, its path and size, what the scout reads in its first bytes, and what the file system keeps about it.</p>
+	<p>Takes an inventory of a folder and every folder in it, writing a line for each file to a text file in Documents: {{brandName}}'s hash of its start, middle and end, its path and size, what the scout reads in its first bytes, what FFmpeg makes of a video, and what the file system keeps about it.</p>
 	<p class="mt-4 flex flex-wrap gap-x-4"><span>Also read every byte for</span>
 		<label v-for="(name, key) in {sha1: 'SHA-1', sha256: 'SHA-256', blake3: 'BLAKE3'}" :key="key"><input type="checkbox" v-model="inventoryOptions[key]" :disabled="inventoryRunning"> {{name}}</label>
 	</p>

@@ -286,22 +286,23 @@ const ASK_ALWAYS: [(&str, &str); 5] = [//the options every question's player is 
 
 #[derive(Serialize)]
 pub struct Probe {
-	duration: String,//the running time in seconds as mpv writes it, like 5.000000, or blank for a file with none
-	format: String,//the demuxer's name for what the bytes are, like mov,mp4,m4a,3gp,3g2,mj2
-	tracks: String,//the track list as mpv's own JSON: each track's type and codec, and for a video track demux-w, demux-h, demux-par and demux-rotation, read from the file's headers
+	pub(crate) duration: String,//the running time in seconds as mpv writes it, like 5.000000, or blank for a file with none
+	pub(crate) format: String,//the demuxer's name for what the bytes are, like mov,mp4,m4a,3gp,3g2,mj2
+	pub(crate) tracks: String,//the track list as mpv's own JSON: each track's type and codec, and for a video track whichever of demux-w, demux-h, demux-par and demux-rotation the demuxer filled in from the file's headers; MPEG-4 Part 2 inside MP4 and MOV comes with no size, where the same codec in Matroska and AVI and H.264 in MP4 come with theirs
 }
 
 /// What the media library makes of a file without playing it: its running time, its format and its tracks, from a player made for the question that selects no track, so no decoder starts and nothing is drawn; an error for a file it cannot open, and for one that gives no answer within seconds
 #[command]
 pub async fn media_probe(path: String, seconds: f64) -> Result<Probe, String> {
-	run_blocking(move || {
-		let deadline = ask_deadline(seconds)?;
-		let player = ask_player(&[("track-auto-selection", "no")])?;//every track left unselected: the file opens and waits with nothing decoded, where with video and audio both turned off it would end as it loaded
-		if let Err(ask) = ask_load(&player, &path, deadline, &[EVENT_START_FILE, EVENT_FILE_LOADED]) { return Err(ask_end(player, ask, seconds)) }
-		let probe = Probe { duration: property_text(player.0, c"duration"), format: property_text(player.0, c"file-format"), tracks: property_text(player.0, c"track-list") };
-		unsafe { mpv_terminate_destroy(player.0) };
-		Ok(probe)
-	}).await
+	run_blocking(move || probe(&path, seconds)).await
+}
+pub(crate) fn probe(path: &str, seconds: f64) -> Result<Probe, String> {//the question itself, for a body already on the blocking pool, like the inventory's
+	let deadline = ask_deadline(seconds)?;
+	let player = ask_player(&[("track-auto-selection", "no")])?;//every track left unselected: the file opens and waits with nothing decoded, where with video and audio both turned off it would end as it loaded
+	if let Err(ask) = ask_load(&player, path, deadline, &[EVENT_START_FILE, EVENT_FILE_LOADED]) { return Err(ask_end(player, ask, seconds)) }
+	let probe = Probe { duration: property_text(player.0, c"duration"), format: property_text(player.0, c"file-format"), tracks: property_text(player.0, c"track-list") };
+	unsafe { mpv_terminate_destroy(player.0) };
+	Ok(probe)
 }
 
 /// One frame of a video at a time in seconds, as one buffer: its width and height as little-endian unsigned 32-bit numbers, then its pixels as RGBA, row after row, at the shape the video shows at, with its turn and the stretch of pixels that are not square already applied. From a player made for the question, paused, decoding in software and drawing nowhere, which seeks exactly to the time as it opens the file; an error for a file with no video, and for one that gives no answer within seconds

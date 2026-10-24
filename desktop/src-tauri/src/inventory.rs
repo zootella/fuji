@@ -1,4 +1,4 @@
-//an inventory: a folder's whole tree, every file in it hashed and scouted, a line each in a text file
+//an inventory: a folder's whole tree, every file in it hashed and scouted, and the videos among them asked of FFmpeg, a line each in a text file
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,7 +14,7 @@ use crate::scout::{open_file, tip_read};
 /*
 An inventory walks a folder's whole tree in one call, the exception to a command taking one thing, for the reason find.rs makes its own: many files take less time to read and hash than a trip across the bridge, so asking per file would spend the run on the asking. The page gives the folder and the file to write, reads the counts with inventory_progress each animation frame while its panel shows, and stops it with inventory_stop. Rust holds an inventory only while it runs, and the window that started it stops it by closing, so none runs on with no page that knows of it.
 
-What it trusts: every read is made in fuji's own process, so a read the kernel never finishes, on a dropped share or a dying disk, holds the inventory for good, and only quitting fuji ends it. A process of its own, which can be killed, is the answer to that. No file's bytes can steer the code, since the scout is safe Rust and the hashes interpret nothing.
+What it trusts: every read is made in fuji's own process, so a read the kernel never finishes, on a dropped share or a dying disk, holds the inventory for good, and only quitting fuji ends it. A process of its own, which can be killed, is the answer to that. The scout is safe Rust and the hashes interpret nothing, so no file's bytes can steer those; FFmpeg's reading of a video is C in this same process, which is what running the inventory in a restricted copy of fuji is for.
 */
 
 #[derive(Default)]
@@ -46,12 +46,13 @@ impl Inventory {
 	}
 }
 
-#[derive(Deserialize, Clone, Copy)]
-pub struct Options {//what the user checked on the panel: which whole-file hashes to compute, which take a read of every byte, and whether the JSON is indented across lines
+#[derive(Deserialize)]
+pub struct Options {//what the panel sends with a run: the whole-file hashes the user checked, each a read of every byte, whether the JSON is indented across lines, and the extensions the page's type table calls video, which get FFmpeg's reading, as does any file the scout calls video
 	sha1:   bool,
 	sha256: bool,
 	blake3: bool,
 	indent: bool,
+	video:  Vec<String>,//lowercase, with their dots
 }
 impl Options { fn whole(&self) -> bool { self.sha1 || self.sha256 || self.blake3 } }
 
@@ -77,7 +78,7 @@ pub async fn inventory_take(window: WebviewWindow, inventories: State<'_, Invent
 	}
 	let key = output.clone();
 	let body = inventory.clone();
-	let result = crate::run_blocking(move || inventory_run(&folder, &output, options, &body)).await;
+	let result = crate::run_blocking(move || inventory_run(&folder, &output, &options, &body)).await;
 	inventories_lock(&inventories).remove(&key);
 	result.map(|()| inventory.progress())
 }
@@ -102,8 +103,9 @@ pub fn inventory_window_closed(app: &AppHandle, label: &str) {
 
 const HASH_BUFFER: usize = size::MB as usize;//a read at a time, so the progress within a large file moves every few milliseconds
 const THREAD_PIECE: usize = 64 * size::KB as usize;//the least a piece takes to be worth three threads, which cost about 28 µs to start on the Mac mini's M2, more than hashing anything smaller
+const PROBE_SECONDS: f64 = 10.0;//what a file gets to answer mpv before the inventory goes on without it, as the audio panel gives a dropped file
 
-fn inventory_run(folder: &str, output: &str, options: Options, inventory: &Inventory) -> Result<(), String> {
+fn inventory_run(folder: &str, output: &str, options: &Options, inventory: &Inventory) -> Result<(), String> {
 	let mut out = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(output).map_err(|e| format!("inventory: {output}: {e}"))?;
 	let mut buffer = vec![0u8; HASH_BUFFER];//sized by fuji, never by a file
 	for item in ::scout::walk::walk(folder) {
@@ -128,7 +130,7 @@ fn inventory_run(folder: &str, output: &str, options: Options, inventory: &Inven
 	Ok(())
 }
 
-fn file_read(item: &Item, inventory: &Inventory, options: Options, buffer: &mut [u8]) -> std::io::Result<(String, u64, serde_json::Value)> {//one file: its fuji tip hash, its size, and its tip, stat and whichever whole-file hashes options ask for
+fn file_read(item: &Item, inventory: &Inventory, options: &Options, buffer: &mut [u8]) -> std::io::Result<(String, u64, serde_json::Value)> {//one file: its fuji tip hash, its size, and its tip, stat, whichever whole-file hashes options ask for, and FFmpeg's reading of a video
 	let mut file = open_file(&item.path)?;
 	let meta = file.metadata()?;
 	let stat = stat_said(&file, &meta);//before any byte is read, so the access time is the file's own
@@ -140,9 +142,25 @@ fn file_read(item: &Item, inventory: &Inventory, options: Options, buffer: &mut 
 	let mut said = serde_json::json!({"tip": tip_said(&tip), "stat": stat});
 	if options.whole() { said["hash"] = whole_hash(&mut file, size, options, inventory, buffer)? } else { inventory.bytes.fetch_add(size, Relaxed); }
 	let tip_hash = match size { 0 => "-".into(), _ => hash_file(&mut file, size)?.tip_hash.map_or_else(|| "-".into(), |hash| hash.base32()) };//ergo's start, middle and end stripes, which a full read just left in the cache; an empty file has none
+	if tip.kind == "video" || options.video.contains(&extension_say(&item.path)) { drop(file); said["ffmpeg"] = ffmpeg_said(&item.path) }//our handle closed first, since mpv opens the path for itself
 	Ok((tip_hash, size, said))
 }
-fn whole_hash(file: &mut std::fs::File, size: u64, options: Options, inventory: &Inventory, buffer: &mut [u8]) -> std::io::Result<serde_json::Value> {//the hashes options ask for, from one read of every byte; a stop ends it early
+fn extension_say(path: &Path) -> String { path.extension().map_or_else(String::new, |e| format!(".{}", e.to_string_lossy().to_lowercase())) }//as the page's type table spells one, lowercase with its dot; blank for a name with none
+fn ffmpeg_said(path: &Path) -> serde_json::Value {//FFmpeg's reading of the file through mpv's player, as media_probe answers it, cut to what the scout also reads so the two sit side by side: the demuxer's name for the format, the running time, and each track's type, codec and demux facts, mpv's own names kept, with the flags that mark a picture track, cover art in a sound file, only where they are set. A refusal, or no answer by the deadline, is an error here, and the inventory goes on
+	let probe = match crate::media::probe(&path.to_string_lossy(), PROBE_SECONDS) { Ok(probe) => probe, Err(e) => return serde_json::json!({"error": e}) };
+	let mut said = serde_json::Map::new();
+	if !probe.format.is_empty() { said.insert("format".into(), probe.format.into()); }
+	if let Ok(seconds) = probe.duration.parse::<f64>() { said.insert("seconds".into(), seconds.into()); }
+	if let Ok(serde_json::Value::Array(tracks)) = serde_json::from_str::<serde_json::Value>(&probe.tracks) {
+		let kept = tracks.into_iter().map(|track| match track {
+			serde_json::Value::Object(fields) => serde_json::Value::Object(fields.into_iter().filter(|(key, value)| key == "type" || key == "codec" || key.starts_with("demux-") || ((key == "image" || key == "albumart") && *value == serde_json::Value::Bool(true))).collect()),
+			other => other,
+		}).collect();
+		said.insert("tracks".into(), serde_json::Value::Array(kept));
+	}
+	serde_json::Value::Object(said)
+}
+fn whole_hash(file: &mut std::fs::File, size: u64, options: &Options, inventory: &Inventory, buffer: &mut [u8]) -> std::io::Result<serde_json::Value> {//the hashes options ask for, from one read of every byte; a stop ends it early
 	file.seek(SeekFrom::Start(0))?;
 	let (mut sha1, mut sha256, mut blake3) = (options.sha1.then(Sha1::new), options.sha256.then(Sha256::new), options.blake3.then(Blake3::new));
 	let mut hashed = 0u64;

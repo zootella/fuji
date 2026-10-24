@@ -7,6 +7,7 @@ import {diskAppend} from './disk.js'
 import {log, logTrouble} from './log.js'
 import {brandStem} from './brand.js'
 import {forwardize} from './components/library.js'
+import {fileTypes} from './fileTypes.js'
 
 //an inventory of a folder's whole tree; inventory.rs is the long version
 
@@ -16,6 +17,7 @@ export function inventoryStop(output) { return invoke('inventory_stop', {output}
 
 //the inventory the panel starts and shows, kept here so it outlives the panel; one at a time
 
+const inventoryVideo = Object.keys(fileTypes).filter(extension => fileTypes[extension].kind == 'video')//the extensions the type table calls video, which the inventory asks FFmpeg about along with any file the scout calls video
 export const inventoryOptions = ref({sha1: false, sha256: false, blake3: false, indent: true, dated: false})//the panel's checkboxes: the whole-file hashes, each a read of every byte, JSON across lines, and a file named for the moment the inventory began rather than one written over each time
 export const inventoryFolder  = ref('')//blank before the first
 export const inventoryOutput  = ref('')//also how Rust names it
@@ -51,7 +53,7 @@ export async function inventoryRun(folder) {//resolves once the inventory ends
 		let output = parse.join(forwardize(await documentDir()), name)
 		inventoryOutput.value = output
 		log(`inventory: taking ${folder} into ${output}, ${JSON.stringify(inventoryOptions.value)}`)
-		inventoryCounts.value = await inventoryTake(folder, output, {sha1, sha256, blake3, indent})
+		inventoryCounts.value = await inventoryTake(folder, output, {sha1, sha256, blake3, indent, video: inventoryVideo})
 		inventoryTime.value = inventorySince()
 		let said = inventorySay(folder, inventoryCounts.value, inventoryTime.value)
 		await diskAppend(output, `# ${said}\n`)//a footer no entry can be mistaken for, since an entry's second field is always a quoted path
