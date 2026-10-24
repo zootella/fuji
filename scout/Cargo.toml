@@ -8,4 +8,4 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] } # the answer derives Serialize, for the command in fuji that hands it to the page
-zootella-ergo = "0.2" # spans of time and sizes in bytes, the same constants fuji's rust and its page use, from the ergo project
+zootella-ergo = "0.2" # spans of time and sizes in bytes, the same constants fuji's rust and its page use, from the ergo project; its own rust holds no unsafe but does not forbid it, and the hashing crates beneath it use unsafe inside, so the wall this crate's root raises covers its own lines and not ergo's, which no file's bytes reach from here

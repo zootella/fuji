@@ -1,50 +1,20 @@
-# Core, scout and trout
+# Sorting the Rust into brass, copper and steel
 
-Fuji's Rust in three crates, and the rule for which crate a piece of code goes in. Trout is a working name until a better one comes.
+The move of fuji's Rust into its three crates, and what is open.
 
-## The three crates
+## The move
 
-- **Core** is `desktop/src-tauri`, the crate Tauri builds the application from. It holds only what cannot leave: anything tied to a window, the event loop or Tauri's own types. The commands, the windows, the menu bar, the dock, the trackpad, the files the operating system handed fuji, the dialogs, the log and the text written at exit, and the playing half of the media library, which draws into fuji's window.
-- **Scout** is `scout`, safe Rust held by the compiler: its root forbids unsafe code and denies, through clippy, an index that could be out of range, an unwrap, a panic and arithmetic that could overflow. It holds every piece of fuji's Rust that can live under those rules, which today is the reader of a file's first bytes and the walker of a folder tree.
-- **Trout** is the third crate, for Rust that needs neither Tauri nor a window and cannot live under scout's rules: every call fuji makes into C or into the operating system's own libraries outside a window.
-
-## The rule
-
-- A piece of Rust goes to core only if it is tied to Tauri or a window. Otherwise it goes to scout. If it cannot meet scout's rules, it goes to trout.
-- The rule is applied while code is written, not only when existing code is sorted. A function in scout that wants its first unsafe call, or one in trout that wants its first Tauri type, has to move crates, and that move is the question asked at that moment: why does this need to be unsafe, why does this need Tauri. Core is the least safe crate, so it does as little as possible and is read the hardest; trout is read the same way; scout stays the citadel.
-- Scout's lints stay as they are. A module moving in is rewritten to pass them.
-- Dependencies run one way. Core depends on trout and scout, trout depends on scout, scout depends on neither, and all three depend on ergo.
-- Where the constitution's rule that a feature lives in one file meets this rule, this rule wins: a feature's code splits by what each part needs.
-
-## What the rule does to fuji as it is
-
-- Core keeps lib.rs and every command's thin wrapper; window.rs, menu.rs, dock.rs, touch.rs, open.rs, desktop.rs, log.rs, paths.rs, dialog.rs and process.rs; and the playing half of media.rs.
-- Scout takes find.rs, fit.rs, the reads and writes in disk.rs, tip_read and open_file from scout.rs, and the Mac and Linux half of the inventory's stat.
-- Trout takes thumbnail.rs, registry.rs, launch.rs, panel.rs, memory.rs, uptime.rs, the libmpv declarations and the probe from media.rs, the Windows half of stat, which is one Win32 call, and the inventory's loop, since the loop calls the probe.
-- The inventory is the first feature the rule splits: its walk and its tip reading are scout's, its loop is trout's, and its three commands with their shared counters are core's.
-- stat is the first function the rule splits by platform: safe standard library calls on the Mac and Linux, one Win32 call on Windows, so it is two functions in two crates or one function in trout.
-
-## What it buys
-
-- Tests of scout and trout build and run in seconds with no Tauri compiled. Core's own tests run too once build.rs hands the test binary the media library's folder, which is one line; a cargo test inside inventory.rs ran that way on the Mac mini on 2026-10-23, compiling in 8 seconds after the first build and running in a tenth of a second.
-- Windows-only code in trout can be type-checked from the Mac with `cargo check --target x86_64-pc-windows-msvc`, which fails today only inside Tauri's build script.
-- Every unsafe call fuji makes outside a window is in one crate, so a search for unsafe in trout is the whole list, and core's list is the windows, the menus and the dock.
-- The restricted copy of fuji that runs an inventory can be trout's own binary, linking libmpv and the standard library and nothing else, rather than fuji's whole executable with AppKit and WebKit mapped before any wall goes up. Its entry, its pipe, its counts, its kill and its profile are the same code in either binary, so building it inside fuji's executable first and moving its main into trout later repeats nothing, and the sandbox call itself is unsafe, so it is trout's either way.
-- The page's architecture does not move. State stays above the Rust, in JavaScript; the three crates sort only the Rust beneath it.
-- Build size and run speed do not change: the same code, statically linked into the same executable.
-
-## What it costs
-
-- A feature's code splits across crates and files, and a change to one feature can touch three crates.
-- A third crate is a third Cargo.lock that moves with every shared dependency, a third README and a third place to look, unless the three become a Cargo workspace with one lockfile and one target folder, which Tauri's tooling and the Linux containers would then meet. Untried.
-- The rpath that finds libmpv at run time stays in core's build.rs, since a dependency's link arguments do not reach the final binary; trout's build.rs can give the search path for linking.
-- A trout binary shipped as the restricted process is a second executable to build, sign, notarize and bundle on three platforms, and to add to the Windows installer's cabinet.
-- Moving the Mac and Windows modules is checked on both machines, and the sweep of what exists is a sprint of its own.
+- **Scout becomes steel.** The folder, the package, the fuzz package, the dependency lines, the workspace entry, the staging path in linux/build.js and every `::scout::` path change; the scout keeps its name as the reader inside steel, and scout.rs, scout.js and scout_tip keep theirs as the command for the scout.
+- **Copper is made.** A folder at the root beside steel: a Cargo.toml naming steel by path, ergo, serde and serde_json, and the windows crate for the Windows pieces as they arrive; a package.json with test as cargo test and a line in pnpm-workspace.yaml; its own Cargo.lock; a README; and a build.rs that gives the link search for the media library in `desktop/src-tauri/binaries` and gives copper's test binary an rpath to that folder, while the shipped binary's rpath stays in brass's build.rs, since a dependency's link arguments do not reach the final binary.
+- **First into copper**, from media.rs: the extern block, its structs and constants, the error and property helpers, the ask helpers, the probe and the frame; the playing half stays in brass over copper's declarations and keeps the render callbacks that reach window.rs. From inventory.rs: everything but the three commands, the state they share and the window-closed hook; the windows crate's Storage_FileSystem feature moves with the stat helpers. Into steel at the same time: tip_read, open_file and read_into from brass's scout.rs, since copper cannot depend on brass.
+- **The sweep after**: thumbnail.rs, registry.rs, launch.rs, panel.rs, memory.rs and uptime.rs into copper; find.rs, fit.rs and the reads and writes of disk.rs into steel, rewritten to pass its lints; each checked on the Windows box as it goes.
+- **Each step is a commit of its own, and each move is byte-exact.** A whole file moves with mv. A block moves by a script that cuts it between two anchor lines asserted to occur once, writes it to its destination unchanged, and proves the remainder with the cut put back hashes the same as the original. The edits a move forces, an import, a path, a visibility, are small and the compiler checks each. The diff is read with rename detection on, so a moved file shows only what changed in it.
 
 ## Open
 
-- The third crate's name.
-- Whether the three become a Cargo workspace, and when.
-- The order of the move: trout made first with the probe, the inventory's loop and the restricted process's entry, and the sweep of the other modules after, or the sweep first.
-- Whether scout, which so far only reads, takes disk.rs's writes and copies, which the rule sends there.
-- The amendment to the constitution's code chapter that states the three crates and the rule, and what replaces the rule for where new Rust code goes.
+- Whether the three become a Cargo workspace with one lockfile and one target folder, which Tauri's tooling and the Linux containers would then meet, and when.
+- Whether steel, which so far only reads, takes disk.rs's writes and copies, which the rule sends there.
+- find.rs and the walker read folders two ways; whether find.rs becomes a thin command over the walker once both are in steel.
+- The line in brass's build.rs that hands its test binary the media library's folder, so a test in brass runs with no environment variable; a test ran with one on the Mac mini on 2026-10-23.
+- The restricted copy as copper's own binary: a second executable to build, sign, notarize and bundle on three platforms, and to add to the Windows installer's cabinet.
+- The amendment to the constitution's code chapter: the four places in place of the two layers.

@@ -1,6 +1,6 @@
 # Fuji Architecture
 
-Fuji is four layers: a **shell** that owns a browsing window, one **sheet**, a **settings panel** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
+This is the architecture of plastic, the page; where code lives across the page and fuji's three Rust crates is `four-places.md`. The page is four layers: a **shell** that owns a browsing window, one **sheet**, a **settings panel** and several **tables** that own what the user looks at, a **model** that owns what the user is looking at, and a **cache** that owns pixels. This file says where each thing goes and why, so that adding to fuji is a matter of finding the layer rather than rediscovering the shape.
 
 It says what fuji does, not what it might, and where a question about structure has no answer yet, decide it and write it down here.
 
