@@ -5,3 +5,4 @@
 pub mod tip;//the reader, which says what a file's first bytes are and what the common formats keep in their header
 pub mod walk;//the walker, which lists every name in a folder tree with what kind of thing it is
 pub mod read;//the reads: a file opened without waiting, and its tip read for the scout
+pub mod fit;//the fits: how big a thumbnail is from a picture's size and the beam, the arithmetic fit.js has too
