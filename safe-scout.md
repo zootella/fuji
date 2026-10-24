@@ -1,6 +1,6 @@
 # Safe scout
 
-What decides whether Rust code goes in the scout, the crate at `./scout`, or in fuji's own crate at `desktop/src-tauri`, and what ergo is beside them. Nothing here is a change to make: it's what to keep in mind as the three grow.
+What decides whether Rust code goes in the scout, the crate at `./scout`, or in fuji's own crate at `desktop/src-tauri`, and what ergo is beside them. Which process runs the code is a different question and never this one: the scout is compiled into fuji, and runs in fuji's own process or in the restricted copy of fuji an inventory can run in, the same code in both. Nothing here is a change to make: it's what to keep in mind as the three grow.
 
 ## Why the scout is a crate of its own
 
@@ -10,7 +10,7 @@ What decides whether Rust code goes in the scout, the crate at `./scout`, or in 
 
 **Fuzzing in practice.** libFuzzer runs the reader and nothing else, millions of inputs, where fuzzing inside fuji would instrument Tauri, the platform bindings and libmpv along with it.
 
-**No knowledge of fuji.** It knows file formats and file systems and nothing of the app, so a sister project could use it as it stands. The only fuji-shaped part is the thin command in `scout.rs`, which reads the slices and hands them over.
+**No knowledge of fuji.** It knows file formats and file systems and nothing of the app, so a sister project could use it as it stands. The fuji-shaped parts are the thin command in `scout.rs` and the inventory in `inventory.rs`, which read the slices and hand them over.
 
 ## What "safe" covers
 
