@@ -2,8 +2,8 @@
 
 mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
 mod dialog;//and dialog.rs: the system's boxes for opening files, choosing a folder, and saving a file, put up for the page, or on the Mac for the menu bar with no window
-mod disk;//and disk.rs: file commands, thin wrappers over std::fs
-mod find;//and find.rs: finding things in the folder tree, many folders read in one call through the disk's glance
+mod disk;//and disk.rs: file commands, one line each over steel's disk, and the contract they keep
+mod find;//and find.rs: the command over steel's find, many folders read in one call, and why
 mod inventory;//and inventory.rs: the inventory's commands, which start copper's loop over a folder's whole tree, read its counts and stop it
 mod launch;//and launch.rs: launch services, the mac's record of which application opens which kind of file
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit

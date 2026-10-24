@@ -1,10 +1,7 @@
-use serde::Serialize;
-use std::collections::HashSet;
-use std::fs;
-use std::path::Path;
-use std::time::UNIX_EPOCH;
 use tauri::command;
+use tauri::ipc::Response;
 use crate::run_blocking;
+use steel::disk::{DirEntry, FileStat, Peek};
 
 /*
 The design contract of this module: these commands hand the interface the full, standard power a desktop application has over the disk — the same power a native Mac or Windows app wields through its file APIs. They follow POSIX semantics faithfully, sharp edges included: disk_copy overwrites an existing destination, just like cp and std::fs::copy do, and disk_write truncates one. Code that calls these commands must be careful, exactly as native application code must.
@@ -17,33 +14,6 @@ Commands here are named for the POSIX call they stand on — disk_readdir, disk_
 
 When the delete family arrives, hold a guard here as well: a Rust-side registry of allowed roots, recording folders the user has actually dragged in or chosen, with commands refusing paths outside them. Read and copy trust their caller; unlink should trust less.
 */
-
-#[derive(Serialize)]
-pub struct DirEntry {
-	pub name:       String,//base name of the entry, without the parent path
-	pub is_file:    bool,//true if this entry is a regular file
-	pub is_dir:     bool,//true if this entry is a directory
-	pub is_symlink: bool,//true if this entry is a symbolic link
-	pub size:       u64,//size in bytes; typically 0 for directories and symlinks
-	pub mtime:      u128,//last modification time, in milliseconds since the unix epoch; 0 when the filesystem has no answer. From the metadata already read for the kind and the size, so it costs the listing nothing more
-}
-
-#[derive(Serialize)]
-pub struct Peek {
-	pub files:   u32,//how many visible regular files have one of the extensions asked about
-	pub folders: Vec<String>,//the names of the visible subfolders, symlinks left out, in whatever order the disk handed them over
-}
-
-#[derive(Serialize)]
-pub struct FileStat {
-	pub is_file:    bool,//true if this path is a regular file
-	pub is_dir:     bool,//true if this path is a directory
-	pub is_symlink: bool,//true if this path is a symbolic link
-	pub size:       u64,//size in bytes
-	pub atime:      u128,//last access time, in milliseconds since the unix epoch; 0 when the filesystem has no answer
-	pub mtime:      u128,//last modification time, in milliseconds since the unix epoch; 0 when the filesystem has no answer
-	pub birthtime:  u128,//creation time, in milliseconds since the unix epoch; 0 when the filesystem has no answer, which is common on linux. Named for the birth time rather than ctime, which in posix is when the metadata last changed, a different time rust does not offer portably
-}
 
 /*
 Every command here is an async fn whose body goes to run_blocking in lib.rs, and so is every other command that waits — thumbnail.rs, launch.rs and panel.rs. The body is ordinary blocking code, unchanged; the wrapper decides which threads it runs on.
@@ -60,80 +30,27 @@ Truly asynchronous file reads were the other road, and they are not there to tak
 /// POSIX-like `readdir`, shallow only
 #[command]//every command here waits on the disk, so each is async and runs its body through run_blocking rather than on the thread that runs the window, where a slow folder or a large file would hold up every window event and every other reply until it finished
 pub async fn disk_readdir(path: String) -> Result<Vec<DirEntry>, String> {
-	run_blocking(move || {
-		let mut results = Vec::new();
-		for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
-			let entry = match entry { Ok(entry) => entry, Err(_) => continue };//skip an entry rather than fail the whole folder over it
-			let meta  = match entry.metadata() { Ok(meta) => meta, Err(_) => continue };//same for one we can't stat, like a locked file. The entry's own metadata, which describes a symlink rather than following it, and costs no call at all on windows, where the enumeration already carried the size and times, and one fstatat on the folder's handle elsewhere; symlink_metadata on the path would open every file on windows
-			let ft    = meta.file_type();
-			results.push(DirEntry {
-				name:       entry.file_name().to_string_lossy().into_owned(),
-				is_file:    ft.is_file(),
-				is_dir:     ft.is_dir(),
-				is_symlink: ft.is_symlink(),
-				size:       meta.len(),
-				mtime:      millis(meta.modified()),
-			});
-		}
-		Ok(results)
-	}).await
+	run_blocking(move || steel::disk::readdir(&path).map_err(|e| e.to_string())).await
 }
 
 /// A glance at a folder: how many of its files have one of these extensions, and the names of its subfolders, from the directory read alone
 //readdir without the stat per entry a listing costs and without a record per entry across the bridge: a cache folder of fifty thousand files answers in one call with a number and a few names, where disk_readdir stats every file and sends fifty thousand records, which the pager measured at seconds for one folder it would never show. glance below says what visible means and how an extension is compared
 #[command]
 pub async fn disk_peek(path: String, extensions: Vec<String>) -> Result<Peek, String> {
-	run_blocking(move || {
-		let wanted: HashSet<String> = extensions.into_iter().collect();
-		let (files, folders) = glance(Path::new(&path), &wanted).map_err(|e| e.to_string())?;
-		Ok(Peek { files, folders })
-	}).await
-}
-
-//one reading of a folder, for the peek here and for find.rs: how many visible regular files have one of the wanted extensions, and the names of the visible subfolders. Visible means what ls shows without -a, names not starting with a dot; a symlink is neither a file nor a folder here, so a walk over the tree never follows one into a loop; and an extension is compared lowercased with its dot, like .jpg. library.js applies the same rule to a full listing in _listImages, and the two must agree, since the pager counts a folder's images through this and cuts its buckets from that
-pub(crate) fn glance(path: &Path, wanted: &HashSet<String>) -> std::io::Result<(u32, Vec<String>)> {
-	let mut files = 0u32;
-	let mut folders = Vec::new();
-	for entry in fs::read_dir(path)? {
-		let entry = match entry { Ok(entry) => entry, Err(_) => continue };//skip an entry rather than fail the whole folder over it, as the listing does
-		let name = entry.file_name().to_string_lossy().into_owned();
-		if name.starts_with('.') { continue }
-		let ft = match entry.file_type() { Ok(ft) => ft, Err(_) => continue };//free on both platforms, since the kind comes with the entry itself; only a filesystem that withholds it costs a stat here
-		if ft.is_dir() { folders.push(name) }
-		else if ft.is_file() {
-			let extension = Path::new(&name).extension().map(|e| format!(".{}", e.to_string_lossy().to_lowercase())).unwrap_or_default();//blank for a name with no dot after its first character, which matches nothing
-			if wanted.contains(&extension) { files += 1 }
-		}
-	}
-	Ok((files, folders))
+	run_blocking(move || steel::disk::peek(&path, extensions).map_err(|e| e.to_string())).await
 }
 
 /// POSIX-like `stat(2)` metadata
 //the page asks it whether a path is there, and whether one handed to fuji is a folder; a listing carries a folder's sizes and modified times without one of these per file
 #[command]
 pub async fn disk_stat(path: String) -> Result<FileStat, String> {
-	run_blocking(move || {
-		let meta  = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
-		let ft    = meta.file_type();
-		Ok(FileStat {
-			is_file:    ft.is_file(),
-			is_dir:     ft.is_dir(),
-			is_symlink: ft.is_symlink(),
-			size:       meta.len(),
-			atime:      millis(meta.accessed()),
-			mtime:      millis(meta.modified()),
-			birthtime:  millis(meta.created()),
-		})
-	}).await
-}
-fn millis(time: std::io::Result<std::time::SystemTime>) -> u128 {//milliseconds since the unix epoch, or 0 when the filesystem cannot say
-	time.ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis()).unwrap_or(0)
+	run_blocking(move || steel::disk::stat(&path).map_err(|e| e.to_string())).await
 }
 
 /// POSIX-like `open` + `read` + `close`
 #[command]
-pub async fn disk_read(path: String) -> Result<tauri::ipc::Response, String> {
-	run_blocking(move || std::fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())).await//Response carries the bytes raw; the essay below has the cost
+pub async fn disk_read(path: String) -> Result<Response, String> {
+	run_blocking(move || steel::disk::read(&path).map(Response::new).map_err(|e| e.to_string())).await//Response carries the bytes raw; the essay below has the cost
 }
 /*
 Returning Response rather than Vec<u8> is the difference between a copy and a translation. A Vec<u8> is serialized as a JSON array — one decimal number per byte, written on the Rust side and parsed on the JS side — so a 2.5 MB photograph crosses as roughly two and a half million numbers. Fuji measured that at about 150ms per megabyte on an M2, linear in file size, and it was landing on the main thread in the middle of flips. Response hands the same bytes over as an ArrayBuffer instead. The JS side already wrapped the result in `new Uint8Array(...)`, which accepts either, so nothing above had to change.
@@ -148,33 +65,18 @@ so this will be fine for images, but for big files, you'll have to use plugin-fs
 /// POSIX `open` with `O_APPEND|O_CREAT` + `write` + `close`
 #[command]
 pub async fn disk_append(path: String, text: String) -> Result<(), String> {
-	run_blocking(move || {
-		use std::io::Write;
-		fs::OpenOptions::new().append(true).create(true).open(&path).and_then(|mut file| file.write_all(text.as_bytes())).map_err(|e| e.to_string())
-	}).await
+	run_blocking(move || steel::disk::append(&path, &text).map_err(|e| e.to_string())).await
 }
 
 /// "cp" (shallow, files only)
-//also without a caller yet, and correct to be ready: copying is what a backup feature is made of, and the essay below is the research behind doing it well
+//also without a caller yet, and correct to be ready: copying is what a backup feature is made of, and the essay beside steel's copy is the research behind doing it well
 #[command]
 pub async fn disk_copy(source: String, destination: String) -> Result<(), String> {
-	run_blocking(move || fs::copy(&source, &destination).map(|_| ()).map_err(|e| e.to_string())).await
+	run_blocking(move || steel::disk::copy(&source, &destination).map_err(|e| e.to_string())).await
 }
-/*
-Bytes in a Tauri application live in three places: the kernel's page cache, the Rust process, and the webview's JS heap. Reading a file drags them through all three — disk, page cache, Rust buffer, the transfer, JS heap — and every one of those is a copy. That is the cost disk_read above pays, and the Response change was about removing the worst step from it rather than the steps themselves.
-
-disk_copy never pays it at all. std::fs::copy reaches CopyFileEx on Windows and fclonefileat or fcopyfile on macOS, and both do the whole thing inside the kernel: no user-mode buffer is allocated in the Tauri process, and no byte of the file enters the Rust or JS heaps. It is as fast as the hardware allows for a file of any size.
-
-What it cannot do is report. It is fire and forget — nothing above can learn that it is halfway done, or pause it, or cancel it. Tauri's plugin-fs answers that with streaming file handles, reading and writing in 64 KiB chunks that become a ReadableStream on the JS side, which buys progress and cancellation at the price of hauling every chunk up through all three layers.
-
-There is a third shape, if fuji ever needs a progress bar on a large copy: keep the copy in the kernel and lift only the counter. CopyFileExW takes a progress callback on Windows, copyfile takes a status callback on macOS, and everywhere else a 64 KiB loop checking an AtomicBool would do. That is roughly two screenfuls of Rust, and it would let the page watch a copy it never touches.
-*/
 
 /// POSIX `open` with `O_TRUNC|O_CREAT` + `write` + `close`
 #[command]
 pub async fn disk_write(path: String, data: Vec<u8>) -> Result<(), String> {
-	run_blocking(move || fs::write(&path, data).map_err(|e| e.to_string())).await
+	run_blocking(move || steel::disk::write(&path, &data).map_err(|e| e.to_string())).await
 }
-/*
-disk_write truncates and writes in place, on purpose, and is not an atomic save. A process that ends mid-write, a quit landing while a write runs on the blocking pool, can leave the file torn; the usual cure is to write beside the file and rename over it. That is a different operation rather than a safer version of this one — the result is a new file, without the old one's hard links, permissions, Finder tags or Windows access lists, and the rename can be refused where an in-place write would not be — and choosing it, and naming the temporary, are decisions the page owns. So when a caller first needs an atomic save, the plan is disk_rename beside these, one line over fs::rename, and the page writes a temporary of its own naming and renames it over the real file, leaving at worst a stray temporary and never a torn file. Building replacement on each platform's own call, ReplaceFileW on Windows and replaceItemAtURL on the Mac, which keep the old file's attributes, was weighed and set aside as too much platform-specific code for what it adds.
-*/

@@ -70,4 +70,4 @@ The costs are a feature split across crates and a third place to look. The three
 
 ## What is built today
 
-Plastic is `desktop/src`. Steel is `steel`, holding the scout, the walker, and the reads that open a file and hand its first bytes to the scout. Copper is `copper`, holding the media library's declarations with the questions asked through it, and the inventory's loop. Brass is `desktop/src-tauri`, and it still holds the rest of what is to become copper: the thumbnailers, the registry, launch services, the display and the memory counters.
+Plastic is `desktop/src`. Steel is `steel`, holding the scout, the walker, the reads that open a file and hand its first bytes to the scout, the disk's listing, stating, reading and writing, the walk in find's order, and the fits. Copper is `copper`, holding the media library's declarations with the questions asked through it, and the inventory's loop. Brass is `desktop/src-tauri`, and it still holds the rest of what is to become copper: the thumbnailers, the registry, launch services, the display and the memory counters.
