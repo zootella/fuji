@@ -384,6 +384,10 @@ dependencies = [
 [[package]]
 name = "copper"
 version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+]
 
 [[package]]
 name = "core-foundation"

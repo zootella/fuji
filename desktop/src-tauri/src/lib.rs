@@ -137,7 +137,7 @@ pub fn run() {
 			#[cfg(target_os = "macos")]
 			dock::dock_install(_app.handle());//and the other menu, the one on the dock icon
 			#[cfg(target_os = "linux")]
-			media::media_locale();//after GTK, which the runtime started before this and which set the process's locale from the environment, and before any player is made; media.rs says what the library asks
+			copper::media::locale();//after GTK, which the runtime started before this and which set the process's locale from the environment, and before any player is made; media.rs says what the library asks
 			touch::touch_start();//watch scroll wheel events for the pages that will ask to be spared a trackpad's; every platform calls it and only the mac installs anything
 			Ok(())
 		})

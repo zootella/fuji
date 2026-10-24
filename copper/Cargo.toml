@@ -7,3 +7,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+serde = { version = "1", features = ["derive"] } # the probe's answer and the library's versions derive Serialize, for the commands in brass that hand them to the page
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2" # setlocale, which media.rs calls before the first player on linux
