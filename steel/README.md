@@ -18,9 +18,14 @@ pnpm fuzz    run libFuzzer on the reader, seeded from samples/, until stopped
 ## The files
 
 ```
-src/lib.rs    the crate's root: its two rules, safe Rust and nothing that can panic, over both parts
+src/lib.rs    the crate's root: its two rules, safe Rust and nothing that can panic, over everything below
 src/tip.rs    the reader, with its essay at the top and its tests at the end
 src/walk.rs   the walker, the same way
+src/read.rs   a file opened without waiting, and its tip and second slice read for the reader
+src/disk.rs   a folder listed, glanced or stated, and a file read, written, appended or copied
+src/find.rs   the next folders holding a file of a kind, in find's order, many per call
+src/fit.rs    how big a thumbnail is from a picture's size and the beam, the twin of fit.js
+src/testing.rs  a tree a test builds, for the disk's and find's tests
 samples/      small files made by real encoders, each pinned by a test to the answer it must give
 fuzz/         the crate cargo-fuzz runs, which keeps what it finds in fuzz/corpus and fuzz/artifacts, both gitignored
 ```

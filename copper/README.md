@@ -7,3 +7,7 @@ It is a Rust crate of its own. Fuji's Rust depends on it by path, and nothing pu
 ```
 pnpm test    cargo test, the crate alone
 ```
+
+## What it holds
+
+The media library, libmpv, its declarations and the questions asked through it without a window, the probe and the frame; the inventory's loop, which walks a folder, reads every file and writes a line each; the operating system's thumbnailer; the Windows registry; the Mac's launch services; the display's size; the machine's memory and what fuji's processes take; and when the operating system started this process. Each file says what it offers at its top, and the commands over them are in fuji's Tauri crate under the same names.
