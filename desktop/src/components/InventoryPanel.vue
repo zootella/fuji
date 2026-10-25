@@ -54,6 +54,10 @@ function timeSay() {
 	</p>
 	<p class="mt-2"><label><input type="checkbox" v-model="inventoryOptions.indent" :disabled="inventoryRunning"> Indent each file's JSON across lines</label></p>
 	<p class="mt-2"><label><input type="checkbox" v-model="inventoryOptions.dated" :disabled="inventoryRunning"> Name the file for the moment it begins, rather than writing over {{brandStem}}-inventory.txt</label></p>
+	<p class="mt-2 flex flex-wrap gap-x-4"><span>Run in</span>
+		<label><input type="radio" :value="false" v-model="inventoryOptions.sandbox" :disabled="inventoryRunning"> the main process</label>
+		<label><input type="radio" :value="true" v-model="inventoryOptions.sandbox" :disabled="inventoryRunning"> the sandbox process</label>
+	</p>
 	<p class="mt-8 flex flex-wrap gap-2"><button class="myButton" :disabled="inventoryRunning" @click="inventoryAsk">Choose a folder…</button><button class="myButton" :disabled="!inventoryRunning || !inventoryOutput" @click="stop">Stop</button></p>
 	<div v-if="inventoryFolder" class="mt-8 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1"><!-- minmax(0, 1fr), so a long path wraps rather than widening the column -->
 		<span>Folder</span><span class="text-strong">{{backize(inventoryFolder)}}</span>

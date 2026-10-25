@@ -57,6 +57,11 @@ fn pooled<T>(body: impl FnOnce() -> T) -> T { objc2::rc::autoreleasepool(|_| bod
 fn pooled<T>(body: impl FnOnce() -> T) -> T { body() }
 
 pub fn run() {
+	match std::env::args_os().nth(1).and_then(|argument| argument.into_string().ok()).as_deref() {//an inventory with no window, in the sandbox process an inventory started or from the command line: copper's from here, before the panic hook, the launch moment and Tauri, so it makes no window and never counts as a launch
+		Some(copper::inventory::SANDBOX_SWITCH) => copper::inventory::sandbox_serve(),
+		Some(copper::inventory::COMMAND_SWITCH) => copper::inventory::command_serve(),
+		_ => {}
+	}
 	log::log_panics();//before anything can panic, so every panic after this has its place in the log; a line held for the log survives a panic run_blocking catches, and is lost with the rest of the held text in one that ends the process
 	window::window_launch();//first of all, so this copy's launch moment is when it started; window.rs tells a flurry of copies from a deliberate second launch by it
 	tauri::Builder::default()//start building the Tauri application

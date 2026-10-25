@@ -18,7 +18,7 @@ export function inventoryStop(output) { return invoke('inventory_stop', {output}
 //the inventory the panel starts and shows, kept here so it outlives the panel; one at a time
 
 const inventoryVideo = Object.keys(fileTypes).filter(extension => fileTypes[extension].kind == 'video')//the extensions the type table calls video, which the inventory asks FFmpeg about along with any file the scout calls video
-export const inventoryOptions = ref({sha1: false, sha256: false, blake3: false, indent: true, dated: false})//the panel's checkboxes: the whole-file hashes, each a read of every byte, JSON across lines, and a file named for the moment the inventory began rather than one written over each time
+export const inventoryOptions = ref({sha1: false, sha256: false, blake3: false, indent: true, dated: false, sandbox: false})//the panel's choices: the whole-file hashes, each a read of every byte, JSON across lines, a file named for the moment the inventory began rather than one written over each time, and the sandbox process rather than the main one
 export const inventoryFolder  = ref('')//blank before the first
 export const inventoryOutput  = ref('')//also how Rust names it
 export const inventoryRunning = ref(false)
@@ -35,10 +35,10 @@ export function sayRate(count, time, say) {//the average over the whole run, not
 	let n = Math.floor(count / time * Time.hour)
 	return hasInt(n) ? ` (${say(n)}/hr)` : ''
 }
-function inventorySay(folder, counts, time) {//how an inventory went, as the panel shows it, for the end of its file and the log
+function inventorySay(folder, sandbox, counts, time) {//how an inventory went, as the panel shows it, for the end of its file and the log
 	let {folders, files, bytes, stopped} = counts
 	let rate = (count, say) => time > 0 ? sayRate(count, time, say) : ''
-	return `${folder}, ${stopped ? 'stopped' : 'done'} in ${sayDuration(time, '#h #m #s')}: ${sayCount(folders)} folders, ${sayCount(files)} files${rate(files, sayCount)}, ${saySize4(bytes)}${rate(bytes, saySize4)}`
+	return `${folder} in the ${sandbox ? 'sandbox' : 'main'} process, ${stopped ? 'stopped' : 'done'} in ${sayDuration(time, '#h #m #s')}: ${sayCount(folders)} folders, ${sayCount(files)} files${rate(files, sayCount)}, ${saySize4(bytes)}${rate(bytes, saySize4)}`
 }
 
 export async function inventoryRun(folder) {//resolves once the inventory ends
@@ -48,14 +48,14 @@ export async function inventoryRun(folder) {//resolves once the inventory ends
 	inventoryCounts.value = inventoryCountsNone(); inventoryTrouble.value = ''
 	inventoryBegan = Date.now(); inventoryTime.value = 0
 	try {
-		let {sha1, sha256, blake3, indent, dated} = inventoryOptions.value
+		let {sha1, sha256, blake3, indent, dated, sandbox} = inventoryOptions.value
 		let name = dated ? `${brandStem}-inventory-${tickToText(inventoryBegan)}.txt` : `${brandStem}-inventory.txt`
 		let output = parse.join(forwardize(await documentDir()), name)
 		inventoryOutput.value = output
 		log(`inventory: taking ${folder} into ${output}, ${JSON.stringify(inventoryOptions.value)}`)
-		inventoryCounts.value = await inventoryTake(folder, output, {sha1, sha256, blake3, indent, video: inventoryVideo})
+		inventoryCounts.value = await inventoryTake(folder, output, {sha1, sha256, blake3, indent, video: inventoryVideo, sandbox})
 		inventoryTime.value = inventorySince()
-		let said = inventorySay(folder, inventoryCounts.value, inventoryTime.value)
+		let said = inventorySay(folder, sandbox, inventoryCounts.value, inventoryTime.value)
 		await diskAppend(output, `# ${said}\n`)//a footer no entry can be mistaken for, since an entry's second field is always a quoted path
 		log(`inventory: ${said}`)
 	} catch (error) {

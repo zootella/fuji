@@ -15,7 +15,7 @@ Why 64 KiB, and why a second slice. Most formats keep their answers in the first
 
 What the reader does not try is chosen as carefully as what it does, and each reader's comment says where it stops. A HEIF picture's size sits behind three more boxes; a transport stream could be timed only by reading its packets; an MP4 whose sound track and its tables come before the picture track can keep that track past the second slice. Each of those is a limit the answer's reading names in a few words, and the limits are the map of the horizon: what a decoder would add. Every stop is one of four kinds, and the answer says which beside the words: a format named by its signature and read no further, the scout's own limit, the file corrupted, and the file chopped. The answer is numbers and this file's own constants, so no text from the file ever reaches the page.
 
-Where it runs. Today the command in fuji's scout.rs makes the two reads in fuji's own process on the blocking pool, which is safe because the reader is; the overnight scan will run the same function in a sandboxed process of fuji's own, where a hang on a dead disk can be killed, and nothing about the reader changes for that.
+Where it runs. The command in brass's scout.rs makes the two reads in the main process on the blocking pool, which is safe because the reader is; an inventory runs the same function in the main process or in the sandbox process, where a hang on a dead disk can be killed, and nothing about the reader changes for that.
 */
 
 pub const TIP_BYTES: usize = 64 * size::KB as usize;//how much of a file fuji's command reads, and the most scout_bytes is ever handed: 64 KiB, the one constant the essay argues
