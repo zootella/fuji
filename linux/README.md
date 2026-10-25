@@ -19,6 +19,7 @@ pnpm library      the media library for both architectures, into linux/cache and
 pnpm build        the four packages, from the library in linux/cache
 pnpm hash         stage them and write the sidecars
 pnpm upload       send them to the server
+pnpm walk         the sandbox process walked in containers of several distributions
 ```
 
 That is the whole of it, and `library` is the rare one: it runs again when the recipe changes, a few times a year, and `build` refuses to run without what it made. Publishing a release from this workspace is those three and then a commit, because the sidecars are tracked.

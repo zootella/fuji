@@ -5,6 +5,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"scripts": {
-		"test": "cargo test"
+		"test": "cargo test",
+		"walk": "node walk.js"
 	}
 }

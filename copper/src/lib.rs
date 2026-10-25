@@ -2,6 +2,7 @@
 
 pub mod media;//the media library, libmpv: its declarations, and the questions asked of a file without a window
 pub mod inventory;//an inventory of a folder's whole tree, every file hashed and scouted and the videos asked of FFmpeg, a line each, by the loop brass's commands start and stop
+pub mod sandbox;//how the sandbox process is started, the walls it puts around itself, and the check that tries them
 pub mod uptime;//when the operating system started this process
 pub mod panel;//how many pixels the main display really has
 pub mod launch;//launch services, the mac's record of which application opens which kind of file

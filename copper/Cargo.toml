@@ -24,7 +24,9 @@ block2 = "0.6" # the block launch.rs hands NSWorkspace to be called when a defau
 libc = "0.2" # memory.rs asks mach and libproc through it, host_statistics64 and proc_pid_rusage, and sysctlbyname
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2" # setlocale, which media.rs calls before the first player on linux
+libc = "0.2" # setlocale, which media.rs calls before the first player on linux, and the calls sandbox.rs makes on the sandbox process before its walls
+landlock = "0.4.7" # the kernel's own walls on files, which sandbox.rs puts around the sandbox process, from the Landlock project
+seccompiler = "0.5.0" # a filter on system calls, which sandbox.rs puts around the sandbox process for what Landlock does not wall, from rust-vmm
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_Security", "Win32_UI_Shell", "Win32_System_ProcessStatus", "Win32_System_SystemInformation", "Win32_Graphics_Imaging", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant"] } # Storage_FileSystem is for inventory.rs, which asks for a file's change time and count of names by handle; Threading for uptime.rs's process times and memory.rs's process handles; WindowsAndMessaging for panel.rs's screen metrics; Registry, Security and Shell for registry.rs, Security because RegCreateKeyExW takes a security attributes pointer; ProcessStatus and SystemInformation for memory.rs; and the imaging, Com, StructuredStorage and Variant features for thumbnail.rs

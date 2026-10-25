@@ -3,7 +3,6 @@
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::Path;
-use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::sync::Mutex;
 use steel::read::{open_file, tip_read};
@@ -58,6 +57,8 @@ pub struct Options {//what the panel sends with a run: the whole-file hashes the
 	indent:  bool,
 	video:   Vec<String>,//lowercase, with their dots
 	sandbox: bool,//in the sandbox process rather than the main one
+	#[serde(default)]
+	crash:   bool,//a test's and never the panel's: the sandbox process faults partway, so a walk meets the crash path on Windows too, which has no signal to send another process
 }
 impl Options { fn whole(&self) -> bool { self.sha1 || self.sha256 || self.blake3 } }
 
@@ -76,6 +77,7 @@ const HASH_BUFFER: usize = size::MB as usize;//a read at a time, so the progress
 const THREAD_PIECE: usize = 64 * size::KB as usize;//the least a piece takes to be worth three threads, which cost about 28 µs to start on the Mac mini's M2, more than hashing anything smaller
 const PROBE_SECONDS: f64 = 10.0;//what a file gets to answer mpv before the inventory goes on without it, as the audio panel gives a dropped file
 const STOP_CHECK: std::time::Duration = std::time::Duration::from_millis(20);//how often the main process looks for a stop to kill the sandbox process on
+const CRASH_AFTER: std::time::Duration = std::time::Duration::from_secs(1);//a test's crash, a second into the walk
 const SAID_LAST: usize = 4;//lines of the sandbox process's own words kept for the error, the last ones, since a panic's are the last it writes and FFmpeg's logging can come before
 
 pub fn run(folder: &str, output: &str, options: &Options, inventory: &Inventory) -> Result<(), String> {//the whole inventory, until the tree ends or stop is set: on the thread that calls it, or in the sandbox process when the options say so
@@ -118,8 +120,7 @@ fn sandbox_run(folder: &str, output: &str, out: std::fs::File, options: &Options
 	let fail = |e: &dyn std::fmt::Display| format!("inventory: the sandbox process: {e}");
 	let request = serde_json::to_string(&Request { folder: folder.into(), output: output.into(), options: options.clone() }).map_err(|e| fail(&e))?;
 	let program = std::env::current_exe().map_err(|e| fail(&e))?;//this program, wherever it was started from, a development build included
-	let mut child = std::process::Command::new(program).arg(SANDBOX_SWITCH).stdin(Stdio::piped()).stdout(out).stderr(Stdio::piped()).spawn().map_err(|e| fail(&e))?;
-	let (Some(mut stdin), Some(stderr)) = (child.stdin.take(), child.stderr.take()) else { let _ = child.kill(); let _ = child.wait(); return Err(fail(&"no pipes")) };
+	let (mut child, mut stdin, stderr) = crate::sandbox::start(&program, SANDBOX_SWITCH, out).map_err(|e| fail(&e))?;
 	if let Err(e) = writeln!(stdin, "{request}") { let _ = child.kill(); let _ = child.wait(); return Err(fail(&e)) }
 	let child = Mutex::new(child);
 	let ended = AtomicBool::new(false);
@@ -174,6 +175,8 @@ pub fn command_serve() -> ! {
 pub fn sandbox_serve() -> ! {
 	let mut input = std::io::BufReader::new(std::io::stdin());
 	let request = request_read(&mut input);
+	if let Err(e) = crate::sandbox::enter(&request.folder) { let _ = writeln!(std::io::stderr(), "{e}"); std::process::exit(3) }//before the walk opens a file, and never skipped: the user chose the sandbox process for its walls
+	if request.options.crash { std::thread::spawn(|| { std::thread::sleep(CRASH_AFTER); unsafe { std::ptr::write_volatile(8 as *mut u8, 0) } }); }//an access to an address nothing maps, a fault on any platform
 	std::thread::spawn(move || { let _ = std::io::copy(&mut input, &mut std::io::sink()); std::process::exit(0) });//stdin closes when the main process ends, however it ends, and the sandbox process ends with it
 	let inventory = Inventory { report: Some(Box::new(|progress| { let _ = report_write(&mut std::io::stderr().lock(), progress); })), ..Default::default() };
 	let taken = take(&request.folder, &request.output, &mut std::io::stdout().lock(), &request.options, &inventory);
@@ -349,7 +352,7 @@ mod tests {
 	#[test]
 	fn an_inventory_of_the_samples() {//the whole loop over steel's sample files into a file in the system's temporary folder: the counts, and the lines a video and a sound file get
 		let output = std::env::temp_dir().join(format!("copper-inventory-{}.txt", std::process::id()));
-		let options = Options { sha1: true, sha256: false, blake3: false, indent: false, video: vec![".ts".into(), ".mp4".into()], sandbox: false };
+		let options = Options { sha1: true, sha256: false, blake3: false, indent: false, video: vec![".ts".into(), ".mp4".into()], sandbox: false, crash: false };
 		let inventory = Inventory::default();
 		run(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples"), output.to_str().unwrap(), &options, &inventory).unwrap();
 		let text = std::fs::read_to_string(&output).unwrap();
@@ -365,7 +368,7 @@ mod tests {
 	#[test]
 	fn the_probe_is_asked_by_the_scouts_kind_or_by_the_extension_and_a_refusal_is_written_as_an_error() {//with no extension named, video.ts still gets FFmpeg's reading, since the scout calls its bytes video; with .txt named, text.txt is asked too, and what FFmpeg says of a text file is an error under the same key; indent writes each file's JSON across lines
 		let output = std::env::temp_dir().join(format!("copper-inventory-gating-{}.txt", std::process::id()));
-		let options = Options { sha1: false, sha256: false, blake3: false, indent: true, video: vec![".txt".into()], sandbox: false };
+		let options = Options { sha1: false, sha256: false, blake3: false, indent: true, video: vec![".txt".into()], sandbox: false, crash: false };
 		run(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples"), output.to_str().unwrap(), &options, &Inventory::default()).unwrap();
 		let text = std::fs::read_to_string(&output).unwrap();
 		let _ = std::fs::remove_file(&output);
@@ -379,7 +382,7 @@ mod tests {
 	#[test]
 	fn a_stop_set_before_the_first_file_leaves_an_empty_file_and_zero_counts() {//stop is read before every name, so one set before the walk begins ends it at the folder itself; the file is still made, as the page expects to append its footer to
 		let output = std::env::temp_dir().join(format!("copper-inventory-stopped-{}.txt", std::process::id()));
-		let options = Options { sha1: false, sha256: false, blake3: false, indent: false, video: vec![], sandbox: false };
+		let options = Options { sha1: false, sha256: false, blake3: false, indent: false, video: vec![], sandbox: false, crash: false };
 		let inventory = Inventory::default();
 		inventory.stop.store(true, Relaxed);
 		run(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples"), output.to_str().unwrap(), &options, &inventory).unwrap();
@@ -391,7 +394,7 @@ mod tests {
 	#[test]
 	fn a_folder_that_is_not_there_gives_one_refused_line_and_no_error() {//the walker answers a missing start as Refused, with the system's words, which the inventory writes as a line like any other name it cannot open
 		let output = std::env::temp_dir().join(format!("copper-inventory-missing-{}.txt", std::process::id()));
-		let options = Options { sha1: false, sha256: false, blake3: false, indent: false, video: vec![], sandbox: false };
+		let options = Options { sha1: false, sha256: false, blake3: false, indent: false, video: vec![], sandbox: false, crash: false };
 		run("/no/such/folder/anywhere", output.to_str().unwrap(), &options, &Inventory::default()).unwrap();
 		let text = std::fs::read_to_string(&output).unwrap();
 		let _ = std::fs::remove_file(&output);
@@ -411,7 +414,7 @@ mod tests {
 		std::fs::File::options().write(true).open(t.0.join("early.txt")).unwrap().set_modified(std::time::UNIX_EPOCH - std::time::Duration::from_secs(1)).unwrap();
 		#[cfg(unix)] let locked_opens = { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(t.0.join("locked.txt"), std::fs::Permissions::from_mode(0o000)).unwrap(); std::fs::File::open(t.0.join("locked.txt")).is_ok() };//root opens it anyway, which leaves that line nothing to test
 		#[cfg(target_os = "macos")] assert!(std::process::Command::new("chflags").arg("hidden").arg(t.0.join("hidden.txt")).status().unwrap().success());
-		let options = Options { sha1: false, sha256: true, blake3: false, indent: false, video: vec![], sandbox: false };
+		let options = Options { sha1: false, sha256: true, blake3: false, indent: false, video: vec![], sandbox: false, crash: false };
 		let inventory = Inventory::default();
 		run(&t.text(""), &t.text("inventory.txt"), &options, &inventory).unwrap();
 		let text = std::fs::read_to_string(t.0.join("inventory.txt")).unwrap();
@@ -437,7 +440,7 @@ mod tests {
 	fn a_stop_set_partway_through_a_file_ends_the_run_there_with_no_line_for_the_part() {//stop is read before every name and between the pieces of a hash, so one set while a file is being hashed ends the hash, and the file gets no line, since a hash of part of it says nothing true. The test holds the lock on the path the loop records as it begins each file, so the run stands at the first file until the test has set stop and let go, which is how a stop lands partway without a clock
 		let t = Tree::new("stop");
 		for name in ["a.txt", "b.txt", "c.txt"] { t.file(name) }
-		let options = Options { sha1: false, sha256: true, blake3: false, indent: false, video: vec![], sandbox: false };
+		let options = Options { sha1: false, sha256: true, blake3: false, indent: false, video: vec![], sandbox: false, crash: false };
 		let inventory = Inventory::default();
 		let held = inventory.path.lock().unwrap();
 		std::thread::scope(|s| {
@@ -456,7 +459,7 @@ mod tests {
 		let reported = std::sync::Arc::new(Mutex::new(Vec::new()));
 		let into = reported.clone();
 		let sandbox = Inventory { report: Some(Box::new(move |progress| { report_write(&mut *into.lock().unwrap(), progress).unwrap() })), ..Default::default() };
-		let options = Options { sha1: true, sha256: false, blake3: false, indent: false, video: vec![], sandbox: true };
+		let options = Options { sha1: true, sha256: false, blake3: false, indent: false, video: vec![], sandbox: true, crash: false };
 		let mut lines = Vec::new();
 		take(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples"), "", &mut lines, &options, &sandbox).unwrap();
 		sandbox.moved();

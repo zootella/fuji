@@ -1,5 +1,5 @@
 import {execFileSync, spawn, spawnSync} from 'node:child_process'
-import {appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs'
+import {appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs'
 import {basename, join} from 'node:path'
 import {createInterface} from 'node:readline'
 import {fileURLToPath} from 'node:url'
@@ -47,7 +47,7 @@ There was a fourth, an arch container that ran makepkg over an AUR recipe to pro
 
 It builds and it does not deliver. Staging packages under their published names, hashing them, uploading them, submitting to flathub — none of that is here. `pnpm hash` and `pnpm upload` are scripts.js, which publishes and does not build, and this file is the other half of that split. What lands in release/ carries tauri's own filenames until hash stages it.
 
-It also cannot smoke test. A container has no display, so the machines that actually run fuji are still the machines that run fuji.
+It also cannot smoke test a window. A container has no display, so the machines that actually run fuji are still the machines that run fuji; what runs with no window, the sandbox process, `pnpm walk` walks in containers, and the essay above walk says how.
 */
 
 //every path is built from this file's own location, never from the working directory, for the reason the root scripts.js gives: the workspace a person is standing in is not a fact this file should read
@@ -229,6 +229,52 @@ function report() {
 }
 
 /*
+The sandbox process walked in containers: fuji built once, in debug, in the arm64 tauri image, then copper's walk run in plain Debian 12, Ubuntu 24.04 and Fedora 40, and in Debian 12 again standing in for a Raspberry Pi, since no one machine runs all four and nothing in the walk needs a display.
+
+Every container here runs on Docker Desktop's one kernel, so what the four tell apart is the userland, glibc and the libraries fuji and its media library load, under the same Landlock and seccomp; a distribution's own kernel is left for a real machine. Docker's own seccomp profile is switched off, so every refusal the walk sees is fuji's, and the Pi, whose kernel builds no Landlock, is a container whose profile refuses Landlock's three calls. Each distribution installs what a user's machine would hold, the libraries the packages declare and the two Tauri adds, and walks as an ordinary user. Only arm64, since Docker Desktop runs amd64 under Rosetta, which refuses seccomp outright. The build is kept in a volume between walks, the one build this workspace keeps, because a walk is a loop and its build takes a minute warm against several cold.
+*/
+const walkVolumes = {target: `${brandStem}-walk-target`, cargo: `${brandStem}-walk-cargo`}
+const walkDistributions = [//the image each runs, and whether it installs with apt or dnf
+	{name: 'debian', image: 'debian:12-slim', apt: true},
+	{name: 'ubuntu', image: 'ubuntu:24.04',   apt: true},
+	{name: 'fedora', image: 'fedora:40',      apt: false},
+	{name: 'pi',     image: 'debian:12-slim', apt: true, landlock: false},//the pi's own base, without landlock as its kernel is
+]
+
+async function walk() {
+	let tag = `${brandStem}-tauri:arm64`
+	buildImage(tag)
+	stageSource()
+	let library = join(cache, `arm64-${await imageKey(tag)}`)
+	if (!existsSync(join(library, 'libmpv.so.2'))) throw new Error(`no arm64 media library in ${library}; pnpm library compiles it`)
+	say(`==> ${brandStem} in debug, in ${tag}`)
+	run(['run', '--rm', '--platform', 'linux/arm64', '-v', `${stage}:/src:ro`, '--tmpfs', '/src/desktop/src-tauri/binaries:exec', '--tmpfs', '/src/desktop/src-tauri/gen',//the library and tauri's schemas in folders of the container's own, executable for the library, which docker's tmpfs is not by default
+		'-v', `${library}:/library:ro`, '-v', `${walkVolumes.target}:/target`, '-v', `${walkVolumes.cargo}:/usr/local/cargo/registry`, '-e', 'CARGO_TARGET_DIR=/target', '-w', '/src',
+		tag, 'bash', '-c', `cp /library/libmpv.so.2 desktop/src-tauri/binaries/ && ln -s libmpv.so.2 desktop/src-tauri/binaries/libmpv.so && cargo build -p ${brandStem}`])
+	let declared = JSON.parse(readFileSync(join(root, 'desktop/src-tauri/tauri.linux.conf.json'), 'utf8')).bundle.linux
+	let profile = join(stage, 'no-landlock.json')//read by docker on this mac, and wiped with the stage
+	writeFileSync(profile, JSON.stringify({defaultAction: 'SCMP_ACT_ALLOW', syscalls: [{names: ['landlock_create_ruleset', 'landlock_add_rule', 'landlock_restrict_self'], action: 'SCMP_ACT_ERRNO', errnoRet: 38}]}))//ENOSYS, as a kernel without landlock answers
+	let results = await Promise.all(walkDistributions.map(distribution => {
+		let packages = distribution.apt
+			? ['libwebkit2gtk-4.1-0', 'libgtk-3-0', ...declared.deb.depends, 'nodejs', 'procps']//tauri's two, the media library's, and what the walk runs
+			: ['webkit2gtk4.1', 'gtk3', ...declared.rpm.depends, 'nodejs', 'procps-ng', 'util-linux', 'shadow-utils']
+		let install = distribution.apt ? `apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get satisfy -y -qq --no-install-recommends '${packages.join(', ')}'` : `dnf install -y -q ${packages.join(' ')}`//satisfy, which resolves the list as a deb's Depends line resolves, so ubuntu's libasound2t64 answers for libasound2 as it does for the package
+		let script = [
+			`{ ${install}; } >/dev/null 2>&1 || { echo 'the packages did not install'; exit 1; }`,
+			`. /etc/os-release && echo "$PRETTY_NAME, glibc $(ldd --version | head -1 | awk '{print $NF}'), node $(node --version)"`,
+			'useradd -m walker',
+			'mkdir -p /work/copper /work/steel && cp /src/copper/walk.js /src/copper/package.json /work/copper/ && cp -r /src/steel/samples /work/steel/ && chown -R walker /work',
+			`su walker -s /bin/bash -c 'cd /work && LD_LIBRARY_PATH=/library FUJI=/target/debug/${brandStem} WALK_MANY=/usr/share WALK_BIG=/target node copper/walk.js'`,//the container's own files for the walk's two big trees, since the stage carries no node_modules
+		].join(' && ')
+		let seccomp = distribution.landlock === false ? `seccomp=${profile}` : 'seccomp=unconfined'
+		return container(`${brandStem}-walk-${distribution.name}-${process.pid}`, distribution.name.padEnd(6), ['--platform', 'linux/arm64', '--security-opt', seccomp,
+			'-v', `${stage}:/src:ro`, '-v', `${library}:/library:ro`, '-v', `${walkVolumes.target}:/target:ro`, distribution.image, 'bash', '-c', script])
+	}))
+	say('')
+	for (let [i, distribution] of walkDistributions.entries()) say(`${distribution.name.padEnd(6)} | ${results[i].success ? 'walked' : results[i].outcome}`)
+}
+
+/*
 The verbs package.json passes. build makes the packages from the library in the cache, and library compiles the library into the cache, which is the twenty-minute run and the one that writes the ledger. build-images and stage are here for factoring rather than for typing — build and library run the images themselves, and stage is a window into what a container is handed, useful when something about the whitelist needs looking at.
 
 Not named `prepare`, which was the first choice and is a trap: npm and pnpm treat prepare as a lifecycle script and run it on every install. A `prepare` here would mean that cloning this repository and running pnpm install tried to build ten gigabytes of docker images, and failed the install outright on a machine where docker was not running.
@@ -238,6 +284,7 @@ const commands = {
 	'library':      () => buildStep('library', 'linux', '', async () => { buildImages(); await steps.library(); return {value: '-', words: 'both libraries in linux/cache, with their entries in the ledger'} }),
 	'build-images': () => buildImages(),
 	'stage':        () => stageSource(),
+	'walk':         () => walk(),
 }
 
 async function main() {
