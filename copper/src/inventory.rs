@@ -13,6 +13,8 @@ use zootella_ergo::{has_tick, hash_file, size, tick_to_text, Blake3, Sha1, Sha25
 Two processes can take an inventory, and the user chooses on the panel. In the main process the loop runs on the thread that calls run, so a read the kernel never finishes, on a dropped share or a dying disk, holds the inventory until fuji quits, and a crash in the media library's C ends fuji. In the sandbox process the same loop runs in a second copy of fuji's executable, started for the one inventory, which a crash ends alone and which the main process can kill: brass's run() sees SANDBOX_SWITCH as the first argument before Tauri starts and hands the process to sandbox_serve here, so it makes no window and runs nothing of brass after that line.
 
 The two talk over the three standard streams. The request goes down stdin as one line of JSON, and stdin stays open after it, because its closing is how the sandbox process learns that the main process has gone, however it went. The lines go into the inventory file through stdout, which the main process opened and handed over, so the file has one writer. The counts come up stderr as a line of JSON when a file begins and as each piece of a hash is read, so a crash finds the counts naming the file in hand; anything else on stderr is the sandbox process's own words, a panic's among them, kept for the error. Stop on the panel and the window closing kill it.
+
+One sandbox process takes the whole inventory rather than one a file, since fuji's executable takes 28 to 40 ms to reach main on the Mac mini, measured on 2026-10-13, against about a millisecond of FFmpeg's work for a file. And what the sandbox process wrote is untrusted bytes to whatever reads an inventory back.
 */
 
 #[derive(Default)]

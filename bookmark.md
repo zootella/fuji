@@ -12,6 +12,7 @@ Where the work stands and what comes next, kept so a session on any machine pick
 
 ## Next, in order
 
-- **The sandbox process on a real Linux desktop**, from `mac2linux.md`; then the deadline and what follows a dead sandbox process, and on Windows the main process's own label against being ended from below. scan.md holds the decided items and the open ones.
-- **The Security article** on the site, from the history drafted in `site/docs/security.md` into fuji's architecture: steel as the wall around code, the sandbox process as the wall around a running process, the two independent, and what no design can do. security.md holds the research and the second half's outline, and windows-security.md the Windows half's notes: the endings anticipated, the walls, the recovery paths and the measurements.
-- **The burn-down**: security.md into the article and the code's essays; scan.md's items into their homes as the sandbox lands; `safe-scout.md` and `core-scout-trout.md`, both spent, deleted.
+- **The deadline**, so an overnight inventory moves on past a file that hangs or crashes the sandbox process and stops for a drive that stops answering. inventory.md holds the design and what is open.
+- **The Security article** on the site, from the history drafted in `site/docs/security.md` into fuji's architecture: steel as the wall around code, the sandbox process as the wall around a running process, the two independent, and what no design can do. security.md holds the research and the second half's outline, and windows-security.md the Windows facts and sources.
+- **The sandbox process on a real Linux desktop**, from `mac2linux.md`, and on Windows the main process's own label against being ended from below.
+- **The burn-down**: security.md and windows-security.md into the article; `safe-scout.md` and `core-scout-trout.md`, both spent, deleted.

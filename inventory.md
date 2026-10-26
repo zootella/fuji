@@ -1,0 +1,43 @@
+# Inventory
+
+The inventory feature: a folder's whole tree read into a text file of lines, in the main process or in the sandbox process, for an overnight run over a drive of several million files. What follows is what is still to build, still to decide, and still to find out.
+
+## The deadline, next
+
+- **What it is for.** An overnight run nobody watches. A problem that belongs to the file moves the inventory on past the file; a problem that belongs to the drive or the computer stops it, rather than hammering a failing disk.
+- **Telling the two apart.** When the sandbox process's counts stop moving past the deadline, its processor time over the stall says which: climbing, it is working on the file and getting nowhere, a demuxer's loop; flat, it is waiting in the kernel on a read that does not return, a dying disk retrying a sector, a dropped share, a drive asleep. A crash is the file's. The main process reads the sandbox process's processor time with `proc_pid_rusage` on the Mac, from `/proc/<pid>/stat` on Linux, and with `GetProcessTimes` on Windows.
+- **The probe's own wait muddies that.** Inside the sandbox process the probe gives up after its own ten seconds and leaves mpv's player thread spinning, and such a thread keeps the processor time climbing through a later stall on the drive. The stall is judged clean only when the probe in the sandbox process waits longer than the deadline, so the main process's kill ends every stall, spinners included.
+- **Past a file.** The main process kills the sandbox process, writes the file's line itself, saying the file hung or crashed it, and starts a new sandbox process that resumes after that file, the output reopened for appending. The walk lists a tree in the same order every run, so resuming is skipping to the name after the file.
+- **Stopping.** The main process kills the sandbox process and ends the inventory saying the drive stopped answering, and which file it was reading.
+- **The deadline's length.** A hash reports every megabyte and the probe's own wait is ten seconds, so a healthy file reports far inside thirty seconds.
+- **The walk's steps.** The crash step goes on past the crashed file; the hang option becomes two, a busy hang the walk expects skipped and an idle one it expects to stop the run.
+- **A deadlock.** Two of mpv's threads waiting on each other sit idle, look like the drive, and stop a run that could have gone on.
+- **Windows' clock.** Whether the clock Rust's `Instant` reads on Windows counts through sleep, which would make a laptop that slept mid-run wake to a stopped inventory; on the Mac and Linux it does not count sleep.
+
+## Later
+
+- **A run over a real collection**, an old drive on the Windows box, through the inventory panel.
+- **Remembering a file that hung or crashed the sandbox process across runs**, so it is never asked again. The user's first idea, a durable file of the failed files' hashes, raises three questions: what a file of hashes says about what the user has, whether a hash of part of a file could block a different file, and the cost of hashing every file before asking. Proposed and not adopted: the failure is one more answer in the row a store of answers keeps for the file, keyed by its path, size and modified time, a file that changes being a new file with one new try.
+- **The store an inventory fills**, which the line above needs: paths, hashes and what each reading found, the broken beside the good, so nothing in fuji trips over the same file twice, and the shape the user gives a film whose pixel shape is flagged wrong, so it opens right the next time.
+- **Copper's own binary** as the sandbox process, linking the media library and the standard library; the entry, the pipe, the counts and the kill are the same code in either binary. It would leave WebKit and Tauri unloaded, and not AppKit or CoreFoundation, which the media library links itself.
+- **Other work inside the same sandbox**, a thumbnail or a still from a video, for the sheet and the tables.
+- **Pictures the tip scan cannot answer**, for a feature that asks a file its shape: the web engine reads them, in its sandboxed content process, and the operating system's thumbnailers do not, since they run in the main process. A file with no extension whose first bytes look binary, or whose name holds `jpg` or `jpeg` the way `file.jpg.2` does, is checked for a picture's signature, which narrows the night's work and is no wall.
+
+## What the probe's answers leave open
+
+- **Whether mpv's probe decodes anything.** mpv's FFmpeg demuxer finds a file's streams with `avformat_find_stream_info`, which can open decoders to fill in what a header leaves out, even with no track selected. A DVD-style MPEG-2 clip came back with no `demux-par`, which suggests nothing was decoded, and passing `codec_whitelist` through `demuxer-lavf-o` would make sure; untested.
+- **An FLV's size when its metadata has none.** The tip scan reads an FLV's width and height from the metadata tag every common writer puts first, so the probe sees only the FLVs without them; the one test file lost its size through FFmpeg with decoders refused. Whether real Flash videos of the 2000s answer without a decoder is untested.
+- **What kinds of broken an answer names**, beyond the tip scan's corrupted and chopped, which say why an answer is missing and never sort whole files from broken ones. One read at the end a header claims, to tell a file that holds less than its header promises, is untried.
+- **The confidence floor, the formats that count, and the probe's limits**, `formatprobesize`, `probesize` and `analyzeduration`.
+
+## What FFmpeg reports, and where it is wrong
+
+Seen on the Mac mini on 2026-10-15, with Homebrew's `ffprobe`, which is FFmpeg 9.0.2 as the recipe builds it, and with a scratch program against the shipped library.
+
+- **A format, and a confidence out of 100.** FFmpeg accepts a match above 25 and, on its last try, a weaker one, warning "misdetection possible". An extensionless JPEG scored 26 and a Video CD file 26, while sixteen JavaScript files came back as MPEG transport streams at 2, so a floor at FFmpeg's own line separates them, narrowly. For a still the codec is the answer and the format's name is not: a JPEG named `liar.png` reached FFmpeg's image demuxer by its name and was read as JPEG by its bytes.
+- **A format that should not count.** FFmpeg's ANSI art demuxer read `LICENSE.txt` as a 640 by 400 picture lasting 0.2 seconds, at confidence 99, so which of FFmpeg's formats count as a picture, a sound or a video is fuji's to decide.
+- **A running time a still does not have.** A JPEG came back at 0.04 seconds, one frame at FFmpeg's default 25 a second. PNG, BMP and TIFF came back with none, and an animated GIF with its own 2.0.
+- **An estimate.** An mp3 with no Xing header is timed from its bitrate: 60.03 seconds for a 60.00-second file.
+- **The shape a file shows at takes three facts beyond its stored pixels.** Pixels that are not square: a DVD-style 720 by 480 video whose pixels are 32 wide to 27 tall shows at 16:9, and Video CDs, DVDs and DV are full of them. A turn on a video: one stored at 320 by 240 with a quarter turn shows at 240 by 320. Both are in the probe. A JPEG's EXIF orientation is not: a quarter turn written into a copy of the test JPEG left the probe at 640 by 480, and FFmpeg reported the turn only after decoding the picture.
+- **A truncated file often reports what its header promised.** Copies of the test media cut in half: an MP4 with its index at the end, the usual unfinished download, was refused with "moov atom not found", after FFmpeg had identified it as MP4, so the answer can say an MP4 that will not open rather than not media. An MP4 with its index at the front, a Matroska file and a VBR mp3 with a Xing header each came back at their full running time, 5.0, 5.02 and 60 seconds. An AVI came back at 2.53 seconds, its index rebuilt from what was there, and a CBR mp3 at 30.01, estimated from its size, both right. An MP4 whose second half is zeros, the way a torrent client leaves an unfinished file, came back whole, and a JPEG cut in half came back at 640 by 480. Reading every packet finds all of them, "partial file" from the MP4, "File ended prematurely" from the Matroska file, decoding errors in the zeros, and half the frames the mp3's header claims, but reading every packet is reading the whole file.
+- **The cost is the bytes read.** FFmpeg reads 2 KB and doubles until it is confident, up to 1 MB (`PROBE_BUF_MAX` in `libavformat/internal.h`), so a file it cannot identify costs a megabyte, and then up to 5 MB more for the streams' details (`probesize`).
