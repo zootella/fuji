@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use tauri::ipc::Response;
 use tauri::{command, AppHandle, Manager, State, WebviewWindow};
 use crate::run_blocking;
-use copper::media::{error_text, mpv_command, mpv_create, mpv_initialize, mpv_set_option_string, mpv_terminate_destroy, property_text, text, Handle, Player};//the library's declarations and helpers, which copper holds; the questions asked of a file without a window are there too, and the commands below hand them their arguments
+use copper::media::{error_text, mpv_command, mpv_create, mpv_initialize, mpv_set_option_string, mpv_terminate_destroy, property_text, text, Player};//the library's declarations and helpers, which copper holds; the questions asked of a file without a window are there too, and the commands below hand them their arguments
 #[cfg(not(target_os = "windows"))]
-use copper::media::{mpv_render_context_create, mpv_render_context_free, mpv_render_context_render, mpv_render_context_set_update_callback, OpenglFbo, OpenglInitParams, RenderParam};
+use copper::media::{mpv_render_context_create, mpv_render_context_free, mpv_render_context_render, mpv_render_context_set_update_callback, Handle, OpenglFbo, OpenglInitParams, RenderParam};
 
 /*
 

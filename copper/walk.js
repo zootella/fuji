@@ -7,7 +7,7 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 /*
-Each step says what it saw, and the reader judges; nothing here passes or fails but the check's own lines. The steps are the ones a sandbox process has to get right on a new platform: the walls, tried from inside by the check; the same folder in both processes, which must give the same file, and again named through a link, which the kernel judges by the name; Stop, which closes the request's stdin as the panel's Stop kills; a crash, which the request's test option makes the sandbox process do partway, since Windows has no signal to send another process; and the main process killed, which must take its sandbox process with it. Where the platform keeps crash reports, the crash step counts fuji's before and after, since a crash of the sandbox process should reach the main process and nothing else.
+Each step says what it saw, and the reader judges; nothing here passes or fails but the check's own lines. The steps are the ones a sandbox process has to get right on a new platform: the walls, tried from inside by the check; the same folder in both processes, which must give the same file, and again named through a link, which the kernel judges by the name; Stop, which closes the request's stdin as the panel's Stop kills; a crash, which the request's test option makes the sandbox process do partway, since Windows has no signal to send another process; a hang, which the other test option makes it do a second in, standing in for a read the kernel never finishes, so Stop is seen to kill a process that has stopped listening; and the main process killed, which must take its sandbox process with it. Where the platform keeps crash reports, the crash step counts fuji's before and after, since a crash of the sandbox process should reach the main process and nothing else. On Windows the count means something only because the main process starts the sandbox process with its own error mode: node quiets Windows Error Reporting in every process it starts, and a sandbox process that inherited that passed this step with no wall at all.
 */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -21,7 +21,7 @@ const video = ['.mp4', '.mkv', '.avi', '.mov', '.ts', '.webm', '.wmv', '.flv', '
 function take(name, folder, options, act) {//one inventory through fuji --inventory, and act, if given, two seconds in: stop closes stdin, kill kills the main process
 	return new Promise(resolve => {
 		let output = join(scratch, `${name}.txt`)
-		let request = {folder, output, options: {sha1: false, sha256: false, blake3: false, indent: false, video, sandbox: false, crash: false, ...options}}
+		let request = {folder, output, options: {sha1: false, sha256: false, blake3: false, indent: false, video, sandbox: false, crash: false, hang: false, ...options}}
 		let began = Date.now(), acted = 0, out = '', err = ''
 		let child = spawn(fuji, ['--inventory'])
 		child.stdin.on('error', () => {})//a fuji that ended before reading its request, which the close below reports
@@ -33,7 +33,9 @@ function take(name, folder, options, act) {//one inventory through fuji --invent
 			clearTimeout(timer)
 			let lines = existsSync(output) ? readFileSync(output, 'utf8').split('\n').filter(line => line).length : 0
 			let ended = Date.now()
-			console.log(`${name}: exit ${code} in ${((ended - began) / 1000).toFixed(2)}s, ${lines} lines${acted ? `, ended ${((ended - acted) / 1000).toFixed(2)}s after the ${act}` : ''}`)
+			let reading = ''
+			try { reading = JSON.parse(out.trim().split('\n').pop()).path } catch {}//the counts fuji --inventory prints at the end, whose path is the file in hand when it ended
+			console.log(`${name}: exit ${code} in ${((ended - began) / 1000).toFixed(2)}s, ${lines} lines${acted ? `, ended ${((ended - acted) / 1000).toFixed(2)}s after the ${act}` : ''}${acted && reading ? `, reading ${reading}` : ''}`)
 			if (err.trim()) console.log(`   ${err.trim().slice(-300)}`)
 			resolve(output)
 		})
@@ -54,7 +56,7 @@ function sandboxes() {//the sandbox processes running now, by their switch
 }
 
 function reports() {//fuji's crash reports where this platform keeps them, or blank where it keeps none this walk knows of
-	let folders = windows ? ['ReportArchive', 'ReportQueue'].map(name => join(process.env.LOCALAPPDATA || '', 'Microsoft/Windows/WER', name))
+	let folders = windows ? ['ReportArchive', 'ReportQueue'].flatMap(name => [process.env.LOCALAPPDATA, process.env.ProgramData].filter(base => base).map(base => join(base, 'Microsoft/Windows/WER', name)))//the user's and the machine's, whichever the consent setting sends a report to
 		: process.platform == 'darwin' ? [join(homedir(), 'Library/Logs/DiagnosticReports')]
 		: ['/var/crash']
 	let found = folders.filter(folder => existsSync(folder))
@@ -98,6 +100,10 @@ async function main() {
 		await take('crash', big, {sha256: true, sandbox: true, crash: true})
 		await new Promise(resolve => setTimeout(resolve, 5000))//the system's reporter takes a moment to write
 		console.log(`   sandbox processes left: ${sandboxes()}${before === '' ? '' : `; fuji's crash reports, ${before} before and ${reports()} after`}`)
+	}
+	if (run('hang')) {
+		await take('hang', big, {sha256: true, sandbox: true, hang: true}, 'stop')//stuck a second in, and Stop a second after that: the lines are the first second's, and the path the file it stuck on
+		console.log(`   sandbox processes left: ${sandboxes()}`)
 	}
 	if (run('kill')) {
 		await take('kill', big, {sha256: true, sandbox: true}, 'kill')

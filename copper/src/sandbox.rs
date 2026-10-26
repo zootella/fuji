@@ -3,9 +3,9 @@
 /*
 The sandbox process may read the folder it was given, and nothing else: no other file, no write anywhere, no network, no program started, no service of the system asked. Those are what code a hostile file runs reaches for, taking itself for a program running as the user, and the walls refuse them whatever code is asking. The process puts the walls on itself, once, after the request has told it the folder and before the walk opens a file, so no byte of a file arrives outside them; what the loader mapped and ran before main, the program's own libraries, came from the program and not from a file.
 
-On the Mac the wall is Apple's sandbox, the kernel's own, given a profile in its language through sandbox_init_with_parameters, the call Firefox makes, outside what Apple supports and in Apple's own library. The profile denies everything and allows reads under the folder, and the folder's path reaches it as a parameter rather than spliced into the text, so no name can change what the profile says. On Linux the walls are two: Landlock allows reads under the folder and nothing else, and a seccomp filter refuses the rest, a socket, so neither the network nor the desktop's message bus, a program started, another process attached to or signaled. A kernel without Landlock, Raspberry Pi OS's among them, leaves the files open, and enter goes on rather than refusing, since seccomp's half still holds and the check says which walls did. Before its walls the process makes itself one that dumps no core, so a crash reaches no crash reporter through the kernel, apport's or ABRT's. Windows has no wall here yet, so there the sandbox process is a second process and nothing more.
+On the Mac the wall is Apple's sandbox, the kernel's own, given a profile in its language through sandbox_init_with_parameters, the call Firefox makes, outside what Apple supports and in Apple's own library. The profile denies everything and allows reads under the folder, and the folder's path reaches it as a parameter rather than spliced into the text, so no name can change what the profile says. On Linux the walls are two: Landlock allows reads under the folder and nothing else, and a seccomp filter refuses the rest, a socket, so neither the network nor the desktop's message bus, a program started, another process attached to or signaled. A kernel without Landlock, Raspberry Pi OS's among them, leaves the files open, and enter goes on rather than refusing, since seccomp's half still holds and the check says which walls did. Before its walls the process makes itself one that dumps no core, so a crash reaches no crash reporter through the kernel, apport's or ABRT's. On Windows the walls are a job object and the integrity level, which is how Chromium walls its renderers. The process makes a job that allows it one active process, so a program it starts fails to start, that ends it at an unhandled exception and when the job's last handle closes, with a limit on committed memory, and with the restrictions on the desktop Chromium puts on its job at lockdown, the clipboard, global atoms, the display settings and the desktop itself among them; then it lowers its own token to the Untrusted integrity level, below Low, which refuses every write to a file or a registry key the user owns and the reading or writing of another process's memory, while leaving reads of the user's files, since Windows has no wall around a folder a process can put on itself, the network, since the AppContainer that would close it cannot open the user's folder by path, and ending another process of the user's, which Windows counts as neither a read nor a write of it, measured in the check. Before either it sets its error mode so a crash puts up no dialog and reaches no Windows Error Reporting. The job's flag against an unhandled exception promises the same and misses a fast fail, which is how Rust aborts and how the C runtime's abort() ends FFmpeg's av_assert0, since a fast fail never reaches the place where the job's flag is read; the error mode is read before that place. Measured on the Windows 10 box on 2026-10-25, with the error mode set an access violation, a stack overflow, a Rust abort and a C abort each ended the process with its exit code reaching the parent and nothing written to the reporter's archive or the event log, and with the job's flag alone the two aborts were reported.
 
-On the Mac the main process starts the sandbox process itself, with posix_spawn, where Windows and Linux use Rust's Command. Command came first here too, and a crash of a sandbox process started that way put up macOS's "quit unexpectedly" dialog, whose Reopen would start fuji over, and wrote a crash report, though the main process had caught the crash and gone on; a night of crashes would leave a stack of dialogs. ReportCrash counts the sandbox process as the application, since it is the application's own executable, and since macOS 10.15 it hears of a crash from EXC_CORPSE_NOTIFY, which the kernel raises only when nothing handled the process's EXC_CRASH. Command cannot set a new process's exception ports, and posix_spawn can: the sandbox process starts with its EXC_CRASH and EXC_CORPSE_NOTIFY pointed at a port the main process holds, where a thread answers each one handled, as Crashpad's ExceptionSwallower keeps its test children's crashes from the system, and the main process learns of the crash as before, from how the process ended. A handler inside the sandbox process could not do this, since a thread that overflows its stack, as one of mpv's can on a hostile file, leaves a signal handler no stack to run on. Holding the spawn, the main process also starts the sandbox process with nothing open but its three standard streams, whatever WebKit and AppKit opened without asking for it to close, since the walls judge a file as it opens and a handle already open would pass them, and with an empty environment, which it needs nothing from.
+On the Mac the main process starts the sandbox process itself, with posix_spawn, and on Windows with CreateProcessW, where Linux uses Rust's Command. Command came first here too, and a crash of a sandbox process started that way put up macOS's "quit unexpectedly" dialog, whose Reopen would start fuji over, and wrote a crash report, though the main process had caught the crash and gone on; a night of crashes would leave a stack of dialogs. ReportCrash counts the sandbox process as the application, since it is the application's own executable, and since macOS 10.15 it hears of a crash from EXC_CORPSE_NOTIFY, which the kernel raises only when nothing handled the process's EXC_CRASH. Command cannot set a new process's exception ports, and posix_spawn can: the sandbox process starts with its EXC_CRASH and EXC_CORPSE_NOTIFY pointed at a port the main process holds, where a thread answers each one handled, as Crashpad's ExceptionSwallower keeps its test children's crashes from the system, and the main process learns of the crash as before, from how the process ended. A handler inside the sandbox process could not do this, since a thread that overflows its stack, as one of mpv's can on a hostile file, leaves a signal handler no stack to run on. Holding the spawn, the main process also starts the sandbox process with nothing open but its three standard streams, whatever WebKit and AppKit opened without asking for it to close, since the walls judge a file as it opens and a handle already open would pass them, and with an empty environment, which it needs nothing from. On Windows Command would start the new process holding every handle the main process has marked inheritable, since Rust asks CreateProcessW to inherit handles and names none, so the main process calls CreateProcessW itself with a list of the three streams, the only way Windows has to say which; the three are marked inheritable for the one call and no longer after. It starts the process with its own error mode rather than this process's, which a new process otherwise inherits, so the sandbox process's quiet is its own: node sets the same bit in every process it starts, and a sandbox process that inherited it from the walk passed the walk's crash step before any wall was built. And it starts it with an environment of SystemRoot, without which the system's own libraries fail to load, and the temporary folder, so the check tries the real one.
 
 The check, fuji --sandbox-check with a folder and a file outside it, puts the same walls on itself and tries the reaches one by one, printing what each answered beside what it should, so each platform's walls are a run and not a belief.
 */
@@ -169,7 +169,7 @@ mod platform {
 	}
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 mod platform {
 	#[cfg(target_os = "linux")]
 	pub use super::linux::enter;
@@ -193,6 +193,114 @@ mod platform {
 		let mut child = command.spawn()?;
 		let (Some(stdin), Some(stderr)) = (child.stdin.take(), child.stderr.take()) else { let _ = child.kill(); let _ = child.wait(); return Err(std::io::Error::other("no pipes")) };
 		Ok((Child(child), Box::new(stdin), Box::new(stderr)))
+	}
+}
+
+#[cfg(target_os = "windows")]
+mod platform {
+	use std::ffi::OsStr;
+	use std::os::windows::ffi::OsStrExt;
+	use std::os::windows::io::{AsRawHandle, FromRawHandle};
+	use std::os::windows::process::ExitStatusExt;
+	use windows::core::{PCWSTR, PWSTR};
+	use windows::Win32::Foundation::{CloseHandle, SetHandleInformation, HANDLE, HANDLE_FLAGS, HANDLE_FLAG_INHERIT, WAIT_OBJECT_0};
+	use windows::Win32::Security::{CreateWellKnownSid, GetLengthSid, SetTokenInformation, TokenIntegrityLevel, WinUntrustedLabelSid, PSID, SID_AND_ATTRIBUTES, TOKEN_ADJUST_DEFAULT, TOKEN_MANDATORY_LABEL, TOKEN_QUERY};
+	use windows::Win32::System::Diagnostics::Debug::{SetErrorMode, SEM_FAILCRITICALERRORS, SEM_NOGPFAULTERRORBOX, SEM_NOOPENFILEERRORBOX};
+	use windows::Win32::System::JobObjects::{AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicUIRestrictions, JobObjectExtendedLimitInformation, SetInformationJobObject, JOBOBJECT_BASIC_UI_RESTRICTIONS, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_ACTIVE_PROCESS, JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOB_OBJECT_LIMIT_PROCESS_MEMORY, JOB_OBJECT_UILIMIT_DESKTOP, JOB_OBJECT_UILIMIT_DISPLAYSETTINGS, JOB_OBJECT_UILIMIT_EXITWINDOWS, JOB_OBJECT_UILIMIT_GLOBALATOMS, JOB_OBJECT_UILIMIT_HANDLES, JOB_OBJECT_UILIMIT_READCLIPBOARD, JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS, JOB_OBJECT_UILIMIT_WRITECLIPBOARD};
+	use windows::Win32::System::Pipes::CreatePipe;
+	use windows::Win32::System::Threading::{CreateProcessW, DeleteProcThreadAttributeList, GetCurrentProcess, GetExitCodeProcess, InitializeProcThreadAttributeList, OpenProcessToken, TerminateProcess, UpdateProcThreadAttribute, WaitForSingleObject, CREATE_DEFAULT_ERROR_MODE, CREATE_UNICODE_ENVIRONMENT, EXTENDED_STARTUPINFO_PRESENT, INFINITE, LPPROC_THREAD_ATTRIBUTE_LIST, PROCESS_INFORMATION, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, STARTF_USESTDHANDLES, STARTUPINFOEXW};
+
+	pub const MEMORY_LIMIT: usize = 1 << 30;//1 GiB of committed memory, past which the job refuses the sandbox process any more; the inventory reads a file a megabyte at a time, and the probe opens a video's demuxer and decodes nothing
+	const SE_GROUP_INTEGRITY: u32 = 0x20;//winnt.h's, which the windows crate keeps behind a feature this crate does not otherwise need
+
+	pub struct Child { process: HANDLE }
+	unsafe impl Send for Child {}//a process handle is good from any thread, and the main process kills from its watcher and waits from its loop
+	impl Child {
+		pub fn kill(&mut self) -> std::io::Result<()> { unsafe { TerminateProcess(self.process, 1) }.map_err(std::io::Error::other) }
+		pub fn wait(&mut self) -> std::io::Result<std::process::ExitStatus> {
+			if unsafe { WaitForSingleObject(self.process, INFINITE) } != WAIT_OBJECT_0 { return Err(std::io::Error::last_os_error()) }
+			let mut code = 0;
+			unsafe { GetExitCodeProcess(self.process, &mut code) }.map_err(std::io::Error::other)?;
+			Ok(std::process::ExitStatus::from_raw(code))
+		}
+	}
+	impl Drop for Child { fn drop(&mut self) { unsafe { let _ = CloseHandle(self.process); } } }
+
+	pub fn start(program: &std::path::Path, switch: &str, stdout: std::fs::File) -> std::io::Result<(Child, Box<dyn std::io::Write + Send>, Box<dyn std::io::Read + Send>)> {
+		let (stdin_read, stdin_write) = pipe()?;
+		let (stderr_read, stderr_write) = pipe()?;
+		let program_wide = wide(program.as_os_str());
+		let mut line = std::ffi::OsString::from("\"");//the command line as the new process reads it back, the program quoted since its path may hold a space
+		line.push(program);
+		line.push("\" ");
+		line.push(switch);
+		let mut line = wide(&line);//which CreateProcessW may write into
+		let environment = environment_block();
+		let handles = [HANDLE(stdin_read.as_raw_handle()), HANDLE(stdout.as_raw_handle()), HANDLE(stderr_write.as_raw_handle())];//the three the new process gets, and the only three
+		let mut size = 0;
+		let _ = unsafe { InitializeProcThreadAttributeList(None, 1, None, &mut size) };//asked first for the size, which it answers with an error by design
+		let mut list_memory = vec![0u64; size.div_ceil(8)];
+		let list = LPPROC_THREAD_ATTRIBUTE_LIST(list_memory.as_mut_ptr().cast());
+		unsafe { InitializeProcThreadAttributeList(Some(list), 1, None, &mut size) }.map_err(std::io::Error::other)?;
+		let started = unsafe { UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST as usize, Some(handles.as_ptr().cast()), std::mem::size_of_val(&handles), None, None) }.map_err(std::io::Error::other).and_then(|()| {
+			for handle in handles { unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT.0, HANDLE_FLAG_INHERIT) }.map_err(std::io::Error::other)?; }//inheritable for the one call below and no longer after; a Command started on another thread in these microseconds would take them too, which nothing in fuji does during an inventory
+			let mut info = STARTUPINFOEXW::default();
+			info.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
+			info.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+			info.StartupInfo.hStdInput = handles[0];
+			info.StartupInfo.hStdOutput = handles[1];
+			info.StartupInfo.hStdError = handles[2];
+			info.lpAttributeList = list;
+			let mut made = PROCESS_INFORMATION::default();
+			let started = unsafe { CreateProcessW(PCWSTR(program_wide.as_ptr()), Some(PWSTR(line.as_mut_ptr())), None, None, true, EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT | CREATE_DEFAULT_ERROR_MODE, Some(environment.as_ptr().cast()), PCWSTR::null(), &info.StartupInfo, &mut made) };//its error mode its own rather than this process's, so the quiet the sandbox process puts on itself is the only quiet it has
+			for handle in handles { let _ = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT.0, HANDLE_FLAGS(0)) }; }
+			started.map_err(std::io::Error::other)?;
+			unsafe { let _ = CloseHandle(made.hThread); }
+			Ok(made.hProcess)
+		});
+		unsafe { DeleteProcThreadAttributeList(list) };
+		Ok((Child { process: started? }, Box::new(stdin_write), Box::new(stderr_read)))//the new process's ends of the pipes, and the file, close here as start returns, theirs now alone
+	}
+
+	fn pipe() -> std::io::Result<(std::fs::File, std::fs::File)> {//a pipe's two ends as files, neither inheritable, read and written as Rust reads and writes any file
+		let (mut read, mut write) = (HANDLE(std::ptr::null_mut()), HANDLE(std::ptr::null_mut()));
+		unsafe { CreatePipe(&mut read, &mut write, None, 0) }.map_err(std::io::Error::other)?;
+		Ok(unsafe { (std::fs::File::from_raw_handle(read.0), std::fs::File::from_raw_handle(write.0)) })
+	}
+
+	fn wide(text: &OsStr) -> Vec<u16> { text.encode_wide().chain(std::iter::once(0)).collect() }//as Windows reads text, ended by a null
+
+	fn environment_block() -> Vec<u16> {//the new process's whole environment: SystemRoot, without which the system's own libraries fail to load, and the temporary folder, so the check tries the real one; nothing else of this process's
+		let mut block: Vec<u16> = ["SystemRoot", "TEMP", "TMP"].into_iter().filter_map(|name| std::env::var_os(name).map(|value| (name, value))).flat_map(|(name, value)| OsStr::new(name).encode_wide().chain(std::iter::once('=' as u16)).chain(value.encode_wide()).chain(std::iter::once(0)).collect::<Vec<u16>>()).collect();
+		block.push(0);//ended by an empty name after the last
+		if block.len() == 1 { block.push(0) }//a block with no name is two nulls
+		block
+	}
+
+	pub fn enter(_folder: &str) -> Result<(), String> {//the folder is not a wall here: nothing on Windows limits a process's reads to one folder, so the sandbox process reads what the user can, and the check says so
+		let fail = |what: &str, e: &dyn std::fmt::Display| format!("sandbox: {what}: {e}");
+		unsafe { SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX) };//first, and on its own rather than through the job's flag: a crash of this process puts up no dialog and reaches no Windows Error Reporting, a fast fail's included
+		let job = unsafe { CreateJobObjectW(None, PCWSTR::null()) }.map_err(|e| fail("job", &e))?;//unnamed, and its handle kept open for the life of the process, since closing the last handle of a job that kills on close would end it here
+		let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+		limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION | JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+		limits.BasicLimitInformation.ActiveProcessLimit = 1;//this process, so a program it starts fails to start
+		limits.ProcessMemoryLimit = MEMORY_LIMIT;
+		unsafe { SetInformationJobObject(job, JobObjectExtendedLimitInformation, (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(), std::mem::size_of_val(&limits) as u32) }.map_err(|e| fail("job limits", &e))?;
+		let desktop = JOBOBJECT_BASIC_UI_RESTRICTIONS { UIRestrictionsClass: JOB_OBJECT_UILIMIT_DESKTOP | JOB_OBJECT_UILIMIT_DISPLAYSETTINGS | JOB_OBJECT_UILIMIT_EXITWINDOWS | JOB_OBJECT_UILIMIT_GLOBALATOMS | JOB_OBJECT_UILIMIT_HANDLES | JOB_OBJECT_UILIMIT_READCLIPBOARD | JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS | JOB_OBJECT_UILIMIT_WRITECLIPBOARD };//the eight Chromium's sandbox puts on its job at lockdown: no clipboard, no window of another process's, no global atoms, no display settings, no desktop made or switched to, no logging off
+		unsafe { SetInformationJobObject(job, JobObjectBasicUIRestrictions, (&desktop as *const JOBOBJECT_BASIC_UI_RESTRICTIONS).cast(), std::mem::size_of_val(&desktop) as u32) }.map_err(|e| fail("job desktop", &e))?;
+		unsafe { AssignProcessToJobObject(job, GetCurrentProcess()) }.map_err(|e| fail("job", &e))?;
+		let mut token = HANDLE(std::ptr::null_mut());
+		unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_ADJUST_DEFAULT, &mut token) }.map_err(|e| fail("token", &e))?;
+		let mut sid = [0u32; 17];//SECURITY_MAX_SID_SIZE, 68 bytes
+		let mut sid_size = std::mem::size_of_val(&sid) as u32;
+		let label_sid = PSID(sid.as_mut_ptr().cast());
+		let lowered = unsafe { CreateWellKnownSid(WinUntrustedLabelSid, None, Some(label_sid), &mut sid_size) }.and_then(|()| {
+			let label = TOKEN_MANDATORY_LABEL { Label: SID_AND_ATTRIBUTES { Sid: label_sid, Attributes: SE_GROUP_INTEGRITY } };
+			let length = std::mem::size_of::<TOKEN_MANDATORY_LABEL>() as u32 + unsafe { GetLengthSid(label_sid) };
+			unsafe { SetTokenInformation(token, TokenIntegrityLevel, (&label as *const TOKEN_MANDATORY_LABEL).cast(), length) }//the token this process already runs on, lowered in place; what it had open stays open, and every open from here is judged at the new level
+		});
+		unsafe { let _ = CloseHandle(token); }
+		lowered.map_err(|e| fail("integrity", &e))
 	}
 }
 
@@ -246,12 +354,17 @@ pub fn check_serve() -> ! {
 	let elsewhere = std::env::temp_dir().join("sandbox-check.txt");
 	say(false, "write a file in the temporary folder", std::fs::write(&elsewhere, "written").map(|()| { let _ = std::fs::remove_file(&elsewhere); elsewhere.display().to_string() }).map_err(text));
 	say(false, "connect to this machine", match &listener { Ok(listener) => listener.local_addr().and_then(std::net::TcpStream::connect).map(|stream| format!("{:?}", stream.peer_addr())).map_err(text), Err(e) => Err(format!("no listener to reach: {e}")) });
-	let program = if cfg!(windows) { std::process::Command::new("cmd").args(["/c", "exit"]).status() } else { std::process::Command::new("/usr/bin/true").status() };//a program every machine of its kind has, so a refusal is the walls' and not a missing file's
+	let program = if cfg!(windows) { std::process::Command::new(std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into())).join("System32").join("cmd.exe")).args(["/c", "exit"]).status() } else { std::process::Command::new("/usr/bin/true").status() };//a program every machine of its kind has, by its whole path so a refusal is the walls' and not a missing file's or an empty PATH's
 	say(false, "start a program", program.map(|status| status.to_string()).map_err(text));
 	#[cfg(any(target_os = "macos", target_os = "linux"))] say(false, SERVICE, service_reach());//a platform with no service this asks prints no line, rather than a pass nothing earned
 	#[cfg(unix)] say(false, "signal the process that started it", if unsafe { libc::kill(libc::getppid(), 0) } == 0 { Ok("it answered".into()) } else { Err(std::io::Error::last_os_error().to_string()) });//signal 0, which only asks whether the signal could be sent
 	#[cfg(target_os = "linux")] say(false, "set up io_uring", io_uring_setup());
 	#[cfg(target_os = "linux")] say(false, "leave a core for a crash reporter", if unsafe { libc::prctl(libc::PR_GET_DUMPABLE) } == 1 { Ok("dumpable".into()) } else { Err("not dumpable".into()) });
+	#[cfg(windows)] say(false, "set a value under the user's registry", windows_check::registry_write());
+	#[cfg(windows)] say(false, "end the process that started it", windows_check::parent_end());
+	#[cfg(windows)] say(false, "read or write the memory of the process that started it", windows_check::parent_memory());
+	#[cfg(windows)] say(false, "take more memory than the limit", windows_check::memory_past_limit());
+	#[cfg(windows)] say(false, "report a crash to Windows Error Reporting", windows_check::crash_report());
 	std::process::exit(if wrong > 0 { 1 } else { 0 })
 }
 
@@ -286,8 +399,46 @@ fn io_uring_setup() -> Result<String, String> {//a ring of one entry, which a pr
 	Ok("a ring".into())
 }
 
+#[cfg(windows)]
+mod windows_check {//the reaches a process on Windows has past the folder, each tried for the check and no further: a key opened to set a value and closed, a process opened and closed, memory asked for and let go
+	pub fn registry_write() -> Result<String, String> {//the user's own half of the registry, where a program of the user's keeps its settings and the system keeps what runs at logon
+		use windows::core::w;
+		use windows::Win32::System::Registry::{RegCloseKey, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER, KEY_SET_VALUE};
+		let mut key = HKEY::default();
+		unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software"), None, KEY_SET_VALUE, &mut key) }.ok().map_err(|e| e.to_string())?;//opened for setting a value, which is where the walls judge it; nothing is set
+		unsafe { let _ = RegCloseKey(key); }
+		Ok("opened HKEY_CURRENT_USER\\Software to set a value".into())
+	}
+	pub fn parent_end() -> Result<String, String> { parent_open(windows::Win32::System::Threading::PROCESS_TERMINATE) }//for the right to end it, which is what the signal asks on unix
+	pub fn parent_memory() -> Result<String, String> { use windows::Win32::System::Threading::{PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE}; parent_open(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION) }//for the rights to read and write its memory
+	fn parent_open(rights: windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS) -> Result<String, String> {//the process that started this one, opened for the rights given and closed; its id from this process's own basic information, since the process list that Toolhelp reads comes back empty at the Untrusted level
+		use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
+		use windows::Win32::Foundation::CloseHandle;
+		use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcess};
+		#[repr(C)] #[derive(Default)] struct Basic { exit_status: i32, peb: usize, affinity: usize, priority: i32, process: usize, parent: usize }//PROCESS_BASIC_INFORMATION, 48 bytes, laid out here since the crate's needs a feature of the kernel's for the PEB it points at
+		let mut basic = Basic::default();
+		let mut returned = 0;
+		unsafe { NtQueryInformationProcess(GetCurrentProcess(), ProcessBasicInformation, (&mut basic as *mut Basic).cast(), std::mem::size_of::<Basic>() as u32, &mut returned) }.ok().map_err(|e| format!("this process's own information: {e}"))?;
+		let parent = basic.parent as u32;
+		let opened = unsafe { OpenProcess(rights, false, parent) }.map_err(|e| e.to_string())?;
+		unsafe { let _ = CloseHandle(opened); }
+		Ok(format!("opened process {parent}"))
+	}
+	pub fn memory_past_limit() -> Result<String, String> {//twice the job's limit asked for and let go, committed by the heap and never touched
+		let asked = 2 * super::platform::MEMORY_LIMIT;
+		let mut memory: Vec<u8> = Vec::new();
+		memory.try_reserve_exact(asked).map(|()| format!("{} MiB committed", asked >> 20)).map_err(|e| e.to_string())
+	}
+	pub fn crash_report() -> Result<String, String> {//whether a crash of this process would go to Windows Error Reporting, read from the error mode, where the system looks before it reports or asks
+		use windows::Win32::System::Diagnostics::Debug::{GetErrorMode, SEM_NOGPFAULTERRORBOX};
+		let mode = unsafe { GetErrorMode() };
+		if mode & SEM_NOGPFAULTERRORBOX.0 == 0 { Ok(format!("error mode {mode:#x} lets it")) } else { Err(format!("error mode {mode:#x} keeps it")) }
+	}
+}
+
 #[cfg(test)]
 mod tests {
+	#[cfg(target_os = "macos")]
 	use super::*;
 
 	#[test]
