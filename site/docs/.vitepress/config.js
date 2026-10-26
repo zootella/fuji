@@ -193,12 +193,12 @@ export default defineConfig({
 				items: [
 					{ text: 'Design Choices', link: '/design-choices' },
 					{ text: 'Thumbnails', link: '/thumbnails' },
-					{ text: 'Security', link: '/security' },
 					{ text: 'Gamma', link: '/gamma' },
 					{ text: 'Ben Day', link: '/ben-day' },
 					{ text: 'File Types', link: '/file-types' },
 					{ text: 'Free Software', link: '/free-software' },
 					{ text: 'List and Tree', link: '/list-and-tree' },
+					{ text: 'Security', link: '/security' },
 				],
 			},
 			{
