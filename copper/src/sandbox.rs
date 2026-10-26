@@ -336,6 +336,7 @@ pub fn check_serve() -> ! {
 	let [folder, outside] = arguments.as_slice() else { eprintln!("usage: fuji {CHECK_SWITCH} <folder> <a file outside it>"); std::process::exit(2) };
 	let listener = std::net::TcpListener::bind("127.0.0.1:0");//before the wall, so a connection inside it has somewhere on this machine to reach and none leaves it
 	let inside = std::fs::read_dir(folder).ok().and_then(|entries| entries.flatten().map(|entry| entry.path()).find(|path| path.is_file()));//a file in the folder to read, found before the wall too
+	let above = std::path::absolute(folder).ok().and_then(|path| path.parent().map(std::path::Path::to_path_buf));//and the folder above it, from the whole path, since a folder named by a bare name like Pictures has an empty parent, which nothing has to refuse
 	if let Err(e) = enter(folder) { eprintln!("{e}"); std::process::exit(3) }
 	let mut wrong = 0;
 	let mut say = |allowed_expected: bool, what: &str, answer: Result<String, String>| {
@@ -348,7 +349,7 @@ pub fn check_serve() -> ! {
 	say(true, "list the folder", std::fs::read_dir(folder).map(|entries| format!("{} names", entries.count())).map_err(text));
 	say(true, "read a file in it", match &inside { Some(path) => std::fs::read(path).map(|bytes| format!("{} bytes of {}", bytes.len(), path.display())).map_err(text), None => Err("the folder holds no file".into()) });
 	say(false, "read a file outside it", std::fs::read(outside).map(|bytes| format!("{} bytes of {outside}", bytes.len())).map_err(text));
-	say(false, "list the folder above it", std::path::Path::new(folder).parent().map_or(Err("no folder above".into()), |above| std::fs::read_dir(above).map(|entries| format!("{} names", entries.count())).map_err(text)));
+	say(false, "list the folder above it", above.as_ref().map_or(Err("no folder above".into()), |above| std::fs::read_dir(above).map(|entries| format!("{} names", entries.count())).map_err(text)));
 	let made = std::path::Path::new(folder).join("sandbox-check.txt");
 	say(false, "write a file in it", std::fs::write(&made, "written").map(|()| { let _ = std::fs::remove_file(&made); made.display().to_string() }).map_err(text));
 	let elsewhere = std::env::temp_dir().join("sandbox-check.txt");
