@@ -19,6 +19,7 @@ pnpm library      the media library for both architectures, into linux/cache and
 pnpm build        the four packages, from the library in linux/cache
 pnpm hash         stage them and write the sidecars
 pnpm upload       send them to the server
+pnpm build-hash-upload  the three in a row, stopping at the first that fails, for a build you're sure of
 pnpm walk         the sandbox process walked in containers of several distributions
 ```
 

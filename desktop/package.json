@@ -13,6 +13,8 @@
 		"reveal": "node ../scripts.js reveal",
 		"hash": "node ../scripts.js hash --source=bundle",
 		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=bundle",
+		"installer-hash-upload-reveal": "pnpm installer && pnpm hash && pnpm upload && pnpm reveal",
+		"notarize-hash-upload-reveal": "pnpm notarize && pnpm hash && pnpm upload && pnpm reveal",
 		"certificate": "node ../scripts.js certificate",
 		"icons": "tauri icon src-tauri/icons/app-icon.svg && tauri icon src-tauri/icons/app-icon-mac.svg -o src-tauri/icons/.mac && tauri icon src-tauri/icons/app-icon-tile.svg -o src-tauri/icons/.tile && node ../scripts.js icons-collect",
 		"dev": "vite",

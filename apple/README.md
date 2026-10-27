@@ -5,6 +5,7 @@ Fuji's Mac release through Apple: signed with a Developer ID, notarized, and pub
 ```
 pnpm waiting-room here: build, notarize, hash and upload, a key each
 pnpm notarize     in desktop: build and notarize straight through, without the waiting room
+pnpm notarize-hash-upload-reveal  in desktop: that, then hash, upload and reveal, in a row, stopping at the first that fails
 ```
 
 ## Why this workspace exists
