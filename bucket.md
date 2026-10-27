@@ -10,7 +10,7 @@ A bucket is a box of thumbnails, and the sheet's one scroll runs over a stack of
 
 **The sheet is one scroll over a stack of full-width buckets.** There is one contact sheet and it has one big top-to-bottom scroll, exactly as expected. What that scroll moves the viewport over is not individual thumbnails; it is buckets, each as wide as the sheet and as tall as its contents need, and the thumbnails are inside them.
 
-**A bucket holds up to a maximum number of images, and the maximum is a setting.** `bucket.images` in `fuji.toml`, 20 at the factory. A folder of 15 images is one bucket with 15 thumbnails in it. A folder of 50 images is a bucket of 20, a second bucket of 20 beneath it, and a third holding the remaining 10.
+**A bucket holds up to a maximum number of images, and the maximum is a setting.** `bucket.images` in `fuji.toml`. With a maximum of 20, a folder of 15 images is one bucket with 15 thumbnails in it. A folder of 50 images is a bucket of 20, a second bucket of 20 beneath it, and a third holding the remaining 10.
 
 **A bucket never mixes folders.** Images from two different folders never share a bucket, however few of them there are.
 
@@ -78,7 +78,7 @@ At Medium, five hundred thumbnails cost about what three full-size 26-megapixel 
 
 ## What is built
 
-**A bucket and one flow, on a sheet that walks.** `Bucket.vue` takes a folder and the listing's entries for the images it shows and decides nothing else; `TestFlow.vue` is the flow, and `TagFlow.vue` and `CanvasFlow.vue` were deleted once the experiment below had answered. In `fuji.toml`, `bucket.images` caps a bucket at 20 and `sheet.buckets` the sheet at 3, so the sheet never holds more than 60 thumbnails, and `thumbnail.beam` picks the length every thumbnail is measured against — 120, 240, 360 and 480 css pixels, so the user says once what Medium means. There is no setting naming the flow, because there is one flow; the name is in `Bucket.vue` and a second one brings a register back with it.
+**A bucket and one flow, on a sheet that walks.** `Bucket.vue` takes a folder and the listing's entries for the images it shows and decides nothing else; `TestFlow.vue` is the flow, and `TagFlow.vue` and `CanvasFlow.vue` were deleted once the experiment below had answered. In `fuji.toml`, `bucket.images` caps a bucket and `sheet.buckets` the sheet, so the sheet never holds more thumbnails than the two multiplied, and `thumbnail.beam` picks the length every thumbnail is measured against — 120, 240, 360 and 480 css pixels, so the user says once what Medium means. There is no setting naming the flow, because there is one flow; the name is in `Bucket.vue` and a second one brings a register back with it.
 
 **A flow acts within one bucket, and one flow governs the whole sheet.** That was the open question when this file was first written and it is settled: every bucket makes the same flow, so a second one would switch all of them together.
 

@@ -215,7 +215,7 @@ fn file_read(item: &Item, inventory: &Inventory, options: &Options, buffer: &mut
 	Ok((tip_hash, size, said))
 }
 fn extension_say(path: &Path) -> String { path.extension().map_or_else(String::new, |e| format!(".{}", e.to_string_lossy().to_lowercase())) }//as the page's type table spells one, lowercase with its dot; blank for a name with none
-fn ffmpeg_said(path: &Path) -> serde_json::Value {//FFmpeg's reading of the file through mpv's player, as media_probe answers it, cut to what the scout also reads so the two sit side by side: the demuxer's name for the format, the running time, and each track's type, codec and demux facts, mpv's own names kept, with the flags that mark a picture track, cover art in a sound file, only where they are set. A refusal, or no answer by the deadline, is an error here, and the inventory goes on
+fn ffmpeg_said(path: &Path) -> serde_json::Value {//FFmpeg's reading of the file through mpv's player, as media_probe answers it, cut to what the scout also reads so the two sit side by side: the demuxer's name for the format, the running time, and each track's type, codec and demux facts, mpv's own names kept, with the flags that mark a picture track, cover art in a sound file, only where they are set. A refusal, or no answer within the question's timeout, is an error here, and the inventory goes on
 	let probe = match crate::media::probe(&path.to_string_lossy(), PROBE_SECONDS) { Ok(probe) => probe, Err(e) => return serde_json::json!({"error": e}) };
 	let mut said = serde_json::Map::new();
 	if !probe.format.is_empty() { said.insert("format".into(), probe.format.into()); }

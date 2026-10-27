@@ -89,7 +89,7 @@ Each question gets a player of its own, made for it and destroyed after, so a wi
 
 The questions go through mpv's player rather than through C of fuji's own calling FFmpeg directly. That C would be new, reviewed by fuji alone, compiled against FFmpeg's headers for each version, and doing what C most often gets wrong, sizing buffers from a width, a height and a stride a file supplied, where mpv's layer has been examined for years, keeps its own readers off the file through the options below, and puts the same FFmpeg on the file; a fresh player costs a millisecond or two a file against the tens a night's disk takes to read one. With nothing decoded, an MPEG-2 program stream's video track comes back with no demux-par, so a DVD's pixel shape is the tip scan's to say, which reads it from the sequence header.
 
-A load finishes on mpv's own time, so a question waits on the player's events up to the deadline the page gives: start-file says the load has begun, then file-loaded that the file opened or end-file that it did not, and for a frame playback-restart that the frame at the time asked is decoded. The deadline covers those waits. A file that gives no answer by it is answered with an error, and its player is destroyed on another thread of the pool, since mpv_terminate_destroy waits for the player's own threads, and one stuck in a read on a dead disk would hold the answer too; that thread waits as long as it must, which is containment rather than cancellation.
+A load finishes on mpv's own time, so a question waits on the player's events up to the timeout the page gives: start-file says the load has begun, then file-loaded that the file opened or end-file that it did not, and for a frame playback-restart that the frame at the time asked is decoded. The timeout covers those waits. A file that gives no answer by it is answered with an error, and its player is destroyed on another thread of the pool, since mpv_terminate_destroy waits for the player's own threads, and one stuck in a read on a dead disk would hold the answer too; that thread waits as long as it must, which is containment rather than cancellation.
 */
 const ASK_ALWAYS: [(&str, &str); 5] = [//the options every question's player is started with
 	("demuxer", "lavf"),//FFmpeg's demuxers alone
@@ -99,6 +99,7 @@ const ASK_ALWAYS: [(&str, &str); 5] = [//the options every question's player is 
 	("resume-playback", "no"),//no saved position looked for
 ];
 
+/// What FFmpeg says a file is, which the caller judges rather than trusts: it reads a text file as ANSI art at full confidence and a script as a transport stream, gives a still a running time of one frame at 25 a second, and often answers a file cut short with what its header promised
 #[derive(Serialize)]
 pub struct Probe {
 	pub duration: String,//the running time in seconds as mpv writes it, like 5.000000, or blank for a file with none
@@ -107,9 +108,9 @@ pub struct Probe {
 }
 
 pub fn probe(path: &str, seconds: f64) -> Result<Probe, String> {//the question media_probe asks, for a body already on a thread that may wait
-	let deadline = ask_deadline(seconds)?;
-	let player = ask_player(&[("track-auto-selection", "no")])?;//every track left unselected: the file opens and waits with nothing decoded, where with video and audio both turned off it would end as it loaded
-	if let Err(ask) = ask_load(&player, path, deadline, &[EVENT_START_FILE, EVENT_FILE_LOADED]) { return Err(ask_end(player, ask, seconds)) }
+	let until = ask_until(seconds)?;
+	let player = ask_player(&[("track-auto-selection", "no")])?;//every track left unselected: the file opens and waits with nothing played, where with video and audio both turned off it would end as it loaded
+	if let Err(ask) = ask_load(&player, path, until, &[EVENT_START_FILE, EVENT_FILE_LOADED]) { return Err(ask_end(player, ask, seconds)) }
 	let probe = Probe { duration: property_text(player.0, c"duration"), format: property_text(player.0, c"file-format"), tracks: property_text(player.0, c"track-list") };
 	unsafe { mpv_terminate_destroy(player.0) };
 	Ok(probe)
@@ -121,19 +122,19 @@ A frame of an MPEG program stream or transport stream file does not come back to
 /// One frame of a video at a time in seconds, as one buffer: its width and height as little-endian unsigned 32-bit numbers, then its pixels as RGBA, row after row, at the shape the video shows at, with its turn and the stretch of pixels that are not square already applied; from a player made for the question, paused, decoding in software and drawing nowhere, which seeks exactly to the time as it opens the file. An error for a file with no video, and for one that gives no answer within seconds
 pub fn frame(path: &str, at: f64, seconds: f64) -> Result<Vec<u8>, String> {
 	if !(at.is_finite() && at >= 0.0) { return Err(format!("media_frame: expected a time in seconds, zero or more: {at}")) }
-	let deadline = ask_deadline(seconds)?;
+	let until = ask_until(seconds)?;
 	let start = format!("{at}");
 	let player = ask_player(&[("aid", "no"), ("sid", "no"), ("vo", "null"), ("pause", "yes"), ("hwdec", "no"), ("hr-seek", "yes"), ("start", start.as_str())])?;//the video alone, drawn nowhere, the null output keeping the current frame for screenshot-raw; paused, so the player decodes the frame at start and stops there, and hr-seek makes that the frame at the time rather than the keyframe before it
-	if let Err(ask) = ask_load(&player, path, deadline, &[EVENT_START_FILE, EVENT_FILE_LOADED, EVENT_PLAYBACK_RESTART]) { return Err(ask_end(player, ask, seconds)) }
+	if let Err(ask) = ask_load(&player, path, until, &[EVENT_START_FILE, EVENT_FILE_LOADED, EVENT_PLAYBACK_RESTART]) { return Err(ask_end(player, ask, seconds)) }
 	let frame = ask_screenshot(player.0);
 	unsafe { mpv_terminate_destroy(player.0) };
 	frame
 }
 
-enum Ask { Refused(String), Late }//how a question ended without an answer: the file refused, with the library's reason, or no answer by the deadline
+enum Ask { Refused(String), Late }//how a question ended without an answer: the file refused, with the library's reason, or no answer within its timeout
 
-fn ask_deadline(seconds: f64) -> Result<Instant, String> {//the moment a question gives up, from the seconds the page allows it
-	if !(seconds.is_finite() && seconds > 0.0) { return Err(format!("expected a deadline in seconds above zero: {seconds}")) }
+fn ask_until(seconds: f64) -> Result<Instant, String> {//the moment a question gives up, from the seconds the page allows it
+	if !(seconds.is_finite() && seconds > 0.0) { return Err(format!("expected a timeout in seconds above zero: {seconds}")) }
 	Ok(Instant::now() + Duration::from_secs_f64(seconds))
 }
 
@@ -150,14 +151,14 @@ fn ask_player(options: &[(&str, &str)]) -> Result<Player, String> {//a player fo
 	Ok(Player(player))
 }
 
-fn ask_load(player: &Player, path: &str, deadline: Instant, steps: &[c_int]) -> Result<(), Ask> {//load the file, then wait for each event of steps in order, each before the deadline; an end-file along the way is the file refused
+fn ask_load(player: &Player, path: &str, until: Instant, steps: &[c_int]) -> Result<(), Ask> {//load the file, then wait for each event of steps in order, each before its timeout runs out; an end-file along the way is the file refused
 	let path = text(path).map_err(Ask::Refused)?;
 	let args = [c"loadfile".as_ptr(), path.as_ptr(), std::ptr::null()];
 	let ran = unsafe { mpv_command(player.0, args.as_ptr()) };//answers once the load is queued, not once it is done
 	if ran < 0 { return Err(Ask::Refused(format!("loadfile: {}", error_text(ran)))) }
 	for &step in steps {
 		loop {
-			let left = deadline.saturating_duration_since(Instant::now()).as_secs_f64();
+			let left = until.saturating_duration_since(Instant::now()).as_secs_f64();
 			if left <= 0.0 { return Err(Ask::Late) }
 			let event = unsafe { &*mpv_wait_event(player.0, left) };
 			if event.event_id == step { break }
@@ -259,7 +260,7 @@ mod tests {
 		let refused = probe(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/text.txt"), 10.0).err().unwrap();
 		assert!(refused.contains("could not open"), "{refused}");
 		assert!(probe("/no/such/file.mp4", 10.0).is_err());
-		assert!(probe(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/video.ts"), 0.0).is_err(), "a deadline of zero is a caller's mistake");
+		assert!(probe(concat!(env!("CARGO_MANIFEST_DIR"), "/../steel/samples/video.ts"), 0.0).is_err(), "a timeout of zero is a caller's mistake");
 		assert!(probe("a\0b.mp4", 10.0).err().unwrap().contains("null byte"), "a path c cannot say is refused rather than cut short");
 		assert!(frame(&sample("video.mkv"), -1.0, 10.0).is_err() && frame(&sample("video.mkv"), f64::NAN, 10.0).is_err(), "a time before the start, or no time");
 	}

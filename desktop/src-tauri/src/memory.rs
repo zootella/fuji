@@ -12,7 +12,7 @@ const WEBVIEW_WAIT: Duration = Duration::from_secs(2);//how long memory_report w
 #[command]
 pub async fn memory_report(window: WebviewWindow) -> Result<Report, String> {
 	let (sender, receiver) = mpsc::channel();
-	let _ = window.with_webview(move |webview| { let _ = sender.send(platform::engine(webview)); });//runs on the main thread, later; an error here means no webview to ask, and the wait below gives up at its deadline
+	let _ = window.with_webview(move |webview| { let _ = sender.send(platform::engine(webview)); });//runs on the main thread, later; an error here means no webview to ask, and the wait below gives up at its timeout
 	run_blocking(move || Ok(copper::memory::report(receiver.recv_timeout(WEBVIEW_WAIT).unwrap_or_default()))).await//the engine's processes as (kind, pid), or none when the webview never answered
 }
 

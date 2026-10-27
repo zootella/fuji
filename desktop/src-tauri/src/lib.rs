@@ -1,4 +1,4 @@
-//brass's root: the handler list, which is the whole of what the page may ask of the machine; the state commands share; the window events; and setup. Where code lives in fuji, and why the commands are shaped as they are, is four-places.md at the repository root
+//brass's root: the handler list, which is the whole of what the page may ask of the machine; the state commands share; the window events; and setup. Where code lives in fuji, and why the commands are shaped as they are, is architecture.md at the repository root
 
 mod desktop;//compile desktop.rs as a module named desktop: text the page hands down to be written on the way out
 mod dialog;//and dialog.rs: the system's boxes for opening files, choosing a folder, and saving a file, put up for the page, or on the Mac for the menu bar with no window

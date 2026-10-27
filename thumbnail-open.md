@@ -8,13 +8,11 @@ Boiled down on 2026-10-04, at the end of a pass that set out to evaluate, simpli
 
 Each says where it came from, since some are the user's and some are a session's suggestions the user has not yet adopted.
 
-**A deadline in the governor.** The answer to a call that never ends: past it, the governor frees the place and fails the caller's promise, while the stuck work finishes or does not on a thread nothing waits for. It would also free the diamond table, whose queue freezes behind one load that never settles. `governor.js` has the shape. Raised in conversation with the user during the 2026-10-04 pass, as the answer to the third way any call can end: never.
+**A timeout in the governor.** The answer to a call that never ends: past it, the governor frees the place and fails the caller's promise, while the stuck work finishes or does not on a thread nothing waits for. It would also free the diamond table, whose queue freezes behind one load that never settles. `governor.js` has the shape. Raised in conversation with the user during the 2026-10-04 pass, as the answer to the third way any call can end: never.
 
 **Fuzzy Logic.** Each governor timing its calls and widening or narrowing itself from four to fit the resource, so a fast internal drive is driven harder than a conference thumb drive. The user's idea; `governor.js` sketches it.
 
 **Priority in the governor**, letting a tile the user can see go ahead of one they cannot. A session's suggestion, written into `governor.js`'s essay and not yet adopted.
-
-**More buckets, pages, and paging through a whole drive.** The sheet shows `sheet.buckets` buckets from the start of one folder today, and nothing past them.
 
 **The look-ahead, and a database of what fuji has seen**, below. The user's idea, and deliberately much later.
 
@@ -24,7 +22,7 @@ Each says where it came from, since some are the user's and some are a session's
 
 **A separate system, and a much later one.** Today fuji reads a file when a visible bucket needs its thumbnail and nothing sooner, and keeps nothing once the bucket goes: fast to first pixels and light on the disk, which is what fuji wants now.
 
-**What it would do.** Peek at the tips of files well ahead of the view — the first bytes for the format, the header for the size, a flag or two such as whether a WebP is animated — and keep what it learns by path in an SQLite database, with each file's size and modification time beside it to tell when it has changed. A bucket could then hold every tile's box before its pixels arrive; a file with no extension could be named by its bytes; animated WebP could go to an `<img>`; and a page-route file could be checked against the size ceiling. A thumbnail cache on disk, which is how Finder is instant on a folder it has seen, is a store of the same shape over the same paths, so the two may be one database. The reader is built: the scout, fuji's own reader of a file's first bytes, the crate in `scout/` behind the `scout_tip` command, answers the format, the size and the animation flag for one path, and nothing calls it yet. The look-ahead that would call it, and the database, are not built.
+**What it would do.** Peek at the tips of files well ahead of the view — the first bytes for the format, the header for the size, a flag or two such as whether a WebP is animated — and keep what it learns by path in an SQLite database, with each file's size and modification time beside it to tell when it has changed. A bucket could then hold every tile's box before its pixels arrive; a file with no extension could be named by its bytes; animated WebP could go to an `<img>`; and a page-route file could be checked against the size ceiling. A thumbnail cache on disk, which is how Finder is instant on a folder it has seen, is a store of the same shape over the same paths, so the two may be one database. The reader is built: the tip scan, fuji's own reader of a file's first bytes, in the safe crate steel behind the `scout_tip` command, answers the format, the size and the animation flag for one path; the inventory asks it of every file in a tree, and no view calls it yet. The look-ahead that would call it, and the database, are not built.
 
 **The one constraint already known.** It can never stand between a bucket and its first thumbnail. The probe did exactly that — every file on a bucket read before any render began — and the sheet paused and then filled all at once; taking it out made thumbnails appear immediately. Whatever reads ahead runs beside the view, and the view uses what it finds when it is there and does without it when it is not.
 

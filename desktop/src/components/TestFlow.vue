@@ -135,7 +135,7 @@ function flowImgLoad(tile, event) {//an img tile, sized by the fit once the engi
 	else tile.css = xy(flowBeam, flowBeam)
 }
 
-function flowDetails(tile) {//the caption's second line: the day the file was last modified, its size, and the size the picture shows at, each left out until it is known, so a missing one never leaves a divider standing alone
+function flowDetails(tile) {//the caption's second line: the day the file was last modified, the date Finder and Explorer show by default and the one a copy keeps, where Explorer gives a copy a new created time; its size, and the size the picture shows at, each left out until it is known, so a missing one never leaves a divider standing alone
 	let parts = [sayDay(tile.file.mtime), saySize4(tile.file.size)]
 	if (tile.natural) parts.push(sayDimensions(tile.natural))//known once the thumbnail lands, and never for a file fuji refused
 	return parts.filter(part => part).map(part => part.replaceAll(' ', thinSpace)).join(` ${middleDot} `)//thin spaces within each part, since this caption is proportional text, and full spaces around the dot, which separates the parts; the dot chosen 2026-10-06 over a fullwidth slash, two spaces and a plain slash

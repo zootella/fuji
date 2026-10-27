@@ -92,7 +92,7 @@ Steel and copper are the two workspaces that are Rust rather than JavaScript: cr
 
 - **test / fuzz** — run its tests against its sample files and the folder trees they build, then let libFuzzer try millions of mutated files on it. `./steel/README.md` is the guide.
 
-`pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI. `icon.md` explains why that second case is easy to forget.
+`pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI, since the icons are committed files that an upgrade never regenerates.
 
 The JavaScript behind these commands is in one file, `scripts.js`, at the root, and each command passes it a verb. Every workspace reaches it because they share facts: the published name of every artifact, where each one is built, and the file manager command for each platform. Those live in one table there. The Linux workspace has a second file, `linux/build.js`, which drives the containers — `scripts.js` publishes and does not build, and that one builds and does not publish. Every step of a build or a publish also writes a line to `build-log.txt` at the root as it starts and as it ends, through `build-log.js` beside `scripts.js`, so each machine keeps its own record of what it built and sent, and when.
 

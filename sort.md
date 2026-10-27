@@ -127,7 +127,7 @@ Both names make a promise fuji should be honest about. Microsoft says its functi
 
 **Last accessed is not offered.** It is lazily updated on both systems, disabled outright on much of Windows, and touched by indexers and antivirus. It would be a sort that changes for reasons the user did not cause.
 
-**Date Added and Date Taken are the two dates users most often mean, and neither is free.** macOS keeps Date Added in the directory entry, outside `stat`. Date taken lives in the image's EXIF. Both are real work rather than another field on a struct, and both are worth doing eventually, because a photographer sorting a folder by date means the day of the photograph.
+**Date Added and Date Taken are the two dates users most often mean, and neither is free.** macOS keeps Date Added in the directory entry, outside `stat`. Date taken lives in the image's EXIF, which the tip scan now reads, with a movie's own times, and answers as one moment it calls taken; sorting by it costs a read of each file's first bytes, which a listing does not make. Both are real work rather than another field on a struct, and both are worth doing eventually, because a photographer sorting a folder by date means the day of the photograph.
 
 ## Size and Shuffled
 
@@ -141,7 +141,7 @@ Both names make a promise fuji should be honest about. Microsoft says its functi
 
 **Size is free.**
 
-**The date sorts need Rust that does not exist.** `disk_readdir` returns names and sizes but no timestamps, so ordering by date today means one `disk_stat` per file — five thousand IPC round trips for a large folder. The answer is a listing that carries times, either a widened `DirEntry` or a second command, and it should be settled before a date sort is written rather than after it is slow.
+**Modified is in the listing, and Created is not.** `disk_readdir` returns each entry's modified time beside its name and size, so Modified needs no new Rust. Ordering by Created today means one `disk_stat` per file — five thousand IPC round trips for a large folder — so the listing should carry the creation time too before Created is written rather than after it is slow.
 
 ## Where it lives
 
@@ -159,7 +159,7 @@ The chosen sort is one value in the model, persisted through `fuji.toml`. The se
 - **How faithful should Mac and Windows be, and should the names say so?** Neither target is fixed: Microsoft reserves the right to change its results, and Apple's answer depends on the user's language.
 - **What `Smart` does with tied digit runs** — `page1` against `page01` — which is the hole both shells left and the reason this sort exists.
 - **What `Created` does where the filesystem has no answer:** sort those to one end, fall back to Modified, or refuse.
-- **Whether Date Added and Date Taken earn the Rust and the EXIF reading they cost.** Probably yes for photographs, eventually.
+- **Whether Date Added earns the Rust it costs, and Date Taken the read of every file's first bytes.** Probably yes for photographs, eventually.
 
 ## Sources
 

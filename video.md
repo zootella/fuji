@@ -51,6 +51,7 @@ The recipe leaves mpv's gpl option at its default, on, and FFmpeg's off. The fil
 
 - **A double-click on the sheet.** Once the contact sheet lists videos, a double-click on one opens it in a video window, through `window_build` like every other way to one; until then v asks for an empty one.
 - **A frame for the sheet.** A video's thumbnail. The operating system's thumbnailer can make a frame of a video on Windows and the Mac, which `thumbnail.rs` does not ask for. Linux has no native route, and `media_frame` serves it, a frame from any video the library plays, already turned and with its pixels made square, and may serve all three if it is as fast. At what point in the file is a thumbnail question, open now that video is switched on.
+- **The shape the user gives a video, kept.** Some video is encoded to play at the wrong shape: a 5:4 picture flagged to show at 4:3. When the user corrects one, the correction holds for the rest of the session, so going forward through a folder and coming back shows it right again rather than wrong. Keeping it across launches needs a store of what fuji has seen, keyed by the file's path, size and modified time, which does not exist yet.
 
 ## What could break, and has not yet
 
