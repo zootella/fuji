@@ -9,7 +9,6 @@
 		"local": "vitepress dev docs",
 		"build": "vitepress build docs",
 		"upload": "vitepress build docs && node --env-file-if-exists=../.env ../scripts.js upload-site",
-
 		"preview": "vitepress preview docs"
 	},
 	"devDependencies": {

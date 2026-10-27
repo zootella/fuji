@@ -122,7 +122,8 @@ Fuji's Edit menu carries a file manager's commands, cut, copy and paste among th
 Delete writes over every byte of the file once with random bytes, makes sure they have reached the drive, writes over the file's name, and removes it. The heart of it is in [`copper/src/erase.rs`](https://github.com/zootella/fuji/blob/main/copper/src/erase.rs):
 
 ```rust
-overwrite(&mut file, held.len())?;
+let allocated = allocation(&file, &held);
+overwrite(&mut file, held.len(), allocated)?;
 file.sync_all()?;
 let named = rename(Path::new(path));
 let _ = file.sync_all();
@@ -132,7 +133,7 @@ drop(file);
 std::fs::remove_file(&named).map_err(|e| std::io::Error::new(e.kind(), format!("erase: {path}: written over but not removed: {e}")))?;
 ```
 
-One pass is what the record settled on for a magnetic disk, from CMRR's testing to NIST's guidelines and Gutmann's own epilogue, and random bytes are what his paper recommends for a drive whose encoding nobody can aim at. They come from BLAKE3's output stream under a key of 32 bytes from the operating system, new for every file, so no two erasures write the same bytes. The cost is one write of the file, the least any overwrite can cost.
+One pass is what the record settled on for a magnetic disk, from CMRR's testing to NIST's guidelines and Gutmann's own epilogue, and random bytes are what his paper recommends for a drive whose encoding nobody can aim at. They come from BLAKE3's output stream under a key of 32 bytes from the operating system, new for every file, so no two erasures write the same bytes. The pass runs on past the end of the file to the end of its last cluster, which the file system reports as the file's allocation, because the slack between the two keeps whatever was written there before, the tail of a longer version of the file among the likely things; [shred's manual](https://www.gnu.org/software/coreutils/manual/html_node/shred-invocation.html) says it rounds a file "up to the next multiple of the file system block size to fully erase the slack space in the last block of the file" for the same reason. The cost is one write of the file, rounded up to its last cluster, the least any overwrite can cost.
 
 The flush matters as much as the pass. An overwrite waits in the operating system's memory until it is flushed to the drive, and a file removed before then need never have it written at all. So Fuji flushes before it removes anything, on the Mac through `F_FULLFSYNC`, which, in the words of macOS's manual page for `fcntl`, "Does the same thing as fsync(2) then asks the drive to flush all buffered data to the permanent storage device."
 

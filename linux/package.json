@@ -10,7 +10,6 @@
 		"hash": "node ../scripts.js hash --source=linux",
 		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=linux",
 		"walk": "node build.js walk",
-
 		"build-images": "node build.js build-images",
 		"build-distro": "node build.js build distro",
 		"build-flatpak": "node build.js build flatpak",

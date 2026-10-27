@@ -6,11 +6,11 @@ use std::path::{Path, PathBuf};
 use zootella_ergo::{size, Data};
 
 /*
-One pass of random bytes, since one is all any drive since the 1990s needs, and random is what Gutmann's paper recommends for a drive whose encoding nobody can aim at; the Erase page on fuji's site has that history, and what no overwrite reaches: the old pages inside flash, a copy-on-write file system's old blocks, a snapshot's. The bytes are BLAKE3's stream under a key of 32 bytes from the operating system, whose source on the Mac hands out 256 bytes a call. The flush comes before the removal, since a removed file's pages in the cache need never be written at all.
+One pass of random bytes, since one is all any drive since the 1990s needs, and random is what Gutmann's paper recommends for a drive whose encoding nobody can aim at; the Erase page on fuji's site has that history, and what no overwrite reaches: the old pages inside flash, a copy-on-write file system's old blocks, a snapshot's. The bytes are BLAKE3's stream under a key of 32 bytes from the operating system, since a keyed BLAKE3 is a pseudorandom function and the processor fills a gigabyte with it in a third of the time the operating system's own source takes, measured on the Mac mini. The flush comes before the removal, since a removed file's pages in the cache need never be written at all.
 
 A symbolic link, a file with another hard link and a file a cloud service keeps are removed without the overwrite, as a plain delete removes them: a link's bytes are the file it names, a hard link's are still the other name's, and writing to a cloud file reaches through the service, which would upload the random bytes as a new version. The answer says which happened.
 
-A file the user may not write is refused with the system's own error. On the Mac and Linux, writing a file takes permission on the file and removing it takes permission only on its folder, so a plain delete removes a read-only file that erase cannot write over; on Windows the read-only attribute stops both. What a delete should do then, ask, clear the attribute, or remove the file without the overwrite, is the page's decision, and nothing makes it yet. A move across volumes meets the same refusal after its copy has landed, and says so.
+A file the user may not write is refused with the system's own error. Writing a file takes permission on the file, and removing it takes permission only on its folder on the Mac and Linux, while on Windows the standard library's remove_file clears the read-only attribute on its way, so on every platform a plain delete removes a read-only file that erase cannot write over. What a delete should do then, ask, clear the attribute, or remove the file without the overwrite, is the page's decision, and nothing makes it yet. A move across volumes meets the same refusal after its copy has landed, and says so.
 
 Each call runs to its end on its thread, as long as writing the file once takes, with no count of its progress and no way to stop it; brass's disk essay says what the commands that change the disk still need there.
 */
@@ -29,7 +29,8 @@ pub fn erase(path: &str) -> std::io::Result<&'static str> {
 	if !held.is_file() { return Err(std::io::Error::other(format!("erase: not a regular file: {path}"))) }
 	if crate::inventory::links(&file, &held) > 1 { drop(file); std::fs::remove_file(path)?; return Ok("Hardlink") }
 
-	overwrite(&mut file, held.len())?;
+	let allocated = allocation(&file, &held);
+	overwrite(&mut file, held.len(), allocated)?;
 	file.sync_all()?;//to the device before anything removes the file; on the Mac the standard library flushes through F_FULLFSYNC, past the drive's own cache
 	let named = rename(Path::new(path));
 	let _ = file.sync_all();//the new name too, which on Windows sits in the record the handle flushes
@@ -84,21 +85,35 @@ fn open(path: &str) -> std::io::Result<File> {//for writing in place, so never t
 	options.open(path)
 }
 
-fn overwrite(file: &mut File, length: u64) -> std::io::Result<()> {//every byte of the file once, from its start, with bytes no other erasure shares
+fn overwrite(file: &mut File, length: u64, allocated: u64) -> std::io::Result<()> {//every byte of the file once, from its start, with bytes no other erasure shares, and then on to the end of its last cluster
 	let mut key = [0u8; 32];
 	key.copy_from_slice(Data::random(32).array());
 	let mut stream = blake3::Hasher::new_keyed(&key).finalize_xof();
 	let mut buffer = vec![0u8; PIECE];
-	let mut left = length;
-	while left > 0 {
-		let n = usize::try_from(left).map_or(PIECE, |left| left.min(PIECE));
-		let piece = &mut buffer[..n];
-		stream.fill(piece);
-		file.write_all(piece)?;
-		left -= n as u64;
-	}
+	let mut fill = |mut left: u64| -> std::io::Result<()> {//that many bytes of the stream into the file, a piece at a time
+		while left > 0 {
+			let n = usize::try_from(left).map_or(PIECE, |left| left.min(PIECE));
+			let piece = &mut buffer[..n];
+			stream.fill(piece);
+			file.write_all(piece)?;
+			left -= n as u64;
+		}
+		Ok(())
+	};
+	fill(length)?;
+	let _ = fill(allocated.saturating_sub(length));//the slack between the file's end and its last cluster's, which keeps whatever was there before the file shrank or the cluster was reused, and which shred covers by rounding up to the block; let go when a volume with no block left refuses it, since ext4 counts a block of its own among a fragmented file's and so sends this a block past the cluster
 	Ok(())
 }
+
+#[cfg(unix)]
+fn allocation(_: &File, meta: &std::fs::Metadata) -> u64 { use std::os::unix::fs::MetadataExt; meta.blocks().saturating_mul(512) }//st_blocks counts 512-byte units on the Mac and Linux whatever st_blksize says, and Linux's fat and exfat drivers count whole clusters in it while reporting the sector as the block size, which is why the allocation and not shred's block size
+#[cfg(windows)]
+fn allocation(file: &File, _: &std::fs::Metadata) -> u64 {
+	use windows::Win32::Storage::FileSystem::{FileStandardInfo, FILE_STANDARD_INFO};
+	crate::inventory::handle_info::<FILE_STANDARD_INFO>(file, FileStandardInfo).map_or(0, |standard| u64::try_from(standard.AllocationSize).unwrap_or(0))//the clusters the file holds, Explorer's size on disk; 0 for a small file kept inside its own record, where the length wins
+}
+#[cfg(not(any(unix, windows)))]
+fn allocation(_: &File, _: &std::fs::Metadata) -> u64 { 0 }
 
 /*
 A file's name lives apart from its bytes, in the folder's own records, and deleting the file marks its record free and leaves the name's characters there until something reuses the space, where an undelete program reads them. The rename to random letters is an attempt to write over them first. It is safe: the new name is lowercase letters, never one of Windows' device names, and never a name the folder already holds, since a rename replaces a file at its destination; a rename that fails leaves the file under its own name, and the erase goes on.

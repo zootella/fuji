@@ -307,7 +307,7 @@ pub(crate) fn links(file: &std::fs::File, _: &std::fs::Metadata) -> u64 {
 pub(crate) fn links(_: &std::fs::File, _: &std::fs::Metadata) -> u64 { 1 }
 
 #[cfg(windows)]
-fn handle_info<T: Default>(file: &std::fs::File, class: windows::Win32::Storage::FileSystem::FILE_INFO_BY_HANDLE_CLASS) -> Option<T> {//what Windows keeps about an open file that Rust's standard library reads only in its unstable builds, the class naming which struct T is
+pub(crate) fn handle_info<T: Default>(file: &std::fs::File, class: windows::Win32::Storage::FileSystem::FILE_INFO_BY_HANDLE_CLASS) -> Option<T> {//what Windows keeps about an open file that Rust's standard library reads only in its unstable builds, the class naming which struct T is
 	use std::os::windows::io::AsRawHandle;
 	use windows::Win32::Foundation::HANDLE;
 	use windows::Win32::Storage::FileSystem::GetFileInformationByHandleEx;
