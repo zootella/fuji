@@ -199,6 +199,7 @@ export default defineConfig({
 					{ text: 'Free Software', link: '/free-software' },
 					{ text: 'List and Tree', link: '/list-and-tree' },
 					{ text: 'Security', link: '/security' },
+					{ text: 'Erase', link: '/erase' },
 				],
 			},
 			{

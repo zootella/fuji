@@ -8,11 +8,11 @@ The design contract of this module: these commands hand the interface the full, 
 
 The commands take any path and hold no guard, on purpose: the page alone knows what a path means and whether writing it is right, and a guard here would be a second copy of that knowledge. So the safety of the whole application rests on walls outside this file, and lib.rs has the long version of what they are.
 
-Two of these commands now change the disk rather than read it. disk_copy writes a file the user asked for; disk_write is how settings and the performance log reach the disk at all, and both of its callers hand it a path they built themselves rather than one that came from the page. That is the current line, and it is thinner than it was when this contract was first written.
+Most of these commands change the disk rather than read it. disk_copy writes a file the user asked for; disk_write is how settings and the performance log reach the disk at all, and both of its callers hand it a path they built themselves rather than one that came from the page; the rest are the file manager's, and have no caller yet. That is the current line, and it is thinner than it was when this contract was first written.
 
-Commands here are named for the POSIX call they stand on — disk_readdir, disk_stat, disk_read — so the next ones write themselves: disk_rename over fs::rename, disk_unlink over fs::remove_file, disk_mkdir over fs::create_dir. Each is a line of std::fs and a map_err, which is why none of them is sitting here waiting. One is an exception to the naming: disk_peek, a readdir that answers a count and the subfolders' names rather than a record per entry, for a caller that passes through folders it will never show. The reading underneath it, glance, is crate-visible, because find.rs walks the folder tree on the same reading, and the rule for what a folder counts is stated once, here.
+Commands here are named for the POSIX call they stand on — disk_readdir, disk_stat, disk_read, disk_rename, disk_mkdir, disk_rmdir, disk_unlink — and each is a line of std::fs and a map_err. Four are exceptions to the naming. disk_peek is a readdir that answers a count and the subfolders' names rather than a record per entry, for a caller that passes through folders it will never show. The reading underneath it, glance, is crate-visible, because find.rs walks the folder tree on the same reading, and the rule for what a folder counts is stated once, here. disk_erase and disk_move have no POSIX call to be named for, and are copper's, in its erase.rs; disk_trash is each platform's own call, in copper's trash.rs.
 
-When the delete family arrives, hold a guard here as well: a Rust-side registry of allowed roots, recording folders the user has actually dragged in or chosen, with commands refusing paths outside them. Read and copy trust their caller; unlink should trust less.
+None of these reports its progress, can be stopped partway, or walks into a folder: each takes one path, or two, and runs to its end, so erasing or moving a large file holds its thread for as long as writing it takes. A file manager wants all three on every command that changes the disk, Delete among them. The inventory's commands are the shape fuji already has for that, a count the page reads each frame and a flag that stops the loop, and steel's copy essay sketches the shape for a copy that stays in the kernel.
 */
 
 /*
@@ -79,4 +79,46 @@ pub async fn disk_copy(source: String, destination: String) -> Result<(), String
 #[command]
 pub async fn disk_write(path: String, data: Vec<u8>) -> Result<(), String> {
 	run_blocking(move || steel::disk::write(&path, &data).map_err(|e| e.to_string())).await
+}
+
+/// POSIX `rename`
+#[command]
+pub async fn disk_rename(source: String, destination: String) -> Result<(), String> {
+	run_blocking(move || steel::disk::rename(&source, &destination).map_err(|e| e.to_string())).await
+}
+
+/// POSIX `mkdir`
+#[command]
+pub async fn disk_mkdir(path: String) -> Result<(), String> {
+	run_blocking(move || steel::disk::mkdir(&path).map_err(|e| e.to_string())).await
+}
+
+/// POSIX `rmdir`
+#[command]
+pub async fn disk_rmdir(path: String) -> Result<(), String> {
+	run_blocking(move || steel::disk::rmdir(&path).map_err(|e| e.to_string())).await
+}
+
+/// POSIX `unlink`
+#[command]
+pub async fn disk_unlink(path: String) -> Result<(), String> {
+	run_blocking(move || steel::disk::unlink(&path).map_err(|e| e.to_string())).await
+}
+
+/// The file's contents written over where they sit, then the file removed; answers Erased, or Symlink, Hardlink or Cloud for a file it only removed
+#[command]
+pub async fn disk_erase(path: String) -> Result<String, String> {
+	run_blocking(move || copper::erase::erase(&path).map(String::from).map_err(|e| e.to_string())).await
+}
+
+/// "mv": a rename on one volume, and on another a copy, then the original erased; answers Renamed, or how the original went as disk_erase answers
+#[command]
+pub async fn disk_move(source: String, destination: String) -> Result<String, String> {
+	run_blocking(move || copper::erase::move_file(&source, &destination).map(String::from).map_err(|e| e.to_string())).await
+}
+
+/// The item moved to the Trash or the Recycle Bin, where the user can take it back
+#[command]
+pub async fn disk_trash(path: String) -> Result<(), String> {
+	run_blocking(move || copper::trash::trash(&path)).await
 }

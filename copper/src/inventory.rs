@@ -297,14 +297,14 @@ fn changed(file: &std::fs::File, _: &std::fs::Metadata) -> Option<i64> {
 fn changed(_: &std::fs::File, _: &std::fs::Metadata) -> Option<i64> { None }
 
 #[cfg(unix)]
-fn links(_: &std::fs::File, meta: &std::fs::Metadata) -> u64 { use std::os::unix::fs::MetadataExt; meta.nlink() }
+pub(crate) fn links(_: &std::fs::File, meta: &std::fs::Metadata) -> u64 { use std::os::unix::fs::MetadataExt; meta.nlink() }
 #[cfg(windows)]
-fn links(file: &std::fs::File, _: &std::fs::Metadata) -> u64 {
+pub(crate) fn links(file: &std::fs::File, _: &std::fs::Metadata) -> u64 {
 	use windows::Win32::Storage::FileSystem::{FileStandardInfo, FILE_STANDARD_INFO};
 	handle_info::<FILE_STANDARD_INFO>(file, FileStandardInfo).map_or(1, |standard| standard.NumberOfLinks.into())
 }
 #[cfg(not(any(unix, windows)))]
-fn links(_: &std::fs::File, _: &std::fs::Metadata) -> u64 { 1 }
+pub(crate) fn links(_: &std::fs::File, _: &std::fs::Metadata) -> u64 { 1 }
 
 #[cfg(windows)]
 fn handle_info<T: Default>(file: &std::fs::File, class: windows::Win32::Storage::FileSystem::FILE_INFO_BY_HANDLE_CLASS) -> Option<T> {//what Windows keeps about an open file that Rust's standard library reads only in its unstable builds, the class naming which struct T is

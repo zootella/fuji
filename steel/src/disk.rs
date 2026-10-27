@@ -1,4 +1,4 @@
-//the disk: a folder listed, glanced or stated, and a file read, written, appended or copied, the standard library's calls under steel's rules; brass's disk.rs holds the commands over these, and the contract they keep
+//the disk: a folder listed, glanced, stated, made or removed, and a file read, written, appended, copied, renamed or removed, the standard library's calls under steel's rules; brass's disk.rs holds the commands over these, and the contract they keep
 
 use serde::Serialize;
 use std::collections::HashSet;
@@ -118,8 +118,20 @@ There is a third shape, if fuji ever needs a progress bar on a large copy: keep 
 
 /// The file written whole, truncated first
 pub fn write(path: &str, data: &[u8]) -> std::io::Result<()> { fs::write(path, data) }
+
+/// The file's name removed, as rm removes it, and its bytes left for the file system to reuse; a symbolic link removed itself, never what it names
+pub fn unlink(path: &str) -> std::io::Result<()> { fs::remove_file(path) }
+
+/// A file or folder given a new name or a new folder on the same volume, written over whatever file already has that name, as mv does
+pub fn rename(source: &str, destination: &str) -> std::io::Result<()> { fs::rename(source, destination) }
+
+/// One new folder, in a folder that is there
+pub fn mkdir(path: &str) -> std::io::Result<()> { fs::create_dir(path) }
+
+/// One folder removed, which has to be empty
+pub fn rmdir(path: &str) -> std::io::Result<()> { fs::remove_dir(path) }
 /*
-disk_write truncates and writes in place, on purpose, and is not an atomic save. A process that ends mid-write, a quit landing while a write runs on the blocking pool, can leave the file torn; the usual cure is to write beside the file and rename over it. That is a different operation rather than a safer version of this one — the result is a new file, without the old one's hard links, permissions, Finder tags or Windows access lists, and the rename can be refused where an in-place write would not be — and choosing it, and naming the temporary, are decisions the page owns. So when a caller first needs an atomic save, the plan is disk_rename beside these, one line over fs::rename, and the page writes a temporary of its own naming and renames it over the real file, leaving at worst a stray temporary and never a torn file. Building replacement on each platform's own call, ReplaceFileW on Windows and replaceItemAtURL on the Mac, which keep the old file's attributes, was weighed and set aside as too much platform-specific code for what it adds.
+disk_write truncates and writes in place, on purpose, and is not an atomic save. A process that ends mid-write, a quit landing while a write runs on the blocking pool, can leave the file torn; the usual cure is to write beside the file and rename over it. That is a different operation rather than a safer version of this one — the result is a new file, without the old one's hard links, permissions, Finder tags or Windows access lists, and the rename can be refused where an in-place write would not be — and choosing it, and naming the temporary, are decisions the page owns. So when a caller first needs an atomic save, the page writes a temporary of its own naming and renames it over the real file with disk_rename, leaving at worst a stray temporary and never a torn file. Building replacement on each platform's own call, ReplaceFileW on Windows and replaceItemAtURL on the Mac, which keep the old file's attributes, was weighed and set aside as too much platform-specific code for what it adds.
 */
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-# To Windows: a dark fringe on transparent thumbnails, and the inventory's file system facts
+# To Windows: a dark fringe on transparent thumbnails, the inventory's file system facts, and the Recycle Bin
 
 Written on the Mac mini on 2026-10-23. Read this, then talk with the user before changing anything; a letter starts a conversation rather than settling one.
 
@@ -30,3 +30,18 @@ Written on the Mac mini on 2026-10-23. Read this, then talk with the user before
 **What could be wrong there.** The arithmetic from hundred-nanosecond steps since 1601 to milliseconds since 1970 is checked on the Mac; what the call answers is not. FAT and exFAT keep no change time, and Windows may answer zero there, which the inventory leaves out, or something else, which would show up as a `changed` that means nothing. The inventory also writes every path with forward slashes, turning Windows' backslashes over as it writes each line.
 
 **What to look at.** An inventory of a folder on the NTFS system drive holding: a file renamed after it was last edited, whose `changed` should be later than its `modified`; a hard link made with `mklink /H`, which should carry `"links": 2` under both names; and a file marked hidden in Explorer, which should carry `"hidden": true`. Then an inventory of a USB drive, for what `changed` says there. Every path in the file should read with forward slashes.
+
+## The Recycle Bin, which fuji has never put anything in
+
+**The Windows half of copper's `trash.rs` has never compiled or run.** Nothing in fuji calls it, and nothing should for this test; the test calls it from outside the repository. The Windows halves of copper's `erase.rs` have never compiled either, and are not part of the test: no session runs `disk_erase` or `disk_move` while smoke testing, on any machine.
+
+**The case most likely wrong is a drive with no Recycle Bin.** A drive with a `$RECYCLE.BIN` folder, the user's USB sticks among them, should take the item as Explorer's Delete does, into the one combined Recycle Bin. A drive with none, a network share or a drive Windows counts as removable, is where Explorer asks "Are you sure you want to permanently delete" first; with no interface, Microsoft's documentation of the flags does not say whether the shell deletes outright, asks anyway, or refuses. Deleting outright would make a Move to the Recycle Bin there a plain delete the user never chose.
+
+**The test, with the user, on files the user sets up:**
+
+- A folder of a few test pictures on the system drive, and a second copy beside it to restore from; the same on a USB stick that has a `$RECYCLE.BIN`, and, if one is at hand, on a drive that has none, a memory card or a network share, where Explorer's own Delete asks before deleting permanently.
+- The control first: the user deletes one picture in File Explorer by right-clicking it and choosing Delete, then opens the Recycle Bin and right-clicks it there, where Restore should be offered.
+- A few lines in the session's own scratchpad, a small binary crate depending on copper by its path in the repository, call `copper::trash::trash` on one named picture on each drive, and print each answer. That build is the first compile of the Windows half.
+- The user opens the Recycle Bin, right-clicks the system drive's picture and the stick's, chooses Restore on each, and says whether each returns to its folder. For the drive with no Recycle Bin: whether its picture is in the Recycle Bin, gone from the drive, or still there, and what the program printed.
+
+**Bring the answer for the drive with no Recycle Bin to the user.** What fuji's trash should do on a drive with no Recycle Bin is a decision, and the code's comment says the case is untried until this test runs.

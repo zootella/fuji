@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**A new session reads the constitution and its amendments before anything else, and reads each one whole.** They are the project's rules for the conversation, the planning documents, the code and the site.
+
 ## Project Overview
 
 Fuji is a multimedia file manager designed with privacy and precision in mind. It's a Tauri desktop application built with:

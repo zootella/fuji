@@ -80,6 +80,13 @@ pub fn run() {
 				disk::disk_write,
 				disk::disk_append,
 				disk::disk_copy,
+				disk::disk_rename,
+				disk::disk_mkdir,
+				disk::disk_rmdir,
+				disk::disk_unlink,
+				disk::disk_erase,
+				disk::disk_move,
+				disk::disk_trash,
 				find::find_folders,//and in find.rs
 				desktop::desktop_exit_hold,//and in desktop.rs
 				dialog::dialog_open,//and in dialog.rs
