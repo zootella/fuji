@@ -1,45 +1,35 @@
-<script setup>//fuji's own list, in its plainest form: every row in the page, one column of text, a filter that runs on the text the list already holds, and a selection
+<script setup>//the list that list.js draws, as a component the rest of fuji can place: this layer hands it the rows and the filter and passes its answers up
 
-import {computed, shallowRef, watch} from 'vue'
-import {platform} from './library.js'
-import {selectionEmpty, selectionClick} from '../selection.js'
+import {ref, watch, onMounted} from 'vue'
+import {listMake, listRows, listFilter} from '../list.js'
+import {logTrouble} from '../log.js'
 
 const props = defineProps({
-	rows:   {type: Array,  default: () => []},//the text of each row; a plain array from a shallowRef, so reading ten thousand of them goes through no proxy
+	rows:   {type: Array,  default: () => []},//the text of each row
 	filter: {type: String, default: ''},//matched anywhere in a row, ignoring case
 })
-const emit = defineEmits(['select'])//how many rows are selected, after each press on the list
+const emit = defineEmits(['select'])//what each press on the list did: how many rows are selected, how many changed, the kind of press, and the list's own milliseconds
 
-const lower = computed(() => props.rows.map(row => row.toLowerCase()))//once per list rather than once per keystroke
-const shown = computed(() => {//the indexes of the rows that match, in order
-	let f = props.filter.toLowerCase()
-	let indexes = []
-	for (let i = 0; i < lower.value.length; i++) if (!f || lower.value[i].includes(f)) indexes.push(i)
-	return indexes
+const root = ref(null)//empty in the template, since list.js fills it and vue never draws inside
+let list = null
+onMounted(() => {
+	list = listMake(root.value, {onSelect: press => emit('select', press), onTrouble: error => logTrouble('fuji list', error)})
+	listRows(list, props.rows)
+	listFilter(list, props.filter)
 })
-defineExpose({shown})
-
-const traits = shallowRef(selectionEmpty())//replaced whole on every change, so one value is all the rows watch
-watch(() => props.rows, () => { traits.value = selectionEmpty() })//new rows, so nothing in them is chosen yet
-
-function onPointerDown(e) {//on the press rather than the click, as Finder and Explorer select; one listener for every row, which each row's index finds
-	if (e.button != 0) return
-	let toggle = platform() == 'mac' ? e.metaKey : e.ctrlKey//command on the mac, where control and a click is a right click
-	let row = e.target.closest('[data-row]')
-	if (!row) {
-		if (e.offsetX >= e.currentTarget.clientWidth) return//the scrollbar, which a press on clears nothing
-		if (!toggle && !e.shiftKey) traits.value = selectionEmpty()//a press below the last row clears, as it does in Finder and Explorer
-	} else {
-		traits.value = selectionClick(traits.value, Number(row.dataset.row), shown.value, {range: e.shiftKey, toggle})
-	}
-	emit('select', traits.value.selected.size)
-}
+watch(() => props.rows, rows => listRows(list, rows))
+watch(() => props.filter, text => listFilter(list, text))
+defineExpose({shown: () => list.shown})//the rows on screen, for the bench to count
 
 </script>
 <template>
 
-<div class="mySans text-strong overflow-y-auto select-none" @pointerdown="onPointerDown">
-	<div v-for="i in shown" :key="i" :data-row="i" class="px-4 whitespace-nowrap overflow-hidden text-ellipsis" :class="traits.selected.has(i) && 'bg-select text-on-select'">{{rows[i]}}</div>
-</div>
+<div ref="root" class="myList mySans text-strong overflow-y-auto select-none"></div>
 
 </template>
+<style scoped>
+
+.myList :deep(.myRow) { padding: 0 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.myList :deep(.myRow[data-selected="true"]) { background-color: var(--color-select); color: var(--color-on-select) }
+
+</style>

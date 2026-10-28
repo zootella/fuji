@@ -40,17 +40,19 @@ async function onFilter(e) {
 	filter.value = e.target.value
 	await afterPaint()
 	let ms = Math.round(performance.now() - start)
-	let said = `"${filter.value}" shows ${say(listRef.value.shown.length)} of ${say(rows.value.length)} in ${ms} ms`
+	let said = `"${filter.value}" shows ${say(listRef.value.shown().length)} of ${say(rows.value.length)} in ${ms} ms`
 	filtered.value = said
 	log(`interface spike: ${said}`)
 }
 
-async function onSelect(size) {//the click has already changed the selection, and the rows have not yet drawn it
-	let start = performance.now()
+let pressed = 0, waited = 0//when the last press reached the bench, which hears it before the list does, and how long it sat in line before that, from the moment the event was made
+function press(e) { pressed = performance.now(); waited = pressed - e.timeStamp }
+async function onSelect(p) {//from that press to the selection painted, so the list's own marking is inside the number
+	let start = pressed, queued = waited//read before the wait, since a press queued behind this one can reach the bench during it
 	await afterPaint()
 	let ms = Math.round(performance.now() - start)
-	selected.value = `${say(size)} rows in ${ms} ms`
-	log(`interface spike: selected ${say(size)} of ${say(listRef.value.shown.length)} rows in ${ms} ms`)
+	selected.value = `${say(p.selected)} rows in ${ms} ms`
+	log(`interface spike: ${p.kind} press selected ${say(p.selected)} of ${say(listRef.value.shown().length)} rows, ${say(p.changed)} changed, waited ${Math.round(queued)} ms in line, list ${p.listMs.toFixed(1)} ms, painted at ${ms} ms`)
 }
 
 let scrolling = false, scrollLast = 0, scrollGaps = [], scrollQuiet = null
@@ -73,7 +75,7 @@ function scrollEnd() {
 	let late = scrollGaps.filter(gap => gap > interval * 1.5).length
 	let longest = Math.round(sorted[sorted.length - 1])
 	scrolled.value = `${scrollGaps.length} frames, longest ${longest} ms, ${late} late`
-	log(`interface spike: scrolled ${say(listRef.value.shown.length)} rows over ${scrollGaps.length} frames of ${interval.toFixed(1)} ms, longest ${longest} ms, ${late} late`)
+	log(`interface spike: scrolled ${say(listRef.value.shown().length)} rows over ${scrollGaps.length} frames of ${interval.toFixed(1)} ms, longest ${longest} ms, ${late} late`)
 }
 onBeforeUnmount(() => { scrolling = false; clearTimeout(scrollQuiet) })
 
@@ -118,7 +120,7 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 </script>
 <template>
 
-<div class="bg-paper text-ink w-full h-full flex flex-col">
+<div class="bg-paper text-ink w-full h-full flex flex-col" @pointerdown.capture="press">
 	<div class="myMono flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 border-b border-line">
 		<span class="flex gap-1"><button v-for="n in counts" :key="n" class="myButton" :aria-pressed="n == count" :disabled="building" @click="build(n).catch(trouble)">{{say(n)}}</button></span>
 		<input class="px-2 border border-line bg-surface text-strong" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
@@ -127,7 +129,7 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Scroll <span class="text-strong">{{scrolled}}</span></span>
 		<span>Select <span class="text-strong">{{selected}}</span></span>
 	</div>
-	<FujiList ref="listRef" class="flex-1 min-h-0" :rows="rows" :filter="filter" @scroll.passive="onScroll" @select="size => onSelect(size).catch(trouble)" />
+	<FujiList ref="listRef" class="flex-1 min-h-0" :rows="rows" :filter="filter" @scroll.passive="onScroll" @select="p => onSelect(p).catch(trouble)" />
 </div>
 
 </template>

@@ -1,4 +1,4 @@
-//a list's three traits, after VS Code's list: the rows selected, the anchor a shift range starts from, and the focus where the keyboard is; each change returns a new value rather than editing the old, so a view watching one value sees every change
+//a list's three traits, after VS Code's list: the rows selected, the anchor a shift range starts from, and the focus where the keyboard is; each change returns a new value rather than editing the old, so the list can compare the two and touch only the rows that differ
 
 export function selectionEmpty() { return {selected: new Set(), anchor: -1, focus: -1} }
 
