@@ -28,6 +28,7 @@ import Sheet from './Sheet.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import AudioPanel from './AudioPanel.vue'
 import InventoryPanel from './InventoryPanel.vue'
+import FujiUserInterfaceSpike from './FujiUserInterfaceSpike.vue'
 import DiamondTable from './DiamondTable.vue'
 import PreviewTable from './PreviewTable.vue'
 import ComicTable from './ComicTable.vue'
@@ -43,7 +44,7 @@ It exists because window events are global and everything else is not. A view's 
 
 There is one sheet and there are several tables, and the two facts are separate: whether the sheet is showing, and which table is behind it. The sheet and the current table swap with v-show and both stay mounted, because that switch is frequent and has to be instant with nothing reloading. Tables swap with each other by :is, which destroys and creates, because a table nobody is using should not be holding decoded images. Adding a table is one entry in the tables object below.
 
-The settings panel is the third kind of view, and it belongs to the sheet's window rather than to the table's fullscreen: s on the sheet brings it and s on the panel goes back. Trading those two changes nothing about the window, so it needs none of the curtain the essay further down describes. The panel comes and goes with v-if, made fresh from the settings each time, because a user visits it rarely and it holds nothing worth keeping. The audio panel is the fourth kind, in the same window and made the same way, brought by a from the sheet or the settings and sent back by a, and the inventory panel the fifth, brought and sent back by t.
+The panels are the third kind of view, and they belong to the sheet's window rather than to the table's fullscreen. Trading a panel and the sheet changes nothing about the window, so it needs none of the curtain the essay further down describes. A panel comes and goes with v-if, made fresh each time, because a user visits one rarely and it holds nothing worth keeping.
 
 Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, the shell places it, and the viewport does not report its size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it each time that view comes on screen, and the view does only once whatever must happen only once. The sheet leans on the repeat, rereading the setting the settings panel may have changed while it was hidden.
 
@@ -74,8 +75,9 @@ const sheetRef     = ref(null)
 const settingsRef  = ref(null)
 const audioRef     = ref(null)
 const inventoryRef = ref(null)
+const spikeRef     = ref(null)
 const tableRef     = ref(null)
-const showing      = ref('Table')//Sheet, Settings, Audio, Inventory or Table: which kind of view the user is looking at
+const showing      = ref('Table')//which view the user is looking at: the sheet, a panel or the table
 const whichTable   = ref('Diamond')//which table is behind the sheet, whether or not it is the one showing
 const helpShowing  = ref(false)//the help panel, over every view; hidden until the settings say otherwise, so one the user closed never flashes up before they are read
 
@@ -208,7 +210,7 @@ function helpToggle() {
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
 }
 
-function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Inventory: inventoryRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
+function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Inventory: inventoryRef, Spike: spikeRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 
 function mediaPlays(path) {//whether this is a sound or a video libmpv plays on this platform, by the type table's kind and its render tags through the roads fileTypes.js keeps; kind first, since a picture FFmpeg decodes carries mpv for a still frame, never for the player
 	const type = fileTypes[path.slice(path.lastIndexOf('.')).toLowerCase()]
@@ -250,7 +252,8 @@ function onKey(e) {
 	if (bare && e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing
 	if (bare && e.key == 'g') { gammaToggle(); return }//and this one, because gamma is a way of looking at every view at once rather than something one of them does
 	if (bare && e.key == 'v') { if (!e.repeat) reportTrouble(() => windowNew('Video')); return }//and v, a video window, from whatever this window shows: another window of this process on the Mac and a process of its own elsewhere, which App.vue gives VideoWindow.vue rather than a shell, and which answers nothing back. Once for a held key, which would otherwise ask with every repeat
-	if (bare && e.key == 't' && showing.value != 'Table' && !fullscreenOurs) { if (!e.repeat) reportTrouble(inventoryToggle); return }//and t, the inventory panel and back, only in the sheet's ordinary window; once for a held key, which would trade the views back and forth
+	if (bare && e.key == 't' && showing.value != 'Table' && !fullscreenOurs) { if (!e.repeat) reportTrouble(() => panelToggle('Inventory')); return }//and t, the inventory panel and back, only in the sheet's ordinary window; once for a held key, which would trade the views back and forth
+	if (bare && e.key == 'u' && showing.value != 'Table' && !fullscreenOurs) { if (!e.repeat) reportTrouble(() => panelToggle('Spike')); return }//and u, the interface spike and back, the same way
 	if (bare && e.key == '+' && e.shiftKey) { gammaStep(settings.gamma.step); return }//shift and the plus key; on the main row that key's face is =, and shift is what types + there, so the unshifted = is left to the table as zoom in, and control with it too, as browsers zoom
 	if (bare && (e.key == '_' || (e.key == '-' && e.shiftKey))) { gammaStep(-settings.gamma.step); return }//shift and minus, which the main row types as an underscore and the number pad as a minus with shift held
 	reportTrouble(() => activeView()?.onKey?.(e))
@@ -393,11 +396,11 @@ async function recordSheet() {//the sheet's size into settings as the user resiz
 	}
 	settingsChanged()
 }
-let inventoryFrom = 'Sheet'//the view t goes back to
-async function inventoryToggle() {
-	if (showing.value == 'Inventory') return showView(inventoryFrom)
-	inventoryFrom = showing.value
-	await showView('Inventory')
+let panelFrom = {}//the view each panel's key goes back to, kept per panel so each returns where it came from
+async function panelToggle(name) {
+	if (showing.value == name) return showView(panelFrom[name] || 'Sheet')
+	panelFrom[name] = showing.value
+	await showView(name)
 }
 async function audioFullscreen() {//the audio panel was double-clicked: fuji's own fullscreen on or off with the panel staying, behind the curtain, since the window changes size and the native square over it holds still
 	await curtained(() => fullscreenSet(!fullscreenOurs))
@@ -432,8 +435,9 @@ async function closeWindow() {//close the window as the red button or the × wou
 
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @audio="reportTrouble(() => showView('Audio'))" @open="choose => reportTrouble(() => openAsk(choose))" />
 <SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @audio="reportTrouble(() => showView('Audio'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
-<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(audioFullscreen)" /><!-- the fourth kind of view, in the sheet's window like the settings panel, and made fresh each time the same way; the one view besides a table that can have the screen -->
-<InventoryPanel v-if="showing == 'Inventory'" ref="inventoryRef" /><!-- the fifth, brought and sent back by the shell's t -->
+<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(audioFullscreen)" /><!-- the one view besides a table that can have the screen -->
+<InventoryPanel v-if="showing == 'Inventory'" ref="inventoryRef" />
+<FujiUserInterfaceSpike v-if="showing == 'Spike'" ref="spikeRef" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
 <div v-if="curtainShowing" class="fixed inset-0 bg-paper"></div><!-- last, so it covers everything while the view and the fullscreen change -->

@@ -80,9 +80,9 @@ The page is four layers: a **shell** that owns a browsing window, one **sheet**,
 
 ### The settings panel
 
-**The settings panel is the third kind of view, and it lives in the sheet's window.** Which view is showing has four values: the sheet, the settings panel, the audio panel, or a table. The sheet and the panels share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. A panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches each until fuji has a better way in.
+**The settings panel is the third kind of view, and it lives in the sheet's window.** The view showing is the sheet, a panel, or a table. The sheet and the panels share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. A panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches each until fuji has a better way in.
 
-**The audio panel is the fourth kind, made like the settings panel.** It plays sound and never a picture, from audio files and video files alike, through the media library, and it is a view in the sheet's window for now so that the library and the builds could be worked on before fuji's windows are; whether it becomes a window of its own is decided after.
+**The audio panel is another, made like the settings panel.** It plays sound and never a picture, from audio files and video files alike, through the media library, and it is a view in the sheet's window for now so that the library and the builds could be worked on before fuji's windows are; whether it becomes a window of its own is decided after.
 
 **A video window is not a view but a window of its own.** It stands beside a browsing window rather than taking its place, there can be several, and it shares none of the state the views do, so `App.vue` gives it `VideoWindow.vue` for its root instead of the shell. It reads the settings for its look and the log and never writes them, and on the Mac it answers only Fuji Help from the menu bar, which sends every other item past it to the main window behind.
 
