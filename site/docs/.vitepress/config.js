@@ -186,6 +186,7 @@ export default defineConfig({
 					{ text: 'Download Fuji', link: '/download-fuji' },
 					{ text: 'Diamond Table', link: '/diamond-table' },
 					{ text: 'Zoom', link: '/zoom' },
+					{ text: 'Bike Lock', link: '/bike-lock' },
 				],
 			},
 			{

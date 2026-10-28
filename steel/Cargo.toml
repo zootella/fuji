@@ -8,7 +8,11 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] } # the answer derives Serialize, for the command in fuji that hands it to the page
-zootella-ergo = "0.2" # spans of time and sizes in bytes, the same constants fuji's rust and its page use, from the ergo project; its own rust holds no unsafe but does not forbid it, and the hashing crates beneath it use unsafe inside, so the wall this crate's root raises covers its own lines and not ergo's, which no file's bytes reach from here
+zootella-ergo = "0.3" # spans of time and sizes in bytes, the same constants fuji's rust and its page use, and the bytes, random draws and sha-256 the lock uses, from the ergo project; its own rust holds no unsafe but does not forbid it, and the hashing crates beneath it use unsafe inside, so the wall this crate's root raises covers its own lines and not ergo's
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "parallel"] } # argon2id, the lock's slow step from a passphrase to a key; parallel fills the four lanes on four threads, which changes the speed and never the key
+hkdf = "0.13" # hkdf-sha256, which makes each file's own key from the passphrase's
+sha2 = "0.11" # the sha-256 hkdf runs on, the same generation ergo's hashes come from, so the lockfile holds one
+aes-gcm = { version = "0.11", default-features = false, features = ["aes"] } # aes-256-gcm, which encrypts a file and seals it with a tag; like the three above, from the rustcrypto project, pure rust whose unsafe stays inside it, as ergo's does
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2" # O_NONBLOCK, the one constant read.rs opens a file with, so a FIFO cannot hold the open; a constant is safe rust, and the crate's root still forbids unsafe

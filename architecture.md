@@ -33,7 +33,7 @@ App.vue                  which kind of window this is, read once as the page mou
         scout.js → scout.rs           for no view yet: what a file's first bytes say, read in safe rust by the tip scan in steel, which the inventory asks of every file
                 ↓ each .rs above is a command in brass, the one bridge, over the work beneath it
         copper                        every call into C and the operating system's libraries away from a window
-        steel                         safe rust: the tip scan, the walker, the reads, the disk, find and the fits
+        steel                         safe rust: the tip scan, the walker, the reads, the disk, find, the fits and the lock
 ```
 
 ## The four places
@@ -354,7 +354,7 @@ The model holds the folder, the sort, the ordered list and the current path. Bac
 
 There is no router and no store library. `App.vue` picks the window's root once, as the page mounts, from the note the window was made with and the files it was opened with: the shell for a browsing window, and `VideoWindow.vue` for a video window, asked for with the note Video or opened on a video, which shares none of a browsing window's state and stands beside one rather than taking its place. `main.js` titles the page and mounts the app, and does nothing else.
 
-Plastic is `desktop/src`. Steel is `steel`, holding the tip scan, the walker, the reads that open a file and hand its first bytes to the tip scan, the disk's listing, stating, reading and writing, the walk in find's order, and the fits. Copper is `copper`, holding the media library's declarations with the questions asked through it, the inventory's loop, the sandbox process's start and walls, the thumbnailers, the registry, launch services, the display's size, the memory counters and the process's start. Brass is `desktop/src-tauri`, holding the commands, the windows, the menus, the dock, the trackpad, the dialogs, the log, the players and their render contexts, and the one read only a window can make, the web engine's process ids.
+Plastic is `desktop/src`. Steel is `steel`, holding the tip scan, the walker, the reads that open a file and hand its first bytes to the tip scan, the disk's listing, stating, reading and writing, the walk in find's order, the fits, and the lock, a key from a passphrase and a file sealed under it. Copper is `copper`, holding the media library's declarations with the questions asked through it, the inventory's loop, the sandbox process's start and walls, the thumbnailers, the registry, launch services, the display's size, the memory counters and the process's start. Brass is `desktop/src-tauri`, holding the commands, the windows, the menus, the dock, the trackpad, the dialogs, the log, the players and their render contexts, and the one read only a window can make, the web engine's process ids.
 
 ## The cache, in one paragraph
 

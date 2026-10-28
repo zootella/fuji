@@ -17,6 +17,6 @@
 		"stage": "node build.js stage"
 	},
 	"dependencies": {
-		"@zootella/ergo": "^0.2.0"
+		"@zootella/ergo": "^0.3.0"
 	}
 }

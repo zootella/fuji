@@ -8,5 +8,6 @@ pub mod read;//the reads: a file opened without waiting, and its tip read for th
 pub mod fit;//the fits: how big a thumbnail is from a picture's size and the beam, the arithmetic fit.js has too
 pub mod disk;//the disk: a folder listed, glanced or stated, a file read, written, appended or copied
 pub mod find;//finding the next folders that hold a file of a kind, many folders per call in find's order
+pub mod lock;//the lock: a key from a passphrase, and a file sealed under it and opened again
 #[cfg(test)]
 mod testing;//a tree a test builds, for the tests of the disk and of find

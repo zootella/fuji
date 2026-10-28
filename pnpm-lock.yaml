@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@zootella/ergo':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.0
+        version: 0.3.0
 
   apple:
     dependencies:
@@ -18,8 +18,8 @@ importers:
         specifier: ^12.0.4
         version: 12.0.4
       '@zootella/ergo':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.0
+        version: 0.3.0
 
   copper: {}
 
@@ -29,8 +29,8 @@ importers:
         specifier: ^2.11.1
         version: 2.11.1
       '@zootella/ergo':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.0
+        version: 0.3.0
       lucide-static:
         specifier: ^1.59.0
         version: 1.59.0
@@ -63,14 +63,14 @@ importers:
   linux:
     dependencies:
       '@zootella/ergo':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.0
+        version: 0.3.0
 
   site:
     devDependencies:
       '@zootella/ergo':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.0
+        version: 0.3.0
       vitepress:
         specifier: ^1.6.4
         version: 1.6.4(@algolia/client-search@5.59.0)(lightningcss@1.33.0)(postcss@8.5.26)(search-insights@2.17.3)
@@ -986,8 +986,8 @@ packages:
   '@vueuse/shared@12.8.2':
     resolution: {integrity: sha512-dznP38YzxZoNloI0qpEfpkms8knDtaoQ6Y/sfS0L7Yki4zh40LFHEhur0odJC6xTHG5dxWVPiUWBXn+wCG2s5w==}
 
-  '@zootella/ergo@0.2.0':
-    resolution: {integrity: sha512-D5O9147uLYatuLWiV5Rlx2+nx56LAugmLdHSQoFrZ9lSlvkyIPH9KlQau0e/WIlHm+OvnxAz1nW3wrtVZb604Q==}
+  '@zootella/ergo@0.3.0':
+    resolution: {integrity: sha512-Prm14EmhIB8Yxt02rDEFcjsj1F6tBrpt2ljZKOfdT3oAHPd9va3D0QbrsO0CZteMhhx5qKoeaIIhke5S9J/XGA==}
     engines: {node: '>=22'}
 
   algoliasearch@5.59.0:
@@ -2255,7 +2255,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@zootella/ergo@0.2.0':
+  '@zootella/ergo@0.3.0':
     dependencies:
       '@noble/hashes': 2.4.0
 

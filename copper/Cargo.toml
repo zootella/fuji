@@ -10,7 +10,7 @@ publish = false
 serde = { version = "1", features = ["derive"] } # the probe's answer and the library's versions derive Serialize, for the commands in brass that hand them to the page, and the inventory's options and counts cross the same way
 serde_json = "1" # the inventory's lines
 steel = { path = "../steel" } # the scout and the walker, which the inventory reads every file with; copper calls steel and never the other way
-zootella-ergo = "0.2.0" # the hashes the inventory writes, and the kept times' form, from the ergo project
+zootella-ergo = "0.3.0" # the hashes the inventory writes, and the kept times' form, from the ergo project
 blake3 = "1.8" # already beneath ergo; named for its keyed output stream, the random bytes erase.rs writes over a file with
 
 [target.'cfg(target_os = "macos")'.dependencies]
