@@ -13,6 +13,7 @@ const listRef  = ref(null)
 const built    = ref('')//what the strip says about the last build, filter and scroll, which the log says too
 const filtered = ref('')
 const scrolled = ref('')
+const selected = ref('')
 
 function say(n) { return n.toLocaleString('en-US') }
 function trouble(error) { logTrouble('interface spike', error) }//for the panel's entry points, where a throw would otherwise vanish
@@ -42,6 +43,14 @@ async function onFilter(e) {
 	let said = `"${filter.value}" shows ${say(listRef.value.shown.length)} of ${say(rows.value.length)} in ${ms} ms`
 	filtered.value = said
 	log(`interface spike: ${said}`)
+}
+
+async function onSelect(size) {//the click has already changed the selection, and the rows have not yet drawn it
+	let start = performance.now()
+	await afterPaint()
+	let ms = Math.round(performance.now() - start)
+	selected.value = `${say(size)} rows in ${ms} ms`
+	log(`interface spike: selected ${say(size)} of ${say(listRef.value.shown.length)} rows in ${ms} ms`)
 }
 
 let scrolling = false, scrollLast = 0, scrollGaps = [], scrollQuiet = null
@@ -116,8 +125,9 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Build <span class="text-strong">{{built}}</span></span>
 		<span>Filter <span class="text-strong">{{filtered}}</span></span>
 		<span>Scroll <span class="text-strong">{{scrolled}}</span></span>
+		<span>Select <span class="text-strong">{{selected}}</span></span>
 	</div>
-	<FujiList ref="listRef" class="flex-1 min-h-0" :rows="rows" :filter="filter" @scroll.passive="onScroll" />
+	<FujiList ref="listRef" class="flex-1 min-h-0" :rows="rows" :filter="filter" @scroll.passive="onScroll" @select="size => onSelect(size).catch(trouble)" />
 </div>
 
 </template>

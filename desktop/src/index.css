@@ -65,6 +65,8 @@ Every color fuji paints is named here, for the job it does, and the templates an
 	--color-warn:      light-dark(#ff4f00, #fbbf24);/* for something to know or to do: international orange on white, and on black the amber fuji has always had */
 	--color-brand:     #9fffe0;                     /* fuji's cyan, the icon's own color, the same in both: the frame of the thumbnail under the pointer. On white it measures 1.18 to 1, pale for a line, and the site's deep shade of it, #154739, is the one to reach for if a light window ever needs it stronger */
 	--color-surface:   light-dark(#f5f5f5, #171717);/* the face of a box or a card */
+	--color-select:    light-dark(#0066dd, #0055cc);/* a selected row in a list, a plain blue of fuji's own until the system's selection color reaches the page */
+	--color-on-select: #ffffff;                     /* the text on a selected row, white in both */
 	--color-dot:       light-dark(#ebebec, #363c46);/* the dots in the table's ground, one step from the paper: One Light's panel gray, and One Dark's quiet line */
 	--color-screen:    light-dark(#3c3f45, #1c1e22);/* where a video plays, before it plays: a dark gray on white, and in dark a step below the paper, so it reads as a screen in both */
 	--color-line:      light-dark(#d4d4d4, #404040);/* a border, and the small dots of the sheet's ground and the video window's page, which want a step more than the table's large ones in --color-dot to show at a pixel across */
