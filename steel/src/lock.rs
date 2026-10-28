@@ -16,7 +16,7 @@ pub const SALT: usize = 16;//the option's 128-bit salt, and the size of each fil
 
 //a sealed file: the file salt and the nonce in the clear, then the length, the file and padmé's zeros encrypted together, then the tag
 pub const NONCE: usize = 12;
-pub const LENGTH: usize = 8;//the file's length, a u64, little-endian, the order of every processor fuji runs on
+pub const LENGTH: usize = 8;//the file's length, a u64, little-endian, the order of every processor fuji runs on; a length rather than a marker byte after the file, so a reader knows from the start how much of what follows is the file
 pub const TAG: usize = 16;
 const HEADER: usize = SALT + NONCE;
 
@@ -37,7 +37,7 @@ pub fn padme(length: u64) -> Option<u64> {//the size padmé rounds a length up t
 	Some(length.checked_add(m)? & !m)
 }
 
-pub fn seal(key: &Data, file: &Data) -> Option<Data> {//the file sealed under a key from key(), in one allocation sized by padmé, encrypted where it lies
+pub fn seal(key: &Data, file: &Data) -> Option<Data> {//the file sealed under a key from key(), in one allocation sized by padmé, encrypted where it lies. One tag covers the whole file, so open reads every byte before it releases one, and gcm takes at most about 64 GiB in one message; sealing in chunks, each with a tag of its own, would answer both for very large files
 	let n = u64::try_from(file.size()).ok()?;//the file's length, as the length field holds it
 	let padded = usize::try_from(padme(n.checked_add(LENGTH as u64)?)?).ok()?;//the length field and the file, rounded up
 	let salt = Data::random(SALT);
