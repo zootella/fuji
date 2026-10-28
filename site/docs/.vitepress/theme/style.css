@@ -430,3 +430,10 @@ The spacing is two lines each side: a line of margin, 24px, and a line of paddin
 .vp-doc blockquote > p + p {
 	margin-top: 12px;
 }
+
+/*
+A list item on the paragraph's line. VitePress sets a paragraph at 28px line to line and a list item at nothing, so an item inherits the body's 24px, and a bullet of two or three lines reads as a denser block than the prose on either side of it. The 8px between items stays as VitePress has it.
+*/
+.vp-doc li {
+	line-height: 28px;
+}
