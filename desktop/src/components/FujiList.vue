@@ -5,11 +5,11 @@ import {listMake, listRows, listFilter, listKey} from '../list.js'
 import {logTrouble} from '../log.js'
 
 const props = defineProps({
-	columns: {type: Array,  required: true},//what each row shows, left to right: a key into the row, the title its header says, a say function that makes its value text, a sort function that takes rows and hands them back in order, which a column of raw numbers leaves out, an align, and a width in css pixels, which the column that fills the rest leaves out; read once as the list is made
+	columns: {type: Array,  required: true},//what each row shows, left to right: a key into the row, the title its header says, a say function that makes its value text, a sort function that takes rows and hands them back in order, which a column of raw numbers leaves out, an align, and a width in css pixels; read once as the list is made
 	rows:    {type: Array,  default: () => []},//a record per row, holding a value for each column's key
 	filter:  {type: String, default: ''},//matched anywhere in the first column, ignoring case
 })
-const emit = defineEmits(['select', 'sort'])//what each press or key did: how many rows are selected, how many changed, the kind of press or key, and the list's own milliseconds; and each sort, by which column and which way
+const emit = defineEmits(['select', 'sort'])//what each press, key or drag did: how many rows are selected, how many changed, the kind of press or key, and the list's own milliseconds; and each sort, by which column and which way
 
 const frame = ref(null)//empty in the template, since list.js fills it and vue never draws inside
 let list = null
@@ -43,7 +43,7 @@ defineExpose({
 .myHeader .myCell[data-align="right"][data-sort="up"]::before { content: "▲ " }
 .myHeader .myCell[data-align="right"][data-sort="down"]::before { content: "▼ " }
 .myList { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable } /* down and, when the columns are wider than the list, sideways */
-.myRow { display: grid; grid-template-columns: var(--list-columns); padding: 0 8px; width: max-content; min-width: 100% } /* every row on the one grid list.js sets on the frame, which the headers share; as wide as its columns and never narrower than the list, so a selected row's fill reaches past the last column */
+.myRow { display: grid; grid-template-columns: var(--list-columns); padding: 0 8px; width: max-content; min-width: 100% } /* every row on the one grid list.js sets on the frame, which the headers share; as wide as its columns and never narrower than the list, so a selected row's fill, and the place a press selects it, reach past the last column to the list's edge, as Finder's do, on every platform */
 .myCell { padding: 0 8px; white-space: nowrap; overflow: hidden } /* the space between columns is each cell's own padding, inside the width list.js gives its column, so the dividers fall between them; text too long for its column is cut off at the edge, with no ellipsis */
 .myCell[data-align="right"] { text-align: right }
 .myRow .myCell { mask-image: linear-gradient(to right, black calc(100% - 2px), transparent) } /* melted over its last 2 css pixels, as the contact sheet melts its captions, so a letter cut in half fades out rather than looking broken, in less room than an ellipsis and with nothing to stop the eye; the cell's own padding keeps text that fits clear of the fade, and the headers go without it, since it would clip their dividers and arrows */

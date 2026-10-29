@@ -22,6 +22,7 @@ import {brandName, urlHelp} from '../brand.js'//for the log lines that say what 
 import {processOpen} from '../process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, and to ask for a video window beside this one
+import {setCommandKey} from '../keyboard.js'//which modifier the components hold their chords with
 import {themeShow, facesShow, selectionShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts, and the fill of a selected row, which only a browsing window has lists to need
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
@@ -44,7 +45,7 @@ It exists because window events are global and everything else is not. A view's 
 
 There is one sheet and there are several tables, and the two facts are separate: whether the sheet is showing, and which table is behind it. The sheet and the current table swap with v-show and both stay mounted, because that switch is frequent and has to be instant with nothing reloading. Tables swap with each other by :is, which destroys and creates, because a table nobody is using should not be holding decoded images. Adding a table is one entry in the tables object below.
 
-The panels are the third kind of view, and they belong to the sheet's window rather than to the table's fullscreen. Trading a panel and the sheet changes nothing about the window, so it needs none of the curtain the essay further down describes. A panel comes and goes with v-if, made fresh each time, because a user visits one rarely and it holds nothing worth keeping.
+The panels are views of another kind, and they belong to the sheet's window rather than to the table's fullscreen. Trading a panel and the sheet changes nothing about the window, so it needs none of the curtain the essay further down describes. A panel comes and goes with v-if, made fresh each time, because a user visits one rarely and it holds nothing worth keeping.
 
 Startup runs in one order for one reason: a view cannot measure itself until the window is real and it is on screen. Rust builds the window hidden, the shell places it, and the viewport does not report its size until a frame after the reveal. A view that is not showing measures nothing at all, because v-show is display none and that destroys the layout box. Vue also runs a child's onMounted before its parent's, so a view cannot do this for itself from down there. Hence the contract: a view exposes start(), the shell calls it each time that view comes on screen, and the view does only once whatever must happen only once. The sheet leans on the repeat, rereading the setting the settings panel may have changed while it was hidden.
 
@@ -113,6 +114,7 @@ onMounted(async () => {
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
 	selectionShow()//and a selected row in the fill the settings name
+	if (platform() == 'mac') setCommandKey('metaKey')//and the components' chords on command, where control and a click is a right click; asked here so no component asks which platform it is on
 	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
@@ -444,7 +446,7 @@ async function closeWindow() {//close the window as the red button or the × wou
 
 <Sheet ref="sheetRef" v-show="showing == 'Sheet'" @table="reportTrouble(() => showView('Table'))" @settings="reportTrouble(() => showView('Settings'))" @audio="reportTrouble(() => showView('Audio'))" @open="choose => reportTrouble(() => openAsk(choose))" />
 <SettingsPanel v-if="showing == 'Settings'" ref="settingsRef" @sheet="reportTrouble(() => showView('Sheet'))" @audio="reportTrouble(() => showView('Audio'))" @faces="reportTrouble(facesShow)" @theme="reportTrouble(themeShow)" />
-<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(audioFullscreen)" /><!-- the one view besides a table that can have the screen -->
+<AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(audioFullscreen)" /><!-- a panel that can have the screen, as a table does -->
 <InventoryPanel v-if="showing == 'Inventory'" ref="inventoryRef" />
 <FujiUserInterfaceSpike v-if="showing == 'Spike'" ref="spikeRef" />
 <component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />

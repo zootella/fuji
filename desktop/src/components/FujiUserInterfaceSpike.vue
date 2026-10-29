@@ -96,7 +96,7 @@ onBeforeUnmount(() => { scrolling = false; clearTimeout(scrollQuiet) })
 
 function sayKilobytes(bytes) { return `${Math.ceil(bytes / Size.kb).toLocaleString('en-US')} KB` }//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
 const columns = [
-	{key: 'name', title: 'Name', sort: modelSortRun},//names in fuji's one sort, the order every list and view in fuji shows
+	{key: 'name', title: 'Name', sort: modelSortRun, width: 320},//names in fuji's one sort, the order every list and view in fuji shows
 	{key: 'size', title: 'Size', say: sayKilobytes, align: 'right', width: 128},
 	{key: 'modified', title: 'Date', say: sayDayTime, width: 152},
 ]

@@ -21,7 +21,11 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0
 
-  copper: {}
+  copper:
+    dependencies:
+      '@zootella/ergo':
+        specifier: ^0.3.0
+        version: 0.3.0
 
   desktop:
     dependencies:

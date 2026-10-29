@@ -80,7 +80,7 @@ The page is four layers: a **shell** that owns a browsing window, one **sheet**,
 
 ### The settings panel
 
-**The settings panel is the third kind of view, and it lives in the sheet's window.** The view showing is the sheet, a panel, or a table. The sheet and the panels share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. A panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches each until fuji has a better way in.
+**The settings panel is a panel, a view that lives in the sheet's window.** The view showing is the sheet, a panel, or a table. The sheet and the panels share the ordinary window and trade places without it changing size, and a table has fuji's fullscreen. A panel comes and goes with `v-if` rather than staying mounted, because a user visits it rarely and it holds nothing worth keeping, and a key on the sheet reaches each until fuji has a better way in.
 
 **The audio panel is another, made like the settings panel.** It plays sound and never a picture, from audio files and video files alike, through the media library, and it is a view in the sheet's window for now so that the library and the builds could be worked on before fuji's windows are; whether it becomes a window of its own is decided after.
 
@@ -135,6 +135,12 @@ A module is already a singleton that outlives every component, `ref` already mak
 **The rule for where a value goes:** state the interface watches is an exported `ref`; state it does not watch is a plain binding; nothing large goes inside a deep reactive. That last clause is why fuji's most important state — the quiver, the drag object, the folder listing — is not reactive at all, and why one rule covers both kinds rather than a convention plus a standing list of exceptions.
 
 **Large collections get `shallowRef`.** A folder listing is replaced, never edited in place, so proxying thousands of strings to watch for a change that always arrives as a whole new array is work for nothing.
+
+### The components
+
+**A component that has to stand apart from fuji, or whose rendering Vue would make slow, draws its own elements in a plain module, and a thin Vue file places it.** FujiList is the example. `list.js` keeps each row as an element of its own and touches only the rows a change reaches, where Vue would run its template over every row on every change, which lags at ten thousand rows. `FujiList.vue` hands it rows and passes its answers up, and `list.js` imports nothing from Vue or from the rest of fuji, only the component's own modules and ergo, so another project could take the list as it stands. The quiver leaves Vue for the speed half of the same reason, and the components that follow the list are built the way it is.
+
+**The platform reaches a component from its host, set once as the page starts.** A component never asks which platform it is on. Where its behavior depends on the platform, it reads a fact the host set at startup: `keyboard.js` holds which modifier is the command key, Control unless the shell says Command as it starts on the Mac, and a component asks `isCommandOrControl` rather than the platform. It is the rule for windows below, the platform question asked where a thing is made and never where it is used, applied to the page's own parts.
 
 ## Deciding where something goes
 

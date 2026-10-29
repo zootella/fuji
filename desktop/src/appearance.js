@@ -16,7 +16,7 @@ export async function facesShow() {//put the page's text in the fonts the settin
 	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted; the setting's own word, system, bundled or retro, which index.css keys its rules on
 }
 
-export function selectionShow() {//the fill of a selected row: blank leaves the platform's defaults in index.css, and a color the user named replaces the fill, with whichever of white or black text reads on it
+export function selectionShow() {//the fill of a selected row: blank leaves the platform's defaults in index.css, and a color the user named replaces the fill, with whichever of white or black text reads on it. Fuji carries each platform's colors rather than reading the system's, since every engine fixes the Highlight color a page can ask for against fingerprinting, and Rust could read the real one only on the mac
 	document.documentElement.dataset.platform = platform()//mac, windows or linux, which index.css picks the defaults by
 	let root = document.documentElement.style
 	let color = settings.selection.color
@@ -27,9 +27,9 @@ export function selectionShow() {//the fill of a selected row: blank leaves the 
 
 function _colorPale(color) {//whether black text contrasts more with this color than white does, by the relative luminance WCAG defines
 	let c = document.createElement('canvas').getContext('2d')
-	c.fillStyle = color//the engine's own reading of any color CSS takes, a name or a value, which it hands back as #rrggbb, or as rgba() when the color is translucent
-	let s = c.fillStyle
-	let [r, g, b] = s.startsWith('#') ? [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16)) : s.match(/[\d.]+/g).slice(0, 3).map(Number)
+	c.fillStyle = color
+	c.fillRect(0, 0, 1, 1)//painted and read back as srgb bytes, since fillStyle hands a color outside srgb, like an oklch() or a display-p3 one, back in its own notation rather than as hex
+	let [r, g, b] = c.getImageData(0, 0, 1, 1).data
 	let linear = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
 	let luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
 	return (luminance + 0.05) / 0.05 > 1.05 / (luminance + 0.05)//black's contrast with the color, weighed against white's

@@ -1,19 +1,19 @@
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {platform} from './components/library.js'
-import {selectionEmpty, selectionClick, selectionMove, selectionAll} from './selection.js'
+import {isCommandOrControl} from './keyboard.js'
+import {selectionEmpty, selectionClick, selectionMove, selectionFocus, selectionSmear, selectionAll} from './selection.js'
 
 /*
-Fuji's own list, drawn with the page's own elements rather than through Vue. A list is many rows whose state changes a little at a time, a click marking one row or a keystroke in the filter hiding a few, and Vue answers every change by running its template over all of them to find the few that differ. Here each row is one element, made once and kept for the life of the list, and a change touches only the rows it changes: the filter sets hidden on the rows whose answer flipped, and a press or a key marks the rows whose selection or focus did. FujiList.vue is the thin layer that lets the rest of fuji place it as a component.
+Fuji's own list, drawn with the page's own elements rather than through Vue. A list is many rows whose state changes a little at a time, a click marking one row or a keystroke in the filter hiding a few, and Vue answers every change by running its template over all of them to find the few that differ. Here each row is one element, made once and kept for the life of the list, and a change touches only the rows it changes: the filter sets hidden on the rows whose answer flipped, and a press or a key marks the rows whose selection or focus did. Every row is in the page, with no windowing and no virtualizer: this plain list built, scrolled and filtered ten thousand rows without trouble on the Mac mini and the Windows box, scrolls on the engine's compositor with no script running, and leaves scrolling a row into view to the browser. FujiUserInterfaceSpike.vue is the bench that times it. FujiList.vue is the thin layer that lets the rest of fuji place it as a component.
 */
 
-export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the list inside this element, which it owns from here on: a row of headers, and below it the rows, which scroll. columns says what each row shows and what its header says, onSelect hears what each press or key did, onSort each sort, and onTrouble anything that throws where the page hands the list an event
+export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the list inside this element, which it owns from here on: a row of headers, and below it the rows, which scroll. columns says what each row shows and what its header says, onSelect hears what each press, key or drag did, onSort each sort, and onTrouble anything that throws where the page hands the list an event
 	let header = document.createElement('div'), root = document.createElement('div')
 	header.className = 'myHeader'
 	root.className = 'myList'
 	root.tabIndex = 0//so the list can take the keyboard
 	frame.replaceChildren(header, root)
-	frame.style.setProperty('--list-columns', columns.map(c => c.width ? `${c.width}px` : 'minmax(0, 1fr)').join(' '))//one grid for the headers and every row, a column with no width taking the room the others leave until the first rows fix every width
-	let o = {frame, header, root, columns, onSelect, onSort, widths: null, rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
+	for (let c of columns) if (typeof c.width != 'number' || c.width <= 0) throw new Error(`expected a width in css pixels for column ${c.key}: ${c.width}`)
+	let o = {frame, header, root, columns, onSelect, onSort, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
 	for (let [i, column] of columns.entries()) {
 		let cell = document.createElement('span')
 		cell.className = 'myCell'
@@ -26,6 +26,7 @@ export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the l
 		cell.append(grip)
 		header.append(cell)
 	}
+	_listGrid(o)
 	let gate = handle => e => { try { handle(o, e) } catch (error) { onTrouble(error) } }
 	root.addEventListener('pointerdown', gate(_listPress))
 	header.addEventListener('click', gate(_listHeaderClick))
@@ -58,15 +59,21 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 			cell.className = 'myCell'
 			if (column.align) cell.dataset.align = column.align
 			/*
-			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the cell's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent.
+			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the element's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent.
 			*/
-			cell.textContent = _listSay(column, row)
+			if (column == o.columns[0]) {//the name in a span as wide as its text, so a press on the name can be told from a press in the space beside it
+				let name = document.createElement('span')
+				name.className = 'myName'
+				name.textContent = _listSay(column, row)
+				cell.append(name)
+			} else {
+				cell.textContent = _listSay(column, row)
+			}
 			e.append(cell)
 		}
 		return e
 	})
 	o.root.replaceChildren()
-	if (!o.widths) _listWidths(o)//on the first rows, once the list is on the page and has a width to fill
 	o.index = new Map(rows.map((row, i) => [row, i]))//each row's place in rows, for a column's sort, which hands rows back rather than their places
 	o.order = rows.map((row, i) => i)
 	o.order = _listSorted(o)//in the sort the list already has, so new rows keep the one the user chose for the old ones
@@ -78,17 +85,11 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 function _listSay(column, row) { return column.say ? column.say(row[column.key]) : String(row[column.key]) }//the text a cell shows for a row's value
 
 const listNarrowest = 24//css pixels, the narrowest a drag leaves a column, which still leaves its divider to grab
-function _listWidths(o) {//every column's width in css pixels, fixed from here on the way Finder's and Explorer's are: each column its own, and one given no width sized to fill the list as it first appears
-	let given = o.columns.reduce((sum, c) => sum + (c.width || 0), 0)
-	let room = o.root.clientWidth - 16//less the rows' padding at either end
-	o.widths = o.columns.map(c => c.width || Math.max(listNarrowest, room - given))
-	_listGrid(o)
-}
 function _listGrid(o) { o.frame.style.setProperty('--list-columns', o.widths.map(w => `${w}px`).join(' ')) }//the widths onto the one grid the headers and rows share
 
 function _listGripPress(o, e) {//a press on a divider resizes the column to its left as the pointer moves; the columns to its right move over, and past the list's edge the list scrolls sideways
 	let grip = e.target.closest('.myGrip')
-	if (!grip || e.button != 0 || !o.widths) return
+	if (!grip || e.button != 0) return
 	let column = Number(grip.parentElement.dataset.column), startX = e.clientX, startWidth = o.widths[column]
 	grip.setPointerCapture(e.pointerId)//so the drag keeps the pointer outside the header and outside the window
 	let move = m => { o.widths[column] = Math.max(listNarrowest, Math.round(startWidth + m.clientX - startX)); _listGrid(o) }
@@ -98,13 +99,13 @@ function _listGripPress(o, e) {//a press on a divider resizes the column to its 
 	grip.addEventListener('pointercancel', end)
 }
 
-function _listGripFit(o, e) {//a double-click on a divider fits its column to the widest text in it, the header's included, as both file managers do
+function _listGripFit(o, e) {//a double-click on a divider fits its column to the widest text in it, the header's included, as Finder and Explorer do
 	let grip = e.target.closest('.myGrip')
-	if (!grip || !o.widths) return
+	if (!grip) return
 	let column = Number(grip.parentElement.dataset.column), c = o.columns[column]
 	let measure = document.createElement('canvas').getContext('2d')
 	let style = getComputedStyle(grip.parentElement)
-	measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`//the list's own font, so text is measured without drawing any of it, which is what lets ten thousand rows be measured at once
+	measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`//the list's own font, so text is measured without drawing any of it, quickly enough for ten thousand rows at once
 	let widest = measure.measureText(`${c.title} ▲ `).width//room for the header and the sort arrow beside it
 	for (let row of o.rows) widest = Math.max(widest, measure.measureText(_listSay(c, row)).width)
 	o.widths[column] = Math.ceil(widest) + 16 + 2//the cell's padding at either end, and a pixel each side so the last letter is never cut
@@ -128,7 +129,7 @@ function _listHeaderClick(o, e) {//a click on a header sorts by its column, and 
 	o.onSort({key: o.columns[column].key, descending: o.sort.descending, listMs: performance.now() - start})
 }
 
-function _listSorted(o) {//the rows' order sorted by the chosen column, from the order they are in now; a stable sort leaves rows that tie in the order they had, so the column sorted before becomes the second key, which is what Explorer documents
+function _listSorted(o) {//the rows' order sorted by the chosen column, from the order they are in now; a stable sort leaves rows that tie in the order they had, so the column sorted before becomes the second key, a spreadsheet's way and what Explorer documents
 	let {key, sort} = o.columns[o.sort.column]
 	if (sort) {//a column that brings a sort of its own, which takes rows and hands them back in order, like the name column running fuji's one sort setting
 		let order = sort(o.order.map(i => o.rows[i])).map(row => o.index.get(row))
@@ -157,18 +158,26 @@ export function listKey(o, e) {//one key, acted on only while the list has the k
 	if (document.activeElement != o.root) return false
 	let start = performance.now()
 	let before = o.traits, kind
-	let selectAll = (platform() == 'mac' ? e.metaKey : e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() == 'a'
-	if (selectAll) {
+	let command = isCommandOrControl(e)
+	if (e.altKey || ((e.ctrlKey || e.metaKey) && !command)) return false//a chord with alt, or with the modifier that is not the command key, like control on the mac, is the system's
+	if (command && !e.shiftKey && e.key.toLowerCase() == 'a') {
 		o.traits = selectionAll(o.traits, o.shown)
 		kind = 'select all'
 	} else {
-		if (e.ctrlKey || e.metaKey || e.altKey) return false//a key with any of these is the system's or another command's, like command and down to open on the mac
 		let to = _listTarget(o, e.key)
 		if (to != -1) {
 			o.typed = ''//a movement key ends a name being typed
-			o.traits = selectionMove(o.traits, to, o.shown, {range: e.shiftKey})
-			kind = e.shiftKey ? `shift ${e.key}` : e.key
+			if (command && e.shiftKey) o.traits = selectionClick(o.traits, to, o.shown, {range: true, toggle: true})//with the command key and shift, the rows from the anchor join the selection, as a click with both keys adds them
+			else if (command) o.traits = selectionFocus(o.traits, to)//with the command key alone only the keyboard moves, as control and an arrow move it in Explorer, so space can pick rows one at a time
+			else o.traits = selectionMove(o.traits, to, o.shown, {range: e.shiftKey})
+			kind = `${command ? 'command ' : ''}${e.shiftKey ? 'shift ' : ''}${e.key}`
+		} else if (e.key == ' ' && (command || !_listTyping(o, e))) {//space toggles the row the keyboard is on, as control and space pick rows one at a time in Explorer, with the command key still held from the arrows or without it, and is a letter only inside a name being typed
+			to = o.traits.focus
+			if (to == -1) { e.preventDefault(); return true }//no row has the keyboard yet, and the space still must not scroll the list
+			o.traits = selectionClick(o.traits, to, o.shown, {range: false, toggle: true})
+			kind = 'space'
 		} else {
+			if (command) return false//a chord the list has no use for, like copy, which belongs to the page around it or to the system
 			to = _listFind(o, e)
 			if (to == -1) return false
 			o.traits = selectionMove(o.traits, to, o.shown, {range: false})
@@ -200,13 +209,16 @@ function _listTarget(o, key) {//the row a movement key takes the focus to, or -1
 }
 
 const listTypedRest = 1*Time.second//how long without a key before the next one starts a new name rather than adding to the one being typed; a second, the same as Chromium's own type-ahead in a select
-function _listFind(o, e) {//the row a typed character takes the focus to, the first shown, in the list's order, whose name starts with what has been typed so far, ignoring case, as Finder and Explorer jump; or -1
+function _listTyping(o, e) { return o.typed != '' && e.timeStamp - o.typedAt <= listTypedRest }//whether this key comes while a name is being typed
+function _listFind(o, e) {//the row a typed character takes the focus to: the next shown, in the list's order and wrapping at the end, whose name starts with what has been typed so far, ignoring case, as VS Code's list jumps; or -1
 	if ([...e.key].length != 1) return -1//a key named rather than typed, like Tab or Enter
-	if (e.timeStamp - o.typedAt > listTypedRest) o.typed = ''
-	if (e.key == ' ' && !o.typed) return -1//a space only inside a name
+	let typing = _listTyping(o, e)
+	if (!typing) o.typed = ''
 	o.typed += e.key.toLowerCase()
 	o.typedAt = e.timeStamp
-	return o.shown.find(i => o.lower[i].startsWith(o.typed)) ?? -1
+	let shown = o.shown, at = shown.indexOf(o.traits.focus)//-1 before any row has the keyboard, which starts the search at the top
+	let start = typing ? Math.max(at, 0) : at + 1//a new name starts after the row the keyboard is on, so the same letter again moves on; a name still being typed starts on it, so another letter stays put while that row matches
+	return [...shown.slice(start), ...shown.slice(0, start)].find(i => o.lower[i].startsWith(o.typed)) ?? -1
 }
 
 function _listShow(o) {
@@ -223,7 +235,7 @@ function _listPress(o, e) {//on the press rather than the click, as Finder and E
 	if (e.button != 0) return
 	let start = performance.now()
 	o.root.focus({preventScroll: true})//the keyboard to the list, which the press's cancelled default would otherwise have done
-	let toggle = platform() == 'mac' ? e.metaKey : e.ctrlKey//command on the mac, where control and a click is a right click
+	let toggle = isCommandOrControl(e)
 	let row = e.target.closest('[data-row]')
 	let before = o.traits
 	if (!row) {
@@ -239,6 +251,39 @@ function _listPress(o, e) {//on the press rather than the click, as Finder and E
 		kind: !row ? 'below the rows' : e.shiftKey ? (toggle ? 'shift and toggle' : 'shift') : toggle ? 'toggle' : 'plain',
 		listMs: performance.now() - start,
 	})
+	if (!e.shiftKey && !e.target.closest('.myName') && o.shown.length > 0) _listSmear(o, e, row ? Number(row.dataset.row) : -1, toggle ? before : selectionEmpty())//a press on a name is left for dragging the file, once the list drags files
+}
+
+/*
+A press anywhere in a row but on its name, dragged up or down, selects the rows from the one pressed to the one level with the pointer, as Finder's list does from beside a name. A press below the last row does the same from the bottom up, with the last row as the start, and nothing is drawn for the drag itself. With the toggle key down at the press, the rows join the selection the list had before it, which is how Finder adds a second run. The pointer is held to the rows in view, so a drag past the list's edge reaches the last row showing rather than rows scrolled out of sight. Until the pointer reaches a row other than the one it started on, the press's own selection stands, so a toggle click that drifts a pixel is still a toggle click.
+*/
+function _listSmear(o, e, from, base) {//from is the row pressed, or -1 below the last row; base is what the drag adds to
+	let height = o.elements[o.shown[0]].offsetHeight//every row is one line of the same height
+	let last = o.shown.length - 1
+	let start = from == -1 ? last + 1 : o.shown.indexOf(from)//places in shown, where last + 1 is below the rows
+	let at = start, changed = 0, ms = 0, pointerY = e.clientY//where the pointer was last heard, which a scroll under a still pointer measures again
+	o.root.setPointerCapture(e.pointerId)//so the drag keeps the pointer outside the list and outside the window
+	let step = () => {//after the pointer moves or the list scrolls under it
+		let box = o.root.getBoundingClientRect()
+		let y = Math.min(Math.max(pointerY, box.top), box.top + o.root.clientHeight - 1)
+		let k = Math.min(Math.floor((y - box.top + o.root.scrollTop) / height), last + 1)
+		if (k == at) return
+		at = k
+		let t = performance.now(), before = o.traits
+		if (start > last && k > last) o.traits = base//begun below the rows and still there
+		else o.traits = selectionSmear(base, o.shown[Math.min(start, last)], o.shown[Math.min(k, last)], o.shown)
+		changed += _listDraw(o, before)
+		ms += performance.now() - t
+	}
+	let move = m => { pointerY = m.clientY; step() }
+	let end = () => {
+		o.root.removeEventListener('pointermove', move); o.root.removeEventListener('scroll', step); o.root.removeEventListener('pointerup', end); o.root.removeEventListener('pointercancel', end)
+		if (at != start) o.onSelect({selected: o.traits.selected.size, changed, kind: 'smear', listMs: ms})
+	}
+	o.root.addEventListener('pointermove', move)
+	o.root.addEventListener('scroll', step, {passive: true})
+	o.root.addEventListener('pointerup', end)
+	o.root.addEventListener('pointercancel', end)
 }
 
 /*
