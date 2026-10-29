@@ -5,9 +5,32 @@ import {selectionEmpty, selectionClick, selectionMove, selectionAll} from './sel
 Fuji's own list, drawn with the page's own elements rather than through Vue. A list is many rows whose state changes a little at a time, a click marking one row or a keystroke in the filter hiding a few, and Vue answers every change by running its template over all of them to find the few that differ. Here each row is one element, made once and kept for the life of the list, and a change touches only the rows it changes: the filter sets hidden on the rows whose answer flipped, and a press or a key marks the rows whose selection or focus did. FujiList.vue is the thin layer that lets the rest of fuji place it as a component.
 */
 
-export function listMake(root, {onSelect, onTrouble}) {//the list inside this element, which it owns from here on; onSelect hears what each press or key did, and onTrouble anything that throws where the page hands the list an event
-	let o = {root, onSelect, rows: [], lower: [], elements: [], shown: [], filter: '', traits: selectionEmpty()}
-	root.addEventListener('pointerdown', e => { try { _listPress(o, e) } catch (error) { onTrouble(error) } })
+export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the list inside this element, which it owns from here on: a row of headers, and below it the rows, which scroll. columns says what each row shows and what its header says, onSelect hears what each press or key did, onSort each sort, and onTrouble anything that throws where the page hands the list an event
+	let header = document.createElement('div'), root = document.createElement('div')
+	header.className = 'myHeader'
+	root.className = 'myList'
+	root.tabIndex = 0//so the list can take the keyboard
+	frame.replaceChildren(header, root)
+	frame.style.setProperty('--list-columns', columns.map(c => c.width ? `${c.width}px` : 'minmax(0, 1fr)').join(' '))//one grid for the headers and every row, a column with no width taking the room the others leave until the first rows fix every width
+	let o = {frame, header, root, columns, onSelect, onSort, widths: null, rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty()}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
+	for (let [i, column] of columns.entries()) {
+		let cell = document.createElement('span')
+		cell.className = 'myCell'
+		cell.dataset.column = i//how a click finds its column
+		if (column.align) cell.dataset.align = column.align
+		cell.textContent = column.title
+		if (i == o.sort.column) cell.dataset.sort = 'up'
+		let grip = document.createElement('span')
+		grip.className = 'myGrip'//the divider at the column's right edge, which a drag resizes it by and a double-click fits
+		cell.append(grip)
+		header.append(cell)
+	}
+	let gate = handle => e => { try { handle(o, e) } catch (error) { onTrouble(error) } }
+	root.addEventListener('pointerdown', gate(_listPress))
+	header.addEventListener('click', gate(_listHeaderClick))
+	header.addEventListener('pointerdown', gate(_listGripPress))
+	header.addEventListener('dblclick', gate(_listGripFit))
+	root.addEventListener('scroll', () => { header.scrollLeft = root.scrollLeft }, {passive: true})//the headers follow the rows sideways, since they sit outside what scrolls
 	root.addEventListener('focus', () => { root.dataset.active = 'true' })//an attribute for the stylesheet rather than :focus, because WebKit keeps a row's style from while the list had the keyboard after its window goes behind another, though :focus itself stops matching; a change of attribute always restyles
 	root.addEventListener('blur', () => { delete root.dataset.active })
 	/*
@@ -17,31 +40,111 @@ export function listMake(root, {onSelect, onTrouble}) {//the list inside this el
 
 	The search ran in the browser's own process, outside any code of fuji's, where a timer in the page sees only how long a press waited in line. Sampling that process while it was busy is what named it.
 	*/
-	root.addEventListener('mousedown', e => e.preventDefault())
+	frame.addEventListener('mousedown', e => e.preventDefault())
 	return o
 }
 
-export function listRows(o, rows) {//replace every row, as for a new folder
+export function listRows(o, rows) {//replace every row, as for a new folder; a row is a record holding a value for each column's key
 	o.rows = rows
-	o.lower = rows.map(row => row.toLowerCase())//once per list rather than once per keystroke
-	o.elements = rows.map((text, i) => {
+	let first = o.columns[0].key
+	o.lower = rows.map(row => String(row[first]).toLowerCase())//the first column, the name, is what the filter matches, as Finder's search does; lowered once per list rather than once per keystroke
+	o.elements = rows.map((row, i) => {
 		let e = document.createElement('div')
 		e.className = 'myRow'
 		e.dataset.row = i//how a press finds its row
-		/*
-		A row's text is a file's name, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the row's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon or a column builds it with createElement and hands every part it did not write itself to textContent.
-		*/
-		e.textContent = text
+		for (let column of o.columns) {
+			let cell = document.createElement('span')
+			cell.className = 'myCell'
+			if (column.align) cell.dataset.align = column.align
+			/*
+			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the cell's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent.
+			*/
+			cell.textContent = _listSay(column, row)
+			e.append(cell)
+		}
 		return e
 	})
-	let fragment = document.createDocumentFragment()
-	for (let e of o.elements) fragment.append(e)
-	o.root.replaceChildren(fragment)
+	o.root.replaceChildren()
+	if (!o.widths) _listWidths(o)//on the first rows, once the list is on the page and has a width to fill
+	o.index = new Map(rows.map((row, i) => [row, i]))//each row's place in rows, for a column's sort, which hands rows back rather than their places
+	o.order = rows.map((row, i) => i)
+	o.order = _listSorted(o)//in the sort the list already has, so new rows keep the one the user chose for the old ones
+	_listPlace(o)
 	o.traits = selectionEmpty()
 	_listShow(o)
 }
 
-export function listFilter(o, text) {//show only the rows that hold this text anywhere, ignoring case; a change of filter clears the selection, like a press below the rows, so a row the filter hides is never one a command could act on
+function _listSay(column, row) { return column.say ? column.say(row[column.key]) : String(row[column.key]) }//the text a cell shows for a row's value
+
+const listNarrowest = 24//css pixels, the narrowest a drag leaves a column, which still leaves its divider to grab
+function _listWidths(o) {//every column's width in css pixels, fixed from here on the way Finder's and Explorer's are: each column its own, and one given no width sized to fill the list as it first appears
+	let given = o.columns.reduce((sum, c) => sum + (c.width || 0), 0)
+	let room = o.root.clientWidth - 16//less the rows' padding at either end
+	o.widths = o.columns.map(c => c.width || Math.max(listNarrowest, room - given))
+	_listGrid(o)
+}
+function _listGrid(o) { o.frame.style.setProperty('--list-columns', o.widths.map(w => `${w}px`).join(' ')) }//the widths onto the one grid the headers and rows share
+
+function _listGripPress(o, e) {//a press on a divider resizes the column to its left as the pointer moves; the columns to its right move over, and past the list's edge the list scrolls sideways
+	let grip = e.target.closest('.myGrip')
+	if (!grip || e.button != 0 || !o.widths) return
+	let column = Number(grip.parentElement.dataset.column), startX = e.clientX, startWidth = o.widths[column]
+	grip.setPointerCapture(e.pointerId)//so the drag keeps the pointer outside the header and outside the window
+	let move = m => { o.widths[column] = Math.max(listNarrowest, Math.round(startWidth + m.clientX - startX)); _listGrid(o) }
+	let end = () => { grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', end); grip.removeEventListener('pointercancel', end) }
+	grip.addEventListener('pointermove', move)
+	grip.addEventListener('pointerup', end)
+	grip.addEventListener('pointercancel', end)
+}
+
+function _listGripFit(o, e) {//a double-click on a divider fits its column to the widest text in it, the header's included, as both file managers do
+	let grip = e.target.closest('.myGrip')
+	if (!grip || !o.widths) return
+	let column = Number(grip.parentElement.dataset.column), c = o.columns[column]
+	let measure = document.createElement('canvas').getContext('2d')
+	let style = getComputedStyle(grip.parentElement)
+	measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`//the list's own font, so text is measured without drawing any of it, which is what lets ten thousand rows be measured at once
+	let widest = measure.measureText(`${c.title} ▲ `).width//room for the header and the sort arrow beside it
+	for (let row of o.rows) widest = Math.max(widest, measure.measureText(_listSay(c, row)).width)
+	o.widths[column] = Math.ceil(widest) + 16 + 2//the cell's padding at either end, and a pixel each side so the last letter is never cut
+	_listGrid(o)
+}
+
+function _listHeaderClick(o, e) {//a click on a header sorts by its column, and another on the same header reverses it, as Explorer and Finder do
+	if (e.target.closest('.myGrip')) return//a press on a divider resizes, and the click it ends with sorts nothing
+	let cell = e.target.closest('[data-column]')
+	if (!cell) return
+	let start = performance.now()
+	o.root.focus({preventScroll: true})
+	let column = Number(cell.dataset.column)
+	o.sort = {column, descending: o.sort.column == column ? !o.sort.descending : false}
+	o.order = _listSorted(o)
+	_listPlace(o)
+	_listShow(o)
+	for (let h of o.header.children) delete h.dataset.sort
+	cell.dataset.sort = o.sort.descending ? 'down' : 'up'//the arrow the stylesheet draws beside the sorted header
+	if (o.traits.focus != -1) o.elements[o.traits.focus].scrollIntoView({block: 'nearest'})//the row the keyboard is on stays in view wherever the sort took it
+	o.onSort({key: o.columns[column].key, descending: o.sort.descending, listMs: performance.now() - start})
+}
+
+function _listSorted(o) {//the rows' order sorted by the chosen column, from the order they are in now; a stable sort leaves rows that tie in the order they had, so the column sorted before becomes the second key, which is what Explorer documents
+	let {key, sort} = o.columns[o.sort.column]
+	if (sort) {//a column that brings a sort of its own, which takes rows and hands them back in order, like the name column running fuji's one sort setting
+		let order = sort(o.order.map(i => o.rows[i])).map(row => o.index.get(row))
+		return o.sort.descending ? order.reverse() : order
+	}
+	let direction = o.sort.descending ? -1 : 1
+	return [...o.order].sort((i, j) => direction * _listCompare(o.rows[i][key], o.rows[j][key]))//and the rest by their raw values, numbers like a size in bytes or a date in milliseconds
+}
+function _listCompare(a, b) { return a < b ? -1 : a > b ? 1 : 0 }
+
+function _listPlace(o) {//the row elements into the list in the order, moving rather than making them, so each keeps its marks
+	let fragment = document.createDocumentFragment()
+	for (let i of o.order) fragment.append(o.elements[i])
+	o.root.append(fragment)
+}
+
+export function listFilter(o, text) {//show only the rows whose first column holds this text anywhere, ignoring case; a change of filter clears the selection, like a press below the rows, so a row the filter hides is never one a command could act on
 	o.filter = text.toLowerCase()
 	let before = o.traits
 	o.traits = selectionEmpty()
@@ -90,7 +193,7 @@ function _listTarget(o, key) {//the row a movement key takes the focus to, or -1
 
 function _listShow(o) {
 	let shown = []
-	for (let i = 0; i < o.rows.length; i++) {
+	for (let i of o.order) {//in the order the rows are on screen, sorted or as given
 		let match = !o.filter || o.lower[i].includes(o.filter)
 		if (o.elements[i].hidden == match) o.elements[i].hidden = !match//written only where the answer changed
 		if (match) shown.push(i)
@@ -106,7 +209,7 @@ function _listPress(o, e) {//on the press rather than the click, as Finder and E
 	let row = e.target.closest('[data-row]')
 	let before = o.traits
 	if (!row) {
-		if (e.offsetX >= o.root.clientWidth) return//the scrollbar, which a press on clears nothing
+		if (e.offsetX >= o.root.clientWidth || e.offsetY >= o.root.clientHeight) return//a scrollbar, down the side or across the bottom, which a press on clears nothing
 		if (!toggle && !e.shiftKey) o.traits = selectionEmpty()//a press below the last row clears, as it does in Finder and Explorer
 	} else {
 		o.traits = selectionClick(o.traits, Number(row.dataset.row), o.shown, {range: e.shiftKey, toggle})

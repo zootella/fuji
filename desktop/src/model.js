@@ -58,4 +58,5 @@ export function modelSortSet(name) {//choose an order; the list is rebuilt from 
 	if (settings.sort.order != name) { settings.sort.order = name; settingsChanged() }//repair the file, the way a bad value anywhere else in it is repaired
 }
 
-function modelOrder() { return modelSorts[modelSort.value](modelFiles) }//the only place a sort is called
+export function modelSortRun(entries) { return modelSorts[modelSort.value](entries) }//these entries, each with a name, in the order fuji's one sort setting names, which every list in fuji runs its names through; the only place a sort is called
+function modelOrder() { return modelSortRun(modelFiles).map(file => file.path) }//the folder's paths in that order

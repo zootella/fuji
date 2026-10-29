@@ -39,6 +39,12 @@ Written as the user meets them. A row is text first, and everything below comes 
 
 **Filter, instantly.** A list holds hundreds or thousands of rows, and the user presses `Ctrl` `F`, or clicks into the filter box beside the list, and types. With each keystroke, rows that do not match disappear and the rows that do remain, so what is left is just what meets the filter. The matching runs inside the component, on text it already holds, and never calls back to whoever supplied the rows with a "do you have this?" question, which could be slow.
 
+**The full text of a cut-off cell, in place.** The list cuts off a name too long for its column at the column's edge. When the pointer rests on that cell, a tooltip opens exactly over it, the whole text in the same type at the same place, so the text seems simply to carry on past the edge while the rest of the row stays where it was. A cell whose text fits shows nothing. A right-aligned column, which loses the start of a value rather than its end, shows the whole value the same way, with its right edge on the column's. Finder and Explorer both do this: AppKit calls them expansion tooltips, `allowsExpansionToolTips` on a table view, and Windows' list and tree views call them in-place tooltips; that is from memory and not yet checked.
+
+**Dragging a rectangle to select.** A press on empty space in the list and a drag draws a rectangle, and the rows it crosses are selected as it grows and shrinks, with the keys that add to a selection on a click adding to one here. Past the list's edge the list scrolls, at the speed described under Innovations. The rectangle looks as each platform draws its own, a translucent fill inside a thin border, which is from memory and is read off each platform's screen before it is drawn. Where empty space is depends on how wide a selected row is, which comes next.
+
+**How wide a selected row is.** A selected row's fill either crosses the whole list, past the last column to the list's right edge, or stops at the last column. Finder fills the whole width. Explorer stops at the last column, and the space past it is empty space, where a press clears the selection and a drag begins a rectangle, which matters most in a full folder with no room below its last row. Both are from memory and not yet checked. The answer is likely each platform's own, read on each machine, and is decided with the rectangle, since it decides where a rectangle can begin.
+
 
 ## The components
 
@@ -48,7 +54,7 @@ Probably three: `FujiList`, the list view; `FujiTree`, the tree view; and `FujiB
 
 **The tree shows empty folders.** A folder with nothing in it is still a folder, and the tree draws it as one, so a user can see that it is there and that it is empty, rather than wondering where it went.
 
-**The suggested order of work**, each step seen running before the next: typing a name to jump to it, once it is decided whether plain letters reach the list; columns, headers and sort; icons; dragging to select, both the rectangle begun on empty space and the drag that extends a selection, with the list scrolling while a drag is at its edge; the tree, which shares everything the list learned and adds expand, collapse and the empty folder; and the bar last, with the menu as its first use.
+**The suggested order of work**, each step seen running before the next: typing a name to jump to it, once it is decided whether plain letters reach the list; columns, headers and sort; the full text of a cut-off cell shown in place; icons; dragging to select, both the rectangle begun on empty space and the drag that extends a selection, with the list scrolling while a drag is at its edge, and with them how wide a selected row is; the tree, which shares everything the list learned and adds expand, collapse and the empty folder; and the bar last, with the menu as its first use.
 
 ### The bar, the coolbar, and the 2003 menu
 
@@ -59,6 +65,17 @@ Microsoft's habit, per version of Windows and per version of Office, was to make
 **The menus of Microsoft's software around 2003**, Visual Studio 2003 or Office 2003, for their appearance. Click a menu title and the title does not move. A card that is the menu, with its title still at the top, shaped like a skyscraper with a house on top, is set forward, drawn with a simple one-pixel outline, and casts a light shadow on everything behind it. The shape tells the user at once where they are and what they can choose next, and it looks really good. The user has a VM or screenshots to share, and the design is studied from those and copied: the card's shape, the outline, the shadow's weight, and how the open title joins the dropdown without a seam.
 
 **Research areas for the bar**: the coolbar as it shipped, so the hover outline is drawn from the real thing rather than from memory; the 2003 menu from screenshots, measured, so the card's outline, shadow and joined title come out right; what the web gives for the same effects, `box-shadow` for the shadow and a one-pixel border for the outline, and how to draw the house-on-a-skyscraper shape as one outlined card, since a title tab and a dropdown drawn as two boxes show a seam where they meet.
+
+
+## Ties in a sort
+
+An open issue, left as it is for now. When a header sorts the list, rows that tie, files of the same size or the same date, need an order among themselves.
+
+**What the list does today.** It sorts the order already on screen with a stable sort, so tied rows keep the order they had before the click, and the column sorted before becomes the second key. That is the spreadsheet's way, and the one Microsoft documents for Explorer's list view. Rows arriving from a folder tie in the order the disk handed them over. Reversing is not consistent between columns: a reversed Size or Date compares the other way and keeps tied rows in their previous order, while a reversed Name flips the whole order the name sort hands back, ties included.
+
+**The spreadsheet's way** suits a table a person is studying, where the sorts they clicked through are layers they built on purpose. In a file listing the order of earlier clicks is usually an accident, so tied files land in an order nobody chose and that changes with how the user got there.
+
+**The other way: each column breaks its own ties.** Sorting by Size orders files of the same size by name, in fuji's one sort, and so does sorting by Date; a column brings its tie-breaker with it, so the same click always gives the same order, however the user arrived.
 
 
 ## What the components show off

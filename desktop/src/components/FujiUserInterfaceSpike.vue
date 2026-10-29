@@ -1,7 +1,9 @@
 <script setup>//the bench fuji's list is built on: the list, mock rows the page makes for it, and how long the list takes to build, filter and scroll, on screen and in the log
 
 import {ref, shallowRef, onMounted, onBeforeUnmount} from 'vue'
+import {Time, sayTick} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {log, logTrouble} from '../log.js'
+import {modelSortRun} from '../model.js'
 import FujiList from './FujiList.vue'
 
 const counts   = [50, 200, 1000, 2000, 5000, 10000]
@@ -14,6 +16,7 @@ const built    = ref('')//what the strip says about the last build, filter and s
 const filtered = ref('')
 const scrolled = ref('')
 const selected = ref('')
+const sorted   = ref('')
 
 function say(n) { return n.toLocaleString('en-US') }
 function trouble(error) { logTrouble('interface spike', error) }//for the panel's entry points, where a throw would otherwise vanish
@@ -57,6 +60,15 @@ async function onSelect(p) {//from that press to the selection painted, so the l
 	log(`interface spike: ${p.kind} press selected ${say(p.selected)} of ${say(listRef.value.shown().length)} rows, ${say(p.changed)} changed, waited ${Math.round(queued)} ms in line, list ${p.listMs.toFixed(1)} ms, painted at ${ms} ms`)
 }
 
+async function onSort(p) {//from the start of the list's own work to the sorted list painted
+	let start = performance.now() - p.listMs
+	await afterPaint()
+	let ms = Math.round(performance.now() - start)
+	let said = `${say(rows.value.length)} rows by ${p.key}${p.descending ? ' descending' : ''} in ${ms} ms`
+	sorted.value = said
+	log(`interface spike: sorted ${said}, list ${p.listMs.toFixed(1)} ms`)
+}
+
 let scrolling = false, scrollLast = 0, scrollGaps = [], scrollQuiet = null
 const scrollRest = 300//milliseconds with no scroll event that end a scroll
 function onScroll() {
@@ -81,10 +93,25 @@ function scrollEnd() {
 }
 onBeforeUnmount(() => { scrolling = false; clearTimeout(scrollQuiet) })
 
+function sayKilobytes(bytes) { return `${Math.ceil(bytes / 1024).toLocaleString('en-US')} KB` }//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
+function sayWhen(tick) { return sayTick(tick - new Date(tick).getTimezoneOffset() * Time.minute, 'YYYY-Mmm-DD h12:mma') }//the record keeps the moment in utc, and the person reads their own wall clock, the tick shifted by their offset at the very end as ergo says to
+const columns = [
+	{key: 'name', title: 'Name', sort: modelSortRun},//names in fuji's one sort, the order every list and view in fuji shows
+	{key: 'size', title: 'Size', say: sayKilobytes, align: 'right', width: 128},
+	{key: 'modified', title: 'Date', say: sayWhen, width: 152},
+]
 let mockMade = []//made at the first build each time the panel opens
 function mockRows(n) {
-	if (!mockMade.length) mockMade = mockNames(counts[counts.length - 1])
-	return mockMade.slice(0, n).sort()//the same names at every count, in a folder's order, which the sheet sorts with the same call
+	if (!mockMade.length) {
+		let random = seeded(2001), randomWhen = seeded(1995)//generators apart from the names' own and from each other, so giving rows sizes and then dates left every name and size as it was
+		let first = Date.UTC(1995, 0, 1), last = Date.UTC(2026, 9, 28)//fixed, so the dates are the same on every run
+		mockMade = mockNames(counts[counts.length - 1]).map(name => ({
+			name,
+			size: Math.floor(2 ** (random() * 37)),//spread evenly by order of magnitude, from a byte to 128 gigabytes, so short sizes and very long ones sit side by side
+			modified: first + Math.floor(randomWhen() * (last - first)),//a tick, milliseconds since 1970 in utc
+		}))
+	}
+	return mockMade.slice(0, n)//the same rows at every count, in the order they were made, as a disk hands over a folder; the list puts them in fuji's sort
 }
 function mockNames(n) {//names like a collection gathers, each unique, and the same on every run and every machine
 	let random = seeded(1984)
@@ -130,8 +157,9 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Filter <span class="text-strong">{{filtered}}</span></span>
 		<span>Scroll <span class="text-strong">{{scrolled}}</span></span>
 		<span>Select <span class="text-strong">{{selected}}</span></span>
+		<span>Sort <span class="text-strong">{{sorted}}</span></span>
 	</div>
-	<FujiList ref="listRef" class="flex-1 min-h-0" :rows="rows" :filter="filter" @scroll.passive="onScroll" @select="p => onSelect(p).catch(trouble)" />
+	<FujiList ref="listRef" class="flex-1 min-h-0" :columns="columns" :rows="rows" :filter="filter" @scroll.capture.passive="onScroll" @select="p => onSelect(p).catch(trouble)" @sort="p => onSort(p).catch(trouble)" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
 </div>
 
 </template>
