@@ -2,7 +2,7 @@ import {homeDir} from '@tauri-apps/api/path'
 import {invoke} from '@tauri-apps/api/core'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import parse from 'path-browserify'
-import {sayTick} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Time, sayTick} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {forwardize} from './components/library.js'
 import {brandStem} from './brand.js'
 
@@ -19,7 +19,7 @@ The typed rows — a load, a flip, a thumbnail, a bucket — are helpers over lo
 */
 
 const logFolder = `${brandStem}-temp`//fuji-temp, under the user's home folder, on every platform; rust makes it on the way out if it is missing
-const logQuiet = 1500//milliseconds of nothing happening before pending lines go down to rust; long enough that a burst of flipping sends once rather than once a flip
+const logQuiet = 1500*Time.millisecond//how long nothing happens before pending lines go down to rust; long enough that a burst of flipping sends once rather than once a flip
 const logCeiling = 5000//lines, after which recording stops rather than growing without end; the beginning of a session is the most diagnostic part of it, so this keeps the start and drops the rest
 
 let logRecording = false//the one thing every entry point below checks, set at the start of a run from what the shell passes in

@@ -44,7 +44,7 @@ const memoryNames = {//what each process is, for its row, by rust's kind: the th
 	browser: 'Browser process', utility: 'Utility process', 'sandbox helper': 'Sandbox helper', plugin: 'Plugin process', 'plugin broker': 'Plugin broker',
 }
 function sayKind(kind) { return memoryNames[kind] || kind }
-function sayMilliseconds(ms) { return ms < Time.second ? `${ms} ms` : `${(ms / Time.second).toFixed(1)} s` }//milliseconds under a second, and seconds to a tenth from there, since the number is read against a wait
+function sayMilliseconds(ms) { return ms < Time.second ? `${ms}ms` : `${(ms / Time.second).toFixed(1)}s` }//milliseconds under a second, and seconds to a tenth from there, since the number is read against a wait
 
 //what each row is and how it is counted, shown to the left of the table for the row the pointer is over; keyed by the fixed rows' names here, the platform's own names for its breakdown rows, and rust's kinds for the processes
 const memoryIntro = `What this computer has, what is in use, what ${brandName} takes of that, and what the thumbnails take of ${brandName}, each as a share of the one outside it. Every row under ${brandName} is one process: a Tauri program is a Rust process holding the window, a web renderer the engine runs the page in, and the engine's GPU process, with a browser process and helpers on Windows. Point at a row to read what it is and how it is counted.`

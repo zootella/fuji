@@ -286,7 +286,8 @@ fn tick(time: std::io::Result<std::time::SystemTime>) -> Option<i64> {//every pl
 #[cfg(unix)]
 fn changed(_: &std::fs::File, meta: &std::fs::Metadata) -> Option<i64> {
 	use std::os::unix::fs::MetadataExt;
-	meta.ctime().checked_mul(1000)?.checked_add(meta.ctime_nsec() / 1_000_000)
+	use zootella_ergo::time;
+	meta.ctime().checked_mul(time::SECOND)?.checked_add(meta.ctime_nsec() / 1_000_000)
 }
 #[cfg(windows)]
 fn changed(file: &std::fs::File, _: &std::fs::Metadata) -> Option<i64> {

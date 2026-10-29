@@ -405,7 +405,7 @@ function updateInformation() {//the information hud: the zoom, the card, what lo
 	hud3Ref.value = lines.join('\n')
 }
 function sayRatio(n) { return String(Math.round(n * 1000) / 1000) }//a ratio to three places with the zeros dropped, so a number key reads 2 and a notch 2.154
-function sayMs(n) { return `${Math.round(n)} ms` }//a duration in whole milliseconds, like 16 ms
+function sayMs(n) { return `${Math.round(n)}ms` }//a duration in whole milliseconds, like 16ms
 function captionText() {//the caption's two lines: the picture's full path as the platform writes it, then the day it was last modified, its size and its dimensions, the line the contact sheet writes under a thumbnail with the path in place of the name. Read by the caption and by the hud, so the two never differ
 	let file = modelFile(here.path)//the listing's entry, with the modified time and the size; false for a picture outside the listed folder, which then shows its path and dimensions alone
 	let parts = []

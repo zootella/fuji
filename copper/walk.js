@@ -5,6 +5,7 @@ import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, w
 import {homedir, tmpdir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {Time, sayDuration} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 
 /*
 Each step says what it saw, and the reader judges; nothing here passes or fails but the check's own lines. The steps are the ones a sandbox process has to get right on a new platform: the walls, tried from inside by the check; the same folder in both processes, which must give the same file, and again named through a link, which the kernel judges by the name; Stop, which closes the request's stdin as the panel's Stop kills; a crash, which the request's test option makes the sandbox process do partway, since Windows has no signal to send another process; a hang, which the other test option makes it do a second in, standing in for a read the kernel never finishes, so Stop is seen to kill a process that has stopped listening; and the main process killed, which must take its sandbox process with it. Where the platform keeps crash reports, the crash step counts fuji's before and after, since a crash of the sandbox process should reach the main process and nothing else. On Windows the count means something only because the main process starts the sandbox process with its own error mode: node quiets Windows Error Reporting in every process it starts, and a sandbox process that inherited that passed this step with no wall at all.
@@ -28,14 +29,14 @@ function take(name, folder, options, act) {//one inventory through fuji --invent
 		child.stdout.on('data', d => out += d)
 		child.stderr.on('data', d => err += d)
 		child.stdin.write(JSON.stringify(request) + '\n')//and left open, since its closing is Stop
-		let timer = act ? setTimeout(() => { acted = Date.now(); if (act == 'stop') child.stdin.end(); else child.kill('SIGKILL') }, 2000) : null
+		let timer = act ? setTimeout(() => { acted = Date.now(); if (act == 'stop') child.stdin.end(); else child.kill('SIGKILL') }, 2*Time.second) : null
 		child.on('close', code => {
 			clearTimeout(timer)
 			let lines = existsSync(output) ? readFileSync(output, 'utf8').split('\n').filter(line => line).length : 0
 			let ended = Date.now()
 			let reading = ''
 			try { reading = JSON.parse(out.trim().split('\n').pop()).path } catch {}//the counts fuji --inventory prints at the end, whose path is the file in hand when it ended
-			console.log(`${name}: exit ${code} in ${((ended - began) / 1000).toFixed(2)}s, ${lines} lines${acted ? `, ended ${((ended - acted) / 1000).toFixed(2)}s after the ${act}` : ''}${acted && reading ? `, reading ${reading}` : ''}`)
+			console.log(`${name}: exit ${code} in ${sayDuration(ended - began, '#.##s')}, ${lines} lines${acted ? `, ended ${sayDuration(ended - acted, '#.##s')} after the ${act}` : ''}${acted && reading ? `, reading ${reading}` : ''}`)
 			if (err.trim()) console.log(`   ${err.trim().slice(-300)}`)
 			resolve(output)
 		})
@@ -98,7 +99,7 @@ async function main() {
 	if (run('crash')) {
 		let before = reports()
 		await take('crash', big, {sha256: true, sandbox: true, crash: true})
-		await new Promise(resolve => setTimeout(resolve, 5000))//the system's reporter takes a moment to write
+		await new Promise(resolve => setTimeout(resolve, 5*Time.second))//the system's reporter takes a moment to write
 		console.log(`   sandbox processes left: ${sandboxes()}${before === '' ? '' : `; fuji's crash reports, ${before} before and ${reports()} after`}`)
 	}
 	if (run('hang')) {
@@ -107,7 +108,7 @@ async function main() {
 	}
 	if (run('kill')) {
 		await take('kill', big, {sha256: true, sandbox: true}, 'kill')
-		await new Promise(resolve => setTimeout(resolve, 500))
+		await new Promise(resolve => setTimeout(resolve, 500*Time.millisecond))
 		console.log(`   sandbox processes left half a second after: ${sandboxes()}`)
 	}
 }

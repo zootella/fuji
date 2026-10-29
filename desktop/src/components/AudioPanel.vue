@@ -79,10 +79,10 @@ async function starting() {
 			['hwdec', 'auto-safe'],//the hardware decoder, where mpv's conservative choice finds one
 			...(wid ? [['vid', 'auto'], ['wid', wid]] : [['vid', 'no']]),//the video in the region's native window, or no video at all where the platform gives the page none, so mpv never opens a window of its own
 		])
-		log(`audio: player started in ${Math.round(performance.now() - begun)} ms`)
+		log(`audio: player started in ${Math.round(performance.now() - begun)}ms`)
 		observer = new ResizeObserver(() => regionPlace().catch(error => troubled('placing the video', error)))
 		observer.observe(panel.value)
-		ticker = setInterval(() => tick().catch(error => { clearInterval(ticker); troubled('reading the player', error) }), 500)//once, since a player that cannot be read will not be read next tick either
+		ticker = setInterval(() => tick().catch(error => { clearInterval(ticker); troubled('reading the player', error) }), 500*Time.millisecond)//once, since a player that cannot be read will not be read next tick either
 	} catch (error) { troubled('starting the player', error) }
 }
 
@@ -114,7 +114,7 @@ async function play() {//load the file and play it from the start, at its own sh
 		const begun = performance.now()
 		await mediaSend(['loadfile', path.value])
 		await mediaSend(['set', 'pause', 'no'])//after the load, since pause is the player's rather than the file's: keep-open paused it at the last file's end, and a file loaded then opens paused on its first frame, found on the Mac mini on 2026-10-16; before the load it would not hold, since a player at a file's end pauses again
-		log(`audio: loadfile answered in ${Math.round(performance.now() - begun)} ms, ${path.value}`)
+		log(`audio: loadfile answered in ${Math.round(performance.now() - begun)}ms, ${path.value}`)
 		shapeWatch(null)
 	} catch (error) { troubled('loading a file', error) }
 }
@@ -227,12 +227,12 @@ async function ask() {//the open box, then the two questions, each its own call 
 		const video = JSON.parse(probe.tracks || '[]').find(track => track.type == 'video' && !track.albumart)//the first picture that moves, never a song's cover art
 		const seconds = Number(probe.duration) || 0
 		answer.value = describe(probe.format, seconds, video)
-		log(`audio: probe answered in ${Math.round(performance.now() - began)} ms, ${chosen}: ${answer.value}`)
+		log(`audio: probe answered in ${Math.round(performance.now() - began)}ms, ${chosen}: ${answer.value}`)
 		if (!video) return
 
 		began = performance.now()
 		const frame = mediaFrameUnpack(await mediaFrame(chosen, seconds / 2, 10))
-		log(`audio: frame answered in ${Math.round(performance.now() - began)} ms, ${frame.width}x${frame.height} at ${clock(seconds / 2)}`)
+		log(`audio: frame answered in ${Math.round(performance.now() - began)}ms, ${frame.width}x${frame.height} at ${clock(seconds / 2)}`)
 		const canvas = still.value
 		canvas.width = frame.width; canvas.height = frame.height
 		canvas.getContext('2d').putImageData(new ImageData(frame.pixels, frame.width, frame.height), 0, 0)//the css width is 320 and the height follows the frame's own shape

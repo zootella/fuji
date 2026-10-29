@@ -305,7 +305,7 @@ export async function settingsLoad() {//read the settings file and leave it exac
 	if (unreadable) return notices//a file fuji could not read is one it must not overwrite: the settings in it are the user's and are still there, and writing factory values over them would be losing data to a lock
 	if (rendered != settingsFileText) {//the file is missing, or held a value fuji had to repair, or came from a fuji with fewer settings than this one
 		try {
-			await diskWrite(settingsFilePath, Array.from(new TextEncoder().encode(rendered)))//disk.rs speaks bytes because it mirrors posix, and this is the one place fuji encodes; everywhere else text stays text
+			await diskWrite(settingsFilePath, Array.from(new TextEncoder().encode(rendered)))//disk.rs speaks bytes because it mirrors posix, and this is the one place fuji encodes; everywhere else text stays text. The browser's encoder rather than ergo's Data, which would also put the text in composed form, NFC, changing the bytes of a value typed decomposed
 			settingsFileText = rendered//only once the write happened
 		} catch (error) {
 			notices.push(sayTrouble(`settings: writing ${settingsFilePath}`, error))

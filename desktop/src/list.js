@@ -1,3 +1,4 @@
+import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {platform} from './components/library.js'
 import {selectionEmpty, selectionClick, selectionMove, selectionAll} from './selection.js'
 
@@ -12,7 +13,7 @@ export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the l
 	root.tabIndex = 0//so the list can take the keyboard
 	frame.replaceChildren(header, root)
 	frame.style.setProperty('--list-columns', columns.map(c => c.width ? `${c.width}px` : 'minmax(0, 1fr)').join(' '))//one grid for the headers and every row, a column with no width taking the room the others leave until the first rows fix every width
-	let o = {frame, header, root, columns, onSelect, onSort, widths: null, rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty()}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
+	let o = {frame, header, root, columns, onSelect, onSort, widths: null, rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
 	for (let [i, column] of columns.entries()) {
 		let cell = document.createElement('span')
 		cell.className = 'myCell'
@@ -161,12 +162,19 @@ export function listKey(o, e) {//one key, acted on only while the list has the k
 		o.traits = selectionAll(o.traits, o.shown)
 		kind = 'select all'
 	} else {
-		if (e.ctrlKey || e.metaKey || e.altKey) return false//a movement key with any of these is the system's or another command's, like command and down to open on the mac
+		if (e.ctrlKey || e.metaKey || e.altKey) return false//a key with any of these is the system's or another command's, like command and down to open on the mac
 		let to = _listTarget(o, e.key)
-		if (to == -1) return false
-		o.traits = selectionMove(o.traits, to, o.shown, {range: e.shiftKey})
+		if (to != -1) {
+			o.typed = ''//a movement key ends a name being typed
+			o.traits = selectionMove(o.traits, to, o.shown, {range: e.shiftKey})
+			kind = e.shiftKey ? `shift ${e.key}` : e.key
+		} else {
+			to = _listFind(o, e)
+			if (to == -1) return false
+			o.traits = selectionMove(o.traits, to, o.shown, {range: false})
+			kind = 'typed'//and not what was typed, which is the start of a file's name, so a log the list's reports reach names no file
+		}
 		o.elements[to].scrollIntoView({block: 'nearest'})
-		kind = e.shiftKey ? `shift ${e.key}` : e.key
 	}
 	e.preventDefault()//or the focused list would also scroll itself by the key
 	o.root.dataset.keyboard = 'true'//the focus mark shows from the first key on, as Windows shows its focus rectangle only once the keyboard has been used, and keeps showing it
@@ -189,6 +197,16 @@ function _listTarget(o, key) {//the row a movement key takes the focus to, or -1
 	else if (key == 'End')       k = shown.length - 1
 	else return -1
 	return shown[Math.min(Math.max(k, 0), shown.length - 1)]
+}
+
+const listTypedRest = 1*Time.second//how long without a key before the next one starts a new name rather than adding to the one being typed; a second, the same as Chromium's own type-ahead in a select
+function _listFind(o, e) {//the row a typed character takes the focus to, the first shown, in the list's order, whose name starts with what has been typed so far, ignoring case, as Finder and Explorer jump; or -1
+	if ([...e.key].length != 1) return -1//a key named rather than typed, like Tab or Enter
+	if (e.timeStamp - o.typedAt > listTypedRest) o.typed = ''
+	if (e.key == ' ' && !o.typed) return -1//a space only inside a name
+	o.typed += e.key.toLowerCase()
+	o.typedAt = e.timeStamp
+	return o.shown.find(i => o.lower[i].startsWith(o.typed)) ?? -1
 }
 
 function _listShow(o) {

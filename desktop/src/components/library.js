@@ -281,9 +281,15 @@ export function sayDimensions(size) {//a picture's width by its height, like 105
 }
 
 export function sayDay(milliseconds) {//the day a time falls on, in this machine's time zone, year first like 2026 Oct 6, in ergo's english whatever the machine's language; blank for 0, which is how a listing says the file system had no answer, rather than a day in 1970, and blank too for a day outside 1970 through 9999, the years ergo writes, which on a file is a broken date
+	return _sayLocal(milliseconds, 'YYYY Mmm D')
+}
+export function sayDayTime(milliseconds) {//the day and the minute in this machine's time zone, like 2026-Oct-06 2:45p, as a list's date column says them; blank where sayDay is blank
+	return _sayLocal(milliseconds, 'YYYY-Mmm-DD h12:mma')
+}
+function _sayLocal(milliseconds, template) {
 	if (typeof milliseconds != 'number' || milliseconds < 0) throw new Error(`expected milliseconds since 1970: ${milliseconds}`)
 	if (milliseconds == 0) return ''
 	let local = Math.floor(milliseconds - new Date(milliseconds).getTimezoneOffset() * Time.minute)//the tick whose utc fields are this machine's clock then, since sayTick writes utc and the day is the user's own
 	if (!hasTick(local)) return ''
-	return sayTick(local, 'YYYY Mmm D')
+	return sayTick(local, template)
 }

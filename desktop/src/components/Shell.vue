@@ -151,8 +151,8 @@ function logLaunch() {//two lines at the top of every log. The launch timed whol
 	let frame = performance.now()//the page's own clock at the first frame, read before the crossing below so the crossing is not in the page's share
 	uptimeProcess()
 		.then(age => log(age.process > 0
-			? `launch: first frame ${age.process} ms after the process started, main began at ${age.process - age.main} ms, the page at ${Math.round(age.process - frame)} ms`
-			: `launch: first frame ${age.main} ms after main began; the operating system would not say when the process started`))
+			? `launch: first frame ${age.process}ms after the process started, main began at ${age.process - age.main}ms, the page at ${Math.round(age.process - frame)}ms`
+			: `launch: first frame ${age.main}ms after main began; the operating system would not say when the process started`))
 		.catch(error => logTrouble('shell: asking how long the launch took', error))
 	setTimeout(() => {
 		memoryReport()
@@ -251,6 +251,11 @@ function onKey(e) {
 		return
 	}
 	if (e.altKey) return//fuji has no alt chords, and on windows alt belongs to the system, for its menus and its window keys, so no view ever sees one
+	if (e.target.matches('.myList')) {//fuji's list with the keyboard takes every key the way a field does, plain letters included, which type a name to jump to; escape hands the keyboard back to fuji
+		if (e.key == 'Escape') e.target.blur()
+		else reportTrouble(() => activeView()?.onKey?.(e))
+		return
+	}
 	let bare = !e.ctrlKey && !e.metaKey//the shell's own keys act only with control and command up, so a chord meant for the system or for a table, like command h on the mac or control plus on a table, passes them by
 	if ((e.key == 'Escape' || (bare && backspaceCloses && e.key == 'Backspace')) && showing.value == 'Table') { if (!e.repeat) reportTrouble(closeWindow); return }//the shell's own keys, never passed down: escape on any table, preview included, closes the window, as the red button or the × would, and so does backspace where its key says Backspace, so there is a key at each top corner of the keyboard; library.js says why not on the Mac. Backspace only bare, since control makes it a delete of another kind. Once for a held key: the window behind takes the keyboard the moment this one hides, and the repeats would close it too
 	if (bare && e.key == 'h') { helpToggle(); return }//and this one, so a user who is lost can always ask, whatever is showing

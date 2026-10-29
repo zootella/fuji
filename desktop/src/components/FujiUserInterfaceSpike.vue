@@ -1,9 +1,10 @@
 <script setup>//the bench fuji's list is built on: the list, mock rows the page makes for it, and how long the list takes to build, filter and scroll, on screen and in the log
 
 import {ref, shallowRef, onMounted, onBeforeUnmount} from 'vue'
-import {Time, sayTick} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Size, Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {log, logTrouble} from '../log.js'
 import {modelSortRun} from '../model.js'
+import {sayDayTime} from './library.js'
 import FujiList from './FujiList.vue'
 
 const counts   = [50, 200, 1000, 2000, 5000, 10000]
@@ -32,8 +33,8 @@ async function build(n) {
 		rows.value = names
 		await afterPaint()
 		let ms = Math.round(performance.now() - start)
-		built.value = `${say(n)} rows in ${ms} ms`
-		log(`interface spike: built ${say(n)} rows in ${ms} ms`)
+		built.value = `${say(n)} rows in ${ms}ms`
+		log(`interface spike: built ${say(n)} rows in ${ms}ms`)
 	} finally { building.value = false }
 }
 onMounted(() => build(count.value).catch(trouble))
@@ -43,7 +44,7 @@ async function onFilter(e) {
 	filter.value = e.target.value
 	await afterPaint()
 	let ms = Math.round(performance.now() - start)
-	let said = `"${filter.value}" shows ${say(listRef.value.shown().length)} of ${say(rows.value.length)} in ${ms} ms`
+	let said = `"${filter.value}" shows ${say(listRef.value.shown().length)} of ${say(rows.value.length)} in ${ms}ms`
 	filtered.value = said
 	log(`interface spike: ${said}`)
 }
@@ -56,21 +57,21 @@ async function onSelect(p) {//from that press to the selection painted, so the l
 	let start = pressed, queued = waited//read before the wait, since a press queued behind this one can reach the bench during it
 	await afterPaint()
 	let ms = Math.round(performance.now() - start)
-	selected.value = `${say(p.selected)} rows in ${ms} ms`
-	log(`interface spike: ${p.kind} press selected ${say(p.selected)} of ${say(listRef.value.shown().length)} rows, ${say(p.changed)} changed, waited ${Math.round(queued)} ms in line, list ${p.listMs.toFixed(1)} ms, painted at ${ms} ms`)
+	selected.value = `${say(p.selected)} rows in ${ms}ms`
+	log(`interface spike: ${p.kind} press selected ${say(p.selected)} of ${say(listRef.value.shown().length)} rows, ${say(p.changed)} changed, waited ${Math.round(queued)}ms in line, list ${p.listMs.toFixed(1)}ms, painted at ${ms}ms`)
 }
 
 async function onSort(p) {//from the start of the list's own work to the sorted list painted
 	let start = performance.now() - p.listMs
 	await afterPaint()
 	let ms = Math.round(performance.now() - start)
-	let said = `${say(rows.value.length)} rows by ${p.key}${p.descending ? ' descending' : ''} in ${ms} ms`
+	let said = `${say(rows.value.length)} rows by ${p.key}${p.descending ? ' descending' : ''} in ${ms}ms`
 	sorted.value = said
-	log(`interface spike: sorted ${said}, list ${p.listMs.toFixed(1)} ms`)
+	log(`interface spike: sorted ${said}, list ${p.listMs.toFixed(1)}ms`)
 }
 
 let scrolling = false, scrollLast = 0, scrollGaps = [], scrollQuiet = null
-const scrollRest = 300//milliseconds with no scroll event that end a scroll
+const scrollRest = 300*Time.millisecond//how long with no scroll event ends a scroll
 function onScroll() {
 	if (!scrolling) { scrolling = true; scrollLast = 0; scrollGaps = []; requestAnimationFrame(scrollFrame) }
 	clearTimeout(scrollQuiet); scrollQuiet = setTimeout(scrollEnd, scrollRest)
@@ -88,17 +89,16 @@ function scrollEnd() {
 	let interval = sorted[Math.floor(sorted.length / 2)]//the display's own frame interval, read as the median gap, so a 60 Hz and a 120 Hz display each measure against themselves
 	let late = scrollGaps.filter(gap => gap > interval * 1.5).length
 	let longest = Math.round(sorted[sorted.length - 1])
-	scrolled.value = `${scrollGaps.length} frames, longest ${longest} ms, ${late} late`
-	log(`interface spike: scrolled ${say(listRef.value.shown().length)} rows over ${scrollGaps.length} frames of ${interval.toFixed(1)} ms, longest ${longest} ms, ${late} late`)
+	scrolled.value = `${scrollGaps.length} frames, longest ${longest}ms, ${late} late`
+	log(`interface spike: scrolled ${say(listRef.value.shown().length)} rows over ${scrollGaps.length} frames of ${interval.toFixed(1)}ms, longest ${longest}ms, ${late} late`)
 }
 onBeforeUnmount(() => { scrolling = false; clearTimeout(scrollQuiet) })
 
-function sayKilobytes(bytes) { return `${Math.ceil(bytes / 1024).toLocaleString('en-US')} KB` }//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
-function sayWhen(tick) { return sayTick(tick - new Date(tick).getTimezoneOffset() * Time.minute, 'YYYY-Mmm-DD h12:mma') }//the record keeps the moment in utc, and the person reads their own wall clock, the tick shifted by their offset at the very end as ergo says to
+function sayKilobytes(bytes) { return `${Math.ceil(bytes / Size.kb).toLocaleString('en-US')} KB` }//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
 const columns = [
 	{key: 'name', title: 'Name', sort: modelSortRun},//names in fuji's one sort, the order every list and view in fuji shows
 	{key: 'size', title: 'Size', say: sayKilobytes, align: 'right', width: 128},
-	{key: 'modified', title: 'Date', say: sayWhen, width: 152},
+	{key: 'modified', title: 'Date', say: sayDayTime, width: 152},
 ]
 let mockMade = []//made at the first build each time the panel opens
 function mockRows(n) {

@@ -1,6 +1,7 @@
 <script setup>//the file types section of fuji's settings: a chip for every kind of file fuji opens, under the program that opens it now, and a card for each
 
 import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
+import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {associateAnswers, associateOpens, associateActive, associateExtensions, associateChoose, associateLook, associateDiffers, associateProgram, associateFinish} from '../associate.js'
 import {logTrouble} from '../log.js'
 import {brandName} from '../brand.js'
@@ -22,8 +23,8 @@ associate.js is the policy and carries the essay; this only shows it and hands t
 
 const fileExtensions = [...associateExtensions].sort()//every kind of file fuji opens on this system, alphabetical, which is the order every list below keeps
 const fileExtensionsComing = Object.keys(fileTypes).filter(extension => !associateExtensions.includes(extension)).sort()//and every other kind, one fuji does not open yet or opens only on another system, shown under the last heading and nowhere else
-const hoverShow = 300//milliseconds the pointer rests on a chip before its card appears
-const hoverHide = 200//and after it leaves the chip and the card, long enough to cross from one to the other
+const hoverShow = 300*Time.millisecond//how long the pointer rests on a chip before its card appears
+const hoverHide = 200*Time.millisecond//and after it leaves the chip and the card, long enough to cross from one to the other
 
 const inactiveNote = {//why the answers here cannot be changed, on a copy that cannot act on them
 	windows: `Only the installed copy of ${brandName} can change these.`,
