@@ -1,4 +1,4 @@
-# To Windows: a dark fringe on transparent thumbnails, the inventory's file system facts, and the Recycle Bin
+# To Windows from the Mac
 
 Written on the Mac mini on 2026-10-23. Read this, then talk with the user before changing anything; a letter starts a conversation rather than settling one.
 
@@ -50,3 +50,7 @@ Written on the Mac mini on 2026-10-23. Read this, then talk with the user before
 **The choice between the two roads is the user's, made there.** The code's comment says the case is untried until this test runs, and the chosen flags land in `trash.rs` with the comment rewritten to say what the shell did.
 
 **One more Windows guess, in `erase.rs`, which the same crate can settle without running an erase.** Before writing over a file, erase counts the file's names through `copper::inventory::links`, which asks `GetFileInformationByHandleEx` for `FileStandardInfo` on the open handle, and a file with a second hard link is removed without the overwrite, since its bytes still belong to the other name. When that query fails the function answers one, which is right for the inventory's count and wrong here: erase would write random bytes over a file another name still reaches. No volume is known where the query fails on an open handle, and the fix if one is found is to refuse the erase rather than guess. The crate can open one file on each drive at hand, the NTFS system drive, the USB stick, a memory card and a network share, ask for `FileStandardInfo`, and print whether it answered and what `NumberOfLinks` and `AllocationSize` it gave; `AllocationSize` is the second thing erase now reads from the same answer, how far past the file's end its last cluster reaches, which it writes over too.
+
+## The space on a drive, which fuji's Rust has never read on Windows
+
+**disk_statvfs answers a volume's space through the fs4 crate, and fs4's Windows half has never run in fuji.** There it finds the volume with `GetVolumePathNameW` and reads it with `GetDiskFreeSpaceExW` and `GetDiskFreeSpaceW`. The page hands a path over with forward slashes, and whether `GetVolumePathNameW` takes them for backslashes has not been seen. Microsoft documents that it ignores the end of a path that is not there and answers for the volume anyway, which is why steel's `statvfs` checks that the path exists first. steel's `pnpm test` covers both, and a failure prints the numbers the call answered.

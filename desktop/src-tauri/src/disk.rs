@@ -1,7 +1,7 @@
 use tauri::command;
 use tauri::ipc::Response;
 use crate::run_blocking;
-use steel::disk::{DirEntry, FileStat, Peek};
+use steel::disk::{DirEntry, FileStat, Peek, Space};
 
 /*
 The design contract of this module: these commands hand the interface the full, standard power a desktop application has over the disk — the same power a native Mac or Windows app wields through its file APIs. They follow POSIX semantics faithfully, sharp edges included: disk_copy overwrites an existing destination, just like cp and std::fs::copy do, and disk_write truncates one. Code that calls these commands must be careful, exactly as native application code must.
@@ -10,7 +10,7 @@ The commands take any path and hold no guard, on purpose: the page alone knows w
 
 Most of these commands change the disk rather than read it. disk_copy writes a file the user asked for; disk_write is how settings and the performance log reach the disk at all, and both of its callers hand it a path they built themselves rather than one that came from the page; the rest are the file manager's, and have no caller yet. That is the current line, and it is thinner than it was when this contract was first written.
 
-Commands here are named for the POSIX call they stand on — disk_readdir, disk_stat, disk_read, disk_rename, disk_mkdir, disk_rmdir, disk_unlink — and each is a line of std::fs and a map_err. Four are exceptions to the naming. disk_peek is a readdir that answers a count and the subfolders' names rather than a record per entry, for a caller that passes through folders it will never show. The reading underneath it, glance, is crate-visible, because find.rs walks the folder tree on the same reading, and the rule for what a folder counts is stated once, here. disk_erase and disk_move have no POSIX call to be named for, and are copper's, in its erase.rs; disk_trash is each platform's own call, in copper's trash.rs.
+Commands here are named for the POSIX call they stand on, like disk_stat and disk_statvfs, and each of those is a call into steel's disk and a map_err. Where a command has no POSIX call to be named for, its name says what it does. disk_peek is a readdir that answers a count and the subfolders' names rather than a record per entry, for a caller that passes through folders it will never show. The reading underneath it, glance, is crate-visible in steel, because find.rs walks the folder tree on the same reading, so the rule for what a folder counts is stated once. disk_erase and disk_move are copper's, in its erase.rs, and disk_trash is each platform's own call, in copper's trash.rs.
 
 None of these reports its progress, can be stopped partway, or walks into a folder: each takes one path, or two, and runs to its end, so erasing or moving a large file holds its thread for as long as writing it takes. A file manager wants all three on every command that changes the disk, Delete among them. The inventory's commands are the shape fuji already has for that, a count the page reads each frame and a flag that stops the loop, and steel's copy essay sketches the shape for a copy that stays in the kernel.
 */
@@ -45,6 +45,12 @@ pub async fn disk_peek(path: String, extensions: Vec<String>) -> Result<Peek, St
 #[command]
 pub async fn disk_stat(path: String) -> Result<FileStat, String> {
 	run_blocking(move || steel::disk::stat(&path).map_err(|e| e.to_string())).await
+}
+
+/// POSIX-like `statvfs`: the space on the volume holding a path
+#[command]
+pub async fn disk_statvfs(path: String) -> Result<Space, String> {
+	run_blocking(move || steel::disk::statvfs(&path).map_err(|e| e.to_string())).await
 }
 
 /// POSIX-like `open` + `read` + `close`

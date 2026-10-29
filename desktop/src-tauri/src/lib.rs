@@ -76,6 +76,7 @@ pub fn run() {
 				disk::disk_readdir, //functions we've written in disk.rs
 				disk::disk_peek,
 				disk::disk_stat,
+				disk::disk_statvfs,
 				disk::disk_read,
 				disk::disk_write,
 				disk::disk_append,

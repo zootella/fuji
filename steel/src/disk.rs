@@ -1,4 +1,4 @@
-//the disk: a folder listed, glanced, stated, made or removed, and a file read, written, appended, copied, renamed or removed, the standard library's calls under steel's rules; brass's disk.rs holds the commands over these, and the contract they keep
+//the disk: the standard library's calls on files and folders, and fs4's on a volume's space, under steel's rules; brass's disk.rs holds the commands over these, and the contract they keep
 
 use serde::Serialize;
 use std::collections::HashSet;
@@ -32,6 +32,14 @@ pub struct FileStat {
 	pub atime:      u128,//last access time, in milliseconds since the unix epoch; 0 when the filesystem has no answer
 	pub mtime:      u128,//last modification time, in milliseconds since the unix epoch; 0 when the filesystem has no answer
 	pub birthtime:  u128,//creation time, in milliseconds since the unix epoch; 0 when the filesystem has no answer, which is common on linux. Named for the birth time rather than ctime, which in posix is when the metadata last changed, a different time rust does not offer portably
+}
+
+#[derive(Serialize)]
+pub struct Space {
+	pub available:   u64,//bytes this user may write on the volume now, which is the room a copy has: f_bavail blocks on the Mac and Linux, and GetDiskFreeSpaceExW's bytes available to the caller on Windows, which per-user quotas can make smaller
+	pub free:        u64,//bytes free on the volume, the blocks it holds back for the system included: f_bfree, and the volume's free bytes on Windows
+	pub total:       u64,//the volume's size in bytes: f_blocks, and its clusters on Windows
+	pub granularity: u64,//the unit the volume allocates a file's space in, so a file takes its size rounded up to it: f_frsize, and the cluster on Windows
 }
 
 /// The entries of one folder, shallow, each with its kind, size and modified time from the metadata the listing already read; an entry that cannot be read or stated is left out rather than failing the folder
@@ -94,6 +102,18 @@ pub fn stat(path: &str) -> std::io::Result<FileStat> {
 }
 fn millis(time: std::io::Result<std::time::SystemTime>) -> u128 {//milliseconds since the unix epoch, or 0 when the filesystem cannot say
 	time.ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis()).unwrap_or(0)
+}
+
+/// POSIX-like `statvfs`: the space on the volume holding a path that is there, as the system reports it, through fs4
+pub fn statvfs(path: &str) -> std::io::Result<Space> {
+	fs::metadata(path)?;//refused when the path is not there, as statvfs refuses it on the Mac and Linux, since Windows' GetVolumePathNameW ignores a missing end of a path and answers for the volume
+	let s = fs4::statvfs(path)?;
+	Ok(Space {
+		available:   s.available_space(),
+		free:        s.free_space(),
+		total:       s.total_space(),
+		granularity: s.allocation_granularity(),
+	})
 }
 
 /// The whole file, read into memory
@@ -187,6 +207,16 @@ mod tests {
 			assert_eq!((l.is_file, l.is_symlink), (false, true));
 		}
 		assert!(stat(&t.text("missing")).is_err());
+	}
+
+	#[test]
+	fn statvfs_answers_for_the_volume_holding_a_path() {
+		let t = Tree::new("disk-statvfs");
+		t.file("f.txt");
+		let s = statvfs(&t.text("")).unwrap();
+		assert!(s.total > 0 && s.granularity > 0 && s.available <= s.total && s.free <= s.total, "available {} free {} total {} granularity {}", s.available, s.free, s.total, s.granularity);
+		assert_eq!(statvfs(&t.text("f.txt")).unwrap().total, s.total);//a file names its volume as a folder does
+		assert!(statvfs(&t.text("missing")).is_err());//on every platform, Windows included
 	}
 
 	#[test]

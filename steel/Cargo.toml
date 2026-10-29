@@ -13,6 +13,7 @@ argon2 = { version = "0.6", default-features = false, features = ["alloc", "para
 hkdf = "0.13" # hkdf-sha256, which makes each file's own key from the passphrase's
 sha2 = "0.11" # the sha-256 hkdf runs on, the same generation ergo's hashes come from, so the lockfile holds one
 aes-gcm = { version = "0.11", default-features = false, features = ["aes"] } # aes-256-gcm, which encrypts a file and seals it with a tag; like the three above, from the rustcrypto project, pure rust whose unsafe stays inside it, as ergo's does
+fs4 = "1.1" # the space on a volume, statvfs on the Mac and Linux and GetDiskFreeSpaceExW on Windows, answered in the same fields on each; its rustix and windows-sys are already in the lockfile, and its unsafe stays inside it, as ergo's does
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2" # O_NONBLOCK, the one constant read.rs opens a file with, so a FIFO cannot hold the open; a constant is safe rust, and the crate's root still forbids unsafe
