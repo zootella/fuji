@@ -46,8 +46,8 @@ function timeSay() {
 </script>
 <template>
 
-<div class="myMono bg-paper w-full h-full overflow-y-auto p-8 wrap-break-word"><!-- only a word too long for a line, like a path, breaks inside -->
-	<h1 class="mb-8 text-strong">{{brandName}} Inventory</h1>
+<div class="myMono bg-zed-editor-background w-full h-full overflow-y-auto p-8 wrap-break-word"><!-- only a word too long for a line, like a path, breaks inside -->
+	<h1 class="mb-8 text-zed-text">{{brandName}} Inventory</h1>
 	<p>Takes an inventory of a folder and every folder in it, writing a line for each file to a text file in Documents: {{brandName}}'s hash of its start, middle and end, its path and size, what the scout reads in its first bytes, what FFmpeg makes of a video, and what the file system keeps about it.</p>
 	<p class="mt-4 flex flex-wrap gap-x-4"><span>Also read every byte for</span>
 		<label v-for="(name, key) in {sha1: 'SHA-1', sha256: 'SHA-256', blake3: 'BLAKE3'}" :key="key"><input type="checkbox" v-model="inventoryOptions[key]" :disabled="inventoryRunning"> {{name}}</label>
@@ -60,8 +60,8 @@ function timeSay() {
 	</p>
 	<p class="mt-8 flex flex-wrap gap-2"><button class="myButton" :disabled="inventoryRunning" @click="inventoryAsk">Choose a folder…</button><button class="myButton" :disabled="!inventoryRunning || !inventoryOutput" @click="stop">Stop</button></p>
 	<div v-if="inventoryFolder" class="mt-8 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1"><!-- minmax(0, 1fr), so a long path wraps rather than widening the column -->
-		<span>Folder</span><span class="text-strong">{{backize(inventoryFolder)}}</span>
-		<span>Writing</span><span class="text-strong">{{backize(inventoryOutput)}}</span>
+		<span>Folder</span><span class="text-zed-text">{{backize(inventoryFolder)}}</span>
+		<span>Writing</span><span class="text-zed-text">{{backize(inventoryOutput)}}</span>
 		<span>Time</span><span>{{timeSay()}}</span>
 		<span>Folders</span><span>{{sayCount(inventoryCounts.folders)}}</span>
 		<span>Files</span><span>{{sayCount(inventoryCounts.files)}}<template v-if="hourly">{{sayRate(inventoryCounts.files, inventoryTime, sayCount)}}</template></span>
@@ -70,7 +70,7 @@ function timeSay() {
 			<span>Reading</span><span>{{backize(inventoryCounts.path)}}<template v-if="inventoryOptions.sha1 || inventoryOptions.sha256 || inventoryOptions.blake3">{{sayProgress(inventoryCounts.read, inventoryCounts.size)}}</template></span>
 		</template>
 	</div>
-	<p v-if="inventoryTrouble" class="mt-8 text-warn">{{inventoryTrouble}}</p>
+	<p v-if="inventoryTrouble" class="mt-8 text-fuji-warning">{{inventoryTrouble}}</p>
 </div>
 
 </template>

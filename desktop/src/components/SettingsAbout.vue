@@ -49,10 +49,10 @@ defineExpose({show})
 <template>
 
 <div ref="box"><!-- at the end of the settings, where About Fuji in the Mac's application menu brings the panel scrolled to; the system's own About panel is gone, so this is the one place fuji says its version -->
-	<h2 class="mb-2 text-strong">About {{brandName}}</h2>
-	<p v-for="row in rows" :key="row.name" class="text-quiet"><a :href="row.url" class="hover:underline" @click.prevent="visit(row.url)">{{row.name}}</a> <span class="text-strong">{{row.version}}</span></p><!-- the name quiet and the version strong, so the numbers read down the lines; each part's name is the link to its project's page, underlined only under the pointer -->
+	<h2 class="mb-2 text-zed-text">About {{brandName}}</h2>
+	<p v-for="row in rows" :key="row.name" class="text-zed-text-placeholder"><a :href="row.url" class="hover:underline" @click.prevent="visit(row.url)">{{row.name}}</a> <span class="text-zed-text">{{row.version}}</span></p><!-- the name quiet and the version strong, so the numbers read down the lines; each part's name is the link to its project's page, underlined only under the pointer -->
 	<p class="mt-4"><a :href="homeLink" class="underline" @click.prevent="visit(homeLink)">{{homeLink}}</a></p><!-- the system's browser opens it rather than the web view navigating away from fuji -->
-	<svg class="my-8 fill-brand" width="360" height="360" viewBox="0 0 360 360" :aria-label="brandName"><circle cx="180" cy="180" r="180" /></svg><!-- fuji's mark: the disc that is the application icon, the site's favicon and the README's banner, at the README's size, 360 CSS pixels across; in the brand color by its palette name, which is the same in light and dark. Twice the panel's usual space above and below, the disc's alone, so the line after it sets none of its own -->
+	<svg class="my-8 fill-fuji-brand" width="360" height="360" viewBox="0 0 360 360" :aria-label="brandName"><circle cx="180" cy="180" r="180" /></svg><!-- fuji's mark: the disc that is the application icon, the site's favicon and the README's banner, at the README's size, 360 CSS pixels across; in the brand color by its palette name, which is the same in light and dark. Twice the panel's usual space above and below, the disc's alone, so the line after it sets none of its own -->
 </div>
 
 </template>

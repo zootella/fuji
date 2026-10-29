@@ -44,7 +44,7 @@ const bucketCaption = computed(() => {//the folder the bucket's images are in, w
 	padding: 8px 8px 0; /* the flow's own padding, so the text ends at the same right edge the bucket's widest row can reach, and the flow's top padding puts 6 css pixels of paper between it and the first row's outlines */
 	text-align: right; /* in the bucket's upper right, apart from the pictures' own captions, which start at their left edges */
 	white-space: pre; overflow: hidden; /* one line, cut off at the bucket's right edge, as a thumbnail's caption is at its picture's */
-	color: var(--color-quiet);
+	color: var(--color-zed-text-placeholder);
 	cursor: default;
 }
 

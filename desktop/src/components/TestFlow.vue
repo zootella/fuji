@@ -225,17 +225,17 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 .myTile {
 	display: block; /* a canvas and an img are inline by default, and their baselines would show as a stripe under every row */
 	border-radius: 4px; /* a clip the compositor draws, so the pixels inside are blitted exactly as before; it only hides the few in each corner, and a tile shorter than 8px gets a smaller radius from css itself */
-	outline: 2px solid var(--color-frame); /* an outline rather than a border, which would take its width from each side of the box the canvas is sized to and resample every thumbnail into what was left; an outline takes no room and follows the radius */
+	outline: 2px solid var(--color-fuji-frame); /* an outline rather than a border, which would take its width from each side of the box the canvas is sized to and resample every thumbnail into what was left; an outline takes no room and follows the radius */
 	outline-offset: 0; /* drawn just outside the edge, so every pixel of the picture shows; the line lands in the gap and the bucket's padding, which leaves 2 css pixels of paper between two neighbors' outlines and 4 between an outline and the bucket's edge */
-	box-shadow: 4px 4px 12px var(--color-shade); /* one wide soft shadow, lit from the top left, so the right and bottom match and so do the left and top, since the outline already draws the crisp edge where the tile meets the sheet; the same shadow the table's card casts. Painted outside the box and taking no room, so the canvas is blitted exactly as before, and shaped by the radius. box-shadow rather than a drop-shadow filter, because filter on a tile is the gamma lens's, in Shell.vue */
+	box-shadow: 4px 4px 12px var(--color-fuji-shade); /* one wide soft shadow, lit from the top left, so the right and bottom match and so do the left and top, since the outline already draws the crisp edge where the tile meets the sheet; the same shadow the table's card casts. Painted outside the box and taking no room, so the canvas is blitted exactly as before, and shaped by the radius. box-shadow rather than a drop-shadow filter, because filter on a tile is the gamma lens's, in Shell.vue */
 }
 .myCell:hover .myTile {
-	outline-color: var(--color-brand); /* the tile under the pointer, or under it on its caption, in fuji's cyan, by its frame alone, so nothing about its size or its pixels changes */
+	outline-color: var(--color-fuji-brand); /* the tile under the pointer, or under it on its caption, in fuji's cyan, by its frame alone, so nothing about its size or its pixels changes */
 }
 .myCaption {
 	width: 0; min-width: 100%; /* as wide as the tile above it and never wider: no width of its own to give the cell, then stretched to the one the tile gave it, so the fit alone still sizes every cell */
 	padding-top: 6px; /* 4 css pixels of paper under the outline, which takes the first 2 */
-	color: var(--color-quiet);
+	color: var(--color-zed-text-placeholder);
 	cursor: default; /* the arrow rather than the text beam, since the caption is clicked to copy rather than selected */
 }
 .myCaptionLine {

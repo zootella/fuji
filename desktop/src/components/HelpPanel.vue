@@ -10,7 +10,7 @@ const closeKeys = backspaceCloses ? 'Esc|Backspace' : 'Esc'//backspace only wher
 </script>
 <template>
 
-<!-- a pre because it is the one element whose text vue's compiler leaves alone: in any other, the runs of spaces that line up the two columns would condense to one. The huds' smoky plastic from index.css, and no clicks or selection, so a click, a drag or the wheel goes through to the view beneath, which is still the thing the user is using -->
+<!-- a pre because vue's compiler leaves the text of a pre alone: in any other, the runs of spaces that line up the two columns would condense to one. The huds' smoky plastic from style.css, and no clicks or selection, so a click, a drag or the wheel goes through to the view beneath, which is still the thing the user is using -->
 <pre class="myHud pointer-events-none select-none">
                                       {{brandName}}
 

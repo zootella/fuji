@@ -59,14 +59,14 @@ watch(() => props.pinned, hold)//a hovered card, clicked and now held
 <template>
 
 <div ref="box" tabindex="-1" class="myCard absolute w-112 max-w-full p-3 outline-none" :style="place" @focusout="onFocusOut" @keydown.esc="emit('close')" @mousedown.prevent>
-	<p><span class="text-strong">{{extension}}</span> - <i>{{fileTypes[extension].title}}</i></p><!-- the title, not the type windows prints in explorer's type column, which says less -->
+	<p><span class="text-zed-text">{{extension}}</span> - <i>{{fileTypes[extension].title}}</i></p><!-- the title, not the type windows prints in explorer's type column, which says less -->
 	<p class="mt-2">{{fileTypes[extension].about}}</p>
 	<p v-if="siblings.length > 0" class="mt-2">{{sayList(siblings)}} open with the same app</p><!-- status, so choosing one and seeing several move is no surprise; the mac's words, since only the mac has these -->
 	<div v-if="!coming && (associateActive || list.heading)" class="mt-3 flex flex-wrap items-center gap-2"><!-- no row for a kind coming soon, nor on a copy that cannot act before the system has been asked -->
 		<!-- the status is the link where only the system can carry the answer out, led by the chevron that leads it at the top of the section -->
-		<a v-if="pending == 'yes'" href="#" class="mr-2 text-warn underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose {{brandName}}</a>
-		<a v-else-if="pending == 'no'" href="#" class="text-warn underline" @click.prevent="finish"><b>»</b> Choose another program</a><!-- fewer words than the yes, since the kind sits under Opens with Fuji and the card is about it alone -->
-		<span v-else-if="list.heading" class="mr-2 text-strong">{{list.heading}}<template v-if="list.named">'<i>{{list.named}}</i>'</template></span>
+		<a v-if="pending == 'yes'" href="#" class="mr-2 text-fuji-warning underline" @click.prevent="finish"><b>»</b> In '<i>Set defaults by app</i>' choose {{brandName}}</a>
+		<a v-else-if="pending == 'no'" href="#" class="text-fuji-warning underline" @click.prevent="finish"><b>»</b> Choose another program</a><!-- fewer words than the yes, since the kind sits under Opens with Fuji and the card is about it alone -->
+		<span v-else-if="list.heading" class="mr-2 text-zed-text">{{list.heading}}<template v-if="list.named">'<i>{{list.named}}</i>'</template></span>
 		<template v-if="associateActive"><!-- a copy that cannot act offers no buttons, since a grayed one reads as broken, and the section's warning note says why -->
 			<span v-if="pending == 'no'">or</span><!-- the link finishes the no and Choose Fuji takes it back, since the card cannot know which the user means -->
 			<template v-if="associateAnswers[extension] != 'yes'">
@@ -85,12 +85,12 @@ watch(() => props.pinned, hold)//a hovered card, clicked and now held
 <style scoped>
 
 .myCard {
-	background-color: var(--color-surface);
-	border: 1px solid var(--color-edge);
-	box-shadow: 0 4px 16px var(--color-shade);
+	background-color: var(--color-zed-surface-background);
+	border: 1px solid var(--color-zed-border);
+	box-shadow: 0 4px 16px var(--color-fuji-shade);
 }
 .myChoice {
-	border: 1px solid var(--color-line);
+	border: 1px solid var(--color-zed-border);
 }
 
 </style>

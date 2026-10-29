@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Platform Colors</title>
+<style>
+	* { box-sizing: border-box }
+	body { margin: 0; font: menu; background: #808080 }
+	.panes { display: flex; flex-wrap: wrap }
+	.pane { flex: 1 1 420px; padding: 24px }
+	.light { background: #fafafa; color: #242529; --line: #c9c9ca; --quiet: #7e8086; --menu: #ebebec }/* Zed's editor.background, text, border, text.placeholder and elevated_surface.background in One Light */
+	.dark { background: #282c33; color: #dce0e5; --line: #464b57; --quiet: #878a98; --menu: #2f343e }/* and in One Dark */
+	h1 { margin: 0 0 16px; font-size: 16px }
+	h2 { margin: 24px 0 8px; font-size: 13px; color: var(--quiet); font-weight: 600 }
+	.list { border: 1px solid var(--line); padding: 4px 0 }
+	.row { display: flex; justify-content: space-between; gap: 16px; padding: 3px 12px }
+	.row code { font: 12px ui-monospace, monospace; opacity: 0.8 }
+	.menu { margin-top: 12px; border-radius: 10px; padding: 5px; border: 1px solid var(--line); background: var(--menu); width: max-content; min-width: 320px }
+	.menu .row { border-radius: 5px }
+	.caption { display: flex; gap: 12px; margin-top: 8px }
+	.caption figure { margin: 0 }
+	.caption figure div { width: 46px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px }
+	.caption figcaption { margin-top: 4px; font: 11px ui-monospace, monospace; color: var(--quiet); line-height: 1.4 }
+</style>
+</head>
+<body>
+<div class="panes">
+
+<div class="pane light">
+	<h1>Light</h1>
+
+	<h2>Mac</h2>
+	<div class="list">
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #0064e1; color: #ffffff"><span>List, with the keyboard</span><code>mac-select #0064e1</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #dcdcdc; color: #000000"><span>Quiet list, without the keyboard</span><code>mac-select-quiet #dcdcdc</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+	</div>
+	<div class="menu">
+		<div class="row"><span>A menu item</span><code></code></div>
+		<div class="row" style="background: #007aff; color: #ffffff"><span>Menu, under the pointer</span><code>mac-accent #007aff</code></div>
+		<div class="row"><span>A menu item</span><code></code></div>
+	</div>
+
+	<h2>Windows</h2>
+	<div class="list">
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #cde8ff; color: #000000"><span>List, with the keyboard</span><code>win-select #cde8ff</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #d9d9d9; color: #000000"><span>Quiet list, without the keyboard</span><code>win-select-quiet #d9d9d9</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+	</div>
+	<div class="menu">
+		<div class="row"><span>A menu item</span><code></code></div>
+		<div class="row" style="background: #ffffff; color: #000000"><span>Menu, under the pointer</span><code>win-accent #ffffff</code></div>
+		<div class="row"><span>A menu item</span><code></code></div>
+	</div>
+
+	<h2>Fuji's window buttons, from Windows 10</h2>
+	<div class="caption">
+		<figure><div style="background: rgba(0, 0, 0, 0.1)">—</div><figcaption>minimize, hover<br>fuji-window-button 10%</figcaption></figure>
+		<figure><div style="background: #ceff00; color: #bf00ff">☐</div><figcaption>maximize, pressed<br>fuji-purple on fuji-dayglo</figcaption></figure>
+		<figure><div style="background: #e81123; color: #ffffff">✕</div><figcaption>close, hover<br>fuji-close-red</figcaption></figure>
+		<figure><div style="background: #ceff00; color: #bf00ff">✕</div><figcaption>close, pressed<br>fuji-purple on fuji-dayglo</figcaption></figure>
+	</div>
+</div>
+
+<div class="pane dark">
+	<h1>Dark</h1>
+
+	<h2>Mac</h2>
+	<div class="list">
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #0059d1; color: #ffffff"><span>List, with the keyboard</span><code>mac-select #0059d1</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #464646; color: #ffffff"><span>Quiet list, without the keyboard</span><code>mac-select-quiet #464646</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+	</div>
+	<div class="menu">
+		<div class="row"><span>A menu item</span><code></code></div>
+		<div class="row" style="background: #007aff; color: #ffffff"><span>Menu, under the pointer</span><code>mac-accent #007aff</code></div>
+		<div class="row"><span>A menu item</span><code></code></div>
+	</div>
+
+	<h2>Windows</h2>
+	<div class="list">
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #626262; color: #ffffff"><span>List, with the keyboard</span><code>win-select #626262</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+		<div class="row" style="background: #333333; color: #ffffff"><span>Quiet list, without the keyboard</span><code>win-select-quiet #333333</code></div>
+		<div class="row"><span>An ordinary row</span><code></code></div>
+	</div>
+	<div class="menu">
+		<div class="row"><span>A menu item</span><code></code></div>
+		<div class="row" style="background: #414141; color: #ffffff"><span>Menu, under the pointer</span><code>win-accent #414141</code></div>
+		<div class="row"><span>A menu item</span><code></code></div>
+	</div>
+
+	<h2>Fuji's window buttons, from Windows 10</h2>
+	<div class="caption">
+		<figure><div style="background: rgba(255, 255, 255, 0.1)">—</div><figcaption>minimize, hover<br>fuji-window-button 10%</figcaption></figure>
+		<figure><div style="background: #ceff00; color: #bf00ff">☐</div><figcaption>maximize, pressed<br>fuji-purple on fuji-dayglo</figcaption></figure>
+		<figure><div style="background: #e81123; color: #ffffff">✕</div><figcaption>close, hover<br>fuji-close-red</figcaption></figure>
+		<figure><div style="background: #ceff00; color: #bf00ff">✕</div><figcaption>close, pressed<br>fuji-purple on fuji-dayglo</figcaption></figure>
+	</div>
+</div>
+
+</div>
+</body>
+</html>

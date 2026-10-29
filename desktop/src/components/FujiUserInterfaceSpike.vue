@@ -149,15 +149,15 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 </script>
 <template>
 
-<div class="bg-paper text-ink w-full h-full flex flex-col" @pointerdown.capture="press">
-	<div class="myMono flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 border-b border-line">
+<div class="bg-zed-editor-background text-zed-text-muted w-full h-full flex flex-col" @pointerdown.capture="press">
+	<div class="myMono flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 border-b border-zed-border">
 		<span class="flex gap-1"><button v-for="n in counts" :key="n" class="myButton" :aria-pressed="n == count" :disabled="building" @click="build(n).catch(trouble)">{{say(n)}}</button></span>
-		<input class="px-2 border border-line bg-surface text-strong" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
-		<span>Build <span class="text-strong">{{built}}</span></span>
-		<span>Filter <span class="text-strong">{{filtered}}</span></span>
-		<span>Scroll <span class="text-strong">{{scrolled}}</span></span>
-		<span>Select <span class="text-strong">{{selected}}</span></span>
-		<span>Sort <span class="text-strong">{{sorted}}</span></span>
+		<input class="px-2 border border-zed-border bg-zed-surface-background text-zed-text" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
+		<span>Build <span class="text-zed-text">{{built}}</span></span>
+		<span>Filter <span class="text-zed-text">{{filtered}}</span></span>
+		<span>Scroll <span class="text-zed-text">{{scrolled}}</span></span>
+		<span>Select <span class="text-zed-text">{{selected}}</span></span>
+		<span>Sort <span class="text-zed-text">{{sorted}}</span></span>
 	</div>
 	<FujiList ref="listRef" class="flex-1 min-h-0" :columns="columns" :rows="rows" :filter="filter" @scroll.capture.passive="onScroll" @select="p => onSelect(p).catch(trouble)" @sort="p => onSort(p).catch(trouble)" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
 </div>

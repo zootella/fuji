@@ -83,7 +83,7 @@ defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same ca
 <template>
 
 <!-- display none destroys the layout box and the scroll position with it, so leaving and returning starts at the top; that is the behaviour wanted for now -->
-<div ref="sheetRoot" class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick" @contextmenu.prevent="e => sheetMenu.show(e.clientX, e.clientY, e.shiftKey && e.altKey ? 'Simple' : e.shiftKey ? 'Chrome' : e.altKey ? 'Glass' : 'Fuji')"><!-- fuji's own, and the others with shift, alt or both, to compare -->
+<div ref="sheetRoot" class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick" @contextmenu.prevent="e => sheetMenu.show(e.clientX, e.clientY)">
 	<div v-if="!pagerBuckets.length" class="myEmpty myMono w-full h-full flex items-center justify-center">
 		<div class="flex flex-col gap-[1lh]"><!-- Windows and Linux have no menu bar, so until fuji has a toolbar the welcome is their way to the open box and the help -->
 			<p>{{brandName}}</p>
@@ -112,12 +112,12 @@ defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same ca
 <style scoped>
 
 .mySheet { /* the sheet's ground: the paper, with small dots that stay put as the thumbnails scroll over them, since a background on the element that scrolls holds still while its contents move. Through the transparent parts of a picture they show, as the table's dots do, which is the picture and which is the ground */
-	background-color: var(--color-paper);
-	background-image: radial-gradient(circle at center, var(--color-line) 1px, transparent 1px);
+	background-color: var(--color-zed-editor-background);
+	background-image: radial-gradient(circle at center, var(--color-zed-border) 1px, transparent 1px);
 	background-size: 8px 8px;
 }
 .myEmpty {
-	color: var(--color-faint);
+	color: var(--color-zed-text-placeholder);
 }
 .myEmpty :is(button, a) { /* the welcome's buttons and its link, which the reset leaves bare: underlined, with the hand */
 	text-decoration: underline;
@@ -129,13 +129,13 @@ defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same ca
 .myPager { /* each button half the bar */
 	flex: 1; min-width: 0;
 	padding: 12px; text-align: center;
-	color: var(--color-ink);
-	background-color: var(--color-surface);
-	border: 1px solid var(--color-line);
+	color: var(--color-zed-text-muted);
+	background-color: var(--color-zed-surface-background);
+	border: 1px solid var(--color-zed-border);
 	cursor: pointer;
 }
 .myPager:disabled { /* still looking for its page, or the end of the list either way: quieter, and no hand */
-	color: var(--color-faint);
+	color: var(--color-zed-text-placeholder);
 	cursor: default;
 }
 

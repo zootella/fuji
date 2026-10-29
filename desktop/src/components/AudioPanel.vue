@@ -302,18 +302,18 @@ defineExpose({start, started, onDrop, onKey})//the calls of the shell's this vie
 </script>
 <template>
 
-<div ref="panel" class="myMono bg-paper w-full h-full overflow-hidden select-none flex p-[10px]" :class="tall ? 'flex-row' : 'flex-col'" style="outline: 10px solid blue; outline-offset: -10px" @mousedown="onPress" @mousemove="onMove" @mouseup="onRelease" @mouseleave="press = null" @dblclick="onDouble"><!-- a drag anywhere on the panel but a button moves the window and a double click anywhere but a button toggles fullscreen, so the handlers are the root's; a press on the region is the one that can be a click. The panel never scrolls, and its inset is what the blue frame paints over -->
+<div ref="panel" class="myMono bg-zed-editor-background w-full h-full overflow-hidden select-none flex p-[10px]" :class="tall ? 'flex-row' : 'flex-col'" style="outline: 10px solid blue; outline-offset: -10px" @mousedown="onPress" @mousemove="onMove" @mouseup="onRelease" @mouseleave="press = null" @dblclick="onDouble"><!-- a drag anywhere on the panel but a button moves the window and a double click anywhere but a button toggles fullscreen, so the handlers are the root's; a press on the region is the one that can be a click. The panel never scrolls, and its inset is what the blue frame paints over -->
 	<template v-if="showing"><!-- the region and its divider, there only while a video shows -->
 		<div ref="region" class="shrink-0"></div><!-- the region a video plays in, which the native view covers exactly; regionPlace sets its size in whole backing pixels, and it has no background, so nothing of its own can show around the video -->
 		<div class="shrink-0" :class="tall ? 'w-[10px]' : 'h-[10px]'" style="background: blue"></div><!-- a divider between the video and the rest, painted like the frame while the region is being checked -->
 	</template>
 	<div class="flex-1 min-w-0 min-h-0 overflow-y-scroll p-8 wrap-break-word"><!-- the rest, beside a tall video or below a wide one, scrolling on its own with its scroll bar always shown, since nothing in it moves the video. Every line in it wraps at its spaces, and only a word too long for a line by itself, like a path, breaks inside, which overflow-wrap does once here for every line it holds, since it inherits; break-word rather than anywhere, so no box's own width ever counts a word as breakable -->
-		<h1 class="mb-8 text-strong">{{brandName}} Audio</h1>
+		<h1 class="mb-8 text-zed-text">{{brandName}} Audio</h1>
 		<p v-if="version">{{version}}</p><!-- the library names itself at the start of the line -->
-		<p v-else-if="trouble" class="text-warn">{{trouble}}</p>
-		<p v-else class="text-fainter italic">Asking the library…</p>
-		<p class="mt-8 text-strong">{{path ? backize(path) : 'Drop a file anywhere on the page'}}</p>
-		<p class="mt-2">{{position || '—'}}<span v-if="paused == 'yes'" class="text-fainter"> paused</span></p>
+		<p v-else-if="trouble" class="text-fuji-warning">{{trouble}}</p>
+		<p v-else class="text-zed-text-faint italic">Asking the library…</p>
+		<p class="mt-8 text-zed-text">{{path ? backize(path) : 'Drop a file anywhere on the page'}}</p>
+		<p class="mt-2">{{position || '—'}}<span v-if="paused == 'yes'" class="text-zed-text-faint"> paused</span></p>
 		<p class="mt-8 flex flex-wrap gap-2"><button class="myButton" :disabled="!path" @click="play">Play</button><button class="myButton" :disabled="!path" @click="stop">Stop</button></p>
 		<div class="mt-4 grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2"><!-- the user's commands for the video's shape and size, here to test the region, the one in force in each row pressed; a grid, so the labels' column is as wide as the widest label in whatever face is showing, and each label sits on the line of its row's first button -->
 			<span>Shape</span>
@@ -332,19 +332,19 @@ defineExpose({start, started, onDrop, onKey})//the calls of the shell's this vie
 				</span>
 			</template>
 		</div>
-		<p v-if="sizeNote" class="mt-2 text-warn">{{sizeNote}}</p>
+		<p v-if="sizeNote" class="mt-2 text-fuji-warning">{{sizeNote}}</p>
 		<div class="mt-4 grid grid-cols-[auto_1fr] gap-x-4"><!-- the three sizes, kept up to date as the window, the choice or the file changes -->
-			<span>Showing in CSS pixels</span><span class="text-strong">{{showingCss}}</span>
-			<span>Showing in backing pixels</span><span class="text-strong">{{showingBacking}}</span>
-			<span>File pixels</span><span class="text-strong">{{filePixels}}</span>
+			<span>Showing in CSS pixels</span><span class="text-zed-text">{{showingCss}}</span>
+			<span>Showing in backing pixels</span><span class="text-zed-text">{{showingBacking}}</span>
+			<span>File pixels</span><span class="text-zed-text">{{filePixels}}</span>
 		</div>
 		<div class="mt-8">
 			<p><button class="myButton" @click="ask">Open…</button></p>
-			<p class="mt-2 text-strong">{{asked ? backize(asked) : 'Asks a file its running time and shape, then shows its middle frame'}}</p>
+			<p class="mt-2 text-zed-text">{{asked ? backize(asked) : 'Asks a file its running time and shape, then shows its middle frame'}}</p>
 			<p class="mt-2">{{answer}}</p>
 			<canvas ref="still" class="mt-4 block w-[320px]" width="0" height="0"></canvas>
 		</div>
-		<p v-if="trouble && version" class="mt-8 text-warn whitespace-pre-line">{{trouble}}</p><!-- every error so far, first at the top -->
+		<p v-if="trouble && version" class="mt-8 text-fuji-warning whitespace-pre-line">{{trouble}}</p><!-- every error so far, first at the top -->
 	</div>
 
 </div>

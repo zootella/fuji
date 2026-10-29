@@ -195,13 +195,13 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 	<!-- Card: rectangular image; drag to pan around in infinite space; caption text is within card but positioned below card -->
 	<div
 		ref="cardRef"
-		class="myCard myShadow myDry myWillChangeTransform bg-surface border border-edge"
+		class="myCard myShadow myDry myWillChangeTransform bg-zed-surface-background border border-zed-border"
 	>
 
 		<!-- we could also put stuff inside the card box, like this orange box -->
-		<div class="border border-warn m-4 h-32"></div>
+		<div class="border border-fuji-warning m-4 h-32"></div>
 		<!-- caption lives inside the card, but sits below its border -->
-		<div class="absolute bottom-0 translate-y-full text-ink py-2 whitespace-nowrap myEmbossed">{{captionRef}}</div>
+		<div class="absolute bottom-0 translate-y-full text-zed-text-muted py-2 whitespace-nowrap myEmbossed">{{captionRef}}</div>
 
 	</div>
 
@@ -216,7 +216,7 @@ let quiverC//Quiver C: our record of how we've styled the page to appear; treat 
 </template>
 <style scoped>
 
-.myHud { /* over the look index.css gives every hud */
+.myHud { /* over the look style.css gives every hud */
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {

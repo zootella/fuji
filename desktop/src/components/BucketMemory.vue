@@ -105,7 +105,7 @@ function memoryLeave() { memoryHint.value = memoryIntro }
 
 .myMemory {
 	padding: 8px; /* the flow's, so the explanation starts under the thumbnails' left edges and the table ends where the bucket captions do */
-	color: var(--color-quiet); /* the captions' color: this says something about the sheet rather than being it */
+	color: var(--color-zed-text-placeholder); /* the captions' color: this says something about the sheet rather than being it */
 	cursor: default;
 }
 .myMemoryHint {

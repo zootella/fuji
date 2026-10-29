@@ -28,15 +28,15 @@ defineExpose({
 </script>
 <template>
 
-<div ref="frame" class="myListFrame mySans text-strong select-none"></div>
+<div ref="frame" class="myListFrame mySans text-zed-text select-none"></div>
 
 </template>
 <style>
 
 /* not scoped, because the rows are list.js's elements rather than this template's, and the window's state is an attribute the shell keeps on the root, which a scoped rule cannot reach. Every rule keys on attributes, data-active from list.js and data-window from the shell, and none on :focus, which WebKit stops matching in a window gone behind another without restyling the rows that depended on it */
 .myListFrame { display: flex; flex-direction: column }
-.myHeader { flex: none; display: grid; grid-template-columns: var(--list-columns); padding: 0 8px; border-bottom: 1px solid var(--color-line); color: var(--color-quiet); overflow: hidden; scrollbar-gutter: stable } /* above the rows and outside what scrolls, so list.js moves it sideways with them; the gutter matches the one the rows reserve beside them, so where a platform draws a scrollbar, the right-aligned columns still line up */
-.myHeader .myCell { position: relative; overflow: visible; border-right: 1px solid var(--color-line) } /* the divider at each column's right edge */
+.myHeader { flex: none; display: grid; grid-template-columns: var(--list-columns); padding: 0 8px; border-bottom: 1px solid var(--color-zed-border); color: var(--color-zed-text-placeholder); overflow: hidden; scrollbar-gutter: stable } /* above the rows and outside what scrolls, so list.js moves it sideways with them; the gutter matches the one the rows reserve beside them, so where a platform draws a scrollbar, the right-aligned columns still line up */
+.myHeader .myCell { position: relative; overflow: visible; border-right: 1px solid var(--color-zed-border) } /* the divider at each column's right edge */
 .myGrip { position: absolute; top: 0; bottom: 0; right: -4px; width: 8px; cursor: col-resize; z-index: 1 } /* the place to grab it, a few pixels either side of the line */
 .myHeader .myCell:not([data-align="right"])[data-sort="up"]::after { content: " ▲" } /* the arrow on the side away from the column's edge, after a title on the left and before one on the right */
 .myHeader .myCell:not([data-align="right"])[data-sort="down"]::after { content: " ▼" }

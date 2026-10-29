@@ -52,7 +52,7 @@ defineExpose({onKey, onFocus, showAbout})//the calls of the shell's this view ha
 <template>
 
 <div class="mySettings myMono w-full h-full overflow-y-auto p-8">
-	<h1 class="mb-8 text-strong">Settings</h1>
+	<h1 class="mb-8 text-zed-text">Settings</h1>
 
 	<div class="grid grid-cols-[auto_1fr] gap-4 items-baseline"><!-- every setting but the file types in one grid: the titles in a column as wide as the longest of them and no wider, the boxes and buttons in the rest, and each title on the baseline of its options' first line, which puts a title level with its box and with the first button of its group alike -->
 		<label for="bucketImages">Images in a bucket</label>
@@ -91,20 +91,20 @@ defineExpose({onKey, onFocus, showAbout})//the calls of the shell's this view ha
 
 	<SettingsAbout ref="about" class="mt-12" /><!-- a section of its own, since it asks the parts for their versions as it appears -->
 
-	<p class="text-fainter italic">Press S to return to the contact sheet</p>
+	<p class="text-zed-text-faint italic">Press S to return to the contact sheet</p>
 </div>
 
 </template>
 <style scoped>
 
 .mySettings {
-	background-color: var(--color-paper); /* the sheet's, since this takes the sheet's place in the same window */
-	color: var(--color-ink); /* which every section and popup inside inherits, along with the type myMono gives it */
+	background-color: var(--color-zed-editor-background); /* the sheet's, since this takes the sheet's place in the same window */
+	color: var(--color-zed-text-muted); /* which every section and popup inside inherits, along with the type myMono gives it */
 }
 .myBox {
-	color: var(--color-strong);
-	background-color: var(--color-surface);
-	border: 1px solid var(--color-line);
+	color: var(--color-zed-text);
+	background-color: var(--color-zed-surface-background);
+	border: 1px solid var(--color-zed-border);
 }
 
 </style>

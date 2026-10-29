@@ -471,11 +471,11 @@ let here = null//the store's entry for the image on the card, which is where the
 </template>
 <style scoped>
 
-.myHud { /* the table's huds, over the look index.css gives every hud */
+.myHud { /* the table's huds, over the look style.css gives every hud */
 	white-space: pre-wrap; /* honor \n and wrap at the container width */
 }
 .myFrame {} /* not using this yet, but it's here */
-.myCard { outline: 1px solid var(--color-frame) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n. The card itself has no background, so the dots show through whatever a picture leaves transparent, while its line and its shadow, which is drawn only outside the box, frame it as before */
+.myCard { outline: 1px solid var(--color-fuji-frame) } /* the line around the card, drawn outside its box so the card's width and height are the image's exactly; a border would sit inside them, and the img at 100% resolves against the padding box, leaving the image two pixels short of natural times n. The card itself has no background, so the dots show through whatever a picture leaves transparent, while its line and its shadow, which is drawn only outside the box, frame it as before */
 
 /*
 The image on the card is the store's own element: cache.js makes it, an img the engine decoded or a canvas painted from the imaging library's pixels, and cardShow adopts it into the card. Every rule here holds for both, the stretch to the card, the r key's nearest neighbor and the shell's gamma lens. An element the template did not create never carries this component's data-v attribute, so a plain scoped .myImage rule compiles to .myImage[data-v-...] and can never match it. :deep() compiles to .myCard[data-v-...] .myImage instead, putting the attribute on the card, which the template does own, and reaching the image as a descendant. The error image in the template above is a real template element and matches this rule too.
@@ -500,22 +500,22 @@ Without this the only rule landing on an adopted image was tailwind's own img{ma
 .myWillChangeTransform          { will-change: transform;           }
 .myWillChangeBackgroundPosition { will-change: background-position; } /* with the styles, you get 2 layers in dev tools Layers */
 
-.myDots { /* the ground the card pans over, the paper every view stands on, its dots a step lighter than it in dark and a step darker in light, from the palette in index.css */
-	background-color: var(--color-paper);
-	background-image: radial-gradient(circle at center, var(--color-dot) 6px, transparent 6px);
+.myDots { /* the ground the card pans over, the paper every view stands on, its dots a step lighter than it in dark and a step darker in light, from the palette in style.css */
+	background-color: var(--color-zed-editor-background);
+	background-image: radial-gradient(circle at center, var(--color-zed-border-variant) 6px, transparent 6px);
 	background-size: 60px 60px;
 	background-position: 0 0, 30px 30px;
 }
 .myShadow {
-	box-shadow: 4px 4px 12px var(--color-shade); /* lit from the top left, the same shadow every thumbnail on the sheet casts */
+	box-shadow: 4px 4px 12px var(--color-fuji-shade); /* lit from the top left, the same shadow every thumbnail on the sheet casts */
 }
 .myEmbossed {
 	white-space: pre; /* honor \n and overflow the container */
-	color: var(--color-fainter);
+	color: var(--color-zed-text-faint);
 	text-shadow: /* a glow in the paper's color, black in dark and white in light, which lifts the text off the dots */
-		-1px -1px 2px var(--color-paper),
-		1px 1px 2px var(--color-paper),
-		0 0 8px var(--color-paper);
+		-1px -1px 2px var(--color-zed-editor-background),
+		1px 1px 2px var(--color-zed-editor-background),
+		0 0 8px var(--color-zed-editor-background);
 }
 
 </style>

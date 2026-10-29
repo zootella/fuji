@@ -143,13 +143,13 @@ async function reportTrouble(work) {//a window event is where the platform start
 </script>
 <template>
 
-<div class="myVideo myMono bg-paper text-strong relative w-full h-full flex flex-col overflow-hidden select-none" :style="{'--title-bar': `${titleBar}px`}" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu"><!-- hidden overflow, so a window too short for its text cuts the text off rather than growing a scroll bar -->
+<div class="myVideo myMono bg-zed-editor-background text-zed-text relative w-full h-full flex flex-col overflow-hidden select-none" :style="{'--title-bar': `${titleBar}px`}" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu"><!-- hidden overflow, so a window too short for its text cuts the text off rather than growing a scroll bar -->
 	<div v-if="buttonsShow && !fullscreenOurs" class="myButtons absolute top-0 right-0 flex" :class="{myAway: !focused}"><!-- the window's buttons fuji draws, at the top right over whatever the page shows there; each holds a drawing fuji bundles, never anything from outside, which is what lets it go in as markup -->
 		<button tabindex="-1" aria-label="Minimize" v-html="iconMinimize" @click="reportTrouble(minimizeWindow)"></button><!-- named for a screen reader, since a drawing says nothing to one, with the words Windows gives its own -->
 		<button tabindex="-1" :aria-label="maximized ? 'Restore' : 'Maximize'" v-html="maximized ? iconRestore : iconMaximize" @click="reportTrouble(maximizeWindow)"></button>
 		<button tabindex="-1" aria-label="Close" v-html="iconClose" class="myClose" @click="reportTrouble(closeWindow)"></button>
 	</div>
-	<div class="myStage"><div class="myScreen bg-screen mx-auto"></div></div><!-- the room for the screen, centered left to right in it -->
+	<div class="myStage"><div class="myScreen mx-auto"></div></div><!-- the room for the screen, centered left to right in it -->
 	<div class="myPage grow wrap-break-word">{{path ? backize(path) : placeholderName}}</div><!-- the page below the screen, which takes whatever height the screen leaves, its text in plain flow from the top left, wrapping a long path at the window's width -->
 </div>
 
@@ -159,7 +159,7 @@ async function reportTrouble(work) {//a window event is where the platform start
 .myVideo {
 	padding: var(--title-bar); /* a margin as wide as the band across the top, which the page sets on this element */
 	container-type: size; /* so the room below can measure the window inside that margin */
-	background-image: radial-gradient(circle at center, var(--color-line) 1px, transparent 1px); /* a spike, for now: small dots across the whole page, to show how far up under the title bar it reaches */
+	background-image: radial-gradient(circle at center, var(--color-zed-border) 1px, transparent 1px); /* a spike, for now: small dots across the whole page, to show how far up under the title bar it reaches */
 	background-size: 8px 8px;
 }
 .myStage {
@@ -169,7 +169,8 @@ async function reportTrouble(work) {//a window event is where the platform start
 .myScreen {
 	width: min(100cqw, 100cqh * 16 / 9); /* the room's whole width, or 16 by 9 at the room's whole height once the room has shrunk, whichever is less, so the screen always fits */
 	aspect-ratio: 16 / 9;
-	box-shadow: 4px 4px 12px var(--color-deep); /* the shape of the shadow a thumbnail on the sheet casts, lit from the top left, square as the screen is, and darker; painted outside the box, which the video will fill to the pixel, and where the video's own native view will not cover it */
+	background-color: black; /* a placeholder for now, where the video will play */
+	box-shadow: 4px 4px 12px var(--color-fuji-shade-deep); /* the shape of the shadow a thumbnail on the sheet casts, lit from the top left, square as the screen is, and darker; painted outside the box, which the video will fill to the pixel, and where the video's own native view will not cover it */
 }
 .myPage {
 	padding-top: var(--title-bar); /* the same space again between the screen and the text */
@@ -187,10 +188,10 @@ async function reportTrouble(work) {//a window event is where the platform start
 	height: 16px;
 	stroke-width: 1.5;
 }
-.myButtons button:hover    { background-color: var(--color-caption-hover); } /* Windows 10's gray behind minimize and maximize, on every platform */
-.myButtons button:active   { background-color: var(--color-caption-press); }
-.myButtons .myClose:hover  { background-color: var(--color-close); color: var(--color-on-close); } /* and its bright red behind close, the drawing white on it */
-.myButtons .myClose:active { background-color: var(--color-close-press); }
+.myButtons button:hover    { background-color: color-mix(in srgb, var(--color-fuji-window-button) 10%, transparent); } /* the gray behind minimize and maximize, on every platform */
+.myButtons button:active   { background-color: var(--color-fuji-dayglo); color: var(--color-fuji-purple); } /* and pressed, minimize, maximize and close alike, a moment of purple on day-glo so the click is seen to land */
+.myButtons .myClose:hover  { background-color: var(--color-fuji-close-red); color: var(--color-fuji-on-close-red); } /* and its bright red behind close, the drawing white on it */
+.myButtons .myClose:active { background-color: var(--color-fuji-dayglo); color: var(--color-fuji-purple); }
 .myAway button:not(:hover) { opacity: 0.4; } /* in a window behind another, the drawings step back until the pointer comes over one; a button at rest has no background, so only its drawing dims */
 
 </style>
