@@ -3,6 +3,7 @@
 import {ref, computed, reactive, watch} from 'vue'
 import parse from 'path-browserify'
 import {documentDir, desktopDir, downloadDir} from '@tauri-apps/api/path'
+import {getCurrentWindow} from '@tauri-apps/api/window'
 import {modelFolder, modelOpen, modelOpenFolder, modelStand} from '../model.js'
 import {pagerBuckets, pagerRead, pagerPreviousState, pagerNextState, pagerStart, pagerNext, pagerPrevious, pagerRefresh} from '../pager.js'
 import {forwardize} from './library.js'
@@ -76,6 +77,10 @@ async function folderOpen(path) {//a folder clicked on the empty sheet or chosen
 }
 function onResize() {}//and nothing to remeasure: the wrapping is the engine's job, and this view measures nothing, which is what lets it stay mounted
 function onFocus(focused) { if (!focused) sheetMenu.value?.hide() }//a menu closes when its window goes behind another, as the system's own do
+function onMenu(e) {//a right click: the window to the front, since webkit follows the pointer only in the window in front and a right click brings none forward, and then the menu at the pointer
+	getCurrentWindow().setFocus().catch(error => logTrouble('sheet: bringing the window forward for a menu', error))
+	sheetMenu.value.show(e.clientX, e.clientY)
+}
 
 defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's open box chose
 
@@ -83,7 +88,7 @@ defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same ca
 <template>
 
 <!-- display none destroys the layout box and the scroll position with it, so leaving and returning starts at the top; that is the behaviour wanted for now -->
-<div ref="sheetRoot" class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick" @contextmenu.prevent="e => sheetMenu.show(e.clientX, e.clientY)">
+<div ref="sheetRoot" class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick" @contextmenu.prevent="onMenu">
 	<div v-if="!pagerBuckets.length" class="myEmpty myMono w-full h-full flex items-center justify-center">
 		<div class="flex flex-col gap-[1lh]"><!-- Windows and Linux have no menu bar, so until fuji has a toolbar the welcome is their way to the open box and the help -->
 			<p>{{brandName}}</p>
