@@ -12,12 +12,14 @@ import {brandName, urlHelp} from '../brand.js'
 import {processOpen} from '../process.js'
 import Bucket from './Bucket.vue'
 import BucketMemory from './BucketMemory.vue'
+import MockMenu from './MockMenu.vue'
 
 //a page of buckets down one scroll, sheet.buckets of them with bucket.images pictures each, cut from wherever on the volume the pager is: pager.js holds the list and the page, the buttons move the page along it, and this file renders what it holds. The sheet and the table no longer share one list. The table flips within the folder the model lists, and the sheet's buckets come from many folders, so a double-click lists that thumbnail's folder for the table; and the sheet remembers which folder it last handed the model, to tell a drop on the table, which starts the pager again there, from its own double-click, which leaves the pager where it is. The settings panel takes this view's place in the same window, and s trades the two
 
 const sheetRoot = ref(null)//the scroll, put back to the top when a new page lands
 const sheetFit = ref('')//the fit, part of every bucket's key, so one chosen in the settings panel rebuilds them all when the sheet comes back; read in start, because this view is made before the shell has read fuji.toml, and a value taken now would be the factory's
 const sheetBeam = ref('')//the beam's name, the same way: a flow reads its length once, as it is made, so a new beam needs new buckets
+const sheetMenu = ref(null)//the mock context menu a right click opens
 let sheetOpened = ''//the folder this sheet last handed the model, by a drop, a folder button or a double-click; a model folder that differs when the sheet comes back on screen was opened on the table, and the pager starts again there
 
 function bucketKey(bucket) { return bucket.files.map(file => file.path).join() + sheetFit.value + sheetBeam.value }//what tells one bucket from another below: its contents, the fit and the beam, so a change to any of the three makes a new bucket rather than reusing one that painted other pictures
@@ -31,12 +33,14 @@ const sheetBytesSum = computed(() => pagerBuckets.value.reduce((sum, bucket) => 
 const sheetThumbnails = computed(() => pagerBuckets.value.reduce((count, bucket) => count + bucket.files.length, 0))
 
 function start() {//the shell calls this each time this view comes on screen: read the choices the settings panel may have changed, then start from a folder opened on the table, or re-cut the page where it is under the counts as they are now
+	sheetMenu.value?.hide()//a menu left open when another view took the window
 	sheetFit.value = settings.thumbnail.fit; sheetBeam.value = settings.thumbnail.beam
 	if (modelFolder.value && modelFolder.value != sheetOpened) { sheetOpened = modelFolder.value; pagerStart(modelFolder.value).catch(error => logTrouble(`sheet: starting from ${modelFolder.value}`, error)) }
 	else pagerRefresh().catch(error => logTrouble('sheet: refreshing the page', error))
 }
 const emit = defineEmits(['table', 'settings', 'audio', 'open'])//a double-clicked thumbnail, for the shell to show the table fullscreen, s, for the settings panel in this same window, a, for the audio panel the same way, and the open box, which the shell puts up; which view is showing is the shell's, so this only asks. A video window is the shell's own key, v, from every view
 function onKey(e) {
+	sheetMenu.value?.hide()//any key closes the menu, escape among them
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('settings')//a temporary way in, until fuji has a better place for one
 	if (e.key == 'a' && !e.ctrlKey && !e.metaKey) emit('audio')//the same, for the audio panel
 }
@@ -71,14 +75,15 @@ async function folderOpen(path) {//a folder clicked on the empty sheet or chosen
 	catch (error) { logTrouble(`sheet: opening ${path}`, error) }//a folder that cannot be read leaves the sheet as it was
 }
 function onResize() {}//and nothing to remeasure: the wrapping is the engine's job, and this view measures nothing, which is what lets it stay mounted
+function onFocus(focused) { if (!focused) sheetMenu.value?.hide() }//a menu closes when its window goes behind another, as the system's own do
 
-defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's open box chose
+defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's open box chose
 
 </script>
 <template>
 
 <!-- display none destroys the layout box and the scroll position with it, so leaving and returning starts at the top; that is the behaviour wanted for now -->
-<div ref="sheetRoot" class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick">
+<div ref="sheetRoot" class="mySheet w-full h-full overflow-y-auto select-none" @dblclick="onDoubleClick" @contextmenu.prevent="e => sheetMenu.show(e.clientX, e.clientY, e.shiftKey && e.altKey ? 'Simple' : e.shiftKey ? 'Chrome' : e.altKey ? 'Glass' : 'Fuji')"><!-- fuji's own, and the others with shift, alt or both, to compare -->
 	<div v-if="!pagerBuckets.length" class="myEmpty myMono w-full h-full flex items-center justify-center">
 		<div class="flex flex-col gap-[1lh]"><!-- Windows and Linux have no menu bar, so until fuji has a toolbar the welcome is their way to the open box and the help -->
 			<p>{{brandName}}</p>
@@ -100,6 +105,7 @@ defineExpose({start, onKey, onResize, onDrop, folderOpen})//the same calls every
 		</div>
 		<BucketMemory :buckets="pagerBuckets.length" :thumbnails="sheetThumbnails" :bytes="sheetBytesSum" :beam="sheetBeam" :fit="sheetFit" :read="pagerRead" /><!-- beneath the last bucket and the button, on the same scroll -->
 	</template>
+	<MockMenu ref="sheetMenu" /><!-- inside the sheet, so it hides with the sheet when another view takes the window -->
 </div>
 
 </template>
