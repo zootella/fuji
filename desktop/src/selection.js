@@ -3,13 +3,10 @@
 export function selectionEmpty() { return {selected: new Set(), anchor: -1, focus: -1} }
 
 export function selectionClick(traits, row, shown, {range, toggle}) {//one click on a row, by the rule Finder and Explorer share: alone it replaces the selection, with the toggle key it flips the row, and with shift it selects from the anchor to the row, keeping the rest only when the toggle key is down too. Row is an index into the list's rows, and shown is the order they are on screen, which a range runs along
-	if (range && traits.anchor != -1) {
-		let from = shown.indexOf(traits.anchor), to = shown.indexOf(row)
-		if (from != -1) {//an anchor the filter has hidden starts no range, so the click falls through to the rules below
-			let selected = toggle ? new Set(traits.selected) : new Set()
-			for (let k = Math.min(from, to); k <= Math.max(from, to); k++) selected.add(shown[k])
-			return {selected, anchor: traits.anchor, focus: row}
-		}
+	if (range && shown.includes(traits.anchor)) {//an anchor the filter has hidden, or none yet, starts no range, so the click falls through to the rules below
+		let selected = toggle ? new Set(traits.selected) : new Set()
+		for (let r of _selectionRange(shown, traits.anchor, row)) selected.add(r)
+		return {selected, anchor: traits.anchor, focus: row}
 	}
 	if (toggle) {
 		let selected = new Set(traits.selected)
@@ -17,4 +14,18 @@ export function selectionClick(traits, row, shown, {range, toggle}) {//one click
 		return {selected, anchor: row, focus: row}
 	}
 	return {selected: new Set([row]), anchor: row, focus: row}
+}
+
+export function selectionMove(traits, row, shown, {range}) {//the keyboard moving to a row, as an arrow does in Finder and Explorer: alone it selects just that row, and with shift it selects from the anchor to it
+	if (range && shown.includes(traits.anchor)) return {selected: new Set(_selectionRange(shown, traits.anchor, row)), anchor: traits.anchor, focus: row}
+	return {selected: new Set([row]), anchor: row, focus: row}
+}
+
+export function selectionAll(traits, shown) {//every row on screen, with the focus left where it was
+	return {selected: new Set(shown), anchor: shown.length ? shown[0] : -1, focus: traits.focus}
+}
+
+function _selectionRange(shown, from, to) {//the rows from one to the other in the order they are on screen, both included
+	let a = shown.indexOf(from), b = shown.indexOf(to)
+	return shown.slice(Math.min(a, b), Math.max(a, b) + 1)
 }

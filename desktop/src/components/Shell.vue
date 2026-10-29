@@ -22,7 +22,7 @@ import {brandName, urlHelp} from '../brand.js'//for the log lines that say what 
 import {processOpen} from '../process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, and to ask for a video window beside this one
-import {themeShow, facesShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts
+import {themeShow, facesShow, selectionShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts, and the fill of a selected row, which only a browsing window has lists to need
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import SettingsPanel from './SettingsPanel.vue'
@@ -112,6 +112,7 @@ onMounted(async () => {
 	logStart({label: `${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`, record: settings.log.record, notes: [`flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`]})//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
+	selectionShow()//and a selected row in the fill the settings name
 	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears
@@ -140,9 +141,10 @@ onMounted(async () => {
 	unlistenResized = await w.onResized(() => reportTrouble(recordSheet))//the sheet's size, into settings as the user changes it
 	unlistenFocus = await w.onFocusChanged(event => {
 		if (event.payload) { menuTitle(); editLit = {}; editMenu() }//the one menu bar serves every window, so the window coming to the front says where its own View item goes, and all over again which Edit items it can answer
+		windowMark(event.payload)
 		reportTrouble(() => activeView()?.onFocus?.(event.payload))//a window event like the rest, handed to the view showing; the preview closes on losing it
 	})
-	reportTrouble(async () => activeView()?.onFocus?.(await w.isFocused()))//and once now, since the focus arrived with the reveal, before there was anyone listening for it
+	reportTrouble(async () => { let focused = await w.isFocused(); windowMark(focused); activeView()?.onFocus?.(focused) })//and once now, since the focus arrived with the reveal, before there was anyone listening for it
 })
 const restAfter = 2*Time.second//how long after the first frame to read fuji's footprint at rest: long enough for the engine to settle, and short enough to come before the user has opened anything on most launches
 function logLaunch() {//two lines at the top of every log. The launch timed whole, from the operating system starting the process through the loader, main and the page to the first frame, which is the one measurement that shows what a library added to the build costs and where; and the footprint a moment later, before anything is opened
@@ -209,6 +211,8 @@ function helpToggle() {
 	helpShowing.value = !helpShowing.value
 	settings.hud.help = helpShowing.value; settingsChanged()//the setting records where the user left the panel, so help that greeted a new user stays gone once they close it
 }
+
+function windowMark(focused) { document.documentElement.dataset.window = focused ? 'front' : 'back' }//whether this window is the one in front, as an attribute for the stylesheet, since WebKit stops matching :focus in a window gone behind another without restyling what depended on it; a list shows its quieter selection while the window is behind
 
 function activeView() { return {Sheet: sheetRef, Settings: settingsRef, Audio: audioRef, Inventory: inventoryRef, Spike: spikeRef, Table: tableRef}[showing.value].value }//the view on screen, which every window event goes to
 

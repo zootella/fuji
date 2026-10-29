@@ -47,6 +47,8 @@ async function onFilter(e) {
 
 let pressed = 0, waited = 0//when the last press reached the bench, which hears it before the list does, and how long it sat in line before that, from the moment the event was made
 function press(e) { pressed = performance.now(); waited = pressed - e.timeStamp }
+function onKey(e) { press(e); listRef.value?.key(e) }//every key the shell hands this view goes on to the list, timed like a press
+defineExpose({onKey})
 async function onSelect(p) {//from that press to the selection painted, so the list's own marking is inside the number
 	let start = pressed, queued = waited//read before the wait, since a press queued behind this one can reach the bench during it
 	await afterPaint()

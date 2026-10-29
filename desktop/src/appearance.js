@@ -2,8 +2,9 @@ import {getCurrentWindow} from '@tauri-apps/api/window'
 import {settings} from './settings.js'
 import {logTrouble} from './log.js'
 import {brandName} from './brand.js'
+import {platform} from './components/library.js'
 
-//the look the settings name, put on the window and its page: light or dark, and the faces. Every kind of window fuji makes puts them on as it starts, before its reveal, and a browsing window again when its settings panel changes them
+//the look the settings name, put on the window and its page: light or dark and the faces, which every kind of window fuji makes puts on as it starts, before its reveal, and a browsing window again when its settings panel changes them; and the fill of a selected row, which a browsing window puts on as it starts
 
 export async function themeShow() {//light or dark, for the window's title bar and the page inside, from the appearance setting. The theme on the window is the one switch, as the essay above the palette in index.css says: null follows the system, and keeps following it as it changes
 	await getCurrentWindow().setTheme(settings.appearance.mode == 'system' ? null : settings.appearance.mode)
@@ -13,4 +14,23 @@ export async function facesShow() {//put the page's text in the fonts the settin
 	let loads = {bundled: ['16px Inter', '16px "IBM Plex Mono"'], retro: ['16px "IBM Plex Mono"']}[settings.font.faces] || []//both bundled faces; retro borrows Plex alone, beside the Verdana the system installs; and system fetches nothing
 	await Promise.all(loads.map(face => document.fonts.load(face))).catch(error => logTrouble(`appearance: loading ${brandName}'s fonts`, error))
 	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted; the setting's own word, system, bundled or retro, which index.css keys its rules on
+}
+
+export function selectionShow() {//the fill of a selected row: blank leaves the platform's defaults in index.css, and a color the user named replaces the fill, with whichever of white or black text reads on it
+	document.documentElement.dataset.platform = platform()//mac, windows or linux, which index.css picks the defaults by
+	let root = document.documentElement.style
+	let color = settings.selection.color
+	if (!color) { root.removeProperty('--color-select'); root.removeProperty('--color-on-select'); return }
+	root.setProperty('--color-select', color)
+	root.setProperty('--color-on-select', _colorPale(color) ? 'var(--color-on-pale)' : 'var(--color-on-deep)')
+}
+
+function _colorPale(color) {//whether black text contrasts more with this color than white does, by the relative luminance WCAG defines
+	let c = document.createElement('canvas').getContext('2d')
+	c.fillStyle = color//the engine's own reading of any color CSS takes, a name or a value, which it hands back as #rrggbb, or as rgba() when the color is translucent
+	let s = c.fillStyle
+	let [r, g, b] = s.startsWith('#') ? [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16)) : s.match(/[\d.]+/g).slice(0, 3).map(Number)
+	let linear = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
+	let luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+	return (luminance + 0.05) / 0.05 > 1.05 / (luminance + 0.05)//black's contrast with the color, weighed against white's
 }
