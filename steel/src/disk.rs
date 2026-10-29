@@ -36,7 +36,7 @@ pub struct FileStat {
 
 #[derive(Serialize)]
 pub struct Space {
-	pub available:   u64,//bytes this user may write on the volume now, which is the room a copy has: f_bavail blocks on the Mac and Linux, and GetDiskFreeSpaceExW's bytes available to the caller on Windows, which per-user quotas can make smaller
+	pub available:   u64,//bytes this user may write on the volume now, which is the room a copy has: f_bavail blocks on the Mac and Linux, and GetDiskFreeSpaceExW's bytes available to the caller on Windows, which per-user quotas can make smaller. On the Mac this is less than Finder and Disk Utility call available, since they count the purgeable space macOS clears on its own as it needs room, and a copy held to this number never depends on that clearing
 	pub free:        u64,//bytes free on the volume, the blocks it holds back for the system included: f_bfree, and the volume's free bytes on Windows
 	pub total:       u64,//the volume's size in bytes: f_blocks, and its clusters on Windows
 	pub granularity: u64,//the unit the volume allocates a file's space in, so a file takes its size rounded up to it: f_frsize, and the cluster on Windows
