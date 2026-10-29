@@ -1083,6 +1083,7 @@ export const fileTypes = {
 
 export const fileTypesEnabled = Object.fromEntries(Object.entries(fileTypes).filter(([extension, entry]) => entry.enabled))//the entries fuji acts on today, which is what everything but the settings reads
 
+const platforms = ['mac', 'windows', 'linux']//the words a platform can be, as platform() answers them
 export const fileTypesEngine  = {mac: 'webkit',  windows: 'edge', linux: 'gtk'}//the render tag of the web engine Tauri finds on each platform
 export const fileTypesLibrary = {mac: 'imageio', windows: 'wic',  linux: ''}//and of the operating system's imaging library thumbnail.rs calls there, which Linux has none of, as the essay says
 export function fileTypesRoads(platform, kind) {//the render tags the parts for this kind take on this platform, so a reader passes platform() in and names no tag or platform itself: for a picture the imaging library and the web engine; for a sound or a video mpv alone, since fuji never asks the operating system or an engine to play one; and none for a kind past the three media. Which of a picture's two a part takes is that part's own function below
