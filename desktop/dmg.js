@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process'
-import {mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs'
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -52,14 +52,14 @@ const layout = {
 }
 
 //the name a dmg of version takes, which hash in scripts.js reads the version and architecture back out of
-export function dmgFile(version) {
+function dmgFile(version) {
 	let arch = {arm64: 'aarch64', x64: 'x64'}[process.arch]//spelled the way tauri spells it, since hash reads the architecture out of the filename and into the published sidecar
 	if (!arch) throw new Error('no dmg architecture for ' + process.arch)
 	return `${brandName}_${version}_${arch}.dmg`
 }
 
-//wrap the app at app in a dmg written to file, with dmgbuild's output going to output, which is anything spawn takes for a stream. pnpm installer wraps the app tauri just built, and the apple workspace wraps a copy it keeps, so this takes both paths rather than knowing either. a bottom gate: dmgbuild failing comes back as a result, never an exception
-export async function dmgMake({app, file, output}) {
+//wrap the app at app in a dmg written to file, with dmgbuild's output going to output, which is anything spawn takes for a stream. a bottom gate: dmgbuild failing comes back as a result, never an exception
+async function dmgMake({app, file, output}) {
 	//the settings in the json form dmgbuild reads, which is appdmg's, in a private temporary folder so two builds at once never share a file
 	let scratch = mkdtempSync(join(tmpdir(), 'dmg-'))
 	let settings = join(scratch, 'settings.json')
@@ -98,11 +98,10 @@ async function main() {
 	rmSync(folder, {recursive: true, force: true})
 	mkdirSync(folder, {recursive: true})
 
-	buildLog('dmg', 'started', file, '-', `with ${dmgbuild}, of the app tauri just signed with Fuji Desktop`)
+	buildLog('dmg', 'started', file, '-', `with ${dmgbuild}, of the app tauri just signed`)
 	let made = await dmgMake({app: join(bundled, `macos/${brandName}.app`), file: join(folder, file), output: 'inherit'})
 	if (!made.success) { buildLog('dmg', 'failed', file, '-', made.outcome); process.exitCode = 1; return }
 	buildLog('dmg', 'finished', file, await readSha256(join(folder, file)), 'in the bundle folder, where pnpm hash finds it')
 }
 
-//only when run, so the apple workspace can import dmgMake without making a dmg. said with realpath rather than import.meta.main, which node before 22.18 lacks, and would skip this in silence and leave the last build's dmg for hash to find
-if (process.argv[1] && realpathSync(process.argv[1]) == fileURLToPath(import.meta.url)) main().catch(e => { console.error('🚧 Error:', e); process.exitCode = 1 })
+main().catch(e => { console.error('🚧 Error:', e); process.exitCode = 1 })

@@ -7,9 +7,9 @@ import {saySize4, tickToIso} from '@zootella/ergo'//small helpers from the ergo 
 import {buildStep, hashSha256, readSha256} from './build-log.js'
 
 /*
-The publishing pipeline for every workspace, in one file at the monorepo root. Everything the package.json scripts do beyond calling tauri, vitepress or docker is here, reached by a verb: reveal, hash, upload-installer, upload-site, icons-collect, certificate.
+The publishing pipeline for every workspace, in one file at the monorepo root. Everything the package.json scripts do to publish is here, reached by a verb, like hash or upload-installer.
 
-**This file publishes; it does not build.** The desktop workspace builds with tauri and, for the installers, its own dmg.js on the mac and win-setup.js on windows; the linux workspace builds in containers, and the apple workspace builds and notarizes the mac release, and each then calls in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
+**This file publishes; it does not build.** The desktop workspace builds with build.js, which runs tauri, with dmg.js and win-setup.js, which make the installers tauri doesn't, and with notarize.js for the mac's release; the linux workspace builds in containers; and each then calls in here to stage, hash and send — which is why hashing and uploading exist once rather than once per workspace. `linux/build.js` is the other half of that split and knows nothing about publishing.
 
 Two machines publish fuji. Windows sends the exe. The mac sends the dmg it built natively and the four linux packages it built in docker. So a command means the same thing everywhere while doing different work underneath: `pnpm hash` is one package in desktop on windows and four in linux on the mac, and nobody has to remember which computer they are sitting at. What differs is passed as --source by the workspace that asked.
 
@@ -17,7 +17,7 @@ One file rather than one per workspace, because the facts worth keeping in one p
 
 Living at the root also settles the working-directory question by force rather than by discipline. Every workspace calls this file, each from its own folder, so nothing here can be relative to wherever node started; every path is built from this file's own location. The scripts this replaced each had their own answer to that, every one of them correct only because pnpm happened to run it from the right place.
 
-Its one companion at the root is build-log.js, which keeps the build log and says times the way the pipeline says them. That is a file of its own so the scripts that build can import it, dmg.js, win-setup.js, linux/build.js and the apple workspace's two, while this file stays something that is only ever run, never imported.
+Its one companion at the root is build-log.js, which keeps the build log and says times the way the pipeline says them. That is a file of its own so the scripts that build can import it, dmg.js, win-setup.js, notarize.js and linux/build.js, while this file stays something that is only ever run, never imported.
 */
 
 //every path is built from this file's own location, never from the working directory, because every workspace calls this file, each from its own folder
@@ -30,7 +30,7 @@ const staged = {                                                         //where
 	linux:  join(root, 'linux/release'),                                 //the four the containers made, already sitting where they were written
 }
 const icons   = join(root, 'desktop/src-tauri/icons')                    //committed artwork, generated rather than drawn
-const loginKeychain = join(homedir(), 'Library/Keychains/login.keychain-db')//where the signing identity lives on the mac that publishes
+const loginKeychain = join(homedir(), 'Library/Keychains/login.keychain-db')//where the signing identity lives, on every mac that builds an installer
 const built   = join(root, 'site/docs/.vitepress/dist')                  //what vitepress builds
 
 function readStem() {//the first name in Cargo.toml, which is the package's, found with a pattern, since one line of toml needs no parser
@@ -69,21 +69,21 @@ const targets = {
 }
 
 /*
-pnpm installer signs the app inside the dmg with a certificate of fuji's own, asked for by one line: signingIdentity "Fuji Desktop" under bundle.macOS in tauri.conf.json. That file cannot hold a comment, so the line is explained here, beside the pipeline that ships what it produces. The dmg fuji publishes is signed with a Developer ID and notarized instead, by the apple workspace, and this is the fallback kept working beside it, so a release never has to depend on Apple; apple/README.md says why both exist.
+pnpm installer signs the app inside the dmg with a certificate of fuji's own, asked for by one line: signingIdentity "Fuji Desktop" under bundle.macOS in tauri.conf.json. That file cannot hold a comment, so the line is explained here, beside the pipeline that ships what it produces. The dmg fuji publishes is signed with a Developer ID and notarized instead, by pnpm notarize, and this is the fallback kept working beside it, so a release never has to depend on Apple, and a mac with no Apple developer account builds an installer all the same.
 
 Without a signing identity, tauri skips signing, and the app leaves with only the stamp the linker puts on every arm64 executable: nothing seals the bundle, Info.plist is not bound, and codesign --verify reports "code has no resources but signature indicates they must be present". A browser quarantines whatever it downloads, and at the first launch of a quarantined app Gatekeeper reads a signature that fails to verify as corruption. The dialog says "Fuji is damaged and can't be opened. You should move it to the Trash", under a caution triangle, with no button that proceeds. That is what a presenter met on a Mac Studio running Tahoe on 2026-09-23, and it reproduced on the Sequoia mini the next morning from a Chrome download. It had never shown up in development because nothing there quarantines: a dmg built here and dragged in, or fetched with curl, carries no quarantine attribute, and Gatekeeper never looks.
 
-With an identity, tauri runs codesign over every library in the bundle, the executable and then the bundle, without the hardened runtime here: hardenedRuntime is off beside the identity in tauri.conf.json, because the runtime's library validation loads only libraries signed under the app's own Team ID, a self-signed identity has none, and a fallback build carrying libmpv's tree died at launch with it on; the apple workspace turns it back on for its own build, where the Developer ID gives the app and every library one Team ID and notarization requires it. The seal verifies, so Gatekeeper can read what the app is, an unnotarized app from no known developer, and shows the dialog it has for that: "Apple could not verify Fuji is free of malware", with Done and Move to Trash, and for about an hour afterwards an Open Anyway button under Privacy & Security in System Settings. So this moves fuji from a dialog that calls the file broken and offers no way in to the one every unnotarized app gets, which has a way through. Only a Developer ID certificate from Apple and notarization take that dialog away, which is what the apple workspace does; Gatekeeper trusts no other certificate, so to it fuji's own reads exactly as the identity "-" did, an ad-hoc seal with nobody's name on it. Tauri does try to notarize after signing, finds no credentials, and logs a warning — expected in every pnpm installer build, since notarizing is the apple workspace's.
+With an identity, tauri runs codesign over every library in the bundle, the executable and then the bundle, without the hardened runtime here: hardenedRuntime is off beside the identity in tauri.conf.json, because the runtime's library validation loads only libraries signed under the app's own Team ID, a self-signed identity has none, and a fallback build carrying libmpv's tree died at launch with it on; pnpm notarize turns it back on for its own build, where the Developer ID gives the app and every library one Team ID and notarization requires it. The seal verifies, so Gatekeeper can read what the app is, an unnotarized app from no known developer, and shows the dialog it has for that: "Apple could not verify Fuji is free of malware", with Done and Move to Trash, and for about an hour afterwards an Open Anyway button under Privacy & Security in System Settings. So this moves fuji from a dialog that calls the file broken and offers no way in to the one every unnotarized app gets, which has a way through. Only a Developer ID certificate from Apple and notarization take that dialog away, which is what pnpm notarize does; Gatekeeper trusts no other certificate, so to it fuji's own reads exactly as the identity "-" did, an ad-hoc seal with nobody's name on it. Tauri does try to notarize after signing, finds no credentials, and logs a warning — expected in every pnpm installer build, since notarizing is pnpm notarize's.
 
 What the certificate changes is who macOS thinks fuji is from one release to the next. A seal records a designated requirement, the rule a later copy must meet to count as the same program, and macOS keeps each permission the user grants, like access to the Downloads folder, against that rule. An ad-hoc seal's rule is the hash of that one build, so every release was a stranger, and asked for the Downloads folder again. A certificate's rule is the bundle identifier signed by that certificate, which every release meets, so a permission given once stays given. A Developer ID's rule names Apple's team rather than one certificate, so moving the published release from Fuji Desktop to the Developer ID cost each user one permission, once, and going back to the fallback would cost one more.
 
-So the certificate is made once, ever, and every pnpm installer on every mac signs with that one. It's self-signed, and holds the name Fuji Desktop and nothing else: no email, no organization, no place, because each signed app carries it where anyone can read it with codesign -dvvv. It's state on the mac that publishes rather than in this repository, the key and certificate in the login keychain, where codesign finds them by name and signs without the certificate being trusted. From the desktop folder:
+So the original is made once, ever, on the mac that publishes, which signs the fallback with it, and a new computer takes over publishing by importing it. Every other mac that builds an installer makes one of its own, once, and that costs nobody anything: those builds never reach a user, macOS keeps a permission against the certificate rather than its name, and Gatekeeper trusts no self-signed certificate, so a Fuji Desktop anyone can make carries no authority past the mac that made it. Either way it's self-signed, and holds the name Fuji Desktop and nothing else: no email, no organization, no place, because each signed app carries it where anyone can read it with codesign -dvvv. It's state on the mac rather than in this repository, the key and certificate in the login keychain, where codesign finds them by name and signs without the certificate being trusted. From the desktop folder:
 
 	pnpm certificate                                                 say whether this mac has the identity
-	pnpm certificate make ~/Desktop/fuji-code-signing.p12            once, ever: make the identity and a password-protected backup
-	pnpm certificate import ~/Desktop/fuji-code-signing.p12          on a new mac: bring in the original from that backup
+	pnpm certificate make ~/Desktop/fuji-code-signing.p12            make one for this mac, and a password-protected backup
+	pnpm certificate import ~/Desktop/fuji-code-signing.p12          bring one back from its backup, like the original onto a new mac that publishes
 
-Make writes the backup to keep somewhere safe off the mac, with its password, and import is how a new computer takes over publishing without users being asked again. Either way, the first pnpm installer afterward stops at a dialog asking for the mac's login password so codesign can use the key; Always Allow there is what lets every later build sign without asking. A lost backup means a new certificate, which costs each user one more round of permission prompts and nothing worse. A fork names its own identity here and in tauri.conf.json and makes its own certificate, or goes back to "-".
+Make writes the backup to keep somewhere safe off the mac, with its password, which it insists on, since macOS can't import a backup without one, and import is how a new computer takes over publishing without users being asked again. pnpm installer looks for the identity before it builds anything, and names make when it's missing. Either way, the first pnpm installer afterward stops at a dialog asking for the mac's login password so codesign can use the key; Always Allow there is what lets every later build sign without asking. A lost backup of the original means a new certificate, which costs each user one more round of permission prompts and nothing worse. A fork names its own identity here and in tauri.conf.json and makes its own certificate, or goes back to "-".
 
 Windows is untouched by this and has the same story in its own words: an installer with no certificate meets SmartScreen's "Windows protected your PC", and Run anyway sits behind More info. Neither dialog is about the bytes; the sidecar's hash is. Version 0.1.0 was published unsealed on 2026-09-22, sealed after, and notarized from 2026-10-09, and only the sidecar's date tells the three apart.
 */
@@ -258,12 +258,12 @@ async function readLibrary(name, target, built) {
 	return library
 }
 
-//whether a dmg carries the notarization ticket the apple workspace staples to it. one without is either the fallback signed with Fuji Desktop alone, or a pnpm installer build staged by mistake, and only the person publishing knows which
+//whether a dmg carries the notarization ticket pnpm notarize staples to it. one without is either the fallback signed with Fuji Desktop alone, or a pnpm installer build staged by mistake, and only the person publishing knows which
 function isNotarized(path) {
 	return spawnSync('xcrun', ['stapler', 'validate', path], {stdio: 'ignore'}).status == 0
 }
 
-function warnUnnotarized(file) {//loud, and never a refusal, because the fallback apple/README.md describes ships exactly this
+function warnUnnotarized(file) {//loud, and never a refusal, because the fallback, the pnpm installer build, ships exactly this
 	console.log(`\n🍎👮🚓👮‍♀️⛓️ ${file} is not notarized: a downloaded copy meets the dialog saying Apple could not verify ${brandName} is free of malware`)
 	console.log(`🍎👮🚓👮‍♀️⛓️ pnpm notarize and then pnpm hash put a notarized one in its place, unless this is the Fuji Desktop fallback\n`)
 }
@@ -438,19 +438,20 @@ function iconsCompile() {
 	console.log('compiled mac/Assets.car')
 }
 
-//the signing identity on the mac that publishes, which the signing essay above explains: with nothing after it, say whether the login keychain holds it; make writes a new certificate and its backup, once ever; import brings that backup onto another mac. Either way the identity goes in through the backup, so the first run proves the backup works
+//the signing identity on this mac, which the signing essay above explains: with nothing after it, say whether the login keychain holds it; make writes a new certificate for this mac and its backup; import brings a backup in, like the original onto a new mac that publishes. Either way the identity goes in through the backup, so the first run proves the backup works
 function certificate() {
-	if (process.platform != 'darwin') throw new Error('the signing certificate belongs to the mac that publishes; nothing on this platform signs with one')
-	let name = JSON.parse(readFileSync(configurationFile, 'utf8')).bundle.macOS.signingIdentity//the identity tauri signs with, and the certificate's whole subject
-	if (!name || name == '-') throw new Error('tauri.conf.json signs ad hoc, with signingIdentity "-", so there is no certificate to look for')
 	let [action, backup] = process.argv.slice(3)
+	let name = JSON.parse(readFileSync(configurationFile, 'utf8')).bundle.macOS.signingIdentity//the identity tauri signs with, and the certificate's whole subject
+	if (action == 'ready') return _certificateReady(name)
+	if (process.platform != 'darwin') throw new Error('a signing certificate is the mac\'s alone; nothing on this platform signs with one')
+	if (!name || name == '-') throw new Error('tauri.conf.json signs ad hoc, with signingIdentity "-", so there is no certificate to look for')
 	let found = _certificateFind(name)
 	if (found) {
 		console.log(`found    ${found} "${name}" in the login keychain`)
 		if (action) throw new Error(`the login keychain already holds "${name}", so ${action} would only make a second identity by that name`)
 		return
 	}
-	if (!action) { console.log(`missing  no identity named "${name}" in the login keychain; pnpm certificate import <backup.p12> brings the original onto this mac, and pnpm certificate make <backup.p12> makes a new one, once ever`); return }
+	if (!action) { console.log(`missing  no identity named "${name}" in the login keychain; pnpm certificate make <backup.p12> makes one for this mac, and on the mac that publishes, pnpm certificate import <backup.p12> brings in the original`); return }
 	if (!backup) throw new Error(`say where the backup is: pnpm certificate ${action} <backup.p12>`)
 	if (action == 'make') _certificateMake(name, backup)
 	else if (action != 'import') throw new Error('say which: make or import')
@@ -458,6 +459,11 @@ function certificate() {
 	let made = _certificateFind(name)
 	if (!made) throw new Error(`imported ${backup}, but the login keychain still has no identity named "${name}"; the backup holds a different one`)
 	console.log(`ready    ${made} "${name}" in the login keychain`)
+}
+
+function _certificateReady(name) {//pnpm installer's first step: on a mac, stop before building anything if the identity tauri will sign with is missing, naming the command that makes one, where codesign would say only that it found none, at the end of the build. Elsewhere nothing signs, and an ad hoc seal needs no identity
+	if (process.platform != 'darwin' || !name || name == '-') return
+	if (!_certificateFind(name)) throw new Error(`no identity named "${name}" in the login keychain, which pnpm installer signs with — pnpm certificate make <backup.p12> makes one for this mac, once, and then pnpm installer again`)
 }
 
 function _certificateMake(name, backup) {//a new key and certificate, written only into the password-protected backup; the loose key lives a moment in a private folder and is gone either way
@@ -472,6 +478,10 @@ function _certificateMake(name, backup) {//a new key and certificate, written on
 		], {stdio: ['ignore', 'ignore', 'inherit']})
 		console.log(`made     "${name}"; now a password for the backup, twice`)
 		execFileSync('/usr/bin/openssl', ['pkcs12', '-export', '-inkey', key, '-in', certificate, '-name', name, '-out', backup], {stdio: 'inherit'})//openssl asks for the password itself, so it never passes through here
+		if (spawnSync('/usr/bin/openssl', ['pkcs12', '-in', backup, '-noout', '-passin', 'pass:'], {stdio: 'ignore'}).status == 0) {//the backup opens with no password, which openssl allows and macOS's import refuses, its dialog taking no empty answer
+			rmSync(backup)
+			throw new Error('the backup needs a password, since macOS cannot import one without; run make again and give it one')
+		}
 		console.log(`wrote    ${backup}; keep it, and its password, somewhere safe off this mac`)
 	} finally {
 		rmSync(folder, {recursive: true, force: true})

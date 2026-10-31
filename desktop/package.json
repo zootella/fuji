@@ -6,10 +6,10 @@
 	"type": "module",
 	"scripts": {
 		"local": "tauri dev",
-		"compile": "tauri build --no-bundle",
-		"installer": "tauri build && node dmg.js && node win-setup/win-setup.js",
+		"compile": "node build.js --no-bundle",
+		"installer": "node ../scripts.js certificate ready && node build.js && node dmg.js && node win-setup/win-setup.js",
 		"library": "node libmpv/libmpv.js",
-		"notarize": "node --env-file-if-exists=../.env ../apple/notarize.js",
+		"notarize": "node --env-file-if-exists=../.env notarize.js",
 		"reveal": "node ../scripts.js reveal",
 		"hash": "node ../scripts.js hash --source=bundle",
 		"upload": "node --env-file-if-exists=../.env ../scripts.js upload-installer --source=bundle",

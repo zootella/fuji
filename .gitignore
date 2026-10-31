@@ -106,15 +106,6 @@ desktop/release/*
 !desktop/release/*.json
 
 # ----------------------------------------------------------------------------
-# Apple (apple workspace)
-# ----------------------------------------------------------------------------
-
-# one folder per application the waiting room builds, holding the signed app, its dmg, Apple's
-# answers and the log of what happened to it. the published dmg's sidecar is tracked
-# in desktop/release like any other, and these stay on the mac that publishes
-apple/applications/
-
-# ----------------------------------------------------------------------------
 # The build log
 # ----------------------------------------------------------------------------
 

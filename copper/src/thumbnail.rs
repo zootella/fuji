@@ -70,10 +70,10 @@ mod platform {
 	use core_foundation::url::{CFURL, CFURLRef};
 	use core_graphics::base::{kCGBitmapByteOrder32Big, kCGImageAlphaNone, kCGImageAlphaNoneSkipFirst, kCGImageAlphaNoneSkipLast, kCGImageAlphaPremultipliedLast};
 	use core_graphics::color_space::{kCGColorSpaceDisplayP3, kCGColorSpaceSRGB, CGColorSpace};
-	use core_graphics::context::{CGContext, CGInterpolationQuality};
+	use core_graphics::context::CGContext;
 	use core_graphics::geometry::{CGPoint, CGRect, CGSize};
 	use core_graphics::image::CGImage;
-	use core_graphics::sys::CGImageRef;
+	use core_graphics::sys::{CGContextRef, CGImageRef};
 	use foreign_types_shared::ForeignType;
 	use std::ffi::c_void;
 	use super::{Target, Thumbnail};
@@ -96,7 +96,11 @@ mod platform {
 	#[link(name = "CoreGraphics", kind = "framework")]
 	extern "C" {
 		fn CGImageGetAlphaInfo(image: CGImageRef) -> u32;//declared by hand too, since the crate leaves it out
+		fn CGContextSetInterpolationQuality(context: CGContextRef, quality: i32);//and these, since the crate's own have High and Medium the wrong way round, as INTERPOLATION_HIGH says
+		#[cfg(test)]
+		fn CGContextGetInterpolationQuality(context: CGContextRef) -> i32;
 	}
+	const INTERPOLATION_HIGH: i32 = 3;//kCGInterpolationHigh. CGContext.h numbers the qualities out of order, Medium 4 and High 3, and the core-graphics crate's enum lists its five in name order without saying their values, so its CGInterpolationQualityHigh is 4, which coregraphics takes for Medium
 	extern "C" {
 		fn CFRelease(cf: *const c_void);
 	}
@@ -124,7 +128,7 @@ mod platform {
 		let name = unsafe { if wide { kCGColorSpaceDisplayP3 } else { kCGColorSpaceSRGB } };
 		let space = CGColorSpace::create_with_name(name).ok_or("thumbnail: no such color space")?;
 		let mut context = CGContext::create_bitmap_context(None, width, height, 8, width * 4, &space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);//the crate asserts rather than returns when it cannot make a context, and run_blocking hands that panic to the page as an error. Rgba bytes in that order; premultiplied because that is the only alpha a drawing context accepts, undone below
-		context.set_interpolation_quality(CGInterpolationQuality::CGInterpolationQualityHigh);//the best of coregraphics' filters for the shrink, which a picture drawn one to one never meets: a jpeg's thumbnail comes out byte for byte the same with it as without, in srgb and display p3, measured on the Mac mini on 2026-10-23
+		interpolate_high(&context);//the best of coregraphics' filters for the shrink, which a picture drawn one to one never meets; Medium in its place draws a cross of false rings on detail as fine as a zone plate's
 		context.draw_image(CGRect::new(&CGPoint::new(0.0, 0.0), &CGSize::new(width as f64, height as f64)), &image);//a color conversion, and for a picture with an alpha channel the shrink as well
 		let mut pixels = context.data().to_vec();
 		unpremultiply(&mut pixels);
@@ -171,6 +175,16 @@ mod platform {
 
 	fn key(name: CFStringRef) -> CFString {//a constant the framework owns: Get rule, so the wrapper retains it on the way in and releases it on the way out, net nothing
 		unsafe { CFString::wrap_under_get_rule(name) }
+	}
+
+	fn interpolate_high(context: &CGContext) { unsafe { CGContextSetInterpolationQuality(context.as_ptr(), INTERPOLATION_HIGH) } }//through the declaration above rather than the crate's set_interpolation_quality, whose High is Medium
+
+	#[cfg(test)]
+	pub fn shrink_interpolation() -> i32 {//the quality a context reads back once interpolate_high has set it, for the test that holds the shrink to coregraphics' real High
+		let space = CGColorSpace::create_with_name(unsafe { kCGColorSpaceSRGB }).unwrap();
+		let context = CGContext::create_bitmap_context(None, 1, 1, 8, 4, &space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+		interpolate_high(&context);
+		unsafe { CGContextGetInterpolationQuality(context.as_ptr()) }
 	}
 
 	fn unpremultiply(pixels: &mut [u8]) {//straight alpha from premultiplied, which is the identity for every opaque pixel, so a jpeg costs one compare a pixel
@@ -368,6 +382,12 @@ mod tests {
 		}
 		assert!(render(&sample("text.txt"), &|w, h| Ok((w, h)), false).is_err(), "not a picture");
 		assert!(render(&sample("not-there.png"), &|w, h| Ok((w, h)), false).is_err());
+	}
+
+	#[cfg(target_os = "macos")]
+	#[test]
+	fn the_shrink_gets_coregraphics_high_interpolation_rather_than_the_medium_the_crate_sends_for_it() {//3 is kCGInterpolationHigh in CGContext.h; the core-graphics crate's own High reads back 4, Medium
+		assert_eq!(platform::shrink_interpolation(), 3);
 	}
 
 	#[cfg(any(target_os = "macos", target_os = "windows"))]
