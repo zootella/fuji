@@ -1,14 +1,15 @@
 # Image Fidelity
 
-A picture viewer's job is to show a picture sharp, in the colors its file says, at once, and without the window stalling while it does. Fuji shows pictures three ways. The ***contact sheet*** is a folder seen whole, hundreds of thumbnails down one scroll. The ***light table*** is one picture at a time on a plane you pan and zoom, and Fuji's is the [Diamond Table](./diamond-table.html). The ***preview*** is the picture a double-click in Finder or Explorer opened, alone in a window shaped like it. On all three, a picture is decoded by code the platform already trusts, shrunk by a filter chosen for the job, and sized to the grid the screen is painted in, so that the last step to the screen is a copy. This page is how, on macOS, Windows and Linux, and why each step is done the way it is.
+A picture viewer's job is to show a picture sharp, in the colors its file says, at once, and without the window stalling while it does. Fuji shows pictures three ways. The *contact sheet* is a folder seen whole, hundreds of thumbnails down one scroll. The *light table* is one picture at a time on a plane you pan and zoom, and Fuji's is the [Diamond Table](./diamond-table.html). The *preview* is the picture a double-click in Finder or Explorer opened, alone in a window shaped like it. On all three, a picture is decoded by code the platform already trusts, shrunk by a filter chosen for the job, and sized to the grid the screen is painted in, so that the last step to the screen is a copy.
 
 Fuji is a desktop application built in two halves. A Rust program owns the window, the files, and anything the operating system will do on Fuji's behalf; a web page draws everything the user sees, rendered by [WebKit](https://webkit.org) on macOS, [Chromium](https://www.chromium.org) on Windows and [WebKitGTK](https://webkitgtk.org) on Linux. [Tauri](https://tauri.app) joins the two and carries calls and bytes between them. Nearly every decision below comes down to which half should do a piece of the work.
 
 Fuji's words for its own parts:
 
-- **Contact sheet** — one folder seen whole, its pictures in **buckets** down one scroll. Fuji's code calls it the sheet.
-- **Light table** — one picture at a time, on a plane the user pans and zooms around. Fuji's code calls it a table, and the rectangle the picture fills on it the **card**.
+- **Sheet** and **table** — the short names Fuji's code gives the contact sheet and the light table, which this page uses too.
+- **Bucket** — a box of thumbnails from one folder, one of many down the contact sheet's one scroll.
 - **Tile** — one thumbnail as it sits on the contact sheet: either a `<canvas>` Fuji painted or an `<img>` the engine draws.
+- **Card** — the rectangle a picture fills on the light table.
 - **Beam** — the length every thumbnail is measured against, in CSS pixels, which the user picks from Small, Medium, Large and XL.
 - **Fit** — the rule that measures a picture against the beam, which the user picks for the whole sheet.
 - **Store** — the one place Fuji keeps a file's bytes and its decoded picture. It hands them out and takes them back when told, and decides nothing on its own.
@@ -49,7 +50,7 @@ The light table and the preview each show one picture, and they show the same el
 
 **The card lands on the backing grid.** The light table keeps where everything should be in real numbers that are never rounded, and snaps the card's size and place to whole backing pixels every time it writes them to the page, so no edge falls on a fraction of a pixel and no rounding piles up from one zoom to the next. The card is the picture's own shape, and the picture fills it with [`object-fit`](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit) of `fill`, which stretches nothing. The engine resamples the decoded frame once, from image pixels to the card's backing pixels, and the compositor copies the card to the screen one to one. On a Mac, where `devicePixelRatio` is 1 or 2, every whole CSS pixel is a whole number of backing pixels, and on a Retina screen every half CSS pixel is one too, so snapping to backing pixels rather than CSS pixels keeps every position the display can show. At Windows' fractional scales the two grids stop nesting, and the card stays on backing pixels while its size in CSS pixels reads 33.333, not 33. The card's frame is an outline, drawn outside its box, because a border would be drawn inside it and squeeze the picture two pixels short.
 
-**The keys are exact.** `1` to `6` show the picture at that many CSS pixels per image pixel, so `2` makes every pixel of the file two CSS pixels across. `F` fits the whole picture inside the screen, and `W` fits its width. The wheel and a right drag zoom along one curve, which the [Zoom page](./zoom.html) describes. `R` swaps the engine's smoothing for blocks of the picture's own pixels, which the [Ben Day page](./ben-day.html) works through ratio by ratio. And `I` shows the zoom in CSS pixels and in backing pixels per image pixel, so the ratio is always in view.
+**The keys are exact.** `1` to `6` show the picture at that many CSS pixels per image pixel, so `2` makes every pixel of the file two CSS pixels across. `F` fits the whole picture inside the screen, and `W` fits its width. `Ctrl` and the **mouse wheel**, and a **right drag**, zoom along one curve, which the [Zoom page](./zoom.html) describes. `R` swaps the engine's smoothing for blocks of the picture's own pixels, which the [Ben Day page](./ben-day.html) works through ratio by ratio. And `I` shows the zoom in CSS pixels and in backing pixels per image pixel, so both are always in view.
 
 **The preview's window is the picture.** Fuji takes the title bar off and fits the window around the picture: its own shape, as large as the part of the desktop the menu bar, dock and taskbar leave free, placed away from the pointer, and never more than two CSS pixels per image pixel, so a small picture does not fill the screen with enlarged pixels. The window is a whole number of CSS pixels, and `object-fit` of `contain` takes up the fraction of a pixel that rounding leaves, so no edge of the picture is cut off. A click turns it into the light table, with the card where the preview's picture stood.
 
@@ -57,7 +58,7 @@ The light table and the preview each show one picture, and they show the same el
 
 ## A folder at a time
 
-A folder can hold hundreds of pictures, and Fuji can assume nothing about any of them. One may be a sixteen-pixel icon of a few hundred bytes. The next may be 6240 by 4160, six megabytes on disk and 6240 × 4160 × 4 bytes once a decoder undoes the compression, a hundred and four megabytes of raster for one picture. Two hundred of those on screen at once would be twenty gigabytes.
+A folder can hold hundreds of pictures, and Fuji can assume nothing about any of them. One may be a sixteen-pixel icon of a few hundred bytes. The next may be 6240 by 4160, six megabytes on disk and 6240 × 4160 × 4 bytes once a decoder undoes the compression, ninety-nine megabytes of raster for one picture. Two hundred of those on screen at once would be nearly twenty gigabytes.
 
 ### Why every thumbnail is a canvas
 
@@ -69,14 +70,14 @@ A canvas works the other way round. Its size is set in backing pixels, and when 
 
 | beam | one thumbnail | two hundred of them |
 | --- | --- | --- |
-| Small, 120 px | 150 KB | 30 MB |
-| Medium, 240 px | 600 KB | 120 MB |
-| Large, 360 px | 1.35 MB | 270 MB |
-| XL, 480 px | 2.4 MB | 480 MB |
+| Small, 120 px | 150 KB | 29 MB |
+| Medium, 240 px | 600 KB | 117 MB |
+| Large, 360 px | 1.32 MB | 264 MB |
+| XL, 480 px | 2.34 MB | 469 MB |
 
 For a picture three units wide by two tall under the factory fit, on a Retina Mac, where a [`devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) of 2 makes each CSS pixel two backing pixels across. On Windows at 150% the same numbers are a little over half of these.
 
-Two hundred Medium thumbnails come to a hundred and twenty megabytes where two hundred full decodes would be twenty gigabytes. The saving matters less than it looks, since the engine was never going to hold twenty gigabytes either. What matters is that Fuji knows the figure. So **every raster thumbnail in Fuji is a canvas**, whichever decoder made its pixels, and Fuji adds their bytes up as it goes: each bucket's caption says what its thumbnails cost, and a report beneath the last bucket sets the total beside what Fuji's processes take and what the machine has.
+Two hundred Medium thumbnails come to a hundred and seventeen megabytes where two hundred full decodes would be nearly twenty gigabytes. The saving matters less than it looks, since the engine was never going to hold twenty gigabytes either. What matters is that Fuji knows the figure. So **every raster thumbnail in Fuji is a canvas**, whichever decoder made its pixels, and Fuji adds their bytes up as it goes: each bucket's caption says what its thumbnails cost, and a report beneath the last bucket sets the total beside what Fuji's processes take and what the machine has.
 
 ### The fork
 
@@ -125,7 +126,7 @@ Every file on the contact sheet goes down the same two decisions:
 </svg>
 </div>
 
-The last question names the two routes the rest of this section turns on: the ***native route***, where the operating system's imaging library decodes the file and Fuji paints the pixels it returns, and the ***page route***, where the web engine decodes it and the page shrinks it by hand. Linux is not a third branch. Its native list is empty, so every raster file there takes the page route, which makes the page route the only one of the two that works on all three platforms, and the one that has to keep working. On macOS nothing takes it, since ImageIO reads every raster format Fuji opens.
+The last question names the two routes the rest of this section turns on: the *native route*, where the operating system's imaging library decodes the file and Fuji paints the pixels it returns, and the *page route*, where the web engine decodes it and the page shrinks it by hand. Linux is not a third branch. Its native list is empty, so every raster file there takes the page route, which makes the page route the only one of the two that works on all three platforms, and the one that has to keep working. On macOS nothing takes it, since ImageIO reads every raster format Fuji opens.
 
 **A GIF or an SVG is an `<img>`.** A GIF goes to an `<img>` because only an `<img>` animates, and a picture that moves in a browser should move on the contact sheet too. Drawn into a canvas it would be its first frame, a perfectly good thumbnail and what most file managers show, but Fuji would rather show the thing itself. A contact sheet of two hundred animations sounds expensive, and it is not: an animation runs only while it is in view, so a wall of GIFs costs only the handful on screen. An animated WebP, PNG or AVIF is a still, its first frame, because a tile is chosen by its extension, before anything has read whether the file moves.
 
@@ -311,11 +312,13 @@ A PNG keeps a color for every pixel, a clear one too, and most programs store bl
 
 ImageIO's resample averages the colors alone. On a Mac mini under macOS 27.0.1, its thumbnail of the Firefox logo, as Wikimedia renders the logo to a PNG, carries 1,215 near-black partly clear pixels at 210 pixels across, where a correct shrink has 1. A white disc on clear pixels that hide bright green comes back with 1,104 green-tinted ones. So on a Mac a picture with an alpha channel comes back from ImageIO whole, and Core Graphics shrinks it as it draws it into the bitmap context. A drawing context holds premultiplied pixels, each color already multiplied by its own opacity, where a clear pixel's color is zero whatever the file kept under it, so the shrink weighs by opacity without being asked. Whether a picture has an alpha channel is read from its header, 0.2 milliseconds for an 8000 by 6000 JPEG, and a picture without one keeps ImageIO's scaled decode.
 
+Core Graphics makes that shrink in one step, reading a fixed footprint of source pixels around each pixel it writes, and the finest detail a picture can hold shows what that means. One-pixel black and white rows, 4000 by 3000, brought down to 240 by 180 on a Mac mini under macOS 27.2, should come out flat gray. An exact average of every source pixel gives rows from 122 to 133. ImageIO's resample, which shrinks every opaque picture, gives 117 to 138. The one-step draw gives 64 to 191, a ripple the eye can find. Apple's high-quality scaler, `vImageScale` in [Accelerate](https://developer.apple.com/documentation/accelerate), matches the exact average at 116 to 137, and needs a second full-size copy of the picture in memory to do it. Transparency is what logos, icons, sprites and screenshots carry, flat color against sharp edges, where a dark fringe shows on every one; rows a pixel apart, shrunk thirty to one, are what a test pattern carries. So Fuji gives every edge its true color with the drawing call every Mac already makes, and holds one copy of the picture while it does.
+
 WIC's Fant scaler weighs by opacity already. On Windows 10, against a premultiplied area average of WIC's own full decode, its thumbnail of the same logo at 210 pixels is darker by more than 40 levels a channel at only eight edge pixels, each at an opacity of 1 or 2 in 255, where eight bits of premultiplied color keep almost nothing. The green-hidden disc comes back without one green pixel. On the page route every step of the halving draws into a canvas, which both engines keep in premultiplied pixels, so it weighs by opacity the same way; that route is read from how the engines store a canvas rather than counted.
 
 ### Orientation
 
-A phone stores a portrait as a landscape raster and a tag in its EXIF saying how to turn it. ImageIO applies the tag when asked. WIC leaves it to the caller, and Fuji applies it with WIC's flip-rotator, which takes one set of flags for both operations and applies the flip first. Six of EXIF's eight cases carry a rotation or a flip but not both, so the order cannot matter. Only 5 and 7, the mirrored diagonals, carry both, and a flip then a quarter turn differs from a quarter turn then that flip by a half turn, so for those two Fuji turns the other way round the circle. Eight sample JPEGs store one raster, red over blue, each tagged with a different orientation, and Fuji's tests check on both platforms that the red half lands where the tag says, so the answer is a position rather than anyone's judgment of what upright looks like. On the page route and on the light table the engine applies the tag itself. Every route sends back the picture's size as it shows, after its orientation, so a portrait's tile is tall.
+A phone stores a portrait as a landscape raster and a tag in its EXIF saying how to turn it. ImageIO applies the tag when asked. WIC leaves it to the caller, and Fuji applies it with WIC's flip-rotator, which takes one set of flags for both operations and applies the flip first. Six of EXIF's eight cases carry at most one of a rotation and a flip, so the order cannot matter. Only 5 and 7, the mirrored diagonals, carry both, and a flip then a quarter turn differs from a quarter turn then that flip by a half turn, so for those two Fuji turns the other way round the circle. Eight sample JPEGs store one raster, red over blue, each tagged with a different orientation, and Fuji's tests check on both platforms that the red half lands where the tag says, so the answer is a position rather than anyone's judgment of what upright looks like. On the page route and on the light table the engine applies the tag itself. Every route sends back the picture's size as it shows, after its orientation, so a portrait's tile is tall.
 
 ### Color
 

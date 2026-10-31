@@ -10,7 +10,7 @@ import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, s
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {menuText, menuWaiting, menuEnable} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, which item a new window was made to answer, and which Edit items are lit
 import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
-import {diskStat} from '../disk.js'//whether a path chosen in the open box is a folder, which decides the view it opens on
+import {diskStat} from '../disk.js'//whether a path chosen in the open box or handed over at launch is a folder, which decides the view it opens on
 import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
 import {uptimeProcess} from '../uptime.js'//how long the launch took, for the log's line at the first frame
 import {memoryReport} from '../memory.js'//what fuji's processes take at rest, for the log's line a moment after it

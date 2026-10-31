@@ -92,7 +92,7 @@ What the blocks look like depends on one number, backing pixels per image pixel,
 <math display="block"><mfrac><mtext>backing</mtext><mtext>image</mtext></mfrac><mo>=</mo><mfrac><mtext>CSS</mtext><mtext>image</mtext></mfrac><mo>×</mo><mfrac><mtext>backing</mtext><mtext>CSS</mtext></mfrac></math>
 </div>
 
-The first factor is the user's: the number keys set it to a whole number, `F` and `W` set it to whatever fits the frame, and the wheel and a **right drag** set it to anything at all. The second is the platform's: 1 on an ordinary monitor, 2 on a Retina Mac, and 1.25, 1.5 or 1.75 on a Windows laptop at the scales people run. Fuji reads it and never sets it.
+The first factor is the user's: the number keys set it to a whole number, `F` and `W` set it to whatever fits the frame, and `Ctrl` and the **mouse wheel**, or a **right drag**, set it to anything at all. The second is the platform's: 1 on an ordinary monitor, 2 on a Retina Mac, and 1.25, 1.5 or 1.75 on a Windows laptop at the scales people run. Fuji reads it and never sets it.
 
 | key | ordinary monitor, 1 | Windows at 150%, 1.5 | Retina Mac, 2 |
 | :-: | --: | --: | --: |
