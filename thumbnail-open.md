@@ -1,6 +1,6 @@
 # Thumbnails, still open
 
-What is left to decide, build and measure about the thumbnail pipeline. What is built is documented where it lives: the site's thumbnail pipeline page for how one file becomes one tile and what was measured to choose each route, the essays in `TestFlow.vue`, `governor.js` and `thumbnail.rs` for the code, and the essay above `disk_readdir` in `disk.rs` for where Rust's waiting commands run. This file holds only what none of those can claim yet.
+What is left to decide, build and measure about the thumbnail pipeline. What is built is documented where it lives: the site's Image Fidelity page for how one file becomes one tile and what was measured to choose each route, the essays in `TestFlow.vue`, `governor.js` and `thumbnail.rs` for the code, and the essay above `disk_readdir` in `disk.rs` for where Rust's waiting commands run. This file holds only what none of those can claim yet.
 
 Boiled down on 2026-10-04, at the end of a pass that set out to evaluate, simplify and correct the pipeline before adding to it. That pass removed the probe that read every file on a bucket before any render, put every flow's reads and renders behind governors four wide, and moved every waiting Rust command onto the blocking pool so a panic comes back as an error.
 

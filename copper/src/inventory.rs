@@ -292,7 +292,7 @@ fn changed(_: &std::fs::File, meta: &std::fs::Metadata) -> Option<i64> {
 #[cfg(windows)]
 fn changed(file: &std::fs::File, _: &std::fs::Metadata) -> Option<i64> {
 	use windows::Win32::Storage::FileSystem::{FileBasicInfo, FILE_BASIC_INFO};
-	handle_info::<FILE_BASIC_INFO>(file, FileBasicInfo)?.ChangeTime.checked_div(10_000)?.checked_sub(11_644_473_600_000)//hundred-nanosecond steps since 1601, to milliseconds since 1970
+	handle_info::<FILE_BASIC_INFO>(file, FileBasicInfo)?.ChangeTime.checked_div(10_000)?.checked_sub(11_644_473_600_000)//hundred-nanosecond steps since 1601, to milliseconds since 1970; exFAT keeps no change time, and every file on an exFAT stick came back without one, read on the Windows box on 2026-10-30
 }
 #[cfg(not(any(unix, windows)))]
 fn changed(_: &std::fs::File, _: &std::fs::Metadata) -> Option<i64> { None }

@@ -123,7 +123,7 @@ pub async fn disk_move(source: String, destination: String) -> Result<String, St
 	run_blocking(move || copper::erase::move_file(&source, &destination).map(String::from).map_err(|e| e.to_string())).await
 }
 
-/// The item moved to the Trash or the Recycle Bin, where the user can take it back
+/// The item moved to the Trash or the Recycle Bin, where the user can take it back; on Windows, on a drive with no Recycle Bin, a USB stick or a camera card, deleted for good instead, as copper's trash.rs says
 #[command]
 pub async fn disk_trash(path: String) -> Result<(), String> {
 	run_blocking(move || copper::trash::trash(&path)).await

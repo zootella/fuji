@@ -23,7 +23,7 @@ import {processOpen} from '../process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, and to ask for a video window beside this one
 import {setCommandKey} from '../keyboard.js'//which modifier the components hold their chords with
-import {themeShow, facesShow, selectionShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts, and the fill of a selected row, which only a browsing window has lists to need
+import {themeShow, facesShow, accentShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts, and the accent, which only a browsing window has lists and menus to need
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import SettingsPanel from './SettingsPanel.vue'
@@ -99,6 +99,7 @@ onMounted(async () => {
 	}
 	let chosen = ''//what that Open… chose, a file or a folder, which opens after the reveal the way Open… opens one in a window already open: a folder on the contact sheet and a picture on the light table, never in the preview a double-click gets
 	if (waiting == 'menu-open') { chosen = opened[0] || ''; opened = []; waiting = '' }//answered by the choice, so nothing below puts the box up again
+	if (opened.length && (await diskStat(opened[0]).catch(() => ({}))).is_dir) { chosen = opened[0]; opened = [] }//a folder handed over at launch, as a command line can, which opens on the contact sheet as a folder chosen in the open box does; a path that cannot be read goes on as a picture, and the preview says what it can
 	let openedMedia = ''//a sound rather than a picture, which opens on the audio panel and plays, since that is where the player lives while Fuji Audio is a product still to come; it goes by what libmpv plays on this platform rather than by the type's enabled flag, which says what fuji lists and offers. A video never arrives here, since App.vue gives it a video window
 	if (opened.length && mediaPlays(opened[0])) { openedMedia = opened[0]; opened = [] }
 	showing.value = opened.length ? 'Table' : openedMedia ? 'Audio' : 'Sheet'//before the reveal: a double-clicked picture opens on its preview, a sound on the audio panel, and every other launch on the contact sheet, since the sheet is the view that lives in a window
@@ -113,7 +114,7 @@ onMounted(async () => {
 	logStart({label: `${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`, record: settings.log.record, notes: [`flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`]})//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
-	selectionShow()//and a selected row in the fill the settings name
+	accentShow()//and the accent the settings name, on a selected row and a menu's row
 	if (platform() == 'mac') setCommandKey('metaKey')//and the components' chords on command, where control and a click is a right click; asked here so no component asks which platform it is on
 	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
@@ -283,7 +284,7 @@ Gamma is a lens over every picture fuji shows, and it touches none of their pixe
 
 There are two filters rather than one, and they take turns. WebKit does not redraw an element when a filter it is already showing through changes underneath it: a drag that rewrote the one filter's exponent moved the number on the hud and left the picture where it was, until leaving fullscreen forced a fresh draw and the right gamma appeared. So a change writes its exponent into the filter nothing is using, then points the pictures at that one. The property's value is different every time, and a different filter value is something every engine has to rebuild for.
 
-Off is no filter at all rather than an exponent of 1, so the pictures at rest are exactly what the thumbnail pipeline document on fuji's site measured. The filters run in sRGB rather than the linearRGB an SVG filter defaults to: a power curve comes out nearly the same in either space, because powers compose, and staying in sRGB spares the round trip to linear light, which at eight bits would merge the very shadow codes this exists to pull apart.
+Off is no filter at all rather than an exponent of 1, so the pictures at rest are exactly what the Image Fidelity page on fuji's site measured. The filters run in sRGB rather than the linearRGB an SVG filter defaults to: a power curve comes out nearly the same in either space, because powers compose, and staying in sRGB spares the round trip to linear light, which at eight bits would merge the very shadow codes this exists to pull apart.
 */
 let gammaFilter = 0//which of the two filters below the pictures are pointed at
 watch(gamma, value => {

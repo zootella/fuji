@@ -167,11 +167,11 @@ const settingsSchema = [
 		comment: `light, dark, or system: light or dark keeps ${brandName} that way whatever the computer is set to, and system matches the computer's own light or dark setting, and changes when it does. The settings panel changes this too`,
 		check: value => ['light', 'dark', 'system'].includes(value),
 	}, {
-		section: 'selection',
+		section: 'accent',
 		key: 'color',
-		factory: '',
-		comment: `the color a selected row is painted in, in any form CSS takes, a name like orange or a value like #ff8800, with its text in white or black, whichever reads on it; blank uses the platform's default colors, which ${brandName} carries built in, light or dark with the window`,
-		check: value => value == '' || CSS.supports('color', value),//the engine's own judgment of whether this is a color, which is the one that will paint it
+		factory: '#0064e1',
+		comment: `the one color ${brandName} paints a list's selected row and a menu's row under the pointer in, the same on every platform, in any form CSS takes, a name like orange or a value like #ff8800, with its text in white or black, whichever reads on it; #0064e1 at the factory, the blue a Mac selects a row in`,
+		check: value => CSS.supports('color', value),//the engine's own judgment of whether this is a color, which is the one that will paint it
 	}, {
 		section: 'associations',
 		key: 'yes',

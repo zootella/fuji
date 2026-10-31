@@ -193,7 +193,7 @@ export default defineConfig({
 				text: 'Craftsmanship',
 				items: [
 					{ text: 'Design Choices', link: '/design-choices' },
-					{ text: 'Thumbnails', link: '/thumbnails' },
+					{ text: 'Image Fidelity', link: '/image-fidelity' },
 					{ text: 'Gamma', link: '/gamma' },
 					{ text: 'Ben Day', link: '/ben-day' },
 					{ text: 'File Types', link: '/file-types' },

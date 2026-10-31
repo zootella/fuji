@@ -110,7 +110,7 @@ fn allocation(_: &File, meta: &std::fs::Metadata) -> u64 { use std::os::unix::fs
 #[cfg(windows)]
 fn allocation(file: &File, _: &std::fs::Metadata) -> u64 {
 	use windows::Win32::Storage::FileSystem::{FileStandardInfo, FILE_STANDARD_INFO};
-	crate::inventory::handle_info::<FILE_STANDARD_INFO>(file, FileStandardInfo).map_or(0, |standard| u64::try_from(standard.AllocationSize).unwrap_or(0))//the clusters the file holds, Explorer's size on disk; 0 for a small file kept inside its own record, where the length wins
+	crate::inventory::handle_info::<FILE_STANDARD_INFO>(file, FileStandardInfo).map_or(0, |standard| u64::try_from(standard.AllocationSize).unwrap_or(0))//the clusters the file holds, Explorer's size on disk; for a small file NTFS keeps inside its own record, its length rounded up to eight bytes, so the overwrite runs at most seven bytes past the end, read on the Windows box on 2026-10-30 as 304 for a file of 300; on exFAT the whole cluster, 131072 for a file of 26874 on a USB stick, so the overwrite there runs to the cluster's end
 }
 #[cfg(not(any(unix, windows)))]
 fn allocation(_: &File, _: &std::fs::Metadata) -> u64 { 0 }

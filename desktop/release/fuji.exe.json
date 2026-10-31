@@ -2,16 +2,16 @@
 	"file": "fuji.exe",
 	"version": "0.1.0",
 	"arch": "x64",
-	"size": 21262329,
-	"sha256": "c6ea26a440d6412ce25743d335e9e9a13205ad9711b65b028100e16525e890f5",
-	"tick": 1793032040359,
-	"date": "2026-10-26T16:27:20.359Z",
+	"size": 21297599,
+	"sha256": "6c7d1c165cb6bc597548fa29636da87d15b5f3584b88e47b70dbb46650f70795",
+	"tick": 1793422174384,
+	"date": "2026-10-31T04:49:34.384Z",
 	"libmpv": {
 		"file": "libmpv-2.dll",
 		"bytes": 48202240,
 		"sha256": "1610fa515147051c807dddcfdf29e6465a357764b307ee4163ccbf29c1263a7b",
-		"built": "2026-10-22T14:50:06Z",
-		"recipe": "2bf55610cd6b8de5b48ead03f7005edf2ca912d6fa69d9277facd97632526ae1",
+		"built": "2026-10-31T04:48:05Z",
+		"recipe": "df8292e4261c4016d853a1a86b35dfe67f279b874a3806457e07c393f0843e0b",
 		"tools": "gcc.exe (Rev5, Built by MSYS2 project) 16.2.0; meson 1.12.1; ninja 1.13.2; NASM version 3.02 compiled on Jul  4 2026",
 		"sources": [
 			{

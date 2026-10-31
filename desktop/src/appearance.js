@@ -2,9 +2,8 @@ import {getCurrentWindow} from '@tauri-apps/api/window'
 import {settings} from './settings.js'
 import {logTrouble} from './log.js'
 import {brandName} from './brand.js'
-import {platform} from './components/library.js'
 
-//the look the settings name, put on the window and its page: light or dark and the faces, which every kind of window fuji makes puts on as it starts, before its reveal, and a browsing window again when its settings panel changes them; and the fill of a selected row, which a browsing window puts on as it starts
+//the look the settings name, put on the window and its page: light or dark and the faces, which every kind of window fuji makes puts on as it starts, before its reveal, and a browsing window again when its settings panel changes them; and the accent, which a browsing window puts on as it starts
 
 export async function themeShow() {//light or dark, for the window's title bar and the page inside, from the appearance setting. The theme on the window is the one switch, as the essay above the palette in style.css says: null follows the system, and keeps following it as it changes
 	await getCurrentWindow().setTheme(settings.appearance.mode == 'system' ? null : settings.appearance.mode)
@@ -16,13 +15,10 @@ export async function facesShow() {//put the page's text in the fonts the settin
 	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted; the setting's own word, system, bundled or retro, which style.css keys its rules on
 }
 
-export function selectionShow() {//the fill of a selected row: blank leaves the platform's defaults in style.css, and a color the user named replaces the fill, with whichever of white or black text reads on it. Fuji carries each platform's colors rather than reading the system's, since every engine fixes the Highlight color a page can ask for against fingerprinting, and Rust could read the real one only on the mac
-	document.documentElement.dataset.platform = platform()//mac, windows or linux, which style.css picks the defaults by
+export function accentShow() {//the accent, the one color a list's selected row and a menu's row under the pointer are painted in on every platform, from the settings, with whichever of white or black text reads on it. The user's rather than the system's, since every engine fixes the Highlight color a page can ask for against fingerprinting, and Rust could read the real one only on the mac
 	let root = document.documentElement.style
-	let color = settings.selection.color
-	if (!color) { root.removeProperty('--color-select'); root.removeProperty('--color-on-select'); return }
-	root.setProperty('--color-select', color)
-	root.setProperty('--color-on-select', _colorPale(color) ? 'var(--color-fuji-on-pale)' : 'var(--color-fuji-on-deep)')
+	root.setProperty('--color-accent', settings.accent.color)
+	root.setProperty('--color-on-accent', _colorPale(settings.accent.color) ? 'var(--color-fuji-on-pale)' : 'var(--color-fuji-on-deep)')
 }
 
 function _colorPale(color) {//whether black text contrasts more with this color than white does, by the relative luminance WCAG defines

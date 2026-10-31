@@ -11,6 +11,10 @@ Simple here means the platform's own tools used directly: flex and its gap, outl
 */
 
 /*
+How a class fuji names is spelled, and where its rule lives. A named class starts with my, so none can be mistaken for a Tailwind utility, and its rule lives in its component's scoped styles, where it reaches only that component's elements, or here when several components share it. A component whose elements are made by script rather than by its template, as the list's rows are by list.js, cannot scope its rules, since Vue puts its scoping attribute only on what a template makes, so its block is global and every rule there reaches every element of that class anywhere in the window. Such a block uses only classes nothing else uses, named for its component, like myListCell; a bare myCell there once padded the contact sheet's cells and cut the right side off every svg.
+*/
+
+/*
 The one place fuji says how big its page is, and it is deliberately not `100vh`.
 
 Every view fills the window exactly, and the obvious spelling is `h-screen` — `height: 100vh`. It is the wrong one. **WebKit keeps a cached viewport for viewport units and that cache lags reality**, worst around a macOS fullscreen transition, where it can stick at a height from the middle of the animation and never revisit it. The symptom is a view stopping partway down a full screen with bare page below it. Measured on the Mac mini, macOS 15.7.4, 2026-09-14: `vh` disagreed with the window 28 times in one session, was the only measurement wrong every time, and was worst by 156 pixels. A percentage does not use that cache — it resolves against the real box of its parent — so the views say `h-full` and chain down from here.
@@ -56,15 +60,15 @@ The window's theme is the switch. Every window sets it from appearance.mode in f
 /*
 Where fuji's colors come from, and how each is named.
 
-Fuji's grays are Zed's, from the default themes Zed ships, One Light for light and One Dark for dark, and fuji follows the system between them as Zed does; a gray it copies from a platform on purpose is kept as the platform has it, as below. Fuji is growing the parts Zed already has, toolbars and buttons and a tree of folders beside the content, and an interface like that needs lines that divide it and panels that tell one region from the next, while all of it steps back so the content is what the user looks at. In Zed the content is code and in fuji it is pictures, and Zed's themes get that balance right, so fuji takes their grays as they are rather than tuning a palette of its own. They lean slightly blue, One Dark's background with more blue in it than red, which is the slate look of that theme and no mismatch for fuji's cyan, and One Light is a theme of its own rather than a mirror of One Dark. Each was read from Zed's theme file, assets/themes/one/one.json, at commit a3f6ef2 of July 2026, and a gray changes by reading that file again, never by eye.
+Fuji's grays are Zed's, every one, from the default themes Zed ships, One Light for light and One Dark for dark, and fuji follows the system between them as Zed does. Fuji is growing the parts Zed already has, toolbars and buttons and a tree of folders beside the content, and an interface like that needs lines that divide it and panels that tell one region from the next, while all of it steps back so the content is what the user looks at. In Zed the content is code and in fuji it is pictures, and Zed's themes get that balance right, so fuji takes their grays as they are rather than tuning a palette of its own. They lean slightly blue, One Dark's background with more blue in it than red, which is the slate look of that theme and no mismatch for fuji's cyan, and One Light is a theme of its own rather than a mirror of One Dark. Each was read from Zed's theme file, assets/themes/one/one.json, at commit a3f6ef2 of July 2026, and a gray changes by reading that file again, never by eye.
 
-Every color fuji paints is named here, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-zed-text or bg-zed-editor-background, and the scoped styles read the same variable, like var(--color-zed-editor-background). A name begins with where its color comes from. zed- is Zed's, named for Zed's key so it can be looked up there, unless that key would mean nothing here, when the name is one Zed does not use and the comment gives the key. mac- and win- are a platform's own, and fuji- is fuji's own. A name with no source, like the selected rows', says what a color is for and points at a platform's, which is how a list or a menu paints with one name on every platform while each platform gets its own color.
+Every color fuji paints is named here, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-zed-text or bg-zed-editor-background, and the scoped styles read the same variable, like var(--color-zed-editor-background). A name begins with where its color comes from. zed- is Zed's, named for Zed's key so it can be looked up there, unless that key would mean nothing here, when the name is one Zed does not use and the comment gives the key. fuji- is fuji's own. A name with no source, like the accent and the quiet selected row, says what a color is for.
 
-A color copied from a platform is kept exactly as the platform has it, never moved to the nearest gray of Zed's, because it is there to make fuji read as the machine it runs on. The color of a selected row is the example: set in the system's own typography, it is what makes a list read as Finder's or Explorer's rather than a web page's, and Swing, which brought selected colors of its own, looked foreign for it. The Mac's were read from AppKit on the Mac mini, under the names their comments give, so they are the system's own answers. Windows' were read from Windows 10's theme file, aero.msstyles at 10.0.19041, from a copy in a public archive. The menu's agree with the code of a tool that patches those very colors and with a screenshot of a stock Windows 10 measured pixel by pixel; the list's rest on the theme file alone. Linux has no set of its own, since no one file manager speaks for it, and it takes Windows', decided in October 2026. GNOME, the desktop Ubuntu and Fedora ship, marks a selected row with a pale tint of its accent and the item under the pointer with a faint tint of its text, and leaves the text as it is, which is how Windows draws them too, where the Mac fills a strong blue and turns the text white; that is in libadwaita's own stylesheet, its views and its menus. So the role names point at Windows' colors, and a platform with a set of its own, the Mac, puts it in their place. KDE and Linux Mint select in a strong color with white text, closer to the Mac, but GNOME is what most of Linux sees by default.
+One color is the user's: the accent, which paints a list's selected row and a menu's row under the pointer, the same on every platform, from accent.color in fuji.toml, in any color CSS takes and with whichever of white or black text reads on it. Fuji carried each platform's own selection colors before this, read from AppKit on the Mac and from Windows 10's theme file, and set them aside because no platform keeps one standard to match: on Windows, Explorer, Paint, Notepad and the taskbar each select and highlight in colors of their own, and Linux's desktops differ again. The platforms' grays also clashed with Zed's, theirs neutral and Zed's leaning blue, so that Windows 10's dark menu row, #414141 on One Dark's menu at #2f343e, read as a second palette. The factory accent is #0064e1, the blue a Mac selects a row in under light mode, read from AppKit on the Mac mini. It carries white text at 5.4 to 1, past the 4.5 the accessibility guidelines ask of text the size of a list's or a menu's, where the Mac's brighter menu blue, #007aff, manages 4.0; and it reads in dark as well as in light, a shade brighter than the Mac's own dark selection, #0059d1. A selected row the keyboard is away from steps back into Zed's grays, with Zed's text.
 
 Fuji's own colors are never gray. They are the warning's international orange in light and amber in dark, the icon's cyan, the pure white and black around a picture, which stay outside every theme, and the shadows and the hud's smoke, which stay dark in both modes, only lighter in light, since a light shadow is not one. A fuji color can still be taken from a platform on purpose and made fuji's, like the window buttons fuji draws in a title bar of its own on Windows and Linux, whose gray and red come from Windows 10, and then its comment says where it came from.
 
-A state that is a quieter version of its color is a share of it rather than a color of its own, like a window button's gray under the pointer and a menu's Zed gray made a little translucent, each written as color-mix() with transparent in the rule that paints it. A state that should be seen to happen gets colors of its own instead: a window button fuji draws in a title bar of its own, minimize, maximize or close, flashes purple on day-glo for the moment it is pressed, so a click is seen to land. So the palette holds each color once, in light-dark() where the two modes differ, the rules stay short, and the reasons live here and in each color's comment.
+A state that is a quieter version of its color is a share of it rather than a color of its own, like a window button's gray under the pointer and a menu's Zed gray made a little translucent, each written as color-mix() with transparent in the rule that paints it. A state that should be seen to happen gets colors of its own instead: a window button fuji draws in a title bar of its own, minimize, maximize or close, flashes fuji's cyan with its drawing black for the moment it is pressed, so a click is seen to land. So the palette holds each color once, in light-dark() where the two modes differ, the rules stay short, and the reasons live here and in each color's comment.
 
 */
 @theme {
@@ -80,49 +84,24 @@ A state that is a quieter version of its color is a share of it rather than a co
 
 	--color-fuji-frame: light-dark(#ffffff, #000000); /* the line right around a picture, the sheet's thumbnails and the table's card: pure white in light and pure black in dark, whatever the rest of fuji is drawn in. Both ends of every channel, so the gamma lens, which holds black and white where they are, leaves it alone on a thumbnail */
 	--color-fuji-warning: light-dark(#ff4f00, #fbbf24); /* for something to know or to do: international orange on white, the aerospace shade, which stands apart from every gray where a darker amber read as brown, and on black the amber fuji has always had */
-	--color-fuji-brand: #9fffe0; /* fuji's cyan, the icon's own color, the same in both: the frame of the thumbnail under the pointer. On white it measures 1.18 to 1, pale for a line, and the site's deep shade of it, #154739, is the one to reach for if a light window ever needs it stronger */
+	--color-fuji-brand: #9fffe0; /* fuji's cyan, the icon's own color, the same in both: the frame of the thumbnail under the pointer, and a window button fuji draws while it is pressed. On white it measures 1.18 to 1, pale for a line, and the site's deep shade of it, #154739, is the one to reach for if a light window ever needs it stronger */
+	--color-fuji-on-brand: #000000; /* the drawing on fuji's cyan, black in both */
 	--color-fuji-shade: light-dark(rgb(0 0 0 / 0.2), rgb(0 0 0 / 0.5)); /* a shadow */
 	--color-fuji-shade-deep: light-dark(rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.7)); /* a deeper shadow, under the video window's screen */
 	--color-fuji-hud-ink: light-dark(rgb(0 0 0 / 0.8), rgb(255 255 255 / 0.8)); /* a hud's text, see-through */
 	--color-fuji-hud-smoke: light-dark(rgb(255 255 255 / 0.4), rgb(0 0 0 / 0.4)); /* a hud's plastic, frosted in light and smoky in dark */
 	--color-fuji-menu-rim: rgb(255 255 255 / 0.2); /* a menu's light rim just inside its edge */
 	--color-fuji-menu-edge: rgb(0 0 0 / 0.25); /* its dark hairline, and its shadow */
-	--color-fuji-on-pale: #000000; /* text on a selection color of the user's that is light */
+	--color-fuji-on-pale: #000000; /* text on an accent of the user's that is light */
 	--color-fuji-on-deep: #ffffff; /* and on one that is dark */
 	--color-fuji-window-button: light-dark(#000000, #ffffff); /* behind a window button fuji draws in a title bar of its own, minimize or maximize, which it does on Windows and Linux: the drawing's own black or white, a share of which shows under the pointer, taken from Windows 10 as Chromium copies it */
 	--color-fuji-close-red: #e81123; /* behind the close button of the same title bar, under the pointer: the bright red Windows 10 uses, taken from it */
 	--color-fuji-on-close-red: #ffffff; /* the drawing on that red, white in both */
-	--color-fuji-purple: #bf00ff; /* an electric purple, the same in both, copied with its partner below from the console warning another project of ours prints while it runs on a developer's machine, purple text on day-glo, and the drawing of a window button fuji draws in a title bar of its own, minimize, maximize or close, while it is pressed */
-	--color-fuji-dayglo: #ceff00; /* a day-glo yellow-green, the same in both, from the same warning, and the button behind that drawing */
 
-	--color-mac-select: light-dark(#0064e1, #0059d1); /* a selected row in a list that has the keyboard: the Mac's selected-content color, read from AppKit on the Mac mini */
-	--color-mac-on-select: #ffffff; /* the text on it, white in both */
-	--color-mac-select-quiet: light-dark(#dcdcdc, #464646); /* a selected row in a list without the keyboard, the Mac's own again */
-	--color-mac-on-select-quiet: light-dark(#000000, #ffffff); /* the text on it */
-	--color-mac-accent: #007aff; /* the row under the pointer in a menu: the Mac's controlAccentColor, read from AppKit on the Mac mini, the same in light and dark for the default blue */
-	--color-mac-on-accent: #ffffff; /* the text on it, selectedMenuItemTextColor */
-
-	--color-win-select: light-dark(#cde8ff, #626262); /* a selected row in a list that has the keyboard: Explorer's on Windows 10, from the ItemsView::ListView part of its theme file, aero.msstyles 10.0.19041 */
-	--color-win-on-select: light-dark(#000000, #ffffff); /* the text on it, which Explorer leaves as an ordinary row's */
-	--color-win-select-quiet: light-dark(#d9d9d9, #333333); /* a selected row in a list without the keyboard, from the same part */
-	--color-win-on-select-quiet: light-dark(#000000, #ffffff); /* the text on it */
-	--color-win-accent: light-dark(#ffffff, #414141); /* the row under the pointer in Windows 10's context menu, from ImmersiveStart::Menu in the same file, and seen in a screenshot of a stock 21H2 */
-	--color-win-on-accent: light-dark(#000000, #ffffff); /* the text on it, unchanged */
-
-	--color-select: var(--color-win-select); /* a selected row in a list that has the keyboard: the platform's own, Windows' here, which Linux takes too, and the Mac's on the Mac below. A color in selection.color replaces it, which selectionShow in appearance.js puts on the root */
-	--color-on-select: var(--color-win-on-select); /* the text on it, which selectionShow swaps for fuji-on-pale or fuji-on-deep, whichever reads on a fill of the user's */
-	--color-select-quiet: var(--color-win-select-quiet); /* a selected row in a list without the keyboard, whatever fill the user chose */
-	--color-on-select-quiet: var(--color-win-on-select-quiet); /* the text on it */
-	--color-accent: var(--color-win-accent); /* the row under the pointer in a menu, the platform's own the same way */
-	--color-on-accent: var(--color-win-on-accent); /* the text on it */
-}
-html[data-platform="mac"] {
-	--color-select: var(--color-mac-select);
-	--color-on-select: var(--color-mac-on-select);
-	--color-select-quiet: var(--color-mac-select-quiet);
-	--color-on-select-quiet: var(--color-mac-on-select-quiet);
-	--color-accent: var(--color-mac-accent);
-	--color-on-accent: var(--color-mac-on-accent);
+	--color-accent: #0064e1; /* a list's selected row while it has the keyboard, and a menu's row under the pointer, on every platform: accent.color in fuji.toml, which accentShow in appearance.js puts on the root, and this its factory value for the moment before */
+	--color-on-accent: var(--color-fuji-on-deep); /* the text on it, which accentShow swaps for fuji-on-pale or fuji-on-deep, whichever reads on the user's color */
+	--color-select-quiet: light-dark(#dcdcdd, #454a56); /* a list's selected row while the keyboard is elsewhere, on every platform: Zed's background in One Light, the gray the Mac's and Explorer's own come nearest, and element.selected in One Dark */
+	--color-on-select-quiet: var(--color-zed-text); /* the text on it, Zed's, as on any row */
 }
 @layer base {
 	html { color-scheme: light dark } /* the page is drawn in both, so every light-dark() above, and the engine's own scrollbars and form controls, follow the window's theme */

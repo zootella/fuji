@@ -189,9 +189,9 @@ async function reportTrouble(work) {//a window event is where the platform start
 	stroke-width: 1.5;
 }
 .myButtons button:hover    { background-color: color-mix(in srgb, var(--color-fuji-window-button) 10%, transparent); } /* the gray behind minimize and maximize, on every platform */
-.myButtons button:active   { background-color: var(--color-fuji-dayglo); color: var(--color-fuji-purple); } /* and pressed, minimize, maximize and close alike, a moment of purple on day-glo so the click is seen to land */
+.myButtons button:active   { background-color: var(--color-fuji-brand); color: var(--color-fuji-on-brand); } /* and pressed, minimize, maximize and close alike, a moment of fuji's cyan with the drawing black, so the click is seen to land */
 .myButtons .myClose:hover  { background-color: var(--color-fuji-close-red); color: var(--color-fuji-on-close-red); } /* and its bright red behind close, the drawing white on it */
-.myButtons .myClose:active { background-color: var(--color-fuji-dayglo); color: var(--color-fuji-purple); }
+.myButtons .myClose:active { background-color: var(--color-fuji-brand); color: var(--color-fuji-on-brand); }
 .myAway button:not(:hover) { opacity: 0.4; } /* in a window behind another, the drawings step back until the pointer comes over one; a button at rest has no background, so only its drawing dims */
 
 </style>

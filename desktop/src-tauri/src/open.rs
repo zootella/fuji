@@ -38,12 +38,12 @@ pub fn open_hold(app: &AppHandle, label: &str, paths: Vec<String>) {
 	files.insert(label.to_string(), paths);
 }
 
-/// The paths on the command line, which is how windows and linux hand over a double-clicked file
+/// The paths on the command line, which is how windows and linux hand over a double-clicked file, and how a person or a script hands fuji a folder
 pub fn open_argv() -> Vec<String> {
 	std::env::args_os()
 		.skip(1)//the first is fuji itself
 		.filter_map(|argument| argument.into_string().ok())//an argument that is not utf-8 cannot be a path fuji carries, since everything above here is a rust String and then a javascript string
-		.filter(|argument| std::path::Path::new(argument).is_file())//the only examination this module does, and it is mechanical rather than a judgement: a command line also carries switches and a dev build's own arguments, and a path that names a file is what the shell sends and they are not
+		.filter(|argument| { let path = std::path::Path::new(argument); path.is_file() || path.is_dir() })//the only examination this module does, and it is mechanical rather than a judgement: a command line also carries switches and a dev build's own arguments, and a path that names a file or a folder is what the shell and a person send and they are not
 		.collect()
 }
 

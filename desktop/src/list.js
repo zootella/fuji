@@ -16,7 +16,7 @@ export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the l
 	let o = {frame, header, root, columns, onSelect, onSort, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
 	for (let [i, column] of columns.entries()) {
 		let cell = document.createElement('span')
-		cell.className = 'myCell'
+		cell.className = 'myListCell'
 		cell.dataset.column = i//how a click finds its column
 		if (column.align) cell.dataset.align = column.align
 		cell.textContent = column.title
@@ -56,7 +56,7 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 		e.dataset.row = i//how a press finds its row
 		for (let column of o.columns) {
 			let cell = document.createElement('span')
-			cell.className = 'myCell'
+			cell.className = 'myListCell'
 			if (column.align) cell.dataset.align = column.align
 			/*
 			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the element's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent.

@@ -1,6 +1,6 @@
 import {invoke} from '@tauri-apps/api/core'
 
-//the operating system's thumbnailer, ImageIO on the mac and the windows imaging component on windows; thumbnail.rs is the long version, TestFlow asks it for thumbnails and the store for a whole picture, fileTypes.js decides which files come here, and the thumbnail pipeline document on fuji's site says why
+//the operating system's thumbnailer, ImageIO on the mac and the windows imaging component on windows; thumbnail.rs is the long version, TestFlow asks it for thumbnails and the store for a whole picture, fileTypes.js decides which files come here, and the Image Fidelity page on fuji's site says why
 
 export function thumbnailRender({path, fit, beam, screenWidth, screenHeight, backingPerCss, gamut}) { return invoke('thumbnail_render', {path, fit, beam, screenWidth, screenHeight, backingPerCss, gamut}) }//one ArrayBuffer: twenty bytes of header, then rgba. fit, beam and the screen's size in css pixels are what fitSize in fit.js takes, and rust runs the same fit to choose how large to render; backingPerCss is devicePixelRatio; gamut is 'display-p3' or 'srgb'. Rejects on linux, for a file the operating system will not decode, for a picture whose size the library will not say, and for one claiming more than half the machine's memory
 export function thumbnailNatural({path, gamut}) { return invoke('thumbnail_natural', {path, gamut}) }//the same buffer with every pixel of the picture, at its own size, for a picture the web engine cannot decode; rejects as thumbnailRender does
