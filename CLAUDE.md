@@ -136,7 +136,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Rust Backend (desktop/src-tauri/src/)
 
-**Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what the page can ask Rust to do. No plugin is granted to the page: `capabilities/default.json` holds Tauri's core set and the calls the page makes on its own window, and anything past the window, an address opened in the browser or the system's file dialog, is a command here. Each module is declared in `lib.rs` with a line saying what it answers, opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
+**Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what the page can ask Rust to do. No plugin is granted to the page: `capabilities/default.json` holds Tauri's core set and the calls the page makes on its own window, and anything past the window, an address opened in the browser or the system's file dialog, is a command here. Each module is declared in `lib.rs` with a line saying what it answers and opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
 
 **Important Architecture Notes**:
 - File I/O uses synchronous `std::fs` calls inside `#[command(async)]`, so they run on Tauri's thread pool rather than the thread that runs the window; `disk_read()` loads entire files into memory (suitable for images, not large files). `lib.rs` has the rule for which commands are async

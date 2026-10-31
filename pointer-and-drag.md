@@ -6,7 +6,7 @@ What the list's pointer should be while a drag carries a selection, and how a dr
 
 **A drag from a selected row carries the selection**, in `_listCarry` in `list.js`, and the pointer while it does is a rule in `FujiList.vue`. Nothing takes a drop.
 
-**On Windows that pointer is OLE's own**, read out of `ole32.dll` by `copper/src/pointer.rs`, whose essay says how, and set by the bench; off Windows it stays the arrow. It is read once, at the display's scale when the bench opens, so a window moved to a display at another scale keeps the old size, and it has not been seen at 125 or 150 percent.
+**For the spike, the bench sets that pointer to `grabbing`, the closed hand, on every platform.** A reader of OLE's own drag pointer, which drew it out of `ole32.dll` as pixels for the page, was built and deleted, since the choices it served were set aside; it is in commit 6359fde, `copper/src/pointer.rs`, whose essay says how it got a pointer's alpha by drawing it over black and over white.
 
 ## What CSS gives
 
@@ -16,18 +16,14 @@ What the list's pointer should be while a drag carries a selection, and how a dr
 
 **OLE's drag pointers and WebView2's `copy` and `alias` are two-color masks**, each pixel black, white or clear, the format of Windows 3.1 and 95 pointers, which can hold no smoothed edge and no soft shadow. Windows' arrow is a full-color image with smoothed edges and a shadow. So even loaded exactly, they look wrong beside it, coming from an older part of Windows.
 
-**To check:** whether WordPad's dotted-box pointer, while dragging selected text, has a shadow from Windows' Enable pointer shadow setting, which is on here. If it does, Windows adds the shadow to a two-color pointer it draws itself, and handing the pointer to WebView2 as an image loses it.
-
 ## The pointer while carrying
 
-**Four choices**, open:
+**Two choices remain**, open:
 
-- **OLE as is**, which is what's built: it matches WordPad and Word, and looks dated.
-- **Built from Windows' parts**: the user's current arrow read from Windows, a large or black one included if they chose it, with OLE's box or a badge of fuji's drawn below it, put together in Rust or on a canvas.
 - **Authored**, the way fuji authors its icons: a source drawn once, exported as PNGs at 32, 40, 48 and 64 pixels for 100, 125, 150 and 200 percent, shipped with the page, and named in `cursor: image-set(url(...) 1x, url(...) 1.5x, url(...) 2x) 0 0, default`. Full color with alpha, so smooth edges and a soft shadow; no Rust; and WebKit takes the same CSS. The page can also draw one on a canvas as it runs, such as an arrow with a badge counting the rows carried. A pointer larger than 32 css pixels may be refused by Chromium in some cases, from memory.
-- **The plain arrow, with a picture of what's carried following it**, which is what Explorer since Vista and Finder both do, Explorer adding a label like "Move to Pictures".
+- **The plain arrow, with something floating beside it**: a count of the files carried, or a picture of them, which is what Explorer since Vista and Finder both do, Explorer adding a label like "Move to Pictures".
 
-If the choice leaves OLE's pointer, `pointer.rs` in copper and in brass, `pointer_read` and `pointer.js` go with it.
+**Set aside:** OLE's own pointer, which looks dated; and one built from Windows' parts, the user's current arrow read from Windows, a large or black one included, with a box or a badge drawn below it. The one thing only the second could do is follow a user who chose Windows' large or black pointers, which an authored pointer does not.
 
 ## Past the window's edge
 

@@ -61,14 +61,7 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 			/*
 			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the element's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent.
 			*/
-			if (column == o.columns[0]) {//the name in a span as wide as its text, so a press on the name can be told from a press in the space beside it
-				let name = document.createElement('span')
-				name.className = 'myName'
-				name.textContent = _listSay(column, row)
-				cell.append(name)
-			} else {
-				cell.textContent = _listSay(column, row)
-			}
+			cell.textContent = _listSay(column, row)
 			e.append(cell)
 		}
 		return e
@@ -252,11 +245,13 @@ function _listPress(o, e) {//on the press rather than the click, as Finder and E
 		kind: !row ? 'below the rows' : e.shiftKey ? (toggle ? 'shift and toggle' : 'shift') : toggle ? 'toggle' : 'plain',
 		listMs: performance.now() - start,
 	})
-	if (!e.shiftKey && !e.target.closest('.myName') && o.shown.length > 0) _listSmear(o, e, row ? Number(row.dataset.row) : -1, toggle ? before : selectionEmpty())//a press on a name is left for dragging the file, once the list drags files
+	if (!e.shiftKey && o.shown.length > 0) _listSmear(o, e, row ? Number(row.dataset.row) : -1, toggle ? before : selectionEmpty())
 }
 
 /*
-A press anywhere in a row but on its name, dragged up or down, selects the rows from the one pressed to the one level with the pointer, as Finder's list does from beside a name. A press below the last row does the same from the bottom up, with the last row as the start, and nothing is drawn for the drag itself. With the toggle key down at the press, the rows join the selection the list had before it, which is how Finder adds a second run. The pointer is held to the rows in view, so a drag past the list's edge reaches the last row showing rather than rows scrolled out of sight. Until the pointer reaches a row other than the one it started on, the press's own selection stands, so a toggle click that drifts a pixel is still a toggle click.
+A press on a row that is not selected, anywhere in it, dragged up or down, selects the rows from the one pressed to the one level with the pointer, as Finder's list does from beside a name. A press below the last row does the same from the bottom up, with the last row as the start, and nothing is drawn for the drag itself. With the toggle key down at the press, the rows join the selection the list had before it, which is how Finder adds a second run. The pointer is held to the rows in view, so a drag past the list's edge reaches the last row showing rather than rows scrolled out of sight. Until the pointer reaches a row other than the one it started on, the press's own selection stands, so a toggle click that drifts a pixel is still a toggle click.
+
+A press on a row that is selected carries the selection instead, so a file is dragged by selecting it first. Finder and Explorer drag a file pressed on its name, but where a name ends cannot be seen, and that would make the place to press grow and shrink with the length of each name; here every part of a row does the same thing.
 */
 function _listSmear(o, e, from, base) {//from is the row pressed, or -1 below the last row; base is what the drag adds to
 	let height = o.elements[o.shown[0]].offsetHeight//every row is one line of the same height

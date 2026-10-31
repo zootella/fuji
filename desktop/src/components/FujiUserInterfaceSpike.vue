@@ -4,8 +4,7 @@ import {ref, shallowRef, onMounted, onBeforeUnmount} from 'vue'
 import {Size, Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {log, logTrouble} from '../log.js'
 import {modelSortRun} from '../model.js'
-import {sayDayTime, platform} from './library.js'
-import {pointerCursor} from '../pointer.js'
+import {sayDayTime} from './library.js'
 import FujiList from './FujiList.vue'
 
 const counts   = [50, 200, 1000, 2000, 5000, 10000]
@@ -39,7 +38,8 @@ async function build(n) {
 	} finally { building.value = false }
 }
 onMounted(() => build(count.value).catch(trouble))
-onMounted(() => { if (platform() == 'windows') pointerCursor('move').then(value => document.documentElement.style.setProperty('--list-carry', value)).catch(trouble) })//the pointer the list shows while it carries a selection, OLE's on windows; the mac keeps its plain arrow, as Finder does
+onMounted(() => document.documentElement.style.setProperty('--list-carry', 'grabbing'))//the closed hand while the list carries a selection, for the spike, until the pointer is chosen
+onBeforeUnmount(() => document.documentElement.style.removeProperty('--list-carry'))
 
 async function onFilter(e) {
 	let start = performance.now()
