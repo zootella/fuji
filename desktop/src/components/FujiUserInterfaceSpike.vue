@@ -4,7 +4,8 @@ import {ref, shallowRef, onMounted, onBeforeUnmount} from 'vue'
 import {Size, Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {log, logTrouble} from '../log.js'
 import {modelSortRun} from '../model.js'
-import {sayDayTime} from './library.js'
+import {sayDayTime, platform} from './library.js'
+import {pointerCursor} from '../pointer.js'
 import FujiList from './FujiList.vue'
 
 const counts   = [50, 200, 1000, 2000, 5000, 10000]
@@ -38,6 +39,7 @@ async function build(n) {
 	} finally { building.value = false }
 }
 onMounted(() => build(count.value).catch(trouble))
+onMounted(() => { if (platform() == 'windows') pointerCursor('move').then(value => document.documentElement.style.setProperty('--list-carry', value)).catch(trouble) })//the pointer the list shows while it carries a selection, OLE's on windows; the mac keeps its plain arrow, as Finder does
 
 async function onFilter(e) {
 	let start = performance.now()
@@ -53,7 +55,7 @@ let pressed = 0, waited = 0//when the last press reached the bench, which hears 
 function press(e) { pressed = performance.now(); waited = pressed - e.timeStamp }
 function onKey(e) { press(e); listRef.value?.key(e) }//every key the shell hands this view goes on to the list, timed like a press
 defineExpose({onKey})
-async function onSelect(p) {//from that press to the selection painted, so the list's own marking is inside the number
+async function onSelect(p) {//from that press to the selection painted, so the list's own marking is inside the number; a carry, and a click on a row already selected, report on the release, so for those the number includes how long the button was held
 	let start = pressed, queued = waited//read before the wait, since a press queued behind this one can reach the bench during it
 	await afterPaint()
 	let ms = Math.round(performance.now() - start)

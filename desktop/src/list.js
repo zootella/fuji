@@ -237,6 +237,7 @@ function _listPress(o, e) {//on the press rather than the click, as Finder and E
 	o.root.focus({preventScroll: true})//the keyboard to the list, which the press's cancelled default would otherwise have done
 	let toggle = isCommandOrControl(e)
 	let row = e.target.closest('[data-row]')
+	if (row && !toggle && !e.shiftKey && o.traits.selected.has(Number(row.dataset.row))) return _listCarry(o, e, Number(row.dataset.row))//a plain press on a row already selected keeps the selection, which a drag from here carries
 	let before = o.traits
 	if (!row) {
 		if (e.offsetX >= o.root.clientWidth || e.offsetY >= o.root.clientHeight) return//a scrollbar, down the side or across the bottom, which a press on clears nothing
@@ -282,6 +283,34 @@ function _listSmear(o, e, from, base) {//from is the row pressed, or -1 below th
 	}
 	o.root.addEventListener('pointermove', move)
 	o.root.addEventListener('scroll', step, {passive: true})
+	o.root.addEventListener('pointerup', end)
+	o.root.addEventListener('pointercancel', end)
+}
+
+/*
+A plain press on a row that is already selected leaves the selection as it is, because the user may be about to drag it somewhere, as Finder and Explorer both do. Once the pointer moves a few pixels from the press, the press is a drag carrying the selection, and the pointer changes over the whole window to say so. Released without moving, it was a click after all, and the selection becomes that one row, on the release rather than the press. Nothing takes a drop yet; the pointer is the whole of it.
+*/
+const listDragSlop = 2//css pixels the pointer moves from a press, either way, before the press is a drag: half the 4-pixel square Windows' DragDetect centers on the press, SM_CXDRAG and SM_CYDRAG at the factory, from memory
+function _listCarry(o, e, from) {//from is the row pressed, which is selected
+	let before = o.traits
+	o.traits = selectionFocus(o.traits, from)//the keyboard to the row pressed, with the selection left alone
+	_listDraw(o, before)
+	let startX = e.clientX, startY = e.clientY, carrying = false
+	o.root.setPointerCapture(e.pointerId)//so the drag keeps the pointer outside the list and outside the window
+	let move = m => {
+		if (carrying || (Math.abs(m.clientX - startX) <= listDragSlop && Math.abs(m.clientY - startY) <= listDragSlop)) return
+		carrying = true
+		document.documentElement.dataset.carry = 'true'//on the root rather than the list, so the rule in FujiList.vue reaches every element the pointer crosses
+	}
+	let end = u => {
+		o.root.removeEventListener('pointermove', move); o.root.removeEventListener('pointerup', end); o.root.removeEventListener('pointercancel', end)
+		delete document.documentElement.dataset.carry
+		let start = performance.now(), before = o.traits
+		if (!carrying && u.type == 'pointerup') o.traits = selectionClick(o.traits, from, o.shown, {range: false, toggle: false})//a click after all
+		let changed = _listDraw(o, before)
+		o.onSelect({selected: o.traits.selected.size, changed, kind: carrying ? 'carry' : 'plain', listMs: performance.now() - start})
+	}
+	o.root.addEventListener('pointermove', move)
 	o.root.addEventListener('pointerup', end)
 	o.root.addEventListener('pointercancel', end)
 }

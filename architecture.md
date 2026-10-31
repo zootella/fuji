@@ -352,7 +352,7 @@ The failure to watch for in a growing suite is the test that proves the call ran
 
 ## What is built today
 
-The shell and its views are real: the sheet, the settings panel, the diamond table, and the preview, which is short on purpose, with no flip, no pan and no zoom. The audio panel is real as a view and reaches the media library, which answers its version; it plays nothing yet. The comic table is a stub. Beneath them the model, the settings file, the cache and its flip policy, the log, and the operating system's thumbnailer are real too. `CLAUDE.md` lists the files and what each holds, and changes with them; this section changes only when a layer or a kind of view does.
+The shell and its views are real: the sheet, the settings panel, the diamond table, and the preview, which is short on purpose, with no flip, no pan and no zoom. The audio panel is real as a view and reaches the media library, which answers its version; it plays nothing yet. The comic table is a stub. Beneath them the model, the settings file, the cache and its flip policy, the log, and the operating system's thumbnailer are real too. This section changes only when a layer or a kind of view does.
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 

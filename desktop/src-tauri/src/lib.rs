@@ -29,6 +29,7 @@ mod media;//and media.rs: the media library, libmpv, which plays sound and video
 mod open;//and open.rs: the files the operating system handed over, held for the window made to show them
 mod panel;//and panel.rs: the command over copper's panel
 mod paths;//and paths.rs: where this copy of the program is
+mod pointer;//and pointer.rs: the command over copper's pointers, the ones Windows shows while a drag holds something
 mod process;//and process.rs: other programs, handed a file or an address the way a double-click would
 mod registry;//and registry.rs: the five commands over copper's registry
 mod scout;//and scout.rs: the command for the scout, fuji's own reader of a file's first bytes in steel, the safe crate at the repository root, which says what the bytes are and what the common formats keep in their header
@@ -109,6 +110,7 @@ pub fn run() {
 				thumbnail::thumbnail_natural,
 				open::open_files,//and in open.rs
 				paths::paths_executable,//and in paths.rs
+				pointer::pointer_read,//and in pointer.rs
 				process::process_open,//and in process.rs
 				registry::registry_get,//and in registry.rs
 				registry::registry_set,

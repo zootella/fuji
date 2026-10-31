@@ -7,6 +7,7 @@ pub mod erase;//a file's contents written over where they sit, and the file remo
 pub mod trash;//the Trash and the Recycle Bin
 pub mod uptime;//when the operating system started this process
 pub mod panel;//how many pixels the main display really has
+pub mod pointer;//the pointers Windows shows while a drag holds something, read out of ole32.dll as pixels
 pub mod launch;//launch services, the mac's record of which application opens which kind of file
 pub mod registry;//the windows registry, read and written for the page
 pub mod memory;//the machine's memory and what fuji's processes take of it
