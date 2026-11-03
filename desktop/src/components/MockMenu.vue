@@ -17,7 +17,7 @@ const at = ref({x: 0, y: 0})//the menu's top left corner in the window, in css p
 const menu = ref(null)
 let answer = null//resolves what show handed back, with the item chosen or blank
 
-async function show(x, y, name) {//open the menu of this name at this point, then move in from any edge of the window the menu would cross; what it hands back gives the item chosen, or blank when the menu closes without one
+async function show(x, y, name) {//open the menu of this name against this point, the pointer resting on its edge: below and right where the menu fits, and mirrored above or left where it would cross the window's edge, so it never reads as stopped by one; what it hands back gives the item chosen, or blank when the menu closes without one
 	if (!menus[name]) throw new Error(`no menu named ${name}`)
 	let chosen = new Promise(resolve => { answer?.(''); answer = resolve })
 	items.value = menus[name].map(parse)
@@ -26,7 +26,17 @@ async function show(x, y, name) {//open the menu of this name at this point, the
 	at.value = {x, y}
 	await nextTick()
 	let box = menu.value.getBoundingClientRect()
-	at.value = {x: Math.max(0, Math.min(x, innerWidth - box.width)), y: Math.max(0, Math.min(y, innerHeight - box.height))}
+	let corner = parseFloat(getComputedStyle(menu.value).borderTopLeftRadius)
+
+	//the menu's box for each way it can open. Across, the pointer's own pixel runs from x to x + 1, and the box covers it and reaches past it, so the pointer sits on the menu's face with one bright line of it, the light rim, between the pointer and the dark edge drawn outside the box, mirrored on either side; matched with a screenshot's reticle on a 2x mac. Up and down, the side's straight run meets the rounded corner at the pointer
+	let reach = 1//css pixels the box reaches past the pointer's pixel
+	let right = x - reach
+	let left  = x + 1 + reach - box.width
+	let down  = y - corner
+	let up    = y + corner - box.height
+	let toX = right + box.width  <= innerWidth  ? right : left
+	let toY = down  + box.height <= innerHeight ? down  : up
+	at.value = {x: Math.max(0, Math.min(toX, innerWidth - box.width)), y: Math.max(0, Math.min(toY, innerHeight - box.height))}//and in from the edge when the window is too small for the menu on either side of the point
 	return chosen
 }
 function hide() { close('') }
@@ -66,6 +76,7 @@ defineExpose({show, hide})
 <style scoped>
 
 .myMenu {/* its material, text, grayed items and separators in the colors of Zed's One Light and One Dark */
+	width: max-content;/* as wide as its widest item wherever it opens, since a fixed box near the window's right edge otherwise shrinks to the room left of it, and show would measure and place that narrower menu */
 	padding: 5px;
 	border-radius: 10px;
 	color: var(--color-zed-text);
