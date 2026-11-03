@@ -117,7 +117,7 @@ function onMove(e) {//a press that has moved is a drag, and from here the window
 	windowDrag().catch(error => logTrouble('video: dragging the window', error))
 }
 function onDouble(e) { if (!e.target.closest('button')) reportTrouble(fullscreenToggle) }//two quick presses on a button are two presses, of that button
-function onContextMenu(e) { if (!import.meta.env.DEV) e.preventDefault() }//the web view's own right-click menu is a browser's, and a release build turns it away, as the shell does; a development build keeps it, for inspecting the page
+function onContextMenu(e) { e.preventDefault() }//the web view's own right-click menu is a browser's, and fuji turns it away in every build, as the shell does
 
 async function fullscreenToggle() {//fuji's own fullscreen on or off, instant, with no Space and no animation; on windows and linux, the ordinary fullscreen
 	let w = getCurrentWindow()

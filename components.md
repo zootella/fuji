@@ -90,6 +90,22 @@
 **Research areas for the bar**: the coolbar as it shipped, so the hover outline is drawn from the real thing rather than from memory; the 2003 menu from screenshots, measured, so the card's outline, shadow and joined title come out right; what the web gives for the same effects, `box-shadow` for the shadow and a one-pixel border for the outline, and how to draw the house-on-a-skyscraper shape as one outlined card, since a title tab and a dropdown drawn as two boxes show a seam where they meet.
 
 
+## A key and a menu item send the same word
+
+**The text that defines the bars declares each item's shortcut, and FujiBar turns the key into the item's word**, so a key and a menu item arrive at one onCommand identically, and a shortcut is written once, beside the item it chooses. The item on the light table's menu that closes the window would carry Esc, and pressing Esc would send that item's word just as choosing the item does. Until then a key and an item each have wiring of their own that ends at the same function, so no behavior is written twice, only the routes to it.
+
+**A context menu declares shortcuts it does not show.** Apple and Microsoft both say a context menu shows no keyboard shortcuts, so the text can give an item its key while the menu on screen shows only the item's name.
+
+
+## Icons
+
+**FujiBar starts with Lucide, by name.** The text that defines the bars names each icon by its Lucide name. A bundler cannot see which names a string holds, so fuji keeps a roster of the icons in use, imported by name, and only those reach the build.
+
+**Monochrome where fuji shows media.** The contact sheet, the light table and the video window keep their icons to one color, so nothing on screen competes with the pictures.
+
+**Color where fuji is a file manager.** With the toolbar, the path bar, the tree and the list on screen, color can help the user find a thing at a glance: a yellow folder, a red X on delete. Lucide's icons are lines in one color, so this means shopping for icon sets that come in color, under a license fuji's GPL can carry.
+
+
 ## The article
 
 **The article comes first.** The List and Tree page on the site is written section by section, and the code is built to match it.

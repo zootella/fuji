@@ -41,7 +41,6 @@ function start() {//the shell calls this each time this view comes on screen: re
 }
 const emit = defineEmits(['table', 'settings', 'audio', 'open'])//a double-clicked thumbnail, for the shell to show the table fullscreen, s, for the settings panel in this same window, a, for the audio panel the same way, and the open box, which the shell puts up; which view is showing is the shell's, so this only asks. A video window is the shell's own key, v, from every view
 function onKey(e) {
-	sheetMenu.value?.hide()//any key closes the menu, escape among them
 	if (e.key == 's' && !e.ctrlKey && !e.metaKey) emit('settings')//a temporary way in, until fuji has a better place for one
 	if (e.key == 'a' && !e.ctrlKey && !e.metaKey) emit('audio')//the same, for the audio panel
 }
@@ -79,7 +78,7 @@ function onResize() {}//and nothing to remeasure: the wrapping is the engine's j
 function onFocus(focused) { if (!focused) sheetMenu.value?.hide() }//a menu closes when its window goes behind another, as the system's own do
 function onMenu(e) {//a right click: the window to the front, since webkit follows the pointer only in the window in front and a right click brings none forward, and then the menu at the pointer
 	getCurrentWindow().setFocus().catch(error => logTrouble('sheet: bringing the window forward for a menu', error))
-	sheetMenu.value.show(e.clientX, e.clientY)
+	sheetMenu.value.show(e.clientX, e.clientY, 'Files')
 }
 
 defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's open box chose

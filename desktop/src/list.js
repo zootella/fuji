@@ -6,14 +6,14 @@ import {selectionEmpty, selectionClick, selectionMove, selectionFocus, selection
 Fuji's own list, drawn with the page's own elements rather than through Vue. A list is many rows whose state changes a little at a time, a click marking one row or a keystroke in the filter hiding a few, and Vue answers every change by running its template over all of them to find the few that differ. Here each row is one element, made once and kept for the life of the list, and a change touches only the rows it changes: the filter sets hidden on the rows whose answer flipped, and a press or a key marks the rows whose selection or focus did. Every row is in the page, with no windowing and no virtualizer: this plain list built, scrolled and filtered ten thousand rows without trouble on the Mac mini and the Windows box, scrolls on the engine's compositor with no script running, and leaves scrolling a row into view to the browser. FujiUserInterfaceSpike.vue is the bench that times it. FujiList.vue is the thin layer that lets the rest of fuji place it as a component.
 */
 
-export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the list inside this element, which it owns from here on: a row of headers, and below it the rows, which scroll. columns says what each row shows and what its header says, onSelect hears what each press, key or drag did, onSort each sort, and onTrouble anything that throws where the page hands the list an event
+export function listMake(frame, {columns, onSelect, onSort, onMenu, onTrouble}) {//the list inside this element, which it owns from here on: a row of headers, and below it the rows, which scroll. columns says what each row shows and what its header says, onSelect hears what each press, key or drag did, onSort each sort, onMenu where a right click asks for a menu, and onTrouble anything that throws where the page hands the list an event
 	let header = document.createElement('div'), root = document.createElement('div')
 	header.className = 'myHeader'
 	root.className = 'myList'
 	root.tabIndex = 0//so the list can take the keyboard
 	frame.replaceChildren(header, root)
 	for (let c of columns) if (typeof c.width != 'number' || c.width <= 0) throw new Error(`expected a width in css pixels for column ${c.key}: ${c.width}`)
-	let o = {frame, header, root, columns, onSelect, onSort, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
+	let o = {frame, header, root, columns, onSelect, onSort, onMenu, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
 	for (let [i, column] of columns.entries()) {
 		let cell = document.createElement('span')
 		cell.className = 'myListCell'
@@ -29,6 +29,7 @@ export function listMake(frame, {columns, onSelect, onSort, onTrouble}) {//the l
 	_listGrid(o)
 	let gate = handle => e => { try { handle(o, e) } catch (error) { onTrouble(error) } }
 	root.addEventListener('pointerdown', gate(_listPress))
+	frame.addEventListener('contextmenu', gate(_listMenu))
 	header.addEventListener('click', gate(_listHeaderClick))
 	header.addEventListener('pointerdown', gate(_listGripPress))
 	header.addEventListener('dblclick', gate(_listGripFit))
@@ -226,6 +227,7 @@ function _listShow(o) {
 
 function _listPress(o, e) {//on the press rather than the click, as Finder and Explorer select
 	if (e.button != 0) return
+	if ((e.ctrlKey || e.metaKey) && !isCommandOrControl(e)) return//control on the mac, where a control-click is a right click, which _listMenu answers
 	let start = performance.now()
 	o.root.focus({preventScroll: true})//the keyboard to the list, which the press's cancelled default would otherwise have done
 	let toggle = isCommandOrControl(e)
@@ -280,6 +282,20 @@ function _listSmear(o, e, from, base) {//from is the row pressed, or -1 below th
 	o.root.addEventListener('scroll', step, {passive: true})
 	o.root.addEventListener('pointerup', end)
 	o.root.addEventListener('pointercancel', end)
+}
+
+function _listMenu(o, e) {//a right click anywhere in the list turns away the web view's own menu, which the list does itself so it is right in any page that places it, and asks for a menu at the pointer that acts on what is highlighted, as Explorer's does: a row not yet selected is selected alone first, and a click below the rows clears the selection, as a press there does, so a menu with nothing selected is the one for the folder itself
+	e.preventDefault()
+	if (!o.root.contains(e.target)) return//the headers, which have no menu
+	let row = e.target.closest('[data-row]')
+	if (!row && (e.offsetX >= o.root.clientWidth || e.offsetY >= o.root.clientHeight)) return//a scrollbar
+	o.root.focus({preventScroll: true})
+	let start = performance.now(), before = o.traits
+	if (!row) o.traits = selectionEmpty()
+	else if (!o.traits.selected.has(Number(row.dataset.row))) o.traits = selectionClick(o.traits, Number(row.dataset.row), o.shown, {range: false, toggle: false})
+	let changed = _listDraw(o, before)
+	if (o.traits != before) o.onSelect({selected: o.traits.selected.size, changed, kind: row ? 'right click' : 'right click below the rows', listMs: performance.now() - start})
+	o.onMenu({x: e.clientX, y: e.clientY, selected: o.traits.selected.size})
 }
 
 /*

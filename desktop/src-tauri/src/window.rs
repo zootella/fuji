@@ -192,12 +192,16 @@ pub fn window_stays_resident() -> bool { true }
 #[cfg(not(all(target_os = "macos", not(debug_assertions))))]
 pub fn window_stays_resident() -> bool { false }//and a debug build answers no on the mac as well. pnpm local runs the binary out of target/debug rather than a bundle, so there is no dock tile a user could click to ask for a window back, and closing the window is how a development run is meant to end
 
+/// End this process and every window in it, as a Mac application's Quit does; RunEvent::Exit in lib.rs, which every way out reaches, writes what is held for the way out
+#[command]
+pub fn window_quit(app: AppHandle) { app.exit(0) }
+
 /*
 A browser's shortcut keys, which no window of fuji answers.
 
-A web view is a browser, and on Windows WebView2 keeps a browser's keys: F5 and Ctrl+R reload the page, Ctrl+P prints it, Ctrl+F opens a find bar, and Alt+Left goes back. Neither wry nor Tauri turns them off. None of them belongs in a desktop application, and a reload is worse than useless here: it runs the shell's startup again in a window already placed and showing, and the pictures that window was made for are gone, since open.rs hands them over once. So as each window is made, in a release build, a handler goes on WebView2's key event, which every key the browser might take for its own passes through first, and tells the browser to skip each one. The page still receives every key, and which keys count stays Microsoft's list rather than one kept here.
+A web view is a browser, and on Windows WebView2 keeps a browser's keys: F5 and Ctrl+R reload the page, Ctrl+P prints it, Ctrl+F opens a find bar, and Alt+Left goes back. Neither wry nor Tauri turns them off. None of them belongs in a desktop application, and a reload is worse than useless here: it runs the shell's startup again in a window already placed and showing, and the pictures that window was made for are gone, since open.rs hands them over once. So as each window is made, a handler goes on WebView2's key event, which every key the browser might take for its own passes through first, and tells the browser to skip each one. The page still receives every key, and which keys count stays Microsoft's list rather than one kept here.
 
-WebView2 also has a single setting that turns them all off, and it would be simpler, but it takes effect only at the next navigation. By the time Tauri hands the web view over the first page is already loading, and fuji never navigates again, so its windows would keep the keys. A development build keeps them on purpose, for reloading and the developer tools. The web views on macOS and Linux have no such keys. The right-click menu is a browser's on every platform, and the shell turns it away, with the same code everywhere.
+WebView2 also has a single setting that turns them all off, and it would be simpler, but it takes effect only at the next navigation. By the time Tauri hands the web view over the first page is already loading, and fuji never navigates again, so its windows would keep the keys. A development build turns them off too, so a key acts there as it will in release, and keeps F12 alone, its way to the developer tools. The web views on macOS and Linux have no such keys. The right-click menu is a browser's on every platform, and the shell turns it away, with the same code everywhere.
 */
 #[cfg(target_os = "windows")]
 fn window_browser_keys_off(window: &WebviewWindow) {
@@ -205,10 +209,13 @@ fn window_browser_keys_off(window: &WebviewWindow) {
 	use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2AcceleratorKeyPressedEventArgs2;
 	use webview2_core::Interface;//for cast, from the windows-core webview2-com is built on rather than fuji's own, under the name Cargo.toml gives it and explains
 
-	if cfg!(debug_assertions) { return }//a development build keeps them, for reloading the page and opening the developer tools
 	let _ = window.with_webview(|webview| unsafe {//on the main thread, where the web view lives
 		let handler = AcceleratorKeyPressedEventHandler::create(Box::new(|_, args| {//every key the browser might take for its own comes through here first
-			if let Some(args) = args.and_then(|args| args.cast::<ICoreWebView2AcceleratorKeyPressedEventArgs2>().ok()) { args.SetIsBrowserAcceleratorKeyEnabled(false)?; }//skip the browser's handling of this key; the page still gets it, and editing keys like ctrl+c were never the browser's. The newer interface arrived in webview2 1.0.2210, and on a runtime older than that the cast fails and the key stays the browser's
+			let Some(args) = args.and_then(|args| args.cast::<ICoreWebView2AcceleratorKeyPressedEventArgs2>().ok()) else { return Ok(()) };//the newer interface arrived in webview2 1.0.2210, and on a runtime older than that the cast fails and the key stays the browser's
+			let mut key = 0;
+			args.VirtualKey(&mut key)?;
+			if cfg!(debug_assertions) && key == 0x7b { return Ok(()) }//VK_F12, which a development build leaves to the browser, for its developer tools
+			args.SetIsBrowserAcceleratorKeyEnabled(false)?;//skip the browser's handling of this key; the page still gets it, and editing keys like ctrl+c were never the browser's
 			Ok(())
 		}));
 		let mut token = 0;//what removing the handler would take; it stays for the life of the window

@@ -21,7 +21,7 @@ import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every pictur
 import {brandName, urlHelp} from '../brand.js'//for the log lines that say what it did, and the address Fuji Help opens
 import {processOpen} from '../process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
-import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, and to ask for a video window beside this one
+import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew, windowQuit} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, to ask for a video window beside this one, and to end the program for the light table's Quit on the mac
 import {setCommandKey} from '../keyboard.js'//which modifier the components hold their chords with
 import {themeShow, facesShow, accentShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts, and the accent, which only a browsing window has lists and menus to need
 import HelpPanel from './HelpPanel.vue'
@@ -271,8 +271,7 @@ function onKey(e) {
 	reportTrouble(() => activeView()?.onKey?.(e))
 }
 
-function onContextMenu(e) {//the web view's own right-click menu is a browser's on every platform, with items like reload and print, so a release build turns it away everywhere but a field that takes typing, which keeps cut, copy, and paste. A development build keeps it, for inspecting the page; window.rs turns off the browser's keys the same way. The tables turn it away for themselves in every build, the diamond table because a right drag there zooms
-	if (import.meta.env.DEV) return
+function onContextMenu(e) {//the web view's own right-click menu is a browser's on every platform, with items like reload and print, so fuji turns it away everywhere but a field that takes typing, which keeps cut, copy, and paste. A development build turns it away too, so a right click acts there as it will in release; its inspector is the View menu's Show Web Inspector on the mac and F12 on windows. The tables turn it away for themselves, the diamond table because a right drag there zooms
 	if (typedInto(e.target)) return
 	e.preventDefault()
 }
@@ -450,7 +449,7 @@ async function closeWindow() {//close the window as the red button or the × wou
 <AudioPanel v-if="showing == 'Audio'" ref="audioRef" @sheet="reportTrouble(() => showView('Sheet'))" @fullscreen="reportTrouble(audioFullscreen)" /><!-- a panel that can have the screen, as a table does -->
 <InventoryPanel v-if="showing == 'Inventory'" ref="inventoryRef" />
 <FujiUserInterfaceSpike v-if="showing == 'Spike'" ref="spikeRef" />
-<component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" />
+<component :is="tables[whichTable]" ref="tableRef" v-show="showing == 'Table'" @expand="path => reportTrouble(() => previewExpand(path))" @sheet="reportTrouble(() => showView('Sheet'))" @close="reportTrouble(closeWindow)" @quit="reportTrouble(platform() == 'mac' ? windowQuit : closeWindow)" /><!-- quitting ends the program, which on windows and linux is closing its one window, as escape does -->
 <HelpPanel v-if="helpShowing && whichTable != 'Preview'" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /><!-- after the views, so it paints over them; centered on the window, which is the frame of every view. Never over a preview, whose window is the picture and nothing else, and which a new user meets before anything the panel describes -->
 <div v-if="curtainShowing" class="fixed inset-0 bg-zed-editor-background"></div><!-- last, so it covers everything while the view and the fullscreen change -->
 

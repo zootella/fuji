@@ -11,7 +11,7 @@ Fuji's menu bar, which exists on macOS and nowhere else. Tauri applies a menu of
 
 **Fuji has two fullscreens and the View menu shows both, which is deliberate and is not this file's subject.** macOS inserts its own *Enter Full Screen* into any menu titled "View", so one item is written here and two appear — worth knowing before somebody hunts for the second one in this file. The essay above `fullscreenSet` in Shell.vue is where that whole subject lives: why there are two, which is for what, and how they are kept from landing on top of each other.
 
-**Rust does one of the six itself and hands the other five to the page.** Making a window is Rust's, because only Rust can make one. Choosing a file or a folder, switching views, showing the settings and About, and opening the site are the page's, because the page already does all of them — the open box answers with a path the page then shows, the fullscreen table is what a double-click already switches to, the settings panel is what s already shows and About is its last section, and the site is an address the page already asks Rust to open. Sending those five down means one implementation of each rather than two, which is the rule in CLAUDE.md about the two layers seen from the menu's side.
+**Rust does what only Rust can and hands the rest to the page.** Making a window is Rust's, because only Rust can make one, and so is opening a development build's web inspector. Choosing a file or a folder, switching views, showing the settings and About, and opening the site are the page's, because the page already does all of them — the open box answers with a path the page then shows, the fullscreen table is what a double-click already switches to, the settings panel is what s already shows and About is its last section, and the site is an address the page already asks Rust to open. Sending those down means one implementation of each rather than two, which is architecture.md's rule that the page decides, seen from the menu's side.
 
 **The menu is application-wide and a menu item is not.** macOS shows one menu bar however many windows are open, so an item has to act on a window, and AppKit's own answer is that the window a command acts on need not be the one in front. Each window's page may say which of fuji's items it answers, through menu_answer below, and a window whose page never says answers them all. An item goes to the window in front when that window answers it; otherwise to the window most recently in front that does, brought forward first, which is how Settings… chosen over a video window turns the last contact sheet's window to the settings; and only when no window answers it does it go where it goes with no window open. Rust keeps the windows in the order they were last in front, from lib.rs's window events, and never learns what kind of window any of them is. When fuji is resident with no windows there is no page to send an item to. The View item then goes nowhere. Open… puts the open box up on its own, as a Mac application with no document open does, and makes a window only for what the user chooses, so a cancel leaves nothing behind; the window is made to answer Open… as the items below are, so its page opens the choice the way Open… opens one in a window already open, a picture on the light table rather than in the preview a double-click gets. Settings…, About and Fuji Help bring a window up, the way a click on the dock icon does: one that first appears showing the settings, or with the site opening in front of it. An event cannot reach that window, because its page is not listening yet, so the item waits here under the new window's label until the page asks for it as it mounts: open.rs's rule for a double-clicked picture, delivered to the window made for it, applied to a menu item.
 */
@@ -26,6 +26,8 @@ pub const MENU_HELP: &str = "menu-help";
 
 const MENU_VIEW: &str = "View";//the submenu's title, named once because two things below have to agree on it: the menu fuji builds, and the lookup that finds it again afterwards
 const MENU_EDIT: &str = "Edit";//the same, and the page names it too when it lights an item
+#[cfg(debug_assertions)]
+const MENU_INSPECTOR: &str = "menu-inspector";//rust's own, and a development build's alone
 
 static MENU_WAITING: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());//items chosen while no window was open, each beside the label of the window made to answer it; a handful at most, so a list rather than a map
 static MENU_ANSWERS: Mutex<Vec<(String, Vec<String>)>> = Mutex::new(Vec::new());//the items each window's page said it answers, by label; a window with no entry answers every item
@@ -61,6 +63,15 @@ pub fn menu_closed(label: &str) {
 
 /// Build the menu bar and make it the application's; lib.rs calls this during setup, on macOS only
 pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
+	let view = Submenu::with_items(app, MENU_VIEW, true, &[
+		&MenuItem::with_id(app, MENU_FULLSCREEN, "Show Light Table", true, Some("CmdOrCtrl+Ctrl+F"))?,//the title the page sets at launch and on every change of view through menu_text below, Show Light Table from the sheet and Show Contact Sheet from the table, because a Mac item names where it takes you rather than saying toggle. It is fuji's own fullscreen, not the system's, and macOS adds a second item of its own to any menu called View — the essay above fullscreenSet in Shell.vue is the whole subject and worth reading before touching either. ⌃⌘F is the keystroke a mac user already knows, reaching the code a double-click reaches. Spelled this way because muda parses "Cmd" to Modifiers::META and its macos layer only turns Modifiers::SUPER into the command key — so "Ctrl+Cmd+F" silently loses the command and becomes ⌃F. The CmdOrCtrl family is the only spelling that produces command here, which is why fuji's other items with the command key use it
+	])?;
+	#[cfg(debug_assertions)]
+	view.append_items(&[//a development build's way to the inspector, since the page turns away the web view's right-click menu in every build; Safari's name for the item
+		&PredefinedMenuItem::separator(app)?,
+		&MenuItem::with_id(app, MENU_INSPECTOR, "Show Web Inspector", true, None::<&str>)?,
+	])?;
+
 	let menu = Menu::with_items(app, &[
 		&Submenu::with_items(app, &app.package_info().name, true, &[//the application menu, named brandName, the product name in tauri.conf.json
 			&MenuItem::with_id(app, MENU_ABOUT, format!("About {}", app.package_info().name), true, None::<&str>)?,//fuji's own About, the last section of the settings panel, in place of the panel macOS assembles from Info.plist; Apple's wording for the item, with brandName
@@ -90,9 +101,7 @@ pub fn menu_set(app: &AppHandle) -> tauri::Result<()> {
 			&PredefinedMenuItem::paste(app, None)?,
 			&PredefinedMenuItem::select_all(app, None)?,
 		])?,
-		&Submenu::with_items(app, MENU_VIEW, true, &[
-			&MenuItem::with_id(app, MENU_FULLSCREEN, "Show Light Table", true, Some("CmdOrCtrl+Ctrl+F"))?,//the title the page sets at launch and on every change of view through menu_text below, Show Light Table from the sheet and Show Contact Sheet from the table, because a Mac item names where it takes you rather than saying toggle. It is fuji's own fullscreen, not the system's, and macOS adds a second item of its own to any menu called View — the essay above fullscreenSet in Shell.vue is the whole subject and worth reading before touching either. ⌃⌘F is the keystroke a mac user already knows, reaching the code a double-click reaches. Spelled this way because muda parses "Cmd" to Modifiers::META and its macos layer only turns Modifiers::SUPER into the command key — so "Ctrl+Cmd+F" silently loses the command and becomes ⌃F. The CmdOrCtrl family is the only spelling that produces command here, which is why the two items above use it
-		])?,
+		&view,
 		&Submenu::with_id_and_items(app, WINDOW_SUBMENU_ID, "Window", true, &[//tauri's own id for the Window menu, which set_menu below registers with AppKit, so macOS keeps it filled with every open window, named by its title bar: the picture on a table, the folder on the sheet
 			&PredefinedMenuItem::minimize(app, None)?,
 			&PredefinedMenuItem::maximize(app, None)?,
@@ -144,6 +153,11 @@ fn menu_validate_view() {
 pub fn menu_chosen(app: &AppHandle, event: MenuEvent) {
 	let id = event.id().as_ref();
 	if id == MENU_NEW_WINDOW { crate::window::window_open(app, vec![]); return }//only rust can make a window, so this one never reaches the page
+	#[cfg(debug_assertions)]
+	if id == MENU_INSPECTOR {//the inspector for the window in front
+		if let Some(window) = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false)) { window.open_devtools() }
+		return
+	}
 	if ![MENU_OPEN, MENU_FULLSCREEN, MENU_ABOUT, MENU_SETTINGS, MENU_HELP].contains(&id) { return }//a predefined item macos handles by itself, and not fuji's business
 
 	let front = app.webview_windows().into_values().find(|w| w.is_focused().unwrap_or(false));

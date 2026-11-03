@@ -128,6 +128,7 @@ pub fn run() {
 				window::window_engine,//and in window.rs
 				window::window_new,
 				window::window_note,
+				window::window_quit,
 				window::window_title_hide,
 				window::window_constraint_lift,
 				window::window_drag,

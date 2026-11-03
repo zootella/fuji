@@ -9,12 +9,12 @@ const props = defineProps({
 	rows:    {type: Array,  default: () => []},//a record per row, holding a value for each column's key
 	filter:  {type: String, default: ''},//matched anywhere in the first column, ignoring case
 })
-const emit = defineEmits(['select', 'sort'])//what each press, key or drag did: how many rows are selected, how many changed, the kind of press or key, and the list's own milliseconds; and each sort, by which column and which way
+const emit = defineEmits(['select', 'sort', 'menu'])//what each press, key or drag did: how many rows are selected, how many changed, the kind of press or key, and the list's own milliseconds; each sort, by which column and which way; and a right click, with where in the window to put a menu and how many rows it left selected
 
 const frame = ref(null)//empty in the template, since list.js fills it and vue never draws inside
 let list = null
 onMounted(() => {
-	list = listMake(frame.value, {columns: props.columns, onSelect: press => emit('select', press), onSort: sort => emit('sort', sort), onTrouble: error => logTrouble('fuji list', error)})
+	list = listMake(frame.value, {columns: props.columns, onSelect: press => emit('select', press), onSort: sort => emit('sort', sort), onMenu: at => emit('menu', at), onTrouble: error => logTrouble('fuji list', error)})
 	listRows(list, props.rows)
 	listFilter(list, props.filter)
 })

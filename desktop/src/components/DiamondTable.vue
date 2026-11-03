@@ -13,6 +13,7 @@ import {log, logFlip, logTrouble} from '../log.js'//the log, which writes a file
 import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
 import {gamma, gammaStep, gammaDrag} from '../gamma.js'//the lens the shell draws every picture through, which shift with the wheel or a right drag here sets
 import {raster, rasterToggle} from '../raster.js'//whether the card shows a picture's own pixels as blocks, which r toggles here and nothing else reads
+import MockMenu from './MockMenu.vue'
 
 //                       _   
 //   _____   _____ _ __ | |_ 
@@ -30,7 +31,7 @@ onBeforeUnmount(() => {
 	flipCacheClose()//this table is going away, so the store should not still be holding images on its behalf
 })
 
-const emit = defineEmits(['sheet'])//a double-click, for the shell to show the contact sheet; which view is showing, and the fullscreen that goes with it, are the shell's, so this only asks
+const emit = defineEmits(['sheet', 'close', 'quit'])//a double-click, for the shell to show the contact sheet, and the menu's ways out, for it to close the window as escape does or end the program; which view is showing, and the fullscreen that goes with it, are the shell's, so this only asks
 
 let started = false//start() comes every time this view is shown, and the setup below must happen once: running dimensionStart again would throw away the pan and zoom the user left
 function start() {//the shell calls this every time this view comes on screen, already fullscreen, so the frame measured here is the one the table keeps
@@ -47,7 +48,9 @@ function start() {//the shell calls this every time this view comes on screen, a
 	}
 }
 
-defineExpose({start, onKey, onDrop, cardAt})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing. cardAt is for a preview handing its picture over, so the card starts where the preview's picture stood
+function onFocus(focused) { if (!focused) menuRef.value?.hide() }//a menu closes when its window goes behind another, as the system's own do
+
+defineExpose({start, onKey, onFocus, onDrop, cardAt})//everything the shell reaches for: window events belong to it, and it hands them to whichever view is showing. cardAt is for a preview handing its picture over, so the card starts where the preview's picture stood
 
 async function onKey(e) {
 	let Ctrl = e.ctrlKey || e.metaKey
@@ -122,9 +125,21 @@ function dragStart(e) {
 	}
 	frameRef.value.setPointerCapture(e.pointerId)//watch the mouse during the drag; works even when dragged outside the window!
 }
+const menuSlop = 2//css pixels a right press may wander and still be a click, which opens the menu where a drag would zoom; the list's drag slop, from the same Windows rectangle
 function onUp(e) {
 	frameRef.value.releasePointerCapture(e.pointerId)//should be the same as drag.pointer
-	drag = null//discard the drag object, getting things ready for the next drag
+	let d = drag; drag = null//discard the drag object, getting things ready for the next drag
+	if (e.type == 'pointerup' && d?.button == 2 && !d.shift && Math.abs(e.clientX - d.anchor.x) <= menuSlop && Math.abs(e.clientY - d.anchor.y) <= menuSlop) {//a right click rather than a right drag, so the menu opens on the release rather than the press
+		quiverA.diamond = d.diamond; quiverA.space = d.space; quiver()//undo the little the press zoomed while it wandered, so a click leaves the picture exactly where it was
+		onMenu(e.clientX, e.clientY).catch(error => logTrouble('table: its menu', error))
+	}
+}
+const menuRef = ref(null)
+async function onMenu(x, y) {//the menu's words go to the shell as events: Contact Sheet the one a double-click sends, Close the window as escape closes it, and Quit or Exit the program
+	let word = await menuRef.value.show(x, y, 'Table')
+	if (word == 'Contact Sheet') emit('sheet')
+	else if (word == 'Close') emit('close')
+	else if (word == 'Quit' || word == 'Exit') emit('quit')//the platform's word for ending the program, Exit on windows
 }
 
 //      _         
@@ -465,6 +480,8 @@ let here = null//the store's entry for the image on the card, which is where the
 	<!-- HUD, inside the frame, next to the card -->
 	<div v-if="showHud2Ref" class="myHud myDry absolute top-4 right-4">{{hud2Ref}}</div>
 	<div v-if="showHud3Ref" class="myHud myDry absolute bottom-0 inset-x-0">{{hud3Ref}}</div>
+
+	<MockMenu ref="menuRef" />
 
 </div>
 

@@ -5,7 +5,9 @@ import {Size, Time} from '@zootella/ergo'//small helpers from the ergo project, 
 import {log, logTrouble} from '../log.js'
 import {modelSortRun} from '../model.js'
 import {sayDayTime} from './library.js'
+import {getCurrentWindow} from '@tauri-apps/api/window'
 import FujiList from './FujiList.vue'
+import MockMenu from './MockMenu.vue'
 
 const counts   = [50, 200, 1000, 2000, 5000, 10000]
 const count    = ref(50)
@@ -54,7 +56,14 @@ async function onFilter(e) {
 let pressed = 0, waited = 0//when the last press reached the bench, which hears it before the list does, and how long it sat in line before that, from the moment the event was made
 function press(e) { pressed = performance.now(); waited = pressed - e.timeStamp }
 function onKey(e) { press(e); listRef.value?.key(e) }//every key the shell hands this view goes on to the list, timed like a press
-defineExpose({onKey})
+function onFocus(focused) { if (!focused) menuRef.value?.hide() }
+defineExpose({onKey, onFocus})
+
+const menuRef = ref(null)
+function onMenu(at) {//the window to the front first, as the sheet's own right click does, since webkit follows the pointer only in the window in front
+	getCurrentWindow().setFocus().catch(trouble)
+	menuRef.value.show(at.x, at.y, at.selected > 0 ? 'Files' : 'Folder')//the folder's own menu when the click left nothing selected
+}
 async function onSelect(p) {//from that press to the selection painted, so the list's own marking is inside the number; a carry, and a click on a row already selected, report on the release, so for those the number includes how long the button was held
 	let start = pressed, queued = waited//read before the wait, since a press queued behind this one can reach the bench during it
 	await afterPaint()
@@ -161,7 +170,8 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Select <span class="text-zed-text">{{selected}}</span></span>
 		<span>Sort <span class="text-zed-text">{{sorted}}</span></span>
 	</div>
-	<FujiList ref="listRef" class="flex-1 min-h-0" :columns="columns" :rows="rows" :filter="filter" @scroll.capture.passive="onScroll" @select="p => onSelect(p).catch(trouble)" @sort="p => onSort(p).catch(trouble)" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
+	<FujiList ref="listRef" class="flex-1 min-h-0" :columns="columns" :rows="rows" :filter="filter" @scroll.capture.passive="onScroll" @select="p => onSelect(p).catch(trouble)" @sort="p => onSort(p).catch(trouble)" @menu="onMenu" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
+	<MockMenu ref="menuRef" />
 </div>
 
 </template>
