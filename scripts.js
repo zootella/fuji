@@ -3,7 +3,7 @@ import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileS
 import {homedir, tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {saySize4, tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Time, saySize4, tickToIso} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {buildStep, hashSha256, readSha256} from './build-log.js'
 
 /*
@@ -146,6 +146,46 @@ function reveal() {
 	execFile(openers[process.platform], [folder], error => {
 		if (error && process.platform != 'win32') console.error('could not open the file manager: ' + error.message)
 	})
+}
+
+//put what pnpm installer just built onto this machine the way a person would from the download, launching nothing: on the mac a running copy is asked to quit, or ended if it won't, and the app replaces the one in Applications, and on windows setup installs it per user, closing a running copy first as it does for anyone. pnpm installer-install reaches this, since pnpm keeps the name install for itself
+function install() {
+	if (process.platform == 'darwin') {
+		let app = `${brandName}.app`
+		let from = join(bundled, 'macos', app), to = join('/Applications', app)
+		if (!existsSync(from)) throw new Error('nothing built yet at ' + from + ', run pnpm installer first')
+		let identifier = JSON.parse(readFileSync(configurationFile, 'utf8')).identifier
+		if (existsSync(to)) {//never remove an app that isn't this one
+			let there = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', join(to, 'Contents/Info.plist')], {encoding: 'utf8'}).stdout.trim()
+			if (there != identifier) throw new Error(`${to} is not ${brandName}, its identifier is ${there || 'unreadable'}, so it was left alone`)
+		}
+		let pattern = join(to, 'Contents/MacOS') + '/'
+		let running = () => spawnSync('pgrep', ['-f', pattern]).status == 0
+		let wait = duration => { let until = Date.now() + duration; while (running() && Date.now() < until) spawnSync('sleep', ['0.2']) }
+		if (running()) {//asked to quit as its own Quit does, so it saves its settings and log, and ended by force if it hasn't after a few seconds, because a step after this one has to find the new build, never the old one still running
+			console.log(`asking   ${brandName} to quit`)
+			spawnSync('osascript', ['-e', `tell application id "${identifier}" to quit`])//the first time, macOS may ask whether this terminal may control the app
+			wait(4*Time.second)
+			if (running()) { console.log(`ending   ${brandName}, which did not quit`); spawnSync('pkill', ['-KILL', '-f', pattern]); wait(2*Time.second) }
+			if (running()) throw new Error(`${brandName} is still running and could not be ended`)
+		}
+		buildStep('install', app, '', () => {
+			rmSync(to, {recursive: true, force: true})//the old copy whole rather than copied over, so a file an earlier build had and this one dropped can't linger inside the sealed bundle
+			execFileSync('ditto', [from, to])//which keeps the bundle's links, attributes and seal, as a drag in finder does
+			let executable = `Contents/MacOS/${brandStem}`
+			if (!readFileSync(join(from, executable)).equals(readFileSync(join(to, executable)))) throw new Error(`${to} does not hold the build just made`)
+			return {value: '-', words: 'into ' + to}
+		})
+	} else if (process.platform == 'win32') {
+		let built = findBuilt(readTarget('exe'), readVersion())
+		if (!built) throw new Error('nothing built yet in ' + join(bundled, readTarget('exe').folder) + ', run pnpm installer first')
+		buildStep('install', built.file, '', () => {
+			execFileSync(join(built.folder, built.file), [], {stdio: 'inherit'})
+			return {value: '-', words: 'per user'}
+		})
+	} else {
+		throw new Error(`nothing installs on ${process.platform} this way; install the package pnpm installer made with the distribution's own tools`)
+	}
 }
 
 function readVersion() {//the version comes from the same file that named the bundle, so the two cannot disagree
@@ -497,6 +537,7 @@ function _certificateFind(name) {//the sha-1 of the code signing identity named 
 //the verb package.json passes. these are spelled out rather than shared, because the script names a person types differ between the two workspaces on purpose — pnpm upload means the installer in desktop and the site in site — and this file should never have to guess which one called it
 const commands = {
 	'reveal':           reveal,
+	'install':          install,
 	'hash':             hash,
 	'upload-installer': uploadInstaller,
 	'upload-site':      uploadSite,
