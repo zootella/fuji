@@ -4,9 +4,10 @@ import {ref, nextTick, onBeforeUnmount} from 'vue'
 import {platform} from './library.js'
 
 const menus = {//menus a file manager might show, by name: a blank for a separator, a ~ before an item that cannot be chosen, and a > after one with a submenu
-	Files:  ['Open', 'Open With >', 'Open in New Window', '', 'Copy', 'Copy Path', '~Paste', '', 'Rename', 'Move to Trash', '', 'Get Info'],//for the files selected, or the thumbnail clicked
-	Folder: ['New Folder', '', '~Paste', '', 'Sort By >', '', 'Get Info'],//for the folder itself, from the space around its files
-	Table:  ['Contact Sheet', ...{mac: ['Close', 'Quit'], windows: ['Exit'], linux: ['Quit']}[platform()]],//for the light table: back to the contact sheet, and the way out in the platform's words. The mac keeps fuji running after a window closes, so it has both; on windows and linux closing the window ends the program, so one item does both
+	Thumbnail: ['Open', 'Open With >', 'Show in Folder', '', 'Copy', 'Copy Path', '', 'Rename', 'Move to Trash', '', 'Get Info'],//for the thumbnail clicked on the contact sheet
+	Files:     ['Open', 'Open With >', 'Open in New Window', '', 'Copy', 'Copy Path', '~Paste', '', 'Rename', 'Move to Trash', '', 'Get Info'],//for the rows selected in the list
+	Folder:    ['New Folder', '', '~Paste', '', 'Sort By >', '', 'Get Info'],//for the folder itself, from the list's space below its rows
+	Table:     ['Contact Sheet', ...{mac: ['Close', 'Quit'], windows: ['Exit'], linux: ['Quit']}[platform()]],//for the light table: back to the contact sheet, and the way out in the platform's words. The mac keeps fuji running after a window closes, so it has both; on windows and linux closing the window ends the program, so one item does both
 }
 function parse(item) { return {name: item.replace(/^~|\s>$/g, ''), off: item.startsWith('~'), more: item.endsWith(' >')} }
 

@@ -20,7 +20,7 @@ import MockMenu from './MockMenu.vue'
 const sheetRoot = ref(null)//the scroll, put back to the top when a new page lands
 const sheetFit = ref('')//the fit, part of every bucket's key, so one chosen in the settings panel rebuilds them all when the sheet comes back; read in start, because this view is made before the shell has read fuji.toml, and a value taken now would be the factory's
 const sheetBeam = ref('')//the beam's name, the same way: a flow reads its length once, as it is made, so a new beam needs new buckets
-const sheetMenu = ref(null)//the mock context menu a right click opens
+const sheetMenu = ref(null)//the mock context menu a right click on a thumbnail opens
 let sheetOpened = ''//the folder this sheet last handed the model, by a drop, a folder button or a double-click; a model folder that differs when the sheet comes back on screen was opened on the table, and the pager starts again there
 
 function bucketKey(bucket) { return bucket.files.map(file => file.path).join() + sheetFit.value + sheetBeam.value }//what tells one bucket from another below: its contents, the fit and the beam, so a change to any of the three makes a new bucket rather than reusing one that painted other pictures
@@ -76,9 +76,10 @@ async function folderOpen(path) {//a folder clicked on the empty sheet or chosen
 }
 function onResize() {}//and nothing to remeasure: the wrapping is the engine's job, and this view measures nothing, which is what lets it stay mounted
 function onFocus(focused) { if (!focused) sheetMenu.value?.hide() }//a menu closes when its window goes behind another, as the system's own do
-function onMenu(e) {//a right click: the window to the front, since webkit follows the pointer only in the window in front and a right click brings none forward, and then the menu at the pointer
+function onMenu(e) {//a right click on a thumbnail: the window to the front, since webkit follows the pointer only in the window in front and a right click brings none forward, and then the menu at the pointer
+	if (!e.target.closest('[data-path]')) return//between tiles, or on the empty sheet, which have no menu
 	getCurrentWindow().setFocus().catch(error => logTrouble('sheet: bringing the window forward for a menu', error))
-	sheetMenu.value.show(e.clientX, e.clientY, 'Files')
+	sheetMenu.value.show(e.clientX, e.clientY, 'Thumbnail')
 }
 
 defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same calls every view answers, and the folder the shell's open box chose
