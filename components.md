@@ -77,6 +77,47 @@
 **The tree stands on a panel.** A tree beside the content is Zed's panel.background, One Light's #ebebec and One Dark's #2f343e, which joins the palette under its Zed name when the tree paints it.
 
 
+## FujiTree's keys beyond the arrows
+
+**Type-ahead.** Typing the start of a folder's name moves the selection to the next folder on screen whose name starts with it, as the list's `_listFind` does.
+
+**`*` opens every folder at the selected folder's level.** The ARIA tree pattern lists it as optional; Windows shows all subfolders with Num Lock and the asterisk; Finder's Option-click on a triangle opens every folder within.
+
+
+## The tree's right-click menu
+
+**A right click on a folder in the tree opens a menu for that folder**, as a right click in the list opens one for what it selects.
+
+
+## Dragging between fuji, the list and the tree
+
+**A drag goes into and out of fuji, between the list and the tree, and within one list or one tree.** The happy path is a user selecting files in the list and dropping them on a folder, in the list or in the tree.
+
+**Dragging out of the tree is open**, until what Explorer does there is checked on the Windows box.
+
+
+## Remembering which folders were open
+
+**The tree keeps which folders the user opened**, since Apple's guidelines ask that expansion choices be retained and Microsoft's that they persist, so `fuji.toml` is where they go.
+
+
+## Dotted guidelines
+
+**The tree's guidelines start solid and become the classic dotted ones** once the dots can be drawn right across CSS, backing and panel pixels, on a Retina Mac and at the fractional scales Windows offers. The list's focus rectangle went from a dotted outline to a solid one for the same trouble.
+
+
+## Spacing and sizes
+
+**The list's rows are too tight, and icons will need more height.** The user picks a row height, and a width for the tree's indent cells, near the tightness of older Windows: tighter than Finder, roomier than the list is now.
+
+**The tree's classic look is measured on the Windows box**: its indent, its twisties and its lines, against the classic Win32 tree.
+
+
+## Publishing updates to the list and the tree
+
+**Rows arrive gradually, the way search results fill in, and the structure underneath changes**, as when something else changes a drive the tree is showing. How app code hands the list and the tree those changes is open, and belongs near the start.
+
+
 ## FujiBar
 
 **Microsoft's trail, and its high points.** Microsoft's habit, per version of Windows and per version of Office, was to make the next version look different so people would see value in it, and the result over the years was a meandering and worsening design. The bar copies the high points that stand out from that trail.
@@ -100,6 +141,8 @@
 ## Icons
 
 **FujiBar starts with Lucide, by name.** The text that defines the bars names each icon by its Lucide name. A bundler cannot see which names a string holds, so fuji keeps a roster of the icons in use, imported by name, and only those reach the build.
+
+**An empty folder has an icon of its own in the tree**, for a folder with nothing inside at all, so a user can see it holds nothing and could be removed without a second look.
 
 **Monochrome where fuji shows media.** The contact sheet, the light table and the video window keep their icons to one color, so nothing on screen competes with the pictures.
 

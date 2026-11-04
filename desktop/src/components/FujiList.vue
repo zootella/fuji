@@ -5,7 +5,7 @@ import {listMake, listRows, listFilter, listKey} from '../list.js'
 import {logTrouble} from '../log.js'
 
 const props = defineProps({
-	columns: {type: Array,  required: true},//what each row shows, left to right: a key into the row, the title its header says, a say function that makes its value text, a sort function that takes rows and hands them back in order, which a column of raw numbers leaves out, an align, and a width in css pixels; read once as the list is made
+	columns: {type: Array,  required: true},//what each row shows, left to right: a key into the row, the title its header says, a say function that makes its value text, a compare function that says which of two rows comes first, which a column of raw numbers leaves out, an align, and a width in css pixels; read once as the list is made
 	rows:    {type: Array,  default: () => []},//a record per row, holding a value for each column's key
 	filter:  {type: String, default: ''},//matched anywhere in the first column, ignoring case
 })

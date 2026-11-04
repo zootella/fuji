@@ -68,7 +68,6 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 		return e
 	})
 	o.root.replaceChildren()
-	o.index = new Map(rows.map((row, i) => [row, i]))//each row's place in rows, for a column's sort, which hands rows back rather than their places
 	o.order = rows.map((row, i) => i)
 	o.order = _listSorted(o)//in the sort the list already has, so new rows keep the one the user chose for the old ones
 	_listPlace(o)
@@ -124,13 +123,10 @@ function _listHeaderClick(o, e) {//a click on a header sorts by its column, and 
 }
 
 function _listSorted(o) {//the rows' order sorted by the chosen column, from the order they are in now; a stable sort leaves rows that tie in the order they had, so the column sorted before becomes the second key, a spreadsheet's way and what Explorer documents
-	let {key, sort} = o.columns[o.sort.column]
-	if (sort) {//a column that brings a sort of its own, which takes rows and hands them back in order, like the name column running fuji's one sort setting
-		let order = sort(o.order.map(i => o.rows[i])).map(row => o.index.get(row))
-		return o.sort.descending ? order.reverse() : order
-	}
-	let direction = o.sort.descending ? -1 : 1
-	return [...o.order].sort((i, j) => direction * _listCompare(o.rows[i][key], o.rows[j][key]))//and the rest by their raw values, numbers like a size in bytes or a date in milliseconds
+	let {key, compare} = o.columns[o.sort.column]
+	if (!compare) compare = (a, b) => _listCompare(a[key], b[key])//a column with no comparator of its own sorts by its raw values, numbers like a size in bytes or a date in milliseconds
+	let order = [...o.order].sort((i, j) => compare(o.rows[i], o.rows[j]))
+	return o.sort.descending ? order.reverse() : order//reversed rather than compared backward, so rows that tie turn over with the rest
 }
 function _listCompare(a, b) { return a < b ? -1 : a > b ? 1 : 0 }
 

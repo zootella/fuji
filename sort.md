@@ -49,7 +49,7 @@ Facts worth carrying:
 
 `Array.prototype.sort()` with no comparator converts each element to a string and compares UTF-16 code units. That gives two behaviours users notice: every uppercase letter sorts before every lowercase one, because `Z` is 90 and `a` is 97; and `page10` sorts before `page9`, because the comparison stops at `1` versus `9`.
 
-This is what fuji ships as `Alphabet`, on purpose — `AlphabetSort.js` ends with a bare `.sort()`.
+This is what fuji ships as `Alphabet`, on purpose.
 
 In the page, the closest thing to Finder is `Intl.Collator` with `numeric: true` and a base sensitivity. It is numeric-aware, case-insensitive and diacritic-insensitive, and it follows a locale. It is close to `localizedStandardCompare:` and is not the same function.
 
@@ -111,7 +111,7 @@ A separate boolean reverses whichever order is chosen. Reverse is not a member �
 
 ## The four name sorts
 
-**Alphabet** is JavaScript's own `sort()`, kept deliberately. It is the only order that is exactly predictable from the bytes, with no locale, no numeric guessing, and no opinion — the one to reach for when the clever orders have done something surprising and the user wants to see the folder plainly. It is written, in `AlphabetSort.js`, and it is four lines.
+**Alphabet** is JavaScript's own `sort()`, kept deliberately. It is the only order that is exactly predictable from the bytes, with no locale, no numeric guessing, and no opinion — the one to reach for when the clever orders have done something surprising and the user wants to see the folder plainly. It is written, in `AlphabetSort.js`.
 
 **Mac** and **Windows** reproduce the two shells, so a user who arranged a folder in Finder or Explorer can get the same arrangement in fuji. Both are ours to write: `localizedStandardCompare:` and `StrCmpLogicalW` are platform calls fuji cannot reach from the page, and reaching them from Rust would still leave each platform unable to produce the other's order.
 
@@ -145,9 +145,9 @@ Both names make a promise fuji should be honest about. Microsoft says its functi
 
 ## Where it lives
 
-Each sort is a pure function in a file of its own, named for the member so it reads as the swappable thing it is — `AlphabetSort.js`, and `SmartSort.js` beside it when that exists. Listing in, order out; no disk, no framework. The model keeps the register of them and is the only caller.
+Each sort is a pure function in a file of its own, named for the member so it reads as the swappable thing it is — `AlphabetSort.js`, and `SmartSort.js` beside it when that exists. Two entries in, which comes first out; no disk, no framework. The model keeps the register of them and is the only caller.
 
-**A sort returns the order, not a comparator.** That is what lets `Shuffled` be a member of the same family rather than an exception to it: a shuffle is a permutation that has to be produced and kept, and there is no pair of names a comparator could be handed to produce one.
+**A sort is a comparator**, the language's own idiom, so a list places a row that arrives later by search instead of sorting everything again, and a column composes one to break its own ties. A sort whose key costs something to work out, a name split into runs of digits, works it out once per entry and compares the keys.
 
 They are the easiest thing in fuji to test, and the fixed list of filenames they are tested against is itself worth keeping, because it is the specification of what `Smart` means.
 
