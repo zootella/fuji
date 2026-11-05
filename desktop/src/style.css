@@ -48,7 +48,9 @@ Nothing here says how text is smoothed, and nothing should: no `-webkit-font-smo
 }
 
 /*
-One row of text in fuji's lists and trees, and in anything else that lines up with them. It is a number chosen rather than worked out from the font, since each engine measures a font's line a little differently, and a row that came out at 16.5 would put every other row edge between pixels and blur the text and lines down the list. So it is a whole number of css pixels, and a multiple of 4: Windows scales in steps of 25 percent, and a multiple of 4 css pixels comes out a whole number of backing pixels at every step, 20 as 25 at 125 percent and 30 at 150. A line of the root's text is centered in it up and down, which leaves the row free to change without a rule for the text changing, and an icon sits inside it the same way. 20 was chosen on the Mac mini.
+One row of text in fuji's lists and trees, and in anything else that lines up with them: 20 css pixels, in the list and the tree alike. Windows has no one height to follow. Measured on Windows 10 at 100 percent on 2026-11-04, the Win32 tree view is 18 and its list view 19, XYplorer is 19 in both, and Windows 10's File Explorer is 24 in its tree and 21 in its list. So fuji takes one height for both, near the tightness of the Win32 controls, with room for a 16 css pixel icon, 2 above it and 2 below.
+
+It is a whole number chosen rather than worked out from the font, since each engine measures a font's line a little differently, and a fractional row would put row edges between pixels and blur the text and lines down the list. And it is a multiple of 4, because Windows scales in steps of 25 percent and a multiple of 4 css pixels is a whole number of backing pixels at every step, 25 at 125 percent, 30 at 150 and 35 at 175. So every row is the same in backing pixels, and whatever sits inside one sits the same way in all of them. 19 would not be: at 125 percent its rows come out 24, 24, 23 and 24 backing pixels, over and over, and each row's icon and lines land a different fraction of a pixel off. Inside the row, the 2 above an icon is 2.5 backing pixels at 125 percent and 3.5 at 175, which no css number splits evenly, so an icon that must be sharp there has to be placed on a whole backing pixel, 2 above and 3 below at 125 percent and 3 above and 4 below at 175. A line of the root's text is centered in the row up and down, which leaves the row free to change without a rule for the text changing, and an icon sits inside it the same way.
 */
 @layer base {
 	:root { --row-height: 20px }
@@ -171,6 +173,7 @@ The system's lists are keywords, which each platform answers for itself, rather 
 	.mySans { font: menu; line-height: 1rlh } /* the caption face: the platform's menu font, as the root is, on the root's line. It also puts an element back in that text from inside fuji's character-mode type, the way myMono takes one out of it */
 	[data-faces="bundled"] .mySans { font-family: var(--font-sans); font-size: 13px } /* Inter at the dashboard's size, the same on every platform */
 	[data-faces="retro"]   .mySans { font-family: var(--font-sans); font-size: 12px } /* Verdana at the forum's size, the same on every platform */
+	.mySmallCaps { font-variant-caps: all-small-caps } /* small capitals in a line of text, written as capitals, the NOV in 2026NOV05, so copying and searching get the capitals, with digits left full height. A face that draws its own small capitals uses them, and for one that has none the engine draws its capitals at 70 percent of the size, which come out lighter than the letters beside them */
 }
 
 /*

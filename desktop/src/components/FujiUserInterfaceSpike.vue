@@ -108,8 +108,10 @@ function scrollEnd() {
 onBeforeUnmount(() => { scrolling = false; clearTimeout(scrollQuiet) })
 
 function sayKilobytes(bytes) { return `${Math.ceil(bytes / Size.kb).toLocaleString('en-US')} KB` }//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
+const examples = ['(2026NOV05)', '(1999DEC31 11:59PM)', '(2000JAN01 12:00AM)', '(640×480)', '(1920×1080)', '(3840×2160)']//the first mock rows, which show fuji's own marks in every face: dates with the month and the hour's AM or PM in small capitals, and sizes with the multiplication sign. In parentheses, which sort before the digits that start the mock hashes and timestamps, so the list opens with them at the top
+function sayName(name) { return examples.includes(name) ? name.split(/(?<=\d)([A-Z]+)/).map((part, i) => i % 2 ? {small: part} : part).filter(part => part) : name }//an example's capitals that follow a digit drawn small, and every other name as it is
 const columns = [
-	{key: 'name', title: 'Name', compare: modelCompare, width: 320},//names in fuji's one sort, the order every list and view in fuji shows
+	{key: 'name', title: 'Name', say: sayName, compare: modelCompare, width: 320},//names in fuji's one sort, the order every list and view in fuji shows
 	{key: 'size', title: 'Size', say: sayKilobytes, align: 'right', width: 128},
 	{key: 'modified', title: 'Date', say: sayDayTime, width: 152},
 ]
@@ -150,6 +152,7 @@ function mockRows(n) {
 			size: Math.floor(2 ** (random() * 37)),//spread evenly by order of magnitude, from a byte to 128 gigabytes, so short sizes and very long ones sit side by side
 			modified: first + Math.floor(randomWhen() * (last - first)),//a tick, milliseconds since 1970 in utc
 		}))
+		for (let [i, name] of examples.entries()) mockMade[i].name = name//the examples in place of the first names made, so they are there at every count
 	}
 	return mockMade.slice(0, n)//the same rows at every count, in the order they were made, as a disk hands over a folder; the list puts them in fuji's sort
 }

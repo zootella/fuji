@@ -104,9 +104,7 @@
 
 ## Spacing and sizes
 
-**The user picks the row height on the Windows box, against Explorer**, near the tightness of older Windows: tighter than Finder, with room for an icon.
-
-**The tree's classic look is measured there too**, its twisties and its lines against the classic Win32 tree, and so are the tree's behaviors that `tree.js` says are from memory.
+**The tree's classic look is measured on the Windows box**, its twisties and its lines against the classic Win32 tree, and so are the tree's behaviors that `tree.js` says are from memory.
 
 **A text size setting, later, picks the row height and the icon size from a short table of whole numbers.** On Windows it follows Windows' own text size setting, which fuji does not obey yet; on the Mac it is an option of its own or none. No combination the table offers may collide or look bad.
 

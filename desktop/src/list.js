@@ -8,7 +8,7 @@ Fuji's own list, drawn with the page's own elements rather than through Vue. A l
 App code makes the list and keeps it, rather than a component making it and the app reaching in through Vue. listMake answers a plain object, the app calls the functions here on it, and the list reports what the user did through the callbacks it was made with, asking the app for nothing. So the list lives as long as the app wants it, a plain module can hold one and fill it with no framework in between, and FujiList.vue does nothing but put its element on screen. Each row carries its identity in a field the app names, a path for a folder on disk or a tag for something with no path, so a record that arrives later as a fresh object, from Rust or from another process, can name the row it describes.
 */
 
-export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble}) {//a list of its own element, a row of headers and below it the rows, which scroll. identity names the field in each row that tells it from every other. columns says what each row shows, left to right: each has a key into the row, the title its header says, a say function that makes its value text, a compare function that says which of two rows comes first, which a column of raw numbers leaves out, an align, and a width in css pixels. onSelect hears what each press, key or drag did, with how many rows it left selected, how many changed, its kind and the list's own milliseconds; onSort each sort, by which column and which way; onMenu where in the window a right click asks for a menu; and onTrouble anything that throws where the page hands the list an event
+export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble}) {//a list of its own element, a row of headers and below it the rows, which scroll. identity names the field in each row that tells it from every other. columns says what each row shows, left to right: each has a key into the row, the title its header says, a say function that makes its value text, or a list of runs for text that mixes in small capitals, each run a string or {small} holding capitals to draw small, a compare function that says which of two rows comes first, which a column of raw numbers leaves out, an align, and a width in css pixels. onSelect hears what each press, key or drag did, with how many rows it left selected, how many changed, its kind and the list's own milliseconds; onSort each sort, by which column and which way; onMenu where in the window a right click asks for a menu; and onTrouble anything that throws where the page hands the list an event
 	if (typeof identity != 'string' || !identity) throw new Error(`expected the name of the field that identifies a row: ${identity}`)
 	let element = document.createElement('div'), header = document.createElement('div'), root = document.createElement('div')
 	element.className = 'myListFrame'
@@ -65,14 +65,22 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 		let e = document.createElement('div')
 		e.className = 'myRow'
 		e.dataset.row = i//how a press finds its row
-		for (let column of o.columns) {
+		for (let [k, column] of o.columns.entries()) {
 			let cell = document.createElement('span')
 			cell.className = 'myListCell'
 			if (column.align) cell.dataset.align = column.align
+			if (k == 0) {//the icon beside the name, as Finder and Explorer draw one: a placeholder square for now, showing where the icons will go
+				let icon = document.createElement('span')
+				icon.className = 'myListIcon'
+				cell.append(icon)
+			}
+			let text = document.createElement('span')//the text in a box of its own, beside the icon in the first column
+			text.className = 'myListText'
 			/*
-			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the element's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent.
+			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the element's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent. Text that mixes in small capitals is the same: each plain run becomes a text node, which is never parsed either, and each small run a span of its own whose text goes to textContent.
 			*/
-			cell.textContent = _listSay(column, row)
+			_listPut(text, _listSay(column, row))
+			cell.append(text)
 			e.append(cell)
 		}
 		return e
@@ -86,6 +94,17 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 }
 
 function _listSay(column, row) { return column.say ? column.say(row[column.key]) : String(row[column.key]) }//the text a cell shows for a row's value
+function _listPut(element, said) {//a cell's text into its box: a string as it is, or runs, each plain run a text node and each run of small capitals a span the stylesheet draws small
+	if (typeof said == 'string') { element.textContent = said; return }
+	element.replaceChildren(...said.map(run => {
+		if (typeof run == 'string') return run//replaceChildren makes a string a text node, never markup
+		let small = document.createElement('span')
+		small.className = 'mySmallCaps'
+		small.textContent = run.small
+		return small
+	}))
+}
+function _listPlain(said) { return typeof said == 'string' ? said : said.map(run => typeof run == 'string' ? run : run.small).join('') }//the same text as one string, for measuring; the canvas measures small capitals as full ones, so a column fit to them comes out a little wide and never cuts one off
 
 const listNarrowest = 24//css pixels, the narrowest a drag leaves a column, which still leaves its divider to grab
 function _listGrid(o) { o.element.style.setProperty('--list-columns', o.widths.map(w => `${w}px`).join(' ')) }//the widths onto the one grid the headers and rows share
@@ -110,8 +129,11 @@ function _listGripFit(o, e) {//a double-click on a divider fits its column to th
 	let style = getComputedStyle(grip.parentElement)
 	measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`//the list's own font, so text is measured without drawing any of it, quickly enough for ten thousand rows at once
 	let widest = measure.measureText(`${c.title} ▲ `).width//room for the header and the sort arrow beside it
-	for (let row of o.rows) widest = Math.max(widest, measure.measureText(_listSay(c, row)).width)
-	o.widths[column] = Math.ceil(widest) + 16 + 2//the cell's padding at either end, and a pixel each side so the last letter is never cut
+	for (let row of o.rows) widest = Math.max(widest, measure.measureText(_listPlain(_listSay(c, row))).width)
+	let beside = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)//the cell's padding at either end, read from the header's cell, whose padding the rows' cells share
+	let icon = o.elements[0]?.children[column].querySelector('.myListIcon')//and in a column that shows an icon, the icon and the gap after it, read from a row
+	if (icon) beside += parseFloat(getComputedStyle(icon).width) + parseFloat(getComputedStyle(icon.parentElement).columnGap)//from the style rather than the layout, since the filter may have hidden that row, and a hidden row's icon lays out zero wide
+	o.widths[column] = Math.ceil(widest + beside) + 2//and a pixel each side so the last letter is never cut
 	_listGrid(o)
 }
 
