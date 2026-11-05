@@ -3,17 +3,21 @@ import {isCommandOrControl} from './keyboard.js'
 import {selectionEmpty, selectionClick, selectionMove, selectionFocus, selectionSmear, selectionAll} from './selection.js'
 
 /*
-Fuji's own list, drawn with the page's own elements rather than through Vue. A list is many rows whose state changes a little at a time, a click marking one row or a keystroke in the filter hiding a few, and Vue answers every change by running its template over all of them to find the few that differ. Here each row is one element, made once and kept for the life of the list, and a change touches only the rows it changes: the filter sets hidden on the rows whose answer flipped, and a press or a key marks the rows whose selection or focus did. Every row is in the page, with no windowing and no virtualizer: this plain list built, scrolled and filtered ten thousand rows without trouble on the Mac mini and the Windows box, scrolls on the engine's compositor with no script running, and leaves scrolling a row into view to the browser. FujiUserInterfaceSpike.vue is the bench that times it. FujiList.vue is the thin layer that lets the rest of fuji place it as a component.
+Fuji's own list, drawn with the page's own elements rather than through Vue. A list is many rows whose state changes a little at a time, a click marking one row or a keystroke in the filter hiding a few, and Vue answers every change by running its template over all of them to find the few that differ. Here each row is one element, made once and kept for the life of the list, and a change touches only the rows it changes: the filter sets hidden on the rows whose answer flipped, and a press or a key marks the rows whose selection or focus did. Every row is in the page, with no windowing and no virtualizer: this plain list built, scrolled and filtered ten thousand rows without trouble on the Mac mini and the Windows box, scrolls on the engine's compositor with no script running, and leaves scrolling a row into view to the browser. FujiUserInterfaceSpike.vue is the bench that times it.
+
+App code makes the list and keeps it, rather than a component making it and the app reaching in through Vue. listMake answers a plain object, the app calls the functions here on it, and the list reports what the user did through the callbacks it was made with, asking the app for nothing. So the list lives as long as the app wants it, a plain module can hold one and fill it with no framework in between, and FujiList.vue does nothing but put its element on screen. Each row carries its identity in a field the app names, a path for a folder on disk or a tag for something with no path, so a record that arrives later as a fresh object, from Rust or from another process, can name the row it describes.
 */
 
-export function listMake(frame, {columns, onSelect, onSort, onMenu, onTrouble}) {//the list inside this element, which it owns from here on: a row of headers, and below it the rows, which scroll. columns says what each row shows and what its header says, onSelect hears what each press, key or drag did, onSort each sort, onMenu where a right click asks for a menu, and onTrouble anything that throws where the page hands the list an event
-	let header = document.createElement('div'), root = document.createElement('div')
+export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble}) {//a list of its own element, a row of headers and below it the rows, which scroll. identity names the field in each row that tells it from every other. columns says what each row shows, left to right: each has a key into the row, the title its header says, a say function that makes its value text, a compare function that says which of two rows comes first, which a column of raw numbers leaves out, an align, and a width in css pixels. onSelect hears what each press, key or drag did, with how many rows it left selected, how many changed, its kind and the list's own milliseconds; onSort each sort, by which column and which way; onMenu where in the window a right click asks for a menu; and onTrouble anything that throws where the page hands the list an event
+	if (typeof identity != 'string' || !identity) throw new Error(`expected the name of the field that identifies a row: ${identity}`)
+	let element = document.createElement('div'), header = document.createElement('div'), root = document.createElement('div')
+	element.className = 'myListFrame'
 	header.className = 'myHeader'
 	root.className = 'myList'
 	root.tabIndex = 0//so the list can take the keyboard
-	frame.replaceChildren(header, root)
+	element.append(header, root)
 	for (let c of columns) if (typeof c.width != 'number' || c.width <= 0) throw new Error(`expected a width in css pixels for column ${c.key}: ${c.width}`)
-	let o = {frame, header, root, columns, onSelect, onSort, onMenu, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
+	let o = {element, header, root, identity, columns, onSelect, onSort, onMenu, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
 	for (let [i, column] of columns.entries()) {
 		let cell = document.createElement('span')
 		cell.className = 'myListCell'
@@ -29,7 +33,7 @@ export function listMake(frame, {columns, onSelect, onSort, onMenu, onTrouble}) 
 	_listGrid(o)
 	let gate = handle => e => { try { handle(o, e) } catch (error) { onTrouble(error) } }
 	root.addEventListener('pointerdown', gate(_listPress))
-	frame.addEventListener('contextmenu', gate(_listMenu))
+	element.addEventListener('contextmenu', gate(_listMenu))
 	header.addEventListener('click', gate(_listHeaderClick))
 	header.addEventListener('pointerdown', gate(_listGripPress))
 	header.addEventListener('dblclick', gate(_listGripFit))
@@ -43,11 +47,17 @@ export function listMake(frame, {columns, onSelect, onSort, onMenu, onTrouble}) 
 
 	The search ran in the browser's own process, outside any code of fuji's, where a timer in the page sees only how long a press waited in line. Sampling that process while it was busy is what named it.
 	*/
-	frame.addEventListener('mousedown', e => e.preventDefault())
+	element.addEventListener('mousedown', e => e.preventDefault())
 	return o
 }
 
-export function listRows(o, rows) {//replace every row, as for a new folder; a row is a record holding a value for each column's key
+export function listRows(o, rows) {//replace every row, as for a new folder; a row is a record holding a value for each column's key, and its identity
+	let seen = new Set()
+	for (let row of rows) {
+		let id = row[o.identity]
+		if (typeof id != 'string' || !id || seen.has(id)) throw new Error(`expected a unique identity in ${o.identity}: ${id}`)
+		seen.add(id)
+	}
 	o.rows = rows
 	let first = o.columns[0].key
 	o.lower = rows.map(row => String(row[first]).toLowerCase())//the first column, the name, is what the filter matches, as Finder's search does; lowered once per list rather than once per keystroke
@@ -78,7 +88,7 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 function _listSay(column, row) { return column.say ? column.say(row[column.key]) : String(row[column.key]) }//the text a cell shows for a row's value
 
 const listNarrowest = 24//css pixels, the narrowest a drag leaves a column, which still leaves its divider to grab
-function _listGrid(o) { o.frame.style.setProperty('--list-columns', o.widths.map(w => `${w}px`).join(' ')) }//the widths onto the one grid the headers and rows share
+function _listGrid(o) { o.element.style.setProperty('--list-columns', o.widths.map(w => `${w}px`).join(' ')) }//the widths onto the one grid the headers and rows share
 
 function _listGripPress(o, e) {//a press on a divider resizes the column to its left as the pointer moves; the columns to its right move over, and past the list's edge the list scrolls sideways
 	let grip = e.target.closest('.myGrip')
@@ -143,6 +153,8 @@ export function listFilter(o, text) {//show only the rows whose first column hol
 	_listDraw(o, before)
 	_listShow(o)
 }
+
+export function listSelected(o) { return o.shown.filter(i => o.traits.selected.has(i)).map(i => o.rows[i]) }//the rows selected, in the order they are on screen, made when the app asks rather than on every change
 
 export function listKey(o, e) {//one key, acted on only while the list has the keyboard, since every key in the view reaches here; true when the list used it
 	if (document.activeElement != o.root) return false
@@ -291,7 +303,7 @@ function _listMenu(o, e) {//a right click anywhere in the list turns away the we
 	else if (!o.traits.selected.has(Number(row.dataset.row))) o.traits = selectionClick(o.traits, Number(row.dataset.row), o.shown, {range: false, toggle: false})
 	let changed = _listDraw(o, before)
 	if (o.traits != before) o.onSelect({selected: o.traits.selected.size, changed, kind: row ? 'right click' : 'right click below the rows', listMs: performance.now() - start})
-	o.onMenu({x: e.clientX, y: e.clientY, selected: o.traits.selected.size})
+	o.onMenu({x: e.clientX, y: e.clientY})
 }
 
 /*

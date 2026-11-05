@@ -1,49 +1,32 @@
-<script setup>//the list that list.js draws, as a component the rest of fuji can place: this layer hands it the rows and the filter and passes its answers up
+<script setup>//a place on screen for a list that list.js made and the app keeps: the app makes it with listMake, hands it here, and calls list.js on it from then on
 
-import {ref, watch, onMounted} from 'vue'
-import {listMake, listRows, listFilter, listKey} from '../list.js'
-import {logTrouble} from '../log.js'
+import {ref, onMounted} from 'vue'
 
-const props = defineProps({
-	columns: {type: Array,  required: true},//what each row shows, left to right: a key into the row, the title its header says, a say function that makes its value text, a compare function that says which of two rows comes first, which a column of raw numbers leaves out, an align, and a width in css pixels; read once as the list is made
-	rows:    {type: Array,  default: () => []},//a record per row, holding a value for each column's key
-	filter:  {type: String, default: ''},//matched anywhere in the first column, ignoring case
-})
-const emit = defineEmits(['select', 'sort', 'menu'])//what each press, key or drag did: how many rows are selected, how many changed, the kind of press or key, and the list's own milliseconds; each sort, by which column and which way; and a right click, with where in the window to put a menu and how many rows it left selected
-
-const frame = ref(null)//empty in the template, since list.js fills it and vue never draws inside
-let list = null
-onMounted(() => {
-	list = listMake(frame.value, {columns: props.columns, onSelect: press => emit('select', press), onSort: sort => emit('sort', sort), onMenu: at => emit('menu', at), onTrouble: error => logTrouble('fuji list', error)})
-	listRows(list, props.rows)
-	listFilter(list, props.filter)
-})
-watch(() => props.rows, rows => listRows(list, rows))
-watch(() => props.filter, text => listFilter(list, text))
-defineExpose({
-	shown: () => list.shown,//the rows on screen, for the bench to count
-	key: e => listKey(list, e),//a key from the view, which hands every key it is given here
-})
+const props = defineProps({list: {type: Object, required: true}})
+const place = ref(null)//empty in the template, since the list brings its own element and vue never draws inside
+onMounted(() => place.value.replaceChildren(props.list.element))
 
 </script>
 <template>
 
-<div ref="frame" class="myListFrame mySans text-zed-text select-none"></div>
+<div ref="place" class="flex flex-col mySans text-zed-text select-none"></div>
 
 </template>
 <style>
 
 /* not scoped, because the rows are list.js's elements rather than this template's, and the window's state is an attribute the shell keeps on the root, which a scoped rule cannot reach. So every rule here reaches every element of its class anywhere in the window, and each class is one only the list uses: the contact sheet names its own cells myCell, and a bare rule on that name here once padded them and clipped their tiles. Every rule keys on attributes, data-active from list.js and data-window from the shell, and none on :focus, which WebKit stops matching in a window gone behind another without restyling the rows that depended on it */
-.myListFrame { display: flex; flex-direction: column }
-.myHeader { flex: none; display: grid; grid-template-columns: var(--list-columns); padding: 0 8px; border-bottom: 1px solid var(--color-zed-border); color: var(--color-zed-text-placeholder); overflow: hidden; scrollbar-gutter: stable } /* above the rows and outside what scrolls, so list.js moves it sideways with them; the gutter matches the one the rows reserve beside them, so where a platform draws a scrollbar, the right-aligned columns still line up */
-.myHeader .myListCell { position: relative; overflow: visible; border-right: 1px solid var(--color-zed-border) } /* the divider at each column's right edge */
+.myListFrame { flex: 1; min-height: 0; display: flex; flex-direction: column; background-color: var(--color-zed-editor-background) } /* the list's own element, filling the place this component gives it, on a ground of its own as the tree is, so whatever the page puts behind it stays behind it */
+.myHeader { flex: none; display: grid; grid-template-columns: var(--list-columns); grid-template-rows: var(--row-height); padding: 0 8px; border-bottom: 1px solid var(--color-zed-border); color: var(--color-zed-text-placeholder); overflow: hidden; scrollbar-gutter: stable } /* above the rows and outside what scrolls, so list.js moves it sideways with them; the gutter matches the one the rows reserve beside them, so where a platform draws a scrollbar, the right-aligned columns still line up */
+.myHeader .myListCell { position: relative; overflow: visible; border-right: 1px solid var(--color-zed-border); display: flex; align-items: center } /* the divider at each column's right edge, the header's whole height, with the title centered up and down inside it as a row's text is */
+.myHeader .myListCell[data-align="right"] { justify-content: flex-end }
+.myHeader .myListCell::before, .myHeader .myListCell::after { white-space: pre } /* keeps the space between an arrow and its title, since in a flex cell the arrow is a box of its own, and a box drops the space it starts or ends with */
 .myGrip { position: absolute; top: 0; bottom: 0; right: -4px; width: 8px; cursor: col-resize; z-index: 1 } /* the place to grab it, a few pixels either side of the line */
 .myHeader .myListCell:not([data-align="right"])[data-sort="up"]::after { content: " ▲" } /* the arrow on the side away from the column's edge, after a title on the left and before one on the right */
 .myHeader .myListCell:not([data-align="right"])[data-sort="down"]::after { content: " ▼" }
 .myHeader .myListCell[data-align="right"][data-sort="up"]::before { content: "▲ " }
 .myHeader .myListCell[data-align="right"][data-sort="down"]::before { content: "▼ " }
 .myList { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable } /* down and, when the columns are wider than the list, sideways */
-.myRow { display: grid; grid-template-columns: var(--list-columns); padding: 0 8px; width: max-content; min-width: 100% } /* every row on the one grid list.js sets on the frame, which the headers share; as wide as its columns and never narrower than the list, so a selected row's fill, and the place a press selects it, reach past the last column to the list's edge, as Finder's do, on every platform */
+.myRow { display: grid; grid-template-columns: var(--list-columns); grid-template-rows: var(--row-height); align-items: center; padding: 0 8px; width: max-content; min-width: 100% } /* every row on the one grid list.js sets on the frame, which the headers share, as tall as style.css says a row is, with its text centered up and down; as wide as its columns and never narrower than the list, so a selected row's fill, and the place a press selects it, reach past the last column to the list's edge, as Finder's do, on every platform */
 .myListCell { padding: 0 8px; white-space: nowrap; overflow: hidden } /* the space between columns is each cell's own padding, inside the width list.js gives its column, so the dividers fall between them; text too long for its column is cut off at the edge, with no ellipsis */
 .myListCell[data-align="right"] { text-align: right }
 .myRow .myListCell { mask-image: linear-gradient(to right, black calc(100% - 2px), transparent) } /* melted over its last 2 css pixels, as the contact sheet melts its captions, so a letter cut in half fades out rather than looking broken, in less room than an ellipsis and with nothing to stop the eye; the cell's own padding keeps text that fits clear of the fade, and the headers go without it, since it would clip their dividers and arrows */

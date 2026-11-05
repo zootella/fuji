@@ -46,6 +46,13 @@ Nothing here says how text is smoothed, and nothing should: no `-webkit-font-smo
 @layer base {
 	html { font: menu }
 }
+
+/*
+One row of text in fuji's lists and trees, and in anything else that lines up with them. It is a number chosen rather than worked out from the font, since each engine measures a font's line a little differently, and a row that came out at 16.5 would put every other row edge between pixels and blur the text and lines down the list. So it is a whole number of css pixels, and a multiple of 4: Windows scales in steps of 25 percent, and a multiple of 4 css pixels comes out a whole number of backing pixels at every step, 20 as 25 at 125 percent and 30 at 150. A line of the root's text is centered in it up and down, which leaves the row free to change without a rule for the text changing, and an icon sits inside it the same way. 20 was chosen on the Mac mini.
+*/
+@layer base {
+	:root { --row-height: 20px }
+}
 @theme {
 	--*: initial; /* none of tailwind's own theme: no palette, no font lists, no sizes fuji did not pick. A class reaches only what fuji's theme blocks here name, and a class for anything else, a bg-neutral-500 or a text-sm, makes nothing, which gets noticed, rather than working in dark and never turning in light. First, before any of fuji's own */
 	--spacing: 4px; /* tailwind's step, which every padding, gap, inset and width counts in, in css pixels rather than a quarter of the platform's rem */

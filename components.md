@@ -4,13 +4,13 @@
 
 **The components are `FujiList`, the list view; `FujiTree`, the tree view; and `FujiBar`, the toolbar.** The list and the tree are the views every file manager has beside its icons. A menu is a toolbar too, one with text and no icons where every item leads to a submenu, so fuji's menus are `FujiBar` rather than a component of their own.
 
-**`components-shelf.html` is the research behind them**: a survey of existing components, and a table of the keyboard and mouse interactions compiled from Apple, Microsoft, VS Code and the ARIA guide.
+**The research behind them** is a survey of existing components, and a table of the keyboard and mouse interactions compiled from Apple, Microsoft, VS Code and the ARIA guide.
 
 **Incrementally, with `pnpm local` running.** Build a small piece, look at it in the running program, then the next piece, so the work never gets over its skis. Simple all the way through: simple code is shorter, and it tends to run faster.
 
 **One list on every platform, informed by Explorer and Finder, and its own thing.** Each choice, in how the list looks and in how it behaves, starts from what Windows Explorer and Finder do, because those are what a user already knows. Then fuji makes the choice itself, for a list that is simple, familiar and clean and the same on Windows, the Mac and Linux, and the comment on each choice names who it follows, such as a type-ahead timeout taken from Chromium or a focus rectangle taken from Windows. Where Explorer and Finder disagree, or another program does it better, fuji takes one answer and every platform gets it. The alternative is copying Explorer exactly on Windows and Finder exactly on the Mac. That is a list per platform, with code and selectors for each and a lot of back and forth between machines; an imperfect match reads as wrong to a user who knows the real thing, so every miss would be suspect; few users would benefit; and on Linux there is no one file manager to copy. A list built from both and copying neither becomes fuji's own. For the look, the choice is Swing's, one look consistent across platforms, without Swing's result: the list and the tree are made of web and do not try to match the native controls pixel for pixel, and they look good by using the system's own typography correctly and keeping their appearance flat and simple.
 
-**An exception customizes the list to the platform it runs on, where matching the platform is what makes the list right there.** The highlight color is the example: with the system's own typography, the color of a selected row is what makes a list read as the machine's rather than a web page's, and Swing brought its own selected colors and looked broken, foreign and undeveloped for it, so fuji paints a selected row in each platform's own colors, as the highlight color below describes. A new case is weighed against that example, by whether matching the platform there does what the highlight color does. Command on the Mac doing what Control does elsewhere is not an exception: it is the same behavior under the platform's own key, as in every cross-platform program, since a Control-click on the Mac is a right click.
+**An exception would customize the list to the platform it runs on, where matching the platform is what makes the list right there.** None is one today: even the highlight color, where the case was strongest, is one accent on every platform, as the highlight color below describes. A new case is weighed by whether matching the platform there is what makes the list read as the machine's rather than a web page's. Command on the Mac doing what Control does elsewhere is not an exception: it is the same behavior under the platform's own key, as in every cross-platform program, since a Control-click on the Mac is a right click.
 
 **The feel: nothing a desktop user reaches for is missing.** The components have to be complete and robust enough that a native desktop user never finds them limited or incomplete. The failure is a web list that is clearly a web page and not Finder or Explorer, which is fine, but skips the ordinary second-order interactions that make a list feel like a list: control-click to toggle one item in the selection, shift-click to extend it, the arrow keys moving a keyboard focus that is separate from the selection, a name typed to jump to it. A user who sees such a list, thinks "this is like my file manager," tries one of those, and meets nothing, decides the whole thing is incomplete and worse than what they already have. Google Drive's file list is the kind of list meant, and its own shortcuts page documents a focus that moves under Ctrl with the arrows, as fuji's list moves its focus under the command key. Fuji's list and tree pass the test.
 
@@ -21,7 +21,7 @@
 
 ## The order of work
 
-**The suggested order of work**, each step seen running before the next: the full text of a cut-off cell shown in place; icons; the list scrolling while a selecting drag is past its edge; the tree; and the bar last, with the menu as its first use.
+**The suggested order of work**, each step seen running before the next: the spacing and sizes, matched to Explorer on the Windows box, which then set them on every platform; icons; the full text of a cut-off cell shown in place; the list scrolling while a selecting drag is past its edge; and the bar last, with the menu as its first use.
 
 
 ## FujiList
@@ -65,14 +65,10 @@
 
 **How it differs from Finder and Explorer, slightly.** Like both, a press on a selected row drags the selection. Like Finder's list from beside a name, and Explorer's rectangle from blank space, a press elsewhere selects, but here from anywhere in the row; what each does is from memory, and checked on each machine as the article is written. Unlike both, an unselected file cannot be dragged in one motion. The difference fails safe: a user who presses a name expecting to move the file gets a highlighted run, nothing moves, and the next drag carries it. The opposite slip, a drag meant to select that drops files into the folder beside them, is the costly one, and this rule cannot make it.
 
-**The pointer while carrying is the closed hand for now, a spike.** It is CSS's `grabbing`, which every engine draws in its own way, and it does for trying the carry. What it becomes is open: pointers fuji authors and brings along, drawn to look good beside the system's own on Windows and the Mac, or the plain pointer with something floating beside it, like a count of the files being carried. `pointer-and-drag.md` has what was learned and the choices.
+**The pointer while carrying is the closed hand for now, a spike.** It is CSS's `grabbing`, which every engine draws in its own way, and it does for trying the carry. What it becomes is open: pointers fuji authors and brings along, drawn to look good beside the system's own on Windows and the Mac, or the plain pointer with something floating beside it, like a count of the files being carried.
 
 
 ## FujiTree
-
-**The tree shares everything the list learned**, and adds expand, collapse and the empty folder.
-
-**The tree shows empty folders.** A folder with nothing in it is still a folder, and the tree draws it as one, so a user can see that it is there and that it is empty, rather than wondering where it went.
 
 **The tree stands on a panel.** A tree beside the content is Zed's panel.background, One Light's #ebebec and One Dark's #2f343e, which joins the palette under its Zed name when the tree paints it.
 
@@ -108,14 +104,24 @@
 
 ## Spacing and sizes
 
-**The list's rows are too tight, and icons will need more height.** The user picks a row height, and a width for the tree's indent cells, near the tightness of older Windows: tighter than Finder, roomier than the list is now.
+**The user picks the row height on the Windows box, against Explorer**, near the tightness of older Windows: tighter than Finder, with room for an icon.
 
-**The tree's classic look is measured on the Windows box**: its indent, its twisties and its lines, against the classic Win32 tree.
+**The tree's classic look is measured there too**, its twisties and its lines against the classic Win32 tree, and so are the tree's behaviors that `tree.js` says are from memory.
+
+**A text size setting, later, picks the row height and the icon size from a short table of whole numbers.** On Windows it follows Windows' own text size setting, which fuji does not obey yet; on the Mac it is an option of its own or none. No combination the table offers may collide or look bad.
 
 
 ## Publishing updates to the list and the tree
 
-**Rows arrive gradually, the way search results fill in, and the structure underneath changes**, as when something else changes a drive the tree is showing. How app code hands the list and the tree those changes is open, and belongs near the start.
+**Rows arrive gradually, the way search results fill in, and the structure underneath changes**, as when something else changes a drive the tree is showing, or a torrent's files fill in as they download in a sister project that shows them in the same components.
+
+**App code says exactly what changed, and nothing compares the whole.** `listAdd` takes a batch of rows and places each in the current sort and filter; `listChange` takes a fresh record, which finds its row by its identity and takes that row's place, moving it if the sort says so; `listRemove` takes identities alone, since a deletion often carries nothing else. The tree's own versions do the same under a parent named by its identity. Each call costs the rows it names and their places in the order.
+
+**A folder the app has not read yet still shows its twistie.** Its record says it has folders inside, `branch` beside the `children` it does not have yet; opening it fires `onOpen`, and the app reads the disk and hands the folders over with the tree's add.
+
+**A batch costs one sort.** Fuji's sorts are comparators, so a row finds its place by binary search, and a burst of rows lands in one pass rather than a sort per row.
+
+**A record crosses a boundary as a fresh object**, from Rust, from a watcher, from another peer, which is why a row is found by the identity it carries rather than by being the same object the list was handed.
 
 
 ## FujiBar
@@ -141,6 +147,8 @@
 ## Icons
 
 **FujiBar starts with Lucide, by name.** The text that defines the bars names each icon by its Lucide name. A bundler cannot see which names a string holds, so fuji keeps a roster of the icons in use, imported by name, and only those reach the build.
+
+**An icon in a row is a box of fixed css size, centered in the row as its text is, and drawn at backing resolution the way a thumbnail is**, so it matches the system's own at every scale: 16 css pixels is 32 backing pixels on a Retina Mac and 20 at 125 percent on Windows.
 
 **An empty folder has an icon of its own in the tree**, for a folder with nothing inside at all, so a user can see it holds nothing and could be removed without a second look.
 
