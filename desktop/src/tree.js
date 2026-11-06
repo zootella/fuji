@@ -1,20 +1,21 @@
 import {isCommandOrControl} from './keyboard.js'
+import {labelPut} from './label.js'
 
 /*
-Fuji's own tree, drawn with the page's own elements as list.js draws the list, and written beside it rather than out of it. The two are built the same way and share none of their code, since the tree selects one folder and highlights only its name where the list selects many rows across their whole width, and a row that could be either would carry the other's features everywhere.
+Fuji's own tree, drawn with the page's own elements as list.js draws the list, and written beside it rather than out of it. The two are built the same way and share none of their row code, since the tree selects one folder and highlights only its name where the list selects many rows across their whole width, and a row that could be either would carry the other's features everywhere. A name's text goes into its box through label.js in both, so it means the same in each.
 
 The tree is flat. Every folder is one row element in one container, made once, in depth-first order, so the folders inside a folder are the run of rows right after it, and closing a folder hides that run rather than removing anything. Which rows show is a pass over every row in _treeShow, the way the list's filter is: a row shows when every folder above it is open. Each row draws the lines down its left for itself, a cell for each level of depth, worked out from the data as the row is made: a line where a folder above still has a folder after it, and at the row's own level a tee, or an elbow for a folder's last child, with the twistie on the line for a folder that has folders inside.
 
 App code makes the tree and keeps it, as it does a list: treeMake answers a plain object, the app calls the functions here on it, and the tree reports what the user did through the callbacks it was made with. Each folder is the app's own record, kept and handed back rather than copied, and each level is put in order by the comparator the app gives.
 */
 
-export function treeMake({identity, compare, onSelect = () => {}, onOpen = () => {}, onClose = () => {}, onTrouble}) {//a tree of its own element, which scrolls both ways. identity names the field in each folder that tells it from every other, compare puts each level in order, onSelect hears the folder the user selected, onOpen and onClose each folder opened or closed, each of these optional, and onTrouble anything that throws where the page hands the tree an event
+export function treeMake({identity, compare, say = folder => folder.name, onSelect = () => {}, onOpen = () => {}, onClose = () => {}, onTrouble}) {//a tree of its own element, which scrolls both ways. identity names the field in each folder that tells it from every other, compare puts each level in order, say makes what a folder's row shows from its record, text or runs that mix in small capitals as label.js takes them, onSelect hears the folder the user selected, onOpen and onClose each folder opened or closed, each of these optional, and onTrouble anything that throws where the page hands the tree an event
 	if (typeof identity != 'string' || !identity) throw new Error(`expected the name of the field that identifies a folder: ${identity}`)
 	if (typeof compare != 'function') throw new Error(`expected a comparator to put each level in order: ${compare}`)
 	let element = document.createElement('div')
 	element.className = 'myTree'
 	element.tabIndex = 0//so the tree can take the keyboard
-	let o = {element, identity, compare, onSelect, onOpen, onClose, rows: [], open: new Set(), shown: [], selected: -1}
+	let o = {element, identity, compare, say, onSelect, onOpen, onClose, rows: [], open: new Set(), shown: [], selected: -1}
 	let gate = handle => e => { try { handle(o, e) } catch (error) { onTrouble(error) } }
 	element.addEventListener('pointerdown', gate(_treePress))
 	element.addEventListener('dblclick', gate(_treeDoubleClick))
@@ -25,7 +26,7 @@ export function treeMake({identity, compare, onSelect = () => {}, onOpen = () =>
 	return o
 }
 
-export function treeRoots(o, folders) {//replace every folder, the roots and all they hold; a folder is a record with a name, an icon, its identity, and children, a list of the folders inside it, each a record like this one
+export function treeRoots(o, folders) {//replace every folder, the roots and all they hold; a folder is a record with a name, its identity, and children, a list of the folders inside it, each a record like this one
 	o.rows = []
 	o.open = new Set()
 	o.selected = -1
@@ -45,13 +46,13 @@ function _treeAdd(o, folders, parent, lines, seen) {//these folders under the ro
 		let held = node.children && node.children.length > 0
 		let above = parent != -1 || n > 0, below = n < sorted.length - 1//whether the line at this folder's level comes down to it, from the folder it is in or a root before it, and whether it runs on to another folder after it
 		let i = o.rows.length
-		o.rows.push(_treeRow({node, i, parent, lines, above, below, opens: held}))
+		o.rows.push(_treeRow({node, i, parent, lines, above, below, opens: held, said: o.say(node)}))
 		if (parent != -1) o.rows[parent].kids.push(i)
 		if (held) _treeAdd(o, node.children, i, [...lines, below], seen)
 	}
 }
 
-function _treeRow({node, i, parent, lines, above, below, opens}) {//one folder's row, i in rows: a guide cell for each level above, its own cell with a twistie on its line when it opens, and the icon and name a click selects
+function _treeRow({node, i, parent, lines, above, below, opens, said}) {//one folder's row, i in rows: a guide cell for each level above, its own cell with a twistie on its line when it opens, and the icon and name a click selects
 	let element = document.createElement('div')
 	element.className = 'myTreeRow'
 	element.dataset.row = i//how a press finds its row
@@ -78,9 +79,7 @@ function _treeRow({node, i, parent, lines, above, below, opens}) {//one folder's
 	let item = document.createElement('span'), icon = document.createElement('span'), label = document.createElement('span')
 	item.className = 'myTreeItem'
 	icon.className = 'myTreeIcon'
-	label.className = 'myTreeLabel'
-	icon.textContent = node.icon//a letter the app chooses, standing in for an icon
-	label.textContent = node.name//a folder's name is text nobody vouched for, so it goes in as text and is never parsed, as list.js explains
+	labelPut(label, said)//a folder's name is text nobody vouched for, which label.js puts in without ever parsing it
 	item.append(icon, label)
 	element.append(own, item)
 	return {node, parent, element, item, twistie, kids: []}

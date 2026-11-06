@@ -6,6 +6,7 @@ mod disk;//and disk.rs: file commands, one line each over steel's disk, and the 
 mod find;//and find.rs: the command over steel's find, many folders read in one call, and why
 mod inventory;//and inventory.rs: the inventory's commands, which start copper's loop over a folder's whole tree, read its counts and stop it
 mod launch;//and launch.rs: the two commands over copper's launch services
+mod locale;//and locale.rs: the command over copper's locale, how the user's system writes numbers
 #[cfg(target_os = "macos")]//the dock menu is a macos idea and the module is all AppKit
 mod dock;//and dock.rs: the dock icon's own menu, and its one New Window item
 mod log;//and log.rs: the log's text, held from both sides and written on the way out
@@ -96,6 +97,7 @@ pub fn run() {
 				log::log_append,
 				launch::launch_opens,//and in launch.rs
 				launch::launch_set,
+				locale::locale_grouping,//and in locale.rs
 				memory::memory_report,//and in memory.rs
 				media::media_version,//and in media.rs
 				media::media_start,

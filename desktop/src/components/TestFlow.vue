@@ -1,14 +1,14 @@
 <script setup>//every thumbnail sized by a fit, and the tiles flow like words; the pixels come from the operating system or from the page, decided per file
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {cacheNeed, cacheRelease} from '../cache.js'
 import {governorRun} from '../governor.js'
 import {settings, settingsThumbnailBeam} from '../settings.js'
 import {fitSize} from '../fit.js'
 import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
 import {logTrouble, logThumbnail, logBucket} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
-import {xy, platform, sayDay, sayDimensions, middleDot, thinSpace, backize} from './library.js'
+import {xy, platform, sayCaptionDay, sayCaptionSize, sayDimensions, middleDot, thinSpace, backize} from './library.js'
+import {labelPut} from '../label.js'
 import {fileTypesSheet} from '../fileTypes.js'
 
 /*
@@ -135,10 +135,14 @@ function flowImgLoad(tile, event) {//an img tile, sized by the fit once the engi
 	else tile.css = xy(flowBeam, flowBeam)
 }
 
-function flowDetails(tile) {//the caption's second line: the day the file was last modified, the date Finder and Explorer show by default and the one a copy keeps, where Explorer gives a copy a new created time; its size, and the size the picture shows at, each left out until it is known, so a missing one never leaves a divider standing alone
-	let parts = [sayDay(tile.file.mtime), saySize4(tile.file.size)]
-	if (tile.natural) parts.push(sayDimensions(tile.natural))//known once the thumbnail lands, and never for a file fuji refused
-	return parts.filter(part => part).map(part => part.replaceAll(' ', thinSpace)).join(` ${middleDot} `)//thin spaces within each part, since this caption is proportional text, and full spaces around the dot, which separates the parts; the dot chosen 2026-10-06 over a fullwidth slash, two spaces and a plain slash
+function flowDetails(tile) {//the caption's second line as runs: the day the file was last modified, the date Finder and Explorer show by default and the one a copy keeps, where Explorer gives a copy a new created time; its size, and the size the picture shows at, each left out until it is known, so a missing one never leaves a divider standing alone
+	let parts = [sayCaptionDay(tile.file.mtime, settings), sayCaptionSize(tile.file.size, settings)]
+	if (tile.natural) parts.push([sayDimensions(tile.natural)])//known once the thumbnail lands, and never for a file fuji refused
+	return parts.filter(part => part.length).flatMap((part, i) => i == 0 ? part : [` ${middleDot} `, ...part])//the dot between the parts, chosen 2026-10-06 over a fullwidth slash, two spaces and a plain slash
+}
+function flowLabel(said) {//a ref that puts a caption line's runs into its element as the flow renders, every space a thin one, since a caption is proportional text with little room under a narrow thumbnail and nothing in it lines up; said is worked out in the render itself rather than in here, so vue hears what it was read from, a tile's size arriving among them, and renders again when that changes
+	let thin = said.map(run => typeof run == 'string' ? run.replaceAll(' ', thinSpace) : run)
+	return el => { if (el) labelPut(el, thin) }
 }
 
 function flowCopy(path) {//a click on a caption: the picture's whole path onto the clipboard, written the way the platform's own file manager writes it; nothing on screen says so yet
@@ -209,8 +213,8 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 		></canvas>
 		<img v-else-if="tile.kind == 'img' && tile.url" class="myTile" :class="{myImg: !tile.css}" :src="tile.url" :style="tile.css ? {width: tile.css.x + 'px', height: tile.css.y + 'px'} : {}" @load="flowImgLoad(tile, $event)" @error="flowRefuse(tile, 'the engine could not show it')" />
 		<div class="myCaption mySans" @click="flowCopy(tile.path)"><!-- always the same lines, each its own text rather than one text wrapped, so every caption is the same height and each line is cut on its own -->
-			<div class="myCaptionLine">{{tile.file.name}}</div>
-			<div class="myCaptionLine">{{flowDetails(tile)}}</div>
+			<div class="myCaptionLine" :ref="flowLabel([tile.file.name])"></div>
+			<div class="myCaptionLine" :ref="flowLabel(flowDetails(tile))"></div><!-- both lines runs, which label.js puts in as text and small spans; empty in the template, so vue leaves what it puts there alone -->
 		</div>
 	</div></template>
 </div>
@@ -241,7 +245,7 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 }
 .myCaptionLine {
 	min-height: 1lh; /* a line tall even with nothing in it, like the size of a picture not yet loaded or refused, so every caption keeps the same height */
-	white-space: pre; overflow: hidden; /* one line, cut off at the tile's right edge where the tile is narrower than the words; pre rather than nowrap, which also never wraps but keeps every space, so a filename shows its spaces as they are */
+	white-space: pre; overflow: hidden; /* one line, cut off at the tile's right edge where the tile is narrower than the words; pre rather than nowrap, which also never wraps but keeps every space, so a filename shows each of its spaces, thin as every space in a caption is */
 	mask-image: linear-gradient(to right, black calc(100% - 2px), transparent); /* and melted over the last 2 css pixels, so a letter cut in half fades out rather than looking broken; on the line's box rather than the overflow, so a short line ending right there fades a little too, which is the price of doing it without script */
 }
 .myImg { /* an img tile until flowImgLoad has sized it, which is the moment between the url and the load */

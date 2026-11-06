@@ -6,7 +6,7 @@ import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {dialogOpen} from '../dialog.js'//the system's open box, which rust puts up
 import {picturesFolder} from '../paths.js'//where that box opens when no folder is on the sheet
-import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet} from './library.js'
+import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet, groupingLoad} from './library.js'
 import {settings, settingsLoad, settingsChanged} from '../settings.js'
 import {menuText, menuWaiting, menuEnable} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, which item a new window was made to answer, and which Edit items are lit
 import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
@@ -96,6 +96,11 @@ onMounted(async () => {
 		waiting = await menuWaiting()
 	} catch (error) {
 		notices.push(sayTrouble('shell: asking what the menu bar chose', error))//the same reasoning as above: nothing here is worth leaving the window hidden for
+	}
+	try {
+		await groupingLoad()//before anything says a size
+	} catch (error) {
+		notices.push(sayTrouble('shell: asking how the system groups digits', error))//and sizes keep the comma
 	}
 	let chosen = ''//what that Open… chose, a file or a folder, which opens after the reveal the way Open… opens one in a window already open: a folder on the contact sheet and a picture on the light table, never in the preview a double-click gets
 	if (waiting == 'menu-open') { chosen = opened[0] || ''; opened = []; waiting = '' }//answered by the choice, so nothing below puts the box up again

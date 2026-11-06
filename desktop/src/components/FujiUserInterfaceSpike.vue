@@ -1,12 +1,13 @@
 <script setup>//the bench fuji's list and tree are built on: the tree and the list side by side, as a file manager lays them out, each with mock data the page makes for it, a bar between them that sizes them, and how long the list takes to build, filter and scroll, on screen and in the log
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {Size, Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {log, logTrouble} from '../log.js'
+import {settings} from '../settings.js'
 import {modelCompare} from '../model.js'
 import {listMake, listRows, listFilter, listKey, listSelected} from '../list.js'
 import {treeMake, treeRoots, treeKey} from '../tree.js'
-import {sayDayTime} from './library.js'
+import {sayListSize, sayListDate} from './library.js'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import FujiList from './FujiList.vue'
 import FujiTree from './FujiTree.vue'
@@ -107,13 +108,10 @@ function scrollEnd() {
 }
 onBeforeUnmount(() => { scrolling = false; clearTimeout(scrollQuiet) })
 
-function sayKilobytes(bytes) { return `${Math.ceil(bytes / Size.kb).toLocaleString('en-US')} KB` }//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
-const examples = ['(2026NOV05)', '(1999DEC31 11:59PM)', '(2000JAN01 12:00AM)', '(640×480)', '(1920×1080)', '(3840×2160)']//the first mock rows, which show fuji's own marks in every face: dates with the month and the hour's AM or PM in small capitals, and sizes with the multiplication sign. In parentheses, which sort before the digits that start the mock hashes and timestamps, so the list opens with them at the top
-function sayName(name) { return examples.includes(name) ? name.split(/(?<=\d)([A-Z]+)/).map((part, i) => i % 2 ? {small: part} : part).filter(part => part) : name }//an example's capitals that follow a digit drawn small, and every other name as it is
-const columns = [
-	{key: 'name', title: 'Name', say: sayName, compare: modelCompare, width: 320},//names in fuji's one sort, the order every list and view in fuji shows
-	{key: 'size', title: 'Size', say: sayKilobytes, align: 'right', width: 128},
-	{key: 'modified', title: 'Date', say: sayDayTime, width: 152},
+const columns = [//the settings read as each row is made, so a change shows the next time the bench opens
+	{key: 'name', title: 'Name', compare: modelCompare, width: 320},//names in fuji's one sort, the order every list and view in fuji shows
+	{key: 'size', title: 'Size', say: bytes => sayListSize(bytes, settings), align: 'right', tabular: settings.font.capitals, width: 128},//digits of one width only while small capitals are on, and otherwise the face's own
+	{key: 'modified', title: 'Date', say: tick => sayListDate(tick, settings), tabular: settings.font.capitals, width: 152},
 ]
 const list = listMake({identity: 'name', columns, onSelect: p => onSelect(p).catch(trouble), onSort: p => onSort(p).catch(trouble), onMenu, onTrouble: error => logTrouble('fuji list', error)})//the mock names are unique, so a name is a row's identity
 
@@ -152,7 +150,6 @@ function mockRows(n) {
 			size: Math.floor(2 ** (random() * 37)),//spread evenly by order of magnitude, from a byte to 128 gigabytes, so short sizes and very long ones sit side by side
 			modified: first + Math.floor(randomWhen() * (last - first)),//a tick, milliseconds since 1970 in utc
 		}))
-		for (let [i, name] of examples.entries()) mockMade[i].name = name//the examples in place of the first names made, so they are there at every count
 	}
 	return mockMade.slice(0, n)//the same rows at every count, in the order they were made, as a disk hands over a folder; the list puts them in fuji's sort
 }
@@ -203,7 +200,7 @@ function mockFolders() {//folders for the tree, chosen by hand so each kind of r
 			...[2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026].map(year => folder(`Backup ${year}`, year % 3 != 0))),//every third one empty
 		folder('Empty Drive', false),
 	]
-	let shape = (f, above) => {//each folder as the tree reads it, the way an app would hand over its own records: an identity, a name, an icon, and the folders inside
+	let shape = (f, above) => {//each folder as the tree reads it, the way an app would hand over its own records: an identity, a name, an icon for when the tree draws one, and the folders inside
 		let path = `${above}/${f.name}`
 		return {path, name: f.name, icon: (f.files || f.children.length > 0) ? 'F' : 'E', children: f.children.map(child => shape(child, path))}//E for a folder with nothing inside at all
 	}

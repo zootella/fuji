@@ -468,6 +468,7 @@ dependencies = [
  "blake3",
  "block2",
  "core-foundation",
+ "core-foundation-sys",
  "core-graphics",
  "foreign-types-shared",
  "gio",

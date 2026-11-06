@@ -8,6 +8,7 @@ pub mod trash;//the Trash and the Recycle Bin
 pub mod uptime;//when the operating system started this process
 pub mod panel;//how many pixels the main display really has
 pub mod launch;//launch services, the mac's record of which application opens which kind of file
+pub mod locale;//how the user's system writes numbers
 pub mod registry;//the windows registry, read and written for the page
 pub mod memory;//the machine's memory and what fuji's processes take of it
 pub mod thumbnail;//the operating system's thumbnailer, ImageIO and the Windows Imaging Component

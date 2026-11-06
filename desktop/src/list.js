@@ -1,6 +1,7 @@
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {isCommandOrControl} from './keyboard.js'
 import {selectionEmpty, selectionClick, selectionMove, selectionFocus, selectionSmear, selectionAll} from './selection.js'
+import {labelPut} from './label.js'
 
 /*
 Fuji's own list, drawn with the page's own elements rather than through Vue. A list is many rows whose state changes a little at a time, a click marking one row or a keystroke in the filter hiding a few, and Vue answers every change by running its template over all of them to find the few that differ. Here each row is one element, made once and kept for the life of the list, and a change touches only the rows it changes: the filter sets hidden on the rows whose answer flipped, and a press or a key marks the rows whose selection or focus did. Every row is in the page, with no windowing and no virtualizer: this plain list built, scrolled and filtered ten thousand rows without trouble on the Mac mini and the Windows box, scrolls on the engine's compositor with no script running, and leaves scrolling a row into view to the browser. FujiUserInterfaceSpike.vue is the bench that times it.
@@ -8,7 +9,7 @@ Fuji's own list, drawn with the page's own elements rather than through Vue. A l
 App code makes the list and keeps it, rather than a component making it and the app reaching in through Vue. listMake answers a plain object, the app calls the functions here on it, and the list reports what the user did through the callbacks it was made with, asking the app for nothing. So the list lives as long as the app wants it, a plain module can hold one and fill it with no framework in between, and FujiList.vue does nothing but put its element on screen. Each row carries its identity in a field the app names, a path for a folder on disk or a tag for something with no path, so a record that arrives later as a fresh object, from Rust or from another process, can name the row it describes.
 */
 
-export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble}) {//a list of its own element, a row of headers and below it the rows, which scroll. identity names the field in each row that tells it from every other. columns says what each row shows, left to right: each has a key into the row, the title its header says, a say function that makes its value text, or a list of runs for text that mixes in small capitals, each run a string or {small} holding capitals to draw small, a compare function that says which of two rows comes first, which a column of raw numbers leaves out, an align, and a width in css pixels. onSelect hears what each press, key or drag did, with how many rows it left selected, how many changed, its kind and the list's own milliseconds; onSort each sort, by which column and which way; onMenu where in the window a right click asks for a menu; and onTrouble anything that throws where the page hands the list an event
+export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble}) {//a list of its own element, a row of headers and below it the rows, which scroll. identity names the field in each row that tells it from every other. columns says what each row shows, left to right: each has a key into the row, the title its header says, a say function that makes its value text, or runs that mix in small capitals as label.js takes them, a compare function that says which of two rows comes first, which a column of raw numbers leaves out, an align, tabular to draw every digit one width so the digits line up down the column, and a width in css pixels. onSelect hears what each press, key or drag did, with how many rows it left selected, how many changed, its kind and the list's own milliseconds; onSort each sort, by which column and which way; onMenu where in the window a right click asks for a menu; and onTrouble anything that throws where the page hands the list an event
 	if (typeof identity != 'string' || !identity) throw new Error(`expected the name of the field that identifies a row: ${identity}`)
 	let element = document.createElement('div'), header = document.createElement('div'), root = document.createElement('div')
 	element.className = 'myListFrame'
@@ -17,7 +18,7 @@ export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble
 	root.tabIndex = 0//so the list can take the keyboard
 	element.append(header, root)
 	for (let c of columns) if (typeof c.width != 'number' || c.width <= 0) throw new Error(`expected a width in css pixels for column ${c.key}: ${c.width}`)
-	let o = {element, header, root, identity, columns, onSelect, onSort, onMenu, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
+	let o = {element, header, root, identity, columns, onSelect, onSort, onMenu, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], textWidths: [], beside: [], cutLines: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
 	for (let [i, column] of columns.entries()) {
 		let cell = document.createElement('span')
 		cell.className = 'myListCell'
@@ -69,17 +70,14 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 			let cell = document.createElement('span')
 			cell.className = 'myListCell'
 			if (column.align) cell.dataset.align = column.align
+			if (column.tabular) cell.dataset.tabular = 'true'
 			if (k == 0) {//the icon beside the name, as Finder and Explorer draw one: a placeholder square for now, showing where the icons will go
 				let icon = document.createElement('span')
 				icon.className = 'myListIcon'
 				cell.append(icon)
 			}
 			let text = document.createElement('span')//the text in a box of its own, beside the icon in the first column
-			text.className = 'myListText'
-			/*
-			A cell's text is a file's name or something said about the file, and a file's name is text nobody vouched for. On the Mac and on Linux a name can hold angle brackets and quotes, and be written to look like markup that loads a picture and runs a script when the picture fails; a torrent's list of files carries whatever its maker typed. Assigned to innerHTML, the engine would parse that name into elements and run it. Assigned to textContent, the DOM replaces the element's children with a single text node holding the string exactly as it is, and nothing in it is ever parsed. That is how the rest of fuji is safe without saying so: Vue's double curly braces reach the page through the same doors, its runtime making each interpolation a node with createTextNode, updating it through nodeValue, and setting an element's whole text with textContent. OWASP's guide to preventing DOM-based cross-site scripting names textContent the safe assignment property. So nothing in the list writes markup from a string: a row that grows an icon builds it with createElement and hands every part it did not write itself to textContent. Text that mixes in small capitals is the same: each plain run becomes a text node, which is never parsed either, and each small run a span of its own whose text goes to textContent.
-			*/
-			_listPut(text, _listSay(column, row))
+			labelPut(text, _listSay(column, row))//a file's name is text nobody vouched for, which label.js puts in without ever parsing it
 			cell.append(text)
 			e.append(cell)
 		}
@@ -89,22 +87,38 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 	o.order = rows.map((row, i) => i)
 	o.order = _listSorted(o)//in the sort the list already has, so new rows keep the one the user chose for the old ones
 	_listPlace(o)
+	_listMeasure(o)//before the filter hides any row, since a hidden row lays out zero wide
 	o.traits = selectionEmpty()
 	_listShow(o)
 }
+function _listMeasure(o) {//each cell's text width, read from the layout once as the rows are made, so telling a cut cell is arithmetic from then on: a span in the cell's flex row never shrinks below its text, so its width is the whole text as drawn, small capitals and tabular digits included, even where the cell cuts it off. Read on screen, so a list fills its rows once it is placed, and a change of faces, which changes every width, needs the rows made again
+	o.textWidths = o.elements.map(e => o.columns.map((c, k) => e.children[k].lastChild.getBoundingClientRect().width))
+	o.beside = o.columns.map((c, k) => _listBeside(o, k))
+	o.cutLines = o.elements.map(() => o.columns.map(() => false))//each cell's line, or false where its text fits
+	_listCutLines(o, o.columns.map((c, k) => k))
+}
+function _listCutLines(o, columns) {//the line at the edge of each cell in these columns whose text is wider than its column leaves room for, drawn or taken away only where the answer changed, so a drag on a divider touches only the cells it cuts or uncovers
+	for (let [i, e] of o.elements.entries()) for (let k of columns) {
+		let cut = o.textWidths[i][k] > o.widths[k] - o.beside[k] + 0.01//the hundredth so a text that exactly fits, measured in fractions, is never called cut
+		if (cut == Boolean(o.cutLines[i][k])) continue
+		if (!cut) { o.cutLines[i][k].remove(); o.cutLines[i][k] = false; continue }
+		let line = document.createElement('span')//beside the cells rather than in one, since a cell clips what is inside it to its own box, and the line reaches past the row
+		line.className = 'myCutLine'
+		line.style.gridColumn = `${k + 1} / ${k + 2}`//placed against its column's area of the row's grid, without taking a place in the grid; both lines named, since a positioned child's missing end line is the grid's padding edge rather than the next line
+		if (o.columns[k].align) line.dataset.align = o.columns[k].align
+		e.append(line)
+		o.cutLines[i][k] = line
+	}
+}
+function _listBeside(o, column) {//the room a column's cells keep beside their text
+	let style = getComputedStyle(o.header.children[column])
+	let beside = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)//the cell's padding at either end, read from the header's cell, whose padding the rows' cells share
+	let icon = o.elements[0]?.children[column].querySelector('.myListIcon')//and in a column that shows an icon, the icon and the gap after it, read from a row
+	if (icon) beside += parseFloat(getComputedStyle(icon).width) + parseFloat(getComputedStyle(icon.parentElement).columnGap)//from the style rather than the layout, since the filter may have hidden that row, and a hidden row's icon lays out zero wide
+	return beside
+}
 
 function _listSay(column, row) { return column.say ? column.say(row[column.key]) : String(row[column.key]) }//the text a cell shows for a row's value
-function _listPut(element, said) {//a cell's text into its box: a string as it is, or runs, each plain run a text node and each run of small capitals a span the stylesheet draws small
-	if (typeof said == 'string') { element.textContent = said; return }
-	element.replaceChildren(...said.map(run => {
-		if (typeof run == 'string') return run//replaceChildren makes a string a text node, never markup
-		let small = document.createElement('span')
-		small.className = 'mySmallCaps'
-		small.textContent = run.small
-		return small
-	}))
-}
-function _listPlain(said) { return typeof said == 'string' ? said : said.map(run => typeof run == 'string' ? run : run.small).join('') }//the same text as one string, for measuring; the canvas measures small capitals as full ones, so a column fit to them comes out a little wide and never cuts one off
 
 const listNarrowest = 24//css pixels, the narrowest a drag leaves a column, which still leaves its divider to grab
 function _listGrid(o) { o.element.style.setProperty('--list-columns', o.widths.map(w => `${w}px`).join(' ')) }//the widths onto the one grid the headers and rows share
@@ -114,7 +128,7 @@ function _listGripPress(o, e) {//a press on a divider resizes the column to its 
 	if (!grip || e.button != 0) return
 	let column = Number(grip.parentElement.dataset.column), startX = e.clientX, startWidth = o.widths[column]
 	grip.setPointerCapture(e.pointerId)//so the drag keeps the pointer outside the header and outside the window
-	let move = m => { o.widths[column] = Math.max(listNarrowest, Math.round(startWidth + m.clientX - startX)); _listGrid(o) }
+	let move = m => { o.widths[column] = Math.max(listNarrowest, Math.round(startWidth + m.clientX - startX)); _listGrid(o); _listCutLines(o, [column]) }
 	let end = () => { grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', end); grip.removeEventListener('pointercancel', end) }
 	grip.addEventListener('pointermove', move)
 	grip.addEventListener('pointerup', end)
@@ -127,14 +141,12 @@ function _listGripFit(o, e) {//a double-click on a divider fits its column to th
 	let column = Number(grip.parentElement.dataset.column), c = o.columns[column]
 	let measure = document.createElement('canvas').getContext('2d')
 	let style = getComputedStyle(grip.parentElement)
-	measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`//the list's own font, so text is measured without drawing any of it, quickly enough for ten thousand rows at once
+	measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`//the list's own font, so the header is measured without drawing it
 	let widest = measure.measureText(`${c.title} ▲ `).width//room for the header and the sort arrow beside it
-	for (let row of o.rows) widest = Math.max(widest, measure.measureText(_listPlain(_listSay(c, row))).width)
-	let beside = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)//the cell's padding at either end, read from the header's cell, whose padding the rows' cells share
-	let icon = o.elements[0]?.children[column].querySelector('.myListIcon')//and in a column that shows an icon, the icon and the gap after it, read from a row
-	if (icon) beside += parseFloat(getComputedStyle(icon).width) + parseFloat(getComputedStyle(icon.parentElement).columnGap)//from the style rather than the layout, since the filter may have hidden that row, and a hidden row's icon lays out zero wide
-	o.widths[column] = Math.ceil(widest + beside) + 2//and a pixel each side so the last letter is never cut
+	for (let row of o.textWidths) widest = Math.max(widest, row[column])//and every row's text, as the rows measured it when they were made, filtered or not
+	o.widths[column] = Math.ceil(widest + o.beside[column]) + 2//and a pixel each side so the last letter is never cut
 	_listGrid(o)
+	_listCutLines(o, [column])
 }
 
 function _listHeaderClick(o, e) {//a click on a header sorts by its column, and another on the same header reverses it, as Explorer and Finder do

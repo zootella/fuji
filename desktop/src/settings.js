@@ -47,6 +47,18 @@ const settingsSchema = [
 		factory: 'Alphabet',
 		comment: `which order ${brandName} puts a folder in: Alphabet is the order javascript itself puts an array of names in, capitals before lowercase and page10 before page9, with no locale and no opinion; the sorts ${brandName} has are known to the model rather than here, so a name it does not recognize is reported there and Alphabet used instead`,
 	}, {
+		section: 'list',
+		key: 'sizes',
+		factory: 'Kilo',
+		comment: `how a list says a file's size: Bytes as the number of bytes alone, like 122,683,392; Kilo in kilobytes rounded up, so a file of one byte is 1 KB and the width of the digits shows a size's order of magnitude; Four in four digits or fewer and whichever unit fits, like 117 MB. The settings panel changes this too`,
+		check: value => ['Bytes', 'Kilo', 'Four'].includes(value),
+	}, {
+		section: 'time',
+		key: 'clock',
+		factory: 'Local12',
+		comment: `which clock ${brandName} shows a date and time on: Local12 is this computer's time zone on a 12 hour clock, the hour as it is with an a or a p after, like 6:21a; Local24 is the same zone on a 24 hour clock, the hour in two digits with nothing after, like 06:21; and Utc is coordinated universal time, the same on every computer, on a 24 hour clock as utc always is. ${brandName} keeps every time in utc underneath and takes none of this from the system, so this changes only how a time is shown; the settings panel changes this too`,
+		check: value => ['Local12', 'Local24', 'Utc'].includes(value),
+	}, {
 		section: 'bucket',
 		key: 'images',
 		factory: 200,
@@ -161,6 +173,11 @@ const settingsSchema = [
 		comment: `which fonts ${brandName} sets its text in. system uses the computer's own, so ${brandName} looks at home on it: Segoe UI with Consolas on Windows, and San Francisco with SF Mono on a mac. bundled uses the two ${brandName} carries, Inter with IBM Plex Mono for the fixed-width text, so it looks the same on every computer. retro is Verdana, which Windows and macs install, with IBM Plex Mono again; linux does not have it, so there retro goes back to system. The fixed-width text is every hud and panel; the other face is the caption beneath each thumbnail; the settings panel changes this too`,
 		check: value => ['system', 'bundled', ...(platform() == 'linux' ? [] : ['retro'])].includes(value),//retro only where Verdana is installed with the system, which a linux desktop cannot promise
 	}, {
+		section: 'font',
+		key: 'capitals',
+		factory: false,
+		comment: `small capitals: ${brandName}'s own look for the dates and sizes it shows, a month, an AM or PM and a size's unit drawn small, with bytes as B. In a list, where they stack down a column, a date reads like 2023 NOV 18 06:50 PM with the hour always in two digits, a size's digits go in threes split by spaces whatever the system groups them with, and every digit is one width, so they line up. Off, they are plain text in the faces above; the settings panel changes this too`,
+	}, {
 		section: 'appearance',
 		key: 'mode',
 		factory: 'system',
@@ -196,6 +213,11 @@ const settingsSchema = [
 	},
 ]
 
+/*
+A change to a setting reaches what is already on screen late, and other open windows not at all, which is known and set aside for now.
+
+The live settings are a plain object rather than anything Vue watches, read whenever something is said or drawn. So a view made after a change shows it, while one already showing keeps what it said until it remakes it: the contact sheet stays mounted behind the settings panel, and its captions keep the old day until its page is cut again. Across windows it is wider. Each window's page reads the file as it opens and keeps its own copy, a change in one never reaches another that is open, and the file is written whole, so the copy handed down last wins: on the Mac, where every window is in one process, the window changed most recently, and elsewhere, where every window is a process of its own, whichever process with a change closes last. When this is taken up it is one question, how a change reaches every open process, window and view, rather than a ref for each setting.
+*/
 export const settings = settingsFactory()//the live settings the rest of fuji reads, filled in at startup and never replaced, so an importer keeps the same object
 
 let settingsFilePath = ''//where the file is, found once at startup

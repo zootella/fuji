@@ -424,7 +424,7 @@ function sayMs(n) { return `${Math.round(n)}ms` }//a duration in whole milliseco
 function captionText() {//the caption's two lines: the picture's full path as the platform writes it, then the day it was last modified, its size and its dimensions, the line the contact sheet writes under a thumbnail with the path in place of the name. Read by the caption and by the hud, so the two never differ
 	let file = modelFile(here.path)//the listing's entry, with the modified time and the size; false for a picture outside the listed folder, which then shows its path and dimensions alone
 	let parts = []
-	if (file) parts.push(sayDay(file.mtime), saySize4(file.size))
+	if (file) parts.push(sayDay(file.mtime, settings.time.clock), saySize4(file.size))
 	if (here.element) parts.push(sayDimensions(here.natural))//none for the error placeholder, whose dimensions are nobody's
 	return `${backize(here.path)}\n${parts.filter(part => part).join(` ${middleDot} `)}`
 }

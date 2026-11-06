@@ -11,10 +11,11 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {Data, Time, hasTick, sayTick} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {Data, Size, Time, hasTick, sayTick, saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import {diskRead, diskReadDir, diskPeek} from '../disk.js'//our rust modules
 import {findFolders} from '../find.js'
 import {panelResolution} from '../panel.js'
+import {localeGrouping} from '../locale.js'
 import {brandName} from '../brand.js'
 import {fileTypesEnabled, fileTypesRender} from '../fileTypes.js'
 
@@ -258,38 +259,63 @@ let _screen//{when, panelScreen} ttd august, save here if not 0,0; report from h
 
 
 
-//group digits like "12,345"
-export function sayGroupDigits(s, thousandsSeparator = ',') {//pass comma, period, or leave out to get international ready thin space
-	if (typeof s != 'string') s += ''
-
-	let minus = ''
-	if (s.startsWith('-')) { minus = '-'; s = s.slice(1) }//deal with negative numbers
-	if (s.length > 4) {//let a group of four through
-		s = s.split('').reverse().join('')//reversed
-		s = s.match(/.{1,3}/g).join(thousandsSeparator)//grouped reverse
-		s = s.split('').reverse().join('')//forward again
-	}
-	return minus+s
-}
-
-export const thinSpace = '\u2009'//between a number and its unit, and around the parts of a date or the x of a size, in proportional text only: a fixed-width face draws it a full cell wide, or lacks it and borrows one from another font that sets the rest of the line off the grid; named rather than typed, because typed it looks like any other space
+export const thinSpace = '\u2009'//a narrow space for proportional text where room is short, like a thumbnail's caption, and never for fixed-width text: a fixed-width face draws it a full cell wide, or lacks it and borrows one from another font that sets the rest of the line off the grid; named rather than typed, because typed it looks like any other space
 export const multiplicationSign = '\u00d7'//the x of a size, which typed is easy to mistake for the letter
 export const middleDot = '\u00b7'//between things listed on one line, which typed is easy to mistake for a period
 
-export function sayDimensions(size) {//a picture's width by its height, like 1050 × 856
-	return `${size.x} ${multiplicationSign} ${size.y}`
+export function sayDimensions(size) {//a picture's width by its height, like 1050×856, with no space around the sign, so the two numbers read as one size
+	return `${size.x}${multiplicationSign}${size.y}`
+}
+let grouping = ','//the separator between groups of digits in a size: the system's own once groupingLoad has asked, and the american comma before then or where the system will not say
+export async function groupingLoad() { let said = await localeGrouping(); if (said) grouping = said }//once as a window starts, so every size after it groups its digits the way the user's system does; a space counts, since Swedish and French group with one
+export function sayListSize(bytes, settings) {//a file's size as a list's size column says it, in the unit settings.list.sizes chooses, and in fuji's own look while settings.font.capitals is on, its digits grouped by spaces whatever the system's separator and its unit drawn small; handed the settings rather than importing them, since settings.js imports this file
+	let capitals = settings.font.capitals, sizes = settings.list.sizes
+	let separator = capitals ? ' ' : grouping
+	if (sizes == 'Bytes') return _sayGrouped(bytes, separator)//every digit, and no unit
+	if (sizes == 'Four') return capitals ? _markUnit(saySize4(bytes), {fixed: true}) : saySize4(bytes).replace(' ', thinSpace)//four digits at most, so nothing to group; a thin space before the unit in proportional text, where fuji's own look keeps an ordinary one, as it spaces everything evenly
+	let kilobytes = `${_sayGrouped(Math.ceil(bytes / Size.kb), separator)} KB`//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
+	return capitals ? _markUnit(kilobytes, {fixed: true}) : kilobytes
+}
+export function sayCaptionSize(bytes, settings) {//a file's size as runs, as a caption under a thumbnail says it, in four digits or fewer, and the unit drawn small while settings.font.capitals is on, like 117 MB
+	if (!settings.font.capitals) return [saySize4(bytes)]
+	return _markUnit(saySize4(bytes))
+}
+function _sayGrouped(n, separator) { return n.toLocaleString('en-US').replaceAll(',', () => separator) }//digits in groups of three, as american english groups them, with separator between the groups; handed over by a function, since a replacement given as text reads a $ in it as a pattern
+function _markUnit(text, {fixed = false} = {}) {//a size as runs, the unit after its last space drawn as small capitals, and bytes said as B. fixed where sizes stack down a column, which puts the unit in the fixed-width face and gives B a blank letter's room after it, so every unit is two letters wide and the digits before them line up
+	let at = text.lastIndexOf(' ')
+	let unit = text.slice(at + 1)
+	if (unit == 'byte' || unit == 'bytes') unit = 'B'
+	if (fixed) return [text.slice(0, at + 1), {small: unit, fixed: true, pad: unit.length == 1}]
+	return [text.slice(0, at + 1), {small: unit}]
 }
 
-export function sayDay(milliseconds) {//the day a time falls on, in this machine's time zone, year first like 2026 Oct 6, in ergo's english whatever the machine's language; blank for 0, which is how a listing says the file system had no answer, rather than a day in 1970, and blank too for a day outside 1970 through 9999, the years ergo writes, which on a file is a broken date
-	return _sayLocal(milliseconds, 'YYYY Mmm D')
+/*
+A date or a time is said by the functions below, which take the clock the user chose, settings.time.clock, or the settings whole where the look reaches past the clock: Local12 or Local24 for this machine's time zone on a 12 or a 24 hour clock, or Utc, on a 24 hour clock. Fuji keeps every time as milliseconds since 1970 in utc, from the disk to the log, and turns one into a wall clock's reading only as it says it to the user, here, so the zone is chosen at that moment.
+*/
+export function sayDay(milliseconds, clock) {//the day a time falls on, year first like 2026 Oct 6, in ergo's english whatever the machine's language; blank for 0, which is how a listing says the file system had no answer, rather than a day in 1970, and blank too for a day outside 1970 through 9999, the years ergo writes, which on a file is a broken date
+	return _sayZoned(milliseconds, clock, 'YYYY Mmm D')
 }
-export function sayDayTime(milliseconds) {//the day and the minute in this machine's time zone, like 2026-Oct-06 2:45p, as a list's date column says them; blank where sayDay is blank
-	return _sayLocal(milliseconds, 'YYYY-Mmm-DD h12:mma')
+export function sayCaptionDay(milliseconds, settings) {//the same day as runs, as a caption under a thumbnail says it, the day never padded, since nothing in a caption lines up; while settings.font.capitals is on, the month in capitals drawn small in the caption's own face, like 2026 OCT 6
+	let say = template => _sayZoned(milliseconds, settings.time.clock, template)
+	if (!say('YYYY')) return []
+	if (!settings.font.capitals) return [sayDay(milliseconds, settings.time.clock)]
+	return [`${say('YYYY')} `, {small: say('MMM')}, ` ${say('D')}`]
 }
-function _sayLocal(milliseconds, template) {
+export function sayListDate(milliseconds, settings) {//the day and the minute as a list's date column says them, on a 12 hour clock like 2026-Oct-06 2:45p or a 24 hour one like 2026-Oct-06 14:45; blank where sayDay is blank. While settings.font.capitals is on, they are runs in fuji's own look, each part apart from the next by a space, with the month and the AM or PM drawn small, like 2023 NOV 18 06:50 PM, the month in the fixed-width face too and the hour always two digits, so every date is one width and each part of it lines up down a column
+	let clock = settings.time.clock, say = template => _sayZoned(milliseconds, clock, template)
+	if (!settings.font.capitals) return say(`YYYY-Mmm-DD ${_sayClock(clock, 'h12:mma')}`)
+	if (!say('YYYY')) return []
+	let runs = [`${say('YYYY')} `, {small: say('MMM'), fixed: true}, ` ${say('DD')} ${say(_sayClock(clock, 'hh12:mm'))}`]
+	if (clock == 'Local12') runs.push(' ', {small: say('AA')})//AM or PM
+	return runs
+}
+function _sayClock(clock, twelve) { return clock == 'Local12' ? twelve : 'hh24:mm' }//the time's tags on the clock chosen, with twelve the tags the caller wants for a 12 hour one
+function _sayZoned(milliseconds, clock, template) {
 	if (typeof milliseconds != 'number' || milliseconds < 0) throw new Error(`expected milliseconds since 1970: ${milliseconds}`)
+	if (clock != 'Local12' && clock != 'Local24' && clock != 'Utc') throw new Error(`expected a clock of Local12, Local24 or Utc: ${clock}`)
 	if (milliseconds == 0) return ''
-	let local = Math.floor(milliseconds - new Date(milliseconds).getTimezoneOffset() * Time.minute)//the tick whose utc fields are this machine's clock then, since sayTick writes utc and the day is the user's own
-	if (!hasTick(local)) return ''
-	return sayTick(local, template)
+	let shown = milliseconds//sayTick writes the utc fields of the tick it is handed
+	if (clock != 'Utc') shown = Math.floor(milliseconds - new Date(milliseconds).getTimezoneOffset() * Time.minute)//so for local time, the tick whose utc fields are this machine's clock then
+	if (!hasTick(shown)) return ''
+	return sayTick(shown, template)
 }

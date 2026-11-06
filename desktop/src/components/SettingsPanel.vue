@@ -24,6 +24,15 @@ function beamCommit() { settingsSet('thumbnail', 'beam', beam.value) }//the shee
 const fit = ref(settings.thumbnail.fit)//how every thumbnail is sized against that beam, one of the fits fit.js lists
 function fitCommit() { settingsSet('thumbnail', 'fit', fit.value) }//the same way
 
+const sizes = ref(settings.list.sizes)//how a list says a file's size; the buttons offer only the names the setting takes, so it never needs putting back
+function sizesCommit() { settingsSet('list', 'sizes', sizes.value) }//a list reads it as it makes its rows
+
+const clock = ref(settings.time.clock)//which clock a date and time are shown on, this machine's time zone on a 12 or a 24 hour clock, or utc
+function clockCommit() { settingsSet('time', 'clock', clock.value) }
+
+const capitals = ref(settings.font.capitals)//small capitals, fuji's own look for the dates and sizes it shows
+function capitalsCommit() { settingsSet('font', 'capitals', capitals.value) }
+
 const faces = ref(settings.font.faces)//which fonts, system, bundled or retro; the buttons offer only what the setting takes on this platform, so it never needs putting back
 const systemFaces = {windows: ['Segoe UI', 'Consolas'], mac: ['San Francisco', 'SF Mono']}[platform()]//what the system's fonts are, proportional and fixed-width, named where every computer of that kind has the same ones; a linux desktop chooses its own, so there the choice names none
 function facesCommit() {
@@ -70,6 +79,27 @@ defineExpose({onKey, onFocus, showAbout})//the calls of the shell's this view ha
 		<span>Fit</span>
 		<div role="radiogroup" aria-label="Fit" class="grid gap-1">
 			<label v-for="name in fitNames" :key="name" class="flex items-baseline gap-2"><input type="radio" name="fit" :value="name" v-model="fit" @change="fitCommit" /><span>{{name.replace(/Fit$/, '')}}: {{fitDescriptions[name]}}</span></label><!-- Square rather than SquareFit, as the sheet's toolbar wrote them until the choice moved here, and then what it does, from the table beside the fits themselves -->
+		</div>
+
+		<!-- a group of a few short choices sits on one line, wrapping only in a narrow window -->
+		<span>Sizes</span>
+		<div role="radiogroup" aria-label="Sizes" class="flex flex-wrap gap-x-6 gap-y-1">
+			<label class="flex items-baseline gap-2"><input type="radio" name="sizes" value="Bytes" v-model="sizes" @change="sizesCommit" /><span>Bytes</span></label>
+			<label class="flex items-baseline gap-2"><input type="radio" name="sizes" value="Kilo" v-model="sizes" @change="sizesCommit" /><span>Kilobytes</span></label>
+			<label class="flex items-baseline gap-2"><input type="radio" name="sizes" value="Four" v-model="sizes" @change="sizesCommit" /><span>Four digits</span></label>
+		</div>
+
+		<span>Time</span>
+		<div role="radiogroup" aria-label="Time" class="flex flex-wrap gap-x-6 gap-y-1">
+			<label class="flex items-baseline gap-2"><input type="radio" name="clock" value="Local12" v-model="clock" @change="clockCommit" /><span>Local 12 hour</span></label>
+			<label class="flex items-baseline gap-2"><input type="radio" name="clock" value="Local24" v-model="clock" @change="clockCommit" /><span>Local 24 hour</span></label>
+			<label class="flex items-baseline gap-2"><input type="radio" name="clock" value="Utc" v-model="clock" @change="clockCommit" /><span>UTC</span></label><!-- Utc in fuji.toml, in title case like the thumbnail beam's Xl -->
+		</div>
+
+		<span>Small capitals</span>
+		<div role="radiogroup" aria-label="Small capitals" class="flex flex-wrap gap-x-6 gap-y-1">
+			<label class="flex items-baseline gap-2"><input type="radio" name="capitals" :value="false" v-model="capitals" @change="capitalsCommit" /><span>Normal</span></label><!-- bound as true and false rather than written as attributes, which would make them the text the setting turns away -->
+			<label class="flex items-baseline gap-2"><input type="radio" name="capitals" :value="true" v-model="capitals" @change="capitalsCommit" /><span>Small caps</span></label>
 		</div>
 
 		<span>Typography</span>

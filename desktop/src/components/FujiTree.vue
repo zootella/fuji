@@ -29,9 +29,8 @@ onMounted(() => place.value.replaceChildren(props.tree.element))
 .myTwistie::before { left: 1px; top: 3px; width: 5px; height: 1px } /* the minus, across the middle of the 7 pixels inside the border */
 .myTwistie:not([data-open])::after { left: 3px; top: 1px; width: 1px; height: 5px } /* and the stroke that makes it a plus while the folder is closed */
 .myTreeItem { display: flex; align-items: center; gap: 4px; padding: 0 4px; white-space: nowrap } /* the icon and the name, which a click selects and the highlight covers, as the classic Windows tree highlights a name rather than its row */
-.myTreeIcon { color: var(--color-zed-text-muted) }
+.myTreeIcon { flex: none; width: 16px; height: 16px; background-color: var(--color-fuji-brand) } /* a placeholder for the icon, the list's cyan square */
 .myTreeItem[data-selected="true"] { background-color: var(--color-select-quiet); color: var(--color-on-select-quiet) } /* a selection the keyboard is away from, as the list shows one */
-.myTreeItem[data-selected="true"] .myTreeIcon { color: inherit }
 html:not([data-window="back"]) .myTree[data-active="true"] .myTreeItem[data-selected="true"] { background-color: var(--color-accent); color: var(--color-on-accent) }
 
 </style>
