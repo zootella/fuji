@@ -127,17 +127,11 @@ onMounted(() => {
 	log(`interface spike: made a tree of ${say(tree.rows.length)} folders in ${ms}ms`)
 })
 
-const ends = ref(false), caps = ref(false), pattern = ref(false), magnified = ref(false)//the experiments on the tree's lines and the magnifier to see them by, each a block of rules in FujiTree.vue that an attribute of its name turns on
+const field = ref(false)//whether the list's place shows the field instead, which FujiTree.vue fills with what the tree's lines are cut from
+const magnified = ref(false)//the magnifier the tree's lines are looked at by, a rule in FujiTree.vue that an attribute of its name turns on
 
-const guideWidth = ref('1')//the tree's line width in css pixels as typed, a number or a fraction like 4/3, which the field puts on the tree's own element over the stylesheet's, so each line stays centered at any width
-function onGuideWidth(e) {
-	let typed = e.target.value.trim(), width = `calc(${typed} * 1px)`
-	if (!typed || !CSS.supports('width', width)) { e.target.value = guideWidth.value; return }//not a width the stylesheet can use, so the field goes back to the last one that was
-	guideWidth.value = typed
-	tree.element.style.setProperty('--guide-width', width)
-}
-
-const focusStripes = ref(false)//the experiment on the list's focus rectangle, a block of rules in FujiList.vue that an attribute of its name turns on
+const stripes = ref('Solid')//an experiment on the tree's lines, a block of rules in FujiTree.vue that an attribute turns on: what the lines are cut from, Solid for none, Dashes for the list's focus rectangle's rhythm, or Offbeat for specks of noise, one at a time, since they paint the same lines
+const stripeKinds = ['Solid', 'Dashes', 'Offbeat']
 
 const treeWidth = ref(260)//css pixels, the tree's share of the panel's width, which the bar between it and the list changes
 const splitNarrowest = 120//css pixels, the narrowest the bar leaves the tree or the list
@@ -235,13 +229,10 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Tree <span class="text-zed-text">{{treeMade}}</span></span>
 		<span>Selected <span class="text-zed-text">{{treeSaid}}</span></span>
 		<span class="flex gap-1">
-			<button class="myButton" :aria-pressed="ends" @click="ends = !ends">Ends</button>
-			<button class="myButton" :aria-pressed="caps" @click="caps = !caps">Caps</button>
-			<button class="myButton" :aria-pressed="pattern" @click="pattern = !pattern">Pattern</button>
+			<button class="myButton" :aria-pressed="stripes != 'Solid'" @click="stripes = stripeKinds[(stripeKinds.indexOf(stripes) + 1) % stripeKinds.length]">{{stripes}}</button><!-- one button that steps through them, named for the one showing -->
+			<button class="myButton" :aria-pressed="field" @click="field = !field">Field</button>
 			<button class="myButton" :aria-pressed="magnified" @click="magnified = !magnified">8{{multiplicationSign}}</button>
 		</span>
-		<label class="flex items-center gap-1">Width <input class="w-12 px-1 border border-zed-border bg-zed-surface-background text-zed-text" :value="guideWidth" @change="onGuideWidth"></label><!-- on change rather than on input, so a width half typed, like 1., is never taken -->
-		<span><button class="myButton" :aria-pressed="focusStripes" @click="focusStripes = !focusStripes">Focus</button></span>
 		<span class="flex gap-1"><button v-for="n in counts" :key="n" class="myButton" :aria-pressed="n == count" :disabled="building" @click="build(n).catch(trouble)">{{say(n)}}</button></span>
 		<input class="px-2 border border-zed-border bg-zed-surface-background text-zed-text" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
 		<span>Build <span class="text-zed-text">{{built}}</span></span>
@@ -251,9 +242,10 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Sort <span class="text-zed-text">{{sorted}}</span></span>
 	</div>
 	<div class="myBench flex-1 min-h-0 flex p-4"><!-- the tree and the list set on a ground of their own, with room around them, so where each component ends shows -->
-		<FujiTree class="myBenchCard flex-none" :style="{width: `${treeWidth}px`}" :tree="tree" :data-ends="ends || null" :data-caps="caps || null" :data-pattern="pattern || null" :data-magnified="magnified || null" /><!-- null takes an attribute away -->
+		<FujiTree class="myBenchCard flex-none" :style="{width: `${treeWidth}px`}" :tree="tree" :data-dashes="stripes == 'Dashes' || null" :data-offbeat="stripes == 'Offbeat' || null" :data-magnified="magnified || null" /><!-- null takes an attribute away -->
 		<div class="flex-none w-4 cursor-col-resize" @pointerdown="onSplit" @mousedown.prevent></div><!-- the bar, which is the gap between them; the press's default cancelled so a drag selects no text in the strip -->
-		<FujiList class="myBenchCard flex-1 min-w-0" :list="list" :data-focus-stripes="focusStripes || null" @scroll.capture.passive="onScroll" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
+		<FujiList v-show="!field" class="myBenchCard flex-1 min-w-0" :list="list" @scroll.capture.passive="onScroll" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
+		<div v-show="field" class="myBenchCard flex-1 min-w-0 myTreeField" :data-dashes="stripes == 'Dashes' || null" :data-offbeat="stripes == 'Offbeat' || null"></div><!-- kept mounted beside the list rather than swapped for it, so the list keeps its place and its selection -->
 	</div>
 	<MockMenu ref="menuRef" />
 </div>

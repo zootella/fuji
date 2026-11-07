@@ -56,14 +56,17 @@ function _treeRow({node, i, parent, lines, above, below, opens, said}) {//one fo
 	let element = document.createElement('div')
 	element.className = 'myTreeRow'
 	element.dataset.row = i//how a press finds its row
-	for (let runs of lines) {
+	element.style.setProperty('--row', i)//for now, the row's place among all the rows, and below each cell's level, which the bench's Offbeat lays its stripes out from as one sheet across the tree
+	for (let [level, runs] of lines.entries()) {
 		let cell = document.createElement('span')
 		cell.className = 'myGuide'
+		cell.style.setProperty('--level', level)
 		if (runs) cell.dataset.guide = 'line'//a folder above has another after it, so its line runs past this row
 		element.append(cell)
 	}
 	let own = document.createElement('span')
 	own.className = 'myGuide'
+	own.style.setProperty('--level', lines.length)
 	let guide = 'alone'//the line at the row's own level: up to it and on down, a tee; up only, an elbow, for a last folder; down only, for the first of several roots; neither, for a root by itself
 	if (above && below) guide = 'tee'
 	else if (above) guide = 'elbow'
