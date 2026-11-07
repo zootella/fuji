@@ -129,7 +129,7 @@ onMounted(() => {
 
 const ends = ref(false), caps = ref(false), pattern = ref(false), magnified = ref(false)//the experiments on the tree's lines and the magnifier to see them by, each a block of rules in FujiTree.vue that an attribute of its name turns on
 
-const guideWidth = ref('1.5')//the tree's line width in css pixels as typed, a number or a fraction like 4/3, which the field puts on the tree's own element over the stylesheet's, so each line stays centered at any width
+const guideWidth = ref('1')//the tree's line width in css pixels as typed, a number or a fraction like 4/3, which the field puts on the tree's own element over the stylesheet's, so each line stays centered at any width
 function onGuideWidth(e) {
 	let typed = e.target.value.trim(), width = `calc(${typed} * 1px)`
 	if (!typed || !CSS.supports('width', width)) { e.target.value = guideWidth.value; return }//not a width the stylesheet can use, so the field goes back to the last one that was
