@@ -129,6 +129,14 @@ onMounted(() => {
 
 const ends = ref(false), caps = ref(false), pattern = ref(false), magnified = ref(false)//the experiments on the tree's lines and the magnifier to see them by, each a block of rules in FujiTree.vue that an attribute of its name turns on
 
+const guideWidth = ref('1.5')//the tree's line width in css pixels as typed, a number or a fraction like 4/3, which the field puts on the tree's own element over the stylesheet's, so each line stays centered at any width
+function onGuideWidth(e) {
+	let typed = e.target.value.trim(), width = `calc(${typed} * 1px)`
+	if (!typed || !CSS.supports('width', width)) { e.target.value = guideWidth.value; return }//not a width the stylesheet can use, so the field goes back to the last one that was
+	guideWidth.value = typed
+	tree.element.style.setProperty('--guide-width', width)
+}
+
 const focusStripes = ref(false)//the experiment on the list's focus rectangle, a block of rules in FujiList.vue that an attribute of its name turns on
 
 const treeWidth = ref(260)//css pixels, the tree's share of the panel's width, which the bar between it and the list changes
@@ -232,6 +240,7 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 			<button class="myButton" :aria-pressed="pattern" @click="pattern = !pattern">Pattern</button>
 			<button class="myButton" :aria-pressed="magnified" @click="magnified = !magnified">8{{multiplicationSign}}</button>
 		</span>
+		<label class="flex items-center gap-1">Width <input class="w-12 px-1 border border-zed-border bg-zed-surface-background text-zed-text" :value="guideWidth" @change="onGuideWidth"></label><!-- on change rather than on input, so a width half typed, like 1., is never taken -->
 		<span><button class="myButton" :aria-pressed="focusStripes" @click="focusStripes = !focusStripes">Focus</button></span>
 		<span class="flex gap-1"><button v-for="n in counts" :key="n" class="myButton" :aria-pressed="n == count" :disabled="building" @click="build(n).catch(trouble)">{{say(n)}}</button></span>
 		<input class="px-2 border border-zed-border bg-zed-surface-background text-zed-text" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
