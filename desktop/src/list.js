@@ -18,7 +18,7 @@ export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble
 	root.tabIndex = 0//so the list can take the keyboard
 	element.append(header, root)
 	for (let c of columns) if (typeof c.width != 'number' || c.width <= 0) throw new Error(`expected a width in css pixels for column ${c.key}: ${c.width}`)
-	let o = {element, header, root, identity, columns, onSelect, onSort, onMenu, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], textWidths: [], beside: [], cutLines: [], order: [], shown: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
+	let o = {element, header, root, identity, columns, onSelect, onSort, onMenu, widths: columns.map(c => c.width), rows: [], lower: [], elements: [], textWidths: [], beside: [], cutLines: [], order: [], shown: [], at: [], filter: '', sort: {column: 0, descending: false}, traits: selectionEmpty(), typed: '', typedAt: 0}//sorted by the first column from the start, the name, as Finder and Explorer open a folder
 	for (let [i, column] of columns.entries()) {
 		let cell = document.createElement('span')
 		cell.className = 'myListCell'
@@ -160,6 +160,7 @@ function _listHeaderClick(o, e) {//a click on a header sorts by its column, and 
 	o.order = _listSorted(o)
 	_listPlace(o)
 	_listShow(o)
+	_listJoin(o, o.traits.selected)//the selected rows have new neighbors in the new order
 	for (let h of o.header.children) delete h.dataset.sort
 	cell.dataset.sort = o.sort.descending ? 'down' : 'up'//the arrow the stylesheet draws beside the sorted header
 	if (o.traits.focus != -1) o.elements[o.traits.focus].scrollIntoView({block: 'nearest'})//the row the keyboard is on stays in view wherever the sort took it
@@ -258,13 +259,15 @@ function _listFind(o, e) {//the row a typed character takes the focus to: the ne
 }
 
 function _listShow(o) {
-	let shown = []
+	let shown = [], at = []
 	for (let i of o.order) {//in the order the rows are on screen, sorted or as given
 		let match = !o.filter || o.lower[i].includes(o.filter)
 		if (o.elements[i].hidden == match) o.elements[i].hidden = !match//written only where the answer changed
+		at[i] = match ? shown.length : -1
 		if (match) shown.push(i)
 	}
 	o.shown = shown//the rows on screen, in order, which a shift range runs along
+	o.at = at//and each row's place among them, or -1 for a row the filter hides, so a row finds its neighbors on screen without a search
 }
 
 function _listPress(o, e) {//on the press rather than the click, as Finder and Explorer select
@@ -369,15 +372,34 @@ function _listCarry(o, e, from) {//from is the row pressed, which is selected
 }
 
 /*
-The selection drawn by difference: the rows that left it lose their mark, the rows that joined it gain one, the focus mark moves from the row that had it to the row that has it, and no other row is touched. This is why selection.js returns a new value on every change instead of changing the one it was given, because the list needs the old selection and the new one side by side to compare them. A click then costs the one or two rows it changes, however long the list, a shift range costs the rows in it, and clearing costs the rows that were selected. Drawing a selection the other way, by visiting every row to ask whether it is selected, costs the whole list every time: that was the Vue version, which reran its template over every row and lagged at ten thousand. With 1,944 of 5,000 rows selected, a command-click marked its one row in well under a millisecond of the list's own time, on the Mac mini.
+The selection drawn by difference: the rows that left it lose their mark, the rows that joined it gain one, the focus mark moves from the row that had it to the row that has it, and only the rows beside those are looked at again, for whether a run of selected rows still joins them. This is why selection.js returns a new value on every change instead of changing the one it was given, because the list needs the old selection and the new one side by side to compare them. A click then costs the one or two rows it changes, however long the list, a shift range costs the rows in it, and clearing costs the rows that were selected. Drawing a selection the other way, by visiting every row to ask whether it is selected, costs the whole list every time: that was the Vue version, which reran its template over every row and lagged at ten thousand. With 1,944 of 5,000 rows selected, a command-click marked its one row in well under a millisecond of the list's own time, on the Mac mini.
 */
 function _listDraw(o, before) {//the marks onto the rows whose selection or focus changed since the traits before, and how many rows changed selection
-	let after = o.traits, changed = 0
-	for (let i of before.selected) if (!after.selected.has(i)) { delete o.elements[i].dataset.selected; changed++ }
-	for (let i of after.selected) if (!before.selected.has(i)) { o.elements[i].dataset.selected = 'true'; changed++ }
+	let after = o.traits, changed = []
+	for (let i of before.selected) if (!after.selected.has(i)) { delete o.elements[i].dataset.selected; changed.push(i) }
+	for (let i of after.selected) if (!before.selected.has(i)) { o.elements[i].dataset.selected = 'true'; changed.push(i) }
 	if (before.focus != after.focus) {
 		if (before.focus != -1) delete o.elements[before.focus].dataset.focus
 		if (after.focus != -1) o.elements[after.focus].dataset.focus = 'true'
 	}
-	return changed
+	let near = new Set()//the rows that changed and the rows beside them on screen, since a change can move no other row's joins
+	for (let i of changed) {
+		near.add(i)
+		let p = o.at[i]
+		if (p > 0) near.add(o.shown[p - 1])
+		if (p != -1 && p < o.shown.length - 1) near.add(o.shown[p + 1])
+	}
+	_listJoin(o, near)
+	return changed.length
+}
+
+function _listJoin(o, rows) {//mark each of these rows joined to the selected row above or below it on screen, so a run of selected rows draws as one rounded block, its corners rounded only at the run's top and bottom; a row not selected joins nothing
+	let s = o.traits.selected
+	for (let i of rows) {
+		let e = o.elements[i], p = o.at[i]
+		let up = s.has(i) && p > 0 && s.has(o.shown[p - 1])
+		let down = s.has(i) && p != -1 && p < o.shown.length - 1 && s.has(o.shown[p + 1])
+		if (up != ('joinUp' in e.dataset)) { if (up) e.dataset.joinUp = 'true'; else delete e.dataset.joinUp }
+		if (down != ('joinDown' in e.dataset)) { if (down) e.dataset.joinDown = 'true'; else delete e.dataset.joinDown }
+	}
 }

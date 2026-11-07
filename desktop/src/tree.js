@@ -46,13 +46,13 @@ function _treeAdd(o, folders, parent, lines, seen) {//these folders under the ro
 		let held = node.children && node.children.length > 0
 		let above = parent != -1 || n > 0, below = n < sorted.length - 1//whether the line at this folder's level comes down to it, from the folder it is in or a root before it, and whether it runs on to another folder after it
 		let i = o.rows.length
-		o.rows.push(_treeRow({node, i, parent, lines, above, below, opens: held, said: o.say(node)}))
+		o.rows.push(_treeRow({node, i, parent, lines, above, below, starts: parent != -1 && n == 0, opens: held, said: o.say(node)}))
 		if (parent != -1) o.rows[parent].kids.push(i)
 		if (held) _treeAdd(o, node.children, i, [...lines, below], seen)
 	}
 }
 
-function _treeRow({node, i, parent, lines, above, below, opens, said}) {//one folder's row, i in rows: a guide cell for each level above, its own cell with a twistie on its line when it opens, and the icon and name a click selects
+function _treeRow({node, i, parent, lines, above, below, starts, opens, said}) {//one folder's row, i in rows: a guide cell for each level above, its own cell with a twistie on its line when it opens, and the icon and name a click selects; starts for the first folder inside another, whose line down begins in this row, under that folder's icon
 	let element = document.createElement('div')
 	element.className = 'myTreeRow'
 	element.dataset.row = i//how a press finds its row
@@ -69,6 +69,7 @@ function _treeRow({node, i, parent, lines, above, below, opens, said}) {//one fo
 	else if (above) guide = 'elbow'
 	else if (below) guide = 'first'
 	own.dataset.guide = guide
+	if (starts) own.dataset.start = 'true'
 	let twistie = false
 	if (opens) {
 		twistie = document.createElement('span')
