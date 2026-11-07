@@ -21,7 +21,7 @@
 
 ## The order of work
 
-**The suggested order of work**, each step seen running before the next: the spacing and sizes, matched to Explorer on the Windows box, which then set them on every platform; icons; the full text of a cut-off cell shown in place; the list scrolling while a selecting drag is past its edge; and the bar last, with the menu as its first use.
+**The suggested order of work**, each step seen running before the next: icons; the full text of a cut-off cell shown in place; the list scrolling while a selecting drag is past its edge; and the bar last, with the menu as its first use.
 
 
 ## FujiList
@@ -34,11 +34,9 @@
 
 **No ellipsis, an innovation.** The list cuts off text too long for its column and draws a line on the edge beside that row, where other lists draw an ellipsis. An ellipsis takes a lot of width right where space is tight, and it makes the reader stop and wait, as though a speaker were about to go on, which pulls attention away from the list.
 
-**Shading the rows.** Explorer and Finder each shade a list in ways the other does not, as the user sees them on Windows and the Mac, and what fuji's list does is open. Each is a choice for one list on every platform, weighed against the exception concept where a case for matching the platform comes up.
+**Shading the sorted column.** Explorer fills the column the list is sorted by with a very light gray that is still noticeable, and Finder does not. What fuji's list does is open, a choice for one list on every platform.
 
-- **The sorted column.** Explorer fills the column the list is sorted by with a very light gray that is still noticeable. Finder does not.
-- **Between selected rows.** Finder draws a faint separation between neighboring rows in a selection. Explorer does not.
-- **Candy stripes.** Finder shades alternate rows a little apart, down the whole list. Explorer does not.
+**No candy stripes.** Finder shades alternate rows a little apart down the whole list, and fuji's list does not, since the stripes read as old computer paper.
 
 **The highlight color, one accent on every platform.** A selected row with the keyboard, and a menu's row under the pointer, are painted in one accent, `accent.color` in `fuji.toml`, `#0064e1` at the factory and the user's to change; a selected row without the keyboard is a Zed gray. The stylesheet's essay says why the platforms' own colors were set aside: Windows' own programs disagree among themselves, and the platforms' neutral grays clashed with Zed's. Windows 11 added a border around selected items in a 2024 update ([Eleven Forum](https://elevenforum.com/t/the-blue-outline-in-file-explorer-suddenly-started-appearing.35226)). The desktops' sources below are kept for the List and Tree article. What the desktops' own sources say, read 2026-10-28: GNOME's libadwaita, on Debian, Fedora and under Ubuntu's theme, fills a selected row in a view with the accent mixed 25 percent over the view's background and leaves the text its usual color ([_views.scss](https://raw.githubusercontent.com/GNOME/libadwaita/main/src/stylesheet/widgets/_views.scss), [_colors.scss](https://raw.githubusercontent.com/GNOME/libadwaita/main/src/stylesheet/_colors.scss)), with the blue accent `#3584e4` over `#ffffff` in light and `#1d1d20` in dark ([css-variables.md](https://raw.githubusercontent.com/GNOME/libadwaita/main/doc/css-variables.md)). KDE's Breeze selects in `#3daee9` in both light and dark, with white text and no separate color for an inactive list ([BreezeLight.colors](https://invent.kde.org/plasma/breeze/-/raw/master/colors/BreezeLight.colors), [BreezeDark.colors](https://invent.kde.org/plasma/breeze/-/raw/master/colors/BreezeDark.colors)). Mint-Y's source selects in its accent, `#35A854`, with white text in both ([_colors.scss](https://raw.githubusercontent.com/linuxmint/mint-themes/master/src/Mint-Y/gtk-3.0/sass/_colors.scss)), though Mint 22.2 made the accent the user's choice. Ubuntu's Yaru selects in orange, hex not found.
 
@@ -95,14 +93,9 @@
 **The tree keeps which folders the user opened**, since Apple's guidelines ask that expansion choices be retained and Microsoft's that they persist, so `fuji.toml` is where they go.
 
 
-## Dotted guidelines
-
-**The tree's guidelines start solid and become the classic dotted ones** once the dots can be drawn right across CSS, backing and panel pixels, on a Retina Mac and at the fractional scales Windows offers. The list's focus rectangle went from a dotted outline to a solid one for the same trouble.
-
-
 ## Spacing and sizes
 
-**The tree's classic look is measured on the Windows box**, its twisties and its lines against the classic Win32 tree, and so are the tree's behaviors that `tree.js` says are from memory.
+**The tree's behaviors that `tree.js` says are from memory are checked on the Windows box** against the classic Win32 tree.
 
 **A text size setting, later, picks the row height and the icon size from a short table of whole numbers.** On Windows it follows Windows' own text size setting, which fuji does not obey yet; on the Mac it is an option of its own or none. No combination the table offers may collide or look bad.
 

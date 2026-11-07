@@ -7,7 +7,7 @@ import {settings} from '../settings.js'
 import {modelCompare} from '../model.js'
 import {listMake, listRows, listFilter, listKey, listSelected} from '../list.js'
 import {treeMake, treeRoots, treeKey} from '../tree.js'
-import {sayListSize, sayListDate, multiplicationSign} from './library.js'
+import {sayListSize, sayListDate} from './library.js'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import FujiList from './FujiList.vue'
 import FujiTree from './FujiTree.vue'
@@ -127,12 +127,6 @@ onMounted(() => {
 	log(`interface spike: made a tree of ${say(tree.rows.length)} folders in ${ms}ms`)
 })
 
-const field = ref(false)//whether the list's place shows the field instead, which FujiTree.vue fills with what the tree's lines are cut from
-const magnified = ref(false)//the magnifier the tree's lines are looked at by, a rule in FujiTree.vue that an attribute of its name turns on
-
-const stripes = ref('Solid')//an experiment on the tree's lines, a block of rules in FujiTree.vue that an attribute turns on: what the lines are cut from, Solid for none or Dashes for the list's focus rectangle's rhythm, one at a time, since they paint the same lines
-const stripeKinds = ['Solid', 'Dashes']
-
 const treeWidth = ref(260)//css pixels, the tree's share of the panel's width, which the bar between it and the list changes
 const splitNarrowest = 120//css pixels, the narrowest the bar leaves the tree or the list
 function onSplit(e) {//a press on the bar sizes the tree as the pointer moves, and the list takes the rest
@@ -228,11 +222,6 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 	<div class="mySans text-[11px] flex-none h-[28px] flex items-center gap-x-4 px-4 whitespace-nowrap overflow-hidden border-b border-zed-border [&>*]:flex-none"><!-- one line of a set height, so readouts that grow and shrink never move the tree and the list below; what runs past the right edge is cut off -->
 		<span>Tree <span class="text-zed-text">{{treeMade}}</span></span>
 		<span>Selected <span class="text-zed-text">{{treeSaid}}</span></span>
-		<span class="flex gap-1">
-			<button class="myButton" :aria-pressed="stripes != 'Solid'" @click="stripes = stripeKinds[(stripeKinds.indexOf(stripes) + 1) % stripeKinds.length]">{{stripes}}</button><!-- one button that steps through them, named for the one showing -->
-			<button class="myButton" :aria-pressed="field" @click="field = !field">Field</button>
-			<button class="myButton" :aria-pressed="magnified" @click="magnified = !magnified">8{{multiplicationSign}}</button>
-		</span>
 		<span class="flex gap-1"><button v-for="n in counts" :key="n" class="myButton" :aria-pressed="n == count" :disabled="building" @click="build(n).catch(trouble)">{{say(n)}}</button></span>
 		<input class="px-2 border border-zed-border bg-zed-surface-background text-zed-text" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
 		<span>Build <span class="text-zed-text">{{built}}</span></span>
@@ -242,10 +231,9 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Sort <span class="text-zed-text">{{sorted}}</span></span>
 	</div>
 	<div class="myBench flex-1 min-h-0 flex p-4"><!-- the tree and the list set on a ground of their own, with room around them, so where each component ends shows -->
-		<FujiTree class="myBenchCard flex-none" :style="{width: `${treeWidth}px`}" :tree="tree" :data-dashes="stripes == 'Dashes' || null" :data-magnified="magnified || null" /><!-- null takes an attribute away -->
+		<FujiTree class="myBenchCard flex-none" :style="{width: `${treeWidth}px`}" :tree="tree" />
 		<div class="flex-none w-4 cursor-col-resize" @pointerdown="onSplit" @mousedown.prevent></div><!-- the bar, which is the gap between them; the press's default cancelled so a drag selects no text in the strip -->
-		<FujiList v-show="!field" class="myBenchCard flex-1 min-w-0" :list="list" @scroll.capture.passive="onScroll" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
-		<div v-show="field" class="myBenchCard flex-1 min-w-0 myTreeField" :data-dashes="stripes == 'Dashes' || null"></div><!-- kept mounted beside the list rather than swapped for it, so the list keeps its place and its selection -->
+		<FujiList class="myBenchCard flex-1 min-w-0" :list="list" @scroll.capture.passive="onScroll" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
 	</div>
 	<MockMenu ref="menuRef" />
 </div>

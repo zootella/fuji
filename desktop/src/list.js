@@ -154,7 +154,7 @@ function _listHeaderClick(o, e) {//a click on a header sorts by its column, and 
 	let cell = e.target.closest('[data-column]')
 	if (!cell) return
 	let start = performance.now()
-	o.root.focus({preventScroll: true})
+	_listPointerFocus(o)
 	let column = Number(cell.dataset.column)
 	o.sort = {column, descending: o.sort.column == column ? !o.sort.descending : false}
 	o.order = _listSorted(o)
@@ -223,7 +223,7 @@ export function listKey(o, e) {//one key, acted on only while the list has the k
 		o.elements[to].scrollIntoView({block: 'nearest'})
 	}
 	e.preventDefault()//or the focused list would also scroll itself by the key
-	o.root.dataset.keyboard = 'true'//the focus mark shows from the first key on, as Windows shows its focus rectangle only once the keyboard has been used, and keeps showing it
+	o.root.dataset.keyboard = 'true'//the focus mark shows from the first key on, as Windows shows its focus rectangle only once the keyboard has been used, and keeps showing it through clicks inside the list, until a press brings the keyboard back into the list from somewhere else
 	let changed = _listDraw(o, before)
 	o.onSelect({selected: o.traits.selected.size, changed, kind, listMs: performance.now() - start})
 	return true
@@ -270,11 +270,16 @@ function _listShow(o) {
 	o.at = at//and each row's place among them, or -1 for a row the filter hides, so a row finds its neighbors on screen without a search
 }
 
+function _listPointerFocus(o) {//the keyboard to the list for a press, which the press's cancelled default would otherwise have done; a press that brings the keyboard in from somewhere else, like the tree, starts it without the focus mark, which the next key the list uses shows again, as the browser's own focus-visible does, so a key pressed once by accident does not leave the mark for the life of the list. Switching windows and back brings no press, so a keyboard user keeps the mark through it
+	if (document.activeElement != o.root) delete o.root.dataset.keyboard
+	o.root.focus({preventScroll: true})
+}
+
 function _listPress(o, e) {//on the press rather than the click, as Finder and Explorer select
 	if (e.button != 0) return
 	if ((e.ctrlKey || e.metaKey) && !isCommandOrControl(e)) return//control on the mac, where a control-click is a right click, which _listMenu answers
 	let start = performance.now()
-	o.root.focus({preventScroll: true})//the keyboard to the list, which the press's cancelled default would otherwise have done
+	_listPointerFocus(o)
 	let toggle = isCommandOrControl(e)
 	let row = e.target.closest('[data-row]')
 	if (row && !toggle && !e.shiftKey && o.traits.selected.has(Number(row.dataset.row))) return _listCarry(o, e, Number(row.dataset.row))//a plain press on a row already selected keeps the selection, which a drag from here carries
@@ -334,7 +339,7 @@ function _listMenu(o, e) {//a right click anywhere in the list turns away the we
 	if (!o.root.contains(e.target)) return//the headers, which have no menu
 	let row = e.target.closest('[data-row]')
 	if (!row && (e.offsetX >= o.root.clientWidth || e.offsetY >= o.root.clientHeight)) return//a scrollbar
-	o.root.focus({preventScroll: true})
+	_listPointerFocus(o)
 	let start = performance.now(), before = o.traits
 	if (!row) o.traits = selectionEmpty()
 	else if (!o.traits.selected.has(Number(row.dataset.row))) o.traits = selectionClick(o.traits, Number(row.dataset.row), o.shown, {range: false, toggle: false})

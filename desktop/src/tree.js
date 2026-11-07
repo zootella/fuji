@@ -73,7 +73,7 @@ function _treeRow({node, i, parent, lines, above, below, opens, said}) {//one fo
 	if (opens) {
 		twistie = document.createElement('span')
 		twistie.className = 'myTwistie'
-		own.className = 'myGuide myTwistieCell'//the whole square is what a press opens or closes, rather than only the box drawn in it
+		own.className = 'myGuide myTwistieCell'//the whole square is what a press opens or closes, rather than only the circle drawn in it
 		own.append(twistie)
 	}
 	let item = document.createElement('span'), icon = document.createElement('span'), label = document.createElement('span')
