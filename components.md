@@ -21,7 +21,7 @@
 
 ## The order of work
 
-**The suggested order of work**, each step seen running before the next: icons; the full text of a cut-off cell shown in place; the list scrolling while a selecting drag is past its edge; and the bar last, with the menu as its first use.
+**The suggested order of work**, each step seen running before the next: the full text of a cut-off cell shown in place; the list scrolling while a selecting drag is past its edge; and the bar last, with the menu as its first use.
 
 
 ## FujiList
@@ -111,6 +111,10 @@
 **A record crosses a boundary as a fresh object**, from Rust, from a watcher, from another peer, which is why a row is found by the identity it carries rather than by being the same object the list was handed.
 
 
+## The light table's menu
+
+**The light table is headed toward having no context menu, and its menu has not been taken out yet.** A menu shows which row is under the pointer by lighting it, and in fuji's fullscreen on the Mac the page hears none of the pointer's moves, so the highlight cannot follow and the menu looks broken; the fullscreen essay in `window.rs` says why. Today a right click on the light table still opens its menu, from `onMenu` in `DiamondTable.vue`.
+
 ## FujiBar
 
 **Microsoft's trail, and its high points.** Microsoft's habit, per version of Windows and per version of Office, was to make the next version look different so people would see value in it, and the result over the years was a meandering and worsening design. The bar copies the high points that stand out from that trail.
@@ -137,10 +141,23 @@
 
 **Icons fuji supplies itself, planned together.** A fallback for a kind the system gives no icon for, which is every kind on linux until fuji asks the desktop's icon theme there; and folders told apart by what they hold, like an empty folder, which has an icon of its own in the tree so a user can see it holds nothing and could be removed without a second look.
 
+**Still to be seen on Windows.** Whether the icons draw sharp at 125 and 175 percent, where their square starts half a backing pixel off the grid and the code relies on WebView2 snapping plain layout to whole pixels; and that they are the same in light and dark.
+
 **Monochrome where fuji shows media.** The contact sheet, the light table and the video window keep their icons to one color, so nothing on screen competes with the pictures.
 
 **Color where fuji is a file manager.** With the toolbar, the path bar, the tree and the list on screen, color can help the user find a thing at a glance: a yellow folder, a red X on delete. Lucide's icons are lines in one color, so this means shopping for icon sets that come in color, under a license fuji's GPL can carry.
 
+
+## System icons on Linux
+
+**Fuji asks no system for icons on linux yet, so every row there keeps the cyan square.** What the desktops offer, from memory and not yet checked on the Linux machine:
+
+- **Standard names.** The freedesktop Icon Naming Specification names `folder`, `text-x-generic` for a plain file, and `image-x-generic`, `video-x-generic` and `audio-x-generic`, the counterparts of the Mac's generic kinds and Windows' stock icons, and the major themes draw them.
+- **Per type.** The shared MIME database maps an extension to a type like `application/pdf`, whose icon name is `application-pdf`, and names a generic icon like `image-x-generic` for a theme without the specific one. GIO, already in copper, does the mapping.
+- **The lookup.** GTK's icon theme finds a name in the desktop's chosen theme, Adwaita on GNOME and Yaru on Ubuntu, Breeze on KDE, Mint-Y on Cinnamon, and Raspberry Pi OS's own, falling back through the theme's parents to hicolor. It belongs on GTK's main thread, where the Mac's and Windows' calls run on the blocking pool.
+- **The flatpak** sees its runtime's icon themes rather than the host's, so without the matching theme installed for flatpaks it may draw Adwaita's icons on a KDE desktop. The deb and the rpm see the host's.
+- **Minimal setups,** a window manager with no full theme, fall back to hicolor, which may hold no file type icons, and there fuji's own fallback icon draws instead.
+- **Coverage differs by theme,** Adwaita having dropped many of its old full-color icons in recent releases, so how each theme looks at 16 pixels is to be seen on each desktop.
 
 ## The article
 
