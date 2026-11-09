@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theme</title>
+<!-- fuji's palette as src/style.css defines it, beside tailwind's grays, for looking at. It reads the stylesheet and tailwind's theme as text when it loads, so it holds no color of its own and shows whatever the palette says today. Vite serves it at /theme.html while pnpm local or pnpm dev runs, and the app's build leaves it out, since vite's build starts from index.html -->
+<style>
+	html { color-scheme: light dark }
+	body { margin: 0; padding: 24px; font: 13px/1.45 system-ui, sans-serif; background: var(--color-zed-editor-background); color: var(--color-zed-text) }
+	h1 { margin: 0 0 8px; font-size: 18px }
+	h2 { margin: 40px 0 8px; font-size: 15px }
+	p { margin: 0 0 16px; max-width: 64em; color: var(--color-zed-text-muted) }
+	.myMono { font: 12px ui-monospace, monospace }
+	.myTable { display: grid; grid-template-columns: max-content max-content max-content minmax(0, 1fr); border-top: 1px solid var(--color-zed-border) }
+	.myTable > * { padding: 6px 12px; border-bottom: 1px solid var(--color-zed-border) }
+	.myGroup { grid-column: 1 / -1; padding-top: 20px; font-weight: 600 }
+	.myMode { display: flex; align-items: center; gap: 10px; background: var(--color-zed-editor-background); color: var(--color-zed-text) } /* a color in one mode, on that mode's own ground, which the cell's color-scheme picks */
+	.mySwatch { flex: none; width: 48px; height: 24px; border-radius: 4px; outline: 1px solid color-mix(in srgb, currentColor 25%, transparent) } /* outlined, so a color the same as the ground still shows where it is */
+	.myNote { color: var(--color-zed-text-muted) }
+	.myLadder { display: grid; grid-template-columns: repeat(8, max-content) }
+	.myLadder > * { padding: 12px 14px; font: 11px ui-monospace, monospace; white-space: nowrap }
+	.myLadderHead { align-self: end; font: 600 12px system-ui, sans-serif }
+</style>
+</head>
+<body>
+<h1>Theme</h1>
+<p>Every color <span class="myMono">src/style.css</span> names, read from the stylesheet as this page loads, drawn in light and in dark, each on its mode's own ground. The grays are Zed's, from its One Light and One Dark themes, apart from the numbered grays, which carry Tailwind's lightness in Zed's tints. The notes are the stylesheet's own comments.</p>
+<div id="theme" class="myTable"></div>
+<h2>The numbered grays beside Tailwind's</h2>
+<p>Each row is one step at one lightness: Tailwind's grays from the version installed here, then fuji's numbered grays as light and dark draw them. Each cell reads its OKLCH lightness, chroma and hue, with no hue where the chroma is under 0.002, too little to lean any way.</p>
+<div id="ladder" class="myLadder"></div>
+<script type="module">
+import styleText from './src/style.css?raw'
+import tailwindText from 'tailwindcss/theme.css?raw'
+
+const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+const tailwindGrays = ['slate', 'gray', 'zinc', 'neutral', 'stone']
+const groups = [
+	{title: "Zed's", test: name => name.startsWith('zed-')},
+	{title: 'The numbered grays', test: name => name.startsWith('gray-')},
+	{title: "Fuji's own", test: name => name.startsWith('fuji-')},
+	{title: 'Named for their job', test: name => !/^(zed|gray|fuji)-/.test(name)},
+]
+
+let colors = [...styleText.matchAll(/^\s*--color-([a-z0-9-]+):\s*(.+?);\s*(?:\/\*\s*(.*?)\s*\*\/)?\s*$/gm)].map(m => ({name: m[1], value: m[2], note: m[3] || ''}))
+for (let c of colors) document.documentElement.style.setProperty(`--color-${c.name}`, c.value)//each as the app declares it, light-dark() and all, so a cell resolves it by its own color-scheme as the app does
+
+function make(tag, className, text) {
+	let e = document.createElement(tag)
+	if (className) e.className = className
+	if (text) e.textContent = text
+	return e
+}
+
+function half(value, mode) {//the light or the dark half of a light-dark() pair, or the whole value where it is one color in both
+	if (!value.startsWith('light-dark(')) return value
+	let inner = value.slice('light-dark('.length, -1), depth = 0
+	for (let i = 0; i < inner.length; i++) {
+		if (inner[i] == '(') depth++
+		if (inner[i] == ')') depth--
+		if (inner[i] == ',' && depth == 0) return (mode == 'light' ? inner.slice(0, i) : inner.slice(i + 1)).trim()
+	}
+	return value
+}
+
+function oklchOfHex(hex) {//lightness in percent, chroma, and hue in degrees, through oklab
+	let linear = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
+	let [red, green, blue] = [1, 3, 5].map(i => linear(parseInt(hex.slice(i, i + 2), 16)))
+	let l = Math.cbrt(0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue), m = Math.cbrt(0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue), s = Math.cbrt(0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue)
+	let a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+	return {l: 100 * (0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s), c: Math.hypot(a, b), h: (Math.atan2(b, a) * 180 / Math.PI + 360) % 360}
+}
+
+function modeCell(c, mode) {
+	let cell = make('div', 'myMode')
+	cell.style.colorScheme = mode
+	let swatch = make('div', 'mySwatch')
+	swatch.style.background = `var(--color-${c.name})`
+	cell.append(swatch, make('span', 'myMono', half(c.value, mode)))
+	return cell
+}
+
+let theme = document.getElementById('theme')
+for (let group of groups) {
+	theme.append(make('div', 'myGroup', group.title))
+	for (let c of colors.filter(c => group.test(c.name))) theme.append(make('div', 'myMono', c.name), modeCell(c, 'light'), modeCell(c, 'dark'), make('div', 'myNote', c.note))
+}
+
+function stepCell(background, scheme, {l, c, h}) {
+	let cell = make('div', '', `${l.toFixed(1)} / ${c.toFixed(3)} / ${c < 0.002 ? 'none' : Math.round(h)}`)
+	cell.style.background = background
+	if (scheme) cell.style.colorScheme = scheme
+	cell.style.color = l > 62 ? 'black' : 'white'
+	return cell
+}
+
+let ladder = document.getElementById('ladder')
+ladder.append(make('div'), ...tailwindGrays.map(g => make('div', 'myLadderHead', `Tailwind ${g}`)), make('div', 'myLadderHead', 'fuji in light'), make('div', 'myLadderHead', 'fuji in dark'))
+for (let step of steps) {
+	ladder.append(make('div', 'myLadderHead', String(step)))
+	for (let g of tailwindGrays) {
+		let m = tailwindText.match(new RegExp(`--color-${g}-${step}: (oklch\\(([\\d.]+)% ([\\d.]+) ([\\d.]+|none)\\))`))
+		ladder.append(stepCell(m[1], '', {l: +m[2], c: +m[3], h: +m[4]}))
+	}
+	let value = colors.find(c => c.name == `gray-${step}`).value
+	for (let mode of ['light', 'dark']) ladder.append(stepCell(`var(--color-gray-${step})`, mode, oklchOfHex(half(value, mode))))
+}
+</script>
+</body>
+</html>

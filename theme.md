@@ -2,7 +2,7 @@
 
 ## The decision
 
-**Every gray fuji paints is Zed's, from its default themes, One Light for light and One Dark for dark.** The user's choice, begun 2026-10-06 with the paper and the captions, and taken to every gray on 2026-10-29. Zed follows the system's appearance and switches between these two, which is what fuji does too.
+**Every gray fuji paints is Zed's, from its default themes, One Light for light and One Dark for dark, or a numbered gray at Tailwind's lightness in their tints.** The user's choice, begun 2026-10-06 with the paper and the captions, and taken to every gray on 2026-10-29. Zed follows the system's appearance and switches between these two, which is what fuji does too.
 
 **Why Zed.** Fuji is growing the parts Zed already has: toolbars, buttons, a tree of folders beside the content, panels around it. An interface like that needs lines that divide it and panel backgrounds that tell one region from the next, so the whole is usable at a glance, and it needs all of that to step back, so the content is what the user looks at. In Zed the content is code; in fuji it is pictures. Zed's visual layout is close to the one fuji is heading for, and its themes get this balance right, so fuji takes their grays as they are rather than tuning a palette of its own.
 
