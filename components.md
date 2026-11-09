@@ -139,14 +139,22 @@
 
 **FujiBar starts with Lucide, by name.** The text that defines the bars names each icon by its Lucide name. A bundler cannot see which names a string holds, so fuji keeps a roster of the icons in use, imported by name, and only those reach the build.
 
-**Icons fuji supplies itself, planned together.** A fallback for a kind the system gives no icon for, which is every kind on linux until fuji asks the desktop's icon theme there; and folders told apart by what they hold, like an empty folder, which has an icon of its own in the tree so a user can see it holds nothing and could be removed without a second look.
-
 **Still to be seen on Windows.** Whether the icons draw sharp at 125 and 175 percent, where their square starts half a backing pixel off the grid and the code relies on WebView2 snapping plain layout to whole pixels; and that they are the same in light and dark.
 
 **Monochrome where fuji shows media.** The contact sheet, the light table and the video window keep their icons to one color, so nothing on screen competes with the pictures.
 
 **Color where fuji is a file manager.** With the toolbar, the path bar, the tree and the list on screen, color can help the user find a thing at a glance: a yellow folder, a red X on delete. Lucide's icons are lines in one color, so this means shopping for icon sets that come in color, under a license fuji's GPL can carry.
 
+
+## Fuji's own icons
+
+**Fuji draws an icon of its own where the system's cannot say what fuji means, and where the system gives none.** Folders told apart by what they hold come first, an empty folder above all, which Finder on macOS 27 seems to mark already with a sheet of paper inside a folder that holds something, seen by the user and not found written up anywhere. A fallback is another: where the system gives nothing, which is every kind on linux today, an extension Windows refuses as one no file could have, and any failure, the square shows cyan until fuji's fallback takes its place. A made-up extension and a file with no extension already get the system's generic document on the Mac and on Windows, which copper's tests check.
+
+- **Where they live.** Fuji's own icons are assets bundled with the page, so none crosses into the Rust. The cache gives each the same number and css rule a system icon gets, with the rule pointing at the asset's url rather than at a png copper made, and the list and the tree see no difference.
+- **PNG at 16, 32 and 64 pixels square, for the designer.** 16 is exact at 100 percent, the default on Windows and most linux and on a Mac's 1x monitor, and 32 at 200 percent, every Retina Mac and Windows and linux at 2x. Between them, at 125, 150 and 175 percent, the engine shrinks the 32, and above 200 it shrinks the 64, which covers every scale up to 400 percent where a 48 would have to be stretched; CSS's `image-set()` names the three and lets the engine pick for the display. The 16 and the 32 are the ones to tune by hand, where a pixel off shows, and the 64 comes straight down from a master at 256, the large size the system folders a design might start from carry on both the Mac and Windows. Larger sizes join the three only if fuji draws icons larger than a row's. PNG rather than SVG for that tuning, which an SVG drawn by the engine at 16 and at 20 loses.
+- **Light and dark.** The system's icons are the same in both, measured on the Mac mini, and fuji's would either be drawn to sit on both backgrounds or come in two, which the rules would switch with the theme.
+- **Telling folders apart** takes knowing what each holds, which the list and the tree learn from the disk as the app reads it, so that icon follows the app's record rather than the system's kind.
+- **Where the artwork comes from** is the question in Color where fuji is a file manager: drawn for fuji, or a set under a license the GPL can carry.
 
 ## System icons on Linux
 
