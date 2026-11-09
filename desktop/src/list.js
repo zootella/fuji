@@ -52,7 +52,7 @@ export function listMake({identity, columns, onSelect, onSort, onMenu, onTrouble
 	return o
 }
 
-export function listRows(o, rows) {//replace every row, as for a new folder; a row is a record holding a value for each column's key, and its identity
+export function listRows(o, rows) {//replace every row, as for a new folder; a row is a record holding a value for each column's key, its identity, and an icon, the number its icon square carries for the app's styles to give a picture
 	let seen = new Set()
 	for (let row of rows) {
 		let id = row[o.identity]
@@ -71,9 +71,10 @@ export function listRows(o, rows) {//replace every row, as for a new folder; a r
 			cell.className = 'myListCell'
 			if (column.align) cell.dataset.align = column.align
 			if (column.tabular) cell.dataset.tabular = 'true'
-			if (k == 0) {//the icon beside the name, as Finder and Explorer draw one: a placeholder square for now, showing where the icons will go
+			if (k == 0) {//the icon beside the name, as Finder and Explorer draw one
 				let icon = document.createElement('span')
 				icon.className = 'myListIcon'
+				if (row.icon) icon.dataset.icon = row.icon
 				cell.append(icon)
 			}
 			let text = document.createElement('span')//the text in a box of its own, beside the icon in the first column

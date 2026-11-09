@@ -26,7 +26,7 @@ export function treeMake({identity, compare, say = folder => folder.name, onSele
 	return o
 }
 
-export function treeRoots(o, folders) {//replace every folder, the roots and all they hold; a folder is a record with a name, its identity, and children, a list of the folders inside it, each a record like this one
+export function treeRoots(o, folders) {//replace every folder, the roots and all they hold; a folder is a record with a name, its identity, an icon, the number its icon square carries for the app's styles to give a picture, and children, a list of the folders inside it, each a record like this one
 	o.rows = []
 	o.open = new Set()
 	o.selected = -1
@@ -79,6 +79,7 @@ function _treeRow({node, i, parent, lines, above, below, opens, said}) {//one fo
 	let item = document.createElement('span'), icon = document.createElement('span'), label = document.createElement('span')
 	item.className = 'myTreeItem'
 	icon.className = 'myTreeIcon'
+	if (node.icon) icon.dataset.icon = node.icon
 	labelPut(label, said)//a folder's name is text nobody vouched for, which label.js puts in without ever parsing it
 	item.append(icon, label)
 	element.append(own, item)

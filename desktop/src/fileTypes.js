@@ -1,5 +1,5 @@
 /*
-Every kind of file fuji knows, keyed by extension, and the one place any part of fuji learns what it can do with one. The folder listing keeps only what is named here, the sheet's flow chooses how to draw a thumbnail by it, the store types a blob from it and has the engine or the imaging library make a table's picture by it, the shell routes a dropped or opened file by it, associate.js offers the operating system the ones fileTypesAssociations below answers for it, and the settings show them in the words below.
+Every kind of file fuji knows, keyed by extension, and the one place any part of fuji learns what it can do with one. A part of fuji that shows, plays, routes or offers a kind of file asks this table rather than deciding for itself, as the contact sheet asks it how to draw a thumbnail and the shell asks it where a dropped file goes.
 
 The table is the complete list fuji grows into rather than a list that grows: a manifest of what is out there, with an entry's history and its render tags written before fuji can do anything with it. The video and sound entries sat here with their tags filled in, off, before fuji carried a library that could play one. enabled is the switch, and it is a fact of its own: set by hand, one entry at a time, and never worked out from the tags, not by this file, not by a pass over it, and not by anything that tends the data. It says whether fuji opens this kind today. On, the listing keeps the kind where its tags say, the shell routes it, and the settings show it as a kind fuji opens and offer it to the operating system wherever its kind has a road on this platform. Off, the entry is described and waiting, shown by the settings alone, under coming soon, where the user can still rest the pointer on it and read its history. The tags say what could render a kind and the switch says whether fuji does, and the two disagree in both directions: a kind on with a road on one platform and none on another, which fileTypesAssociations sorts out per platform at run time by reading the switch and the tags together, and a kind off with a road on every platform, which the three pictures FFmpeg alone decodes are, kept off because fuji takes no mpv road for a picture. Code reads the switch and the tags together wherever a decision is made, so neither is ever regenerated from the other and the two cannot drift. Where they seem to disagree, the comment on the switch says why.
 
@@ -1111,6 +1111,12 @@ export function fileTypesTable(extension, platform) {//how a table shows a pictu
 	if (roads.includes(fileTypesEngine[platform])) return 'img'
 	if (roads.includes(fileTypesLibrary[platform])) return 'native'
 	return ''
+}
+
+export function fileTypesIcon(extension, platform) {//the medium whose icon a file of this extension shows in fuji's list and tree on this platform, image, video or audio, for a kind fuji opens here, since a double-click on it in fuji opens it in fuji whatever app is installed to open it elsewhere; and blank for anything fuji hands to another app, which shows the icon for its extension
+	let entry = fileTypes[extension]
+	if (!entry?.enabled || !['image', 'video', 'audio'].includes(entry.kind)) return ''
+	return fileTypesRender(entry, platform).length > 0 ? entry.kind : ''
 }
 
 export function fileTypesWindow(extension) {//which kind of window a file the operating system hands fuji opens in: Video for a video, by the table's kind alone, whether or not fuji plays it on this platform yet, and Browse for anything else, a picture, a sound, a folder or nothing at all, which the shell sorts among its views

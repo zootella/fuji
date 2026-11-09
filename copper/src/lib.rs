@@ -12,3 +12,4 @@ pub mod locale;//how the user's system writes numbers
 pub mod registry;//the windows registry, read and written for the page
 pub mod memory;//the machine's memory and what fuji's processes take of it
 pub mod thumbnail;//the operating system's thumbnailer, ImageIO and the Windows Imaging Component
+pub mod icon;//the operating system's icon for a kind of file, drawn at a row's size into a png

@@ -8,6 +8,7 @@ import {modelCompare} from '../model.js'
 import {listMake, listRows, listFilter, listKey, listSelected} from '../list.js'
 import {treeMake, treeRoots, treeKey} from '../tree.js'
 import {sayListSize, sayListDate} from './library.js'
+import {iconFor} from '../iconCache.js'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import FujiList from './FujiList.vue'
 import FujiTree from './FujiTree.vue'
@@ -149,6 +150,7 @@ function mockRows(n) {
 			name,
 			size: Math.floor(2 ** (random() * 37)),//spread evenly by order of magnitude, from a byte to 128 gigabytes, so short sizes and very long ones sit side by side
 			modified: first + Math.floor(randomWhen() * (last - first)),//a tick, milliseconds since 1970 in utc
+			icon: iconFor({extension: name.slice(name.lastIndexOf('.') + 1)}),//the system's icon for the extension every mock name ends in, as if it were a real file
 		}))
 	}
 	return mockMade.slice(0, n)//the same rows at every count, in the order they were made, as a disk hands over a folder; the list puts them in fuji's sort
@@ -177,32 +179,32 @@ function mockNames(n) {//names like a collection gathers, each unique, and the s
 	}
 	return [...made]
 }
-function mockFolders() {//folders for the tree, chosen by hand so each kind of row is there: folders holding folders, folders holding only files, empty ones, a deep run, a long row of siblings, several roots and a root by itself with nothing in it, a name too long for the tree's width, and names in other alphabets
-	let folder = (name, files, ...children) => ({name, files, children})//files says whether it holds any, which only decides its icon
+function mockFolders() {//folders for the tree, chosen by hand so each kind of row is there: folders holding folders, folders with nothing inside, a deep run, a long row of siblings, several roots and a root by itself with nothing in it, a name too long for the tree's width, and names in other alphabets
+	let folder = (name, ...children) => ({name, children})
 	let roots = [
-		folder('Pictures', true,
-			folder('1999', true, folder('Summer', true), folder('Winter', true)),
-			folder('2004', false, folder('Screenshots', true), folder('Wallpapers', true, folder('Anime', true), folder('Space', true))),
-			folder('Fanart', false, folder('Artists', false, folder('A', false, folder('Akira', true, folder('Sketches', false, folder('Old', true, folder('Older', true))))))),
-			folder('Scans', false,
-				folder('Manuals', true, folder('PlayStation', true), folder('Sega Saturn', true)),
-				folder('Magazines', false, folder('Next Generation', false, folder('1996', true), folder('1997', true), folder('1998', false)))),
-			folder('Unsorted', false),
-			folder('夏の空', true),
-			folder('A folder with a name long enough to run past the right edge of the tree, so the tree scrolls sideways to show it', true)),
-		folder('Downloads', true,
-			folder('Album', false, folder('Disc 1', true), folder('Disc 2', true)),
-			folder('New Folder', false),
-			folder('New Folder (2)', false),
-			folder('Москва', true)),
-		folder('Archive', false,
-			folder('Backup 2014', true, folder('Old', true)),
-			...[2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026].map(year => folder(`Backup ${year}`, year % 3 != 0))),//every third one empty
-		folder('Empty Drive', false),
+		folder('Pictures',
+			folder('1999', folder('Summer'), folder('Winter')),
+			folder('2004', folder('Screenshots'), folder('Wallpapers', folder('Anime'), folder('Space'))),
+			folder('Fanart', folder('Artists', folder('A', folder('Akira', folder('Sketches', folder('Old', folder('Older'))))))),
+			folder('Scans',
+				folder('Manuals', folder('PlayStation'), folder('Sega Saturn')),
+				folder('Magazines', folder('Next Generation', folder('1996'), folder('1997'), folder('1998')))),
+			folder('Unsorted'),
+			folder('夏の空'),
+			folder('A folder with a name long enough to run past the right edge of the tree, so the tree scrolls sideways to show it')),
+		folder('Downloads',
+			folder('Album', folder('Disc 1'), folder('Disc 2')),
+			folder('New Folder'),
+			folder('New Folder (2)'),
+			folder('Москва')),
+		folder('Archive',
+			folder('Backup 2014', folder('Old')),
+			...[2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026].map(year => folder(`Backup ${year}`))),
+		folder('Empty Drive'),
 	]
-	let shape = (f, above) => {//each folder as the tree reads it, the way an app would hand over its own records: an identity, a name, an icon for when the tree draws one, and the folders inside
+	let shape = (f, above) => {//each folder as the tree reads it, the way an app would hand over its own records: an identity, a name, an icon and the folders inside
 		let path = `${above}/${f.name}`
-		return {path, name: f.name, icon: (f.files || f.children.length > 0) ? 'F' : 'E', children: f.children.map(child => shape(child, path))}//E for a folder with nothing inside at all
+		return {path, name: f.name, icon: iconFor({folder: true}), children: f.children.map(child => shape(child, path))}
 	}
 	return roots.map(f => shape(f, ''))
 }
