@@ -38,6 +38,8 @@ Fuji reaches FFmpeg through [mpv](https://en.wikipedia.org/wiki/Mpv_(media_playe
 
 A library that plays whatever it is handed is also the largest piece of someone else's code inside Fuji, and a collector who trusts Fuji with a drive is trusting that library to be what it says it is. So Fuji builds it rather than downloads it. [One recipe, kept in the repository](https://github.com/zootella/fuji/blob/main/desktop/libmpv/build.py), names every source, each a tagged release fetched from its own project and checked against a hash written in the recipe before it is unpacked:
 
+<div class="breakout">
+
 ```python
 def fetch(name, url, sha):
 	sources.append({'name': name, 'url': url, 'sha256': sha})
@@ -49,7 +51,11 @@ def fetch(name, url, sha):
 	run(['tar', '-xf', file, '-C', src])
 ```
 
+</div>
+
 These are the sources, as the recipe names them on 2026-10-15. A tarball is checked by its SHA-256, and a project that publishes no tarball with its parts inside is cloned at a tag and checked by the commit.
+
+<div class="breakout">
 
 | Library | Version | From | Checked against |
 | --- | --- | --- | --- |
@@ -69,15 +75,21 @@ These are the sources, as the recipe names them on 2026-10-15. A tarball is chec
 | SPIRV-Tools | inside shaderc | github.com/KhronosGroup/SPIRV-Tools, cloned | commit `ef96ed763b43b59b33b31b362f09a02b729fa1c9` |
 | SPIRV-Headers | inside shaderc | github.com/KhronosGroup/SPIRV-Headers, cloned | commit `04fd3caa1e8267e4d95c806cad901181728e1006` |
 
+</div>
+
 The first ten go into every platform's library. The last five are Windows' alone, where the picture is drawn through Direct3D, which takes its shaders in HLSL while mpv writes them in GLSL: shaderc compiles GLSL to SPIR-V, with the three libraries inside it at the commits its own DEPS file names, and SPIRV-Cross translates SPIR-V to HLSL. The Mac and Linux draw through OpenGL, which takes the shaders as mpv writes them.
 
 They are built in order into one library with nothing in it from anywhere else: no nightly from a build farm, and no package manager's copy of the day, since Homebrew on the Mac, MSYS2 on Windows and Debian in the Linux containers provide the compiler and the build tools and not one byte of the result. The same recipe runs on all three, so every package of Fuji carries a library built from the same sources at the same versions, and the About section of Fuji's settings lists those parts and their versions, which are the recipe's numbers, mpv 0.41.0 on FFmpeg 9.0.2.
+
+<div class="breakout">
 
 | Platform | Library | Decodes with | Draws with | Sound through |
 | --- | --- | --- | --- | --- |
 | Windows | `libmpv-2.dll` | D3D11VA, DXVA2 and software | Direct3D 11 | WASAPI |
 | Mac | `libmpv.2.dylib` | VideoToolbox and software | OpenGL | CoreAudio |
 | Linux | `libmpv.so.2` | software | OpenGL | ALSA and PulseAudio |
+
+</div>
 
 The build is [reproducible](https://reproducible-builds.org/): the recipe pins the time the linker would stamp into the file, zeroes the dates in its archives, keeps the Swift compiler from writing a per-run hash into the Mac's objects, and keeps local symbols out of the Mac's link, since Apple's linker writes those in whichever order its threads finish and hashes the file into the library's UUID before they are stripped, so the hash of the library names the recipe, the compilers and the folder it was built in, since mpv and FFmpeg each write their configure line into the binary, rather than the afternoon or the machine's load. On the Mac mini on 2026-10-15, two builds of every package gave the same `libmpv.2.dylib`, 25,717,744 bytes, SHA-256 `622f89438d2fca1453b34b3f6234dcbea85e3d6e2165078f97e7b3df660085ed`, and two relinks of mpv under full CPU load gave the same library again; on the Windows box on 2026-10-12, a build and two relinks of mpv gave the same `libmpv-2.dll` three times.
 

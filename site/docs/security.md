@@ -94,10 +94,14 @@ Fuji's code lives in four places, and each keeps a different promise. **Plastic*
 
 Steel is a crate of its own because a module can forbid unsafe code in itself and still call the rest of its crate, while a crate reaches only what it names, and steel names nothing of Fuji's. Its root, [`steel/src/lib.rs`](https://github.com/zootella/fuji/blob/main/steel/src/lib.rs), is two lines:
 
+<div class="breakout">
+
 ```rust
 #![forbid(unsafe_code)]
 #![deny(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::arithmetic_side_effects)]
 ```
+
+</div>
 
 The first refuses unsafe code anywhere in the crate, at [a level no line beneath it can lower](https://doc.rust-lang.org/rustc/lints/levels.html). The second has [Clippy](https://doc.rust-lang.org/clippy/), Rust's linter, refuse everything that could stop a reader partway: an index that could fall outside its slice, an unwrap or an expect, a panic, and arithmetic that could overflow. Rust's own tools hold those promises on every line, so no reviewer has to.
 
@@ -105,9 +109,13 @@ Copper is steel's opposite. Every unsafe call Fuji makes outside a window sits i
 
 The page has walls of its own. Everything it may ask of the machine is one list of commands in brass, and nothing else is reachable from JavaScript. Fuji grants the page none of [Tauri's plugins](https://v2.tauri.app/security/capabilities/), so widening that list is a change to Rust, reviewed as code. A file's name reaches the page only through [Vue's escaping](https://vuejs.org/guide/best-practices/security.html), so no name ever becomes script, and Fuji shows an SVG only in an `<img>`, where [its scripts never run](https://developer.mozilla.org/en-US/docs/Web/SVG/Guides/SVG_as_an_image). And the [content security policy](https://v2.tauri.app/security/csp/) in [`tauri.conf.json`](https://github.com/zootella/fuji/blob/main/desktop/src-tauri/tauri.conf.json) allows the page its own scripts, the bridge to its own Rust, and pictures from its own bundle and from memory, and nothing more:
 
+<div class="breakout">
+
 ```json
 "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob:"
 ```
+
+</div>
 
 ### The tip scan
 
@@ -123,6 +131,8 @@ The tip scan lives in steel, and five rules of its own make a hostile file harml
 
 The helper is two short functions in [`steel/src/tip.rs`](https://github.com/zootella/fuji/blob/main/steel/src/tip.rs), and every byte the tip scan reads passes through them:
 
+<div class="breakout">
+
 ```rust
 fn held(&self, at: usize, n: usize) -> Option<&'a [u8]> {
 	let end = at.checked_add(n)?;
@@ -136,6 +146,8 @@ fn read(&self, at: usize, n: usize) -> Step<&'a [u8]> {
 	Err(Stop::Ask(PAST, at as u64))
 }
 ```
+
+</div>
 
 A read beyond the tip becomes the request for the second slice, a read past the end of the file says the file was cut short, and neither touches any memory outside the bytes in hand. So a hostile file gets one of two outcomes, no answer or a wrong one, and every stop says which of four kinds it was: a format named by its signature and read no further, the reader's own limit, the file corrupted, or the file chopped.
 
@@ -158,11 +170,15 @@ Fuji builds FFmpeg and the libraries beside it into one library of its own, from
 
 The recipe, [`desktop/libmpv/build.py`](https://github.com/zootella/fuji/blob/main/desktop/libmpv/build.py), builds whole kinds of attack out of FFmpeg:
 
+<div class="breakout">
+
 ```python
 configure_make(folder, '--pkg-config-flags=--static', '--enable-static', '--disable-shared', '--disable-debug', '--disable-doc', '--disable-programs',
 	'--disable-autodetect', '--enable-zlib', '--enable-libdav1d', *ffmpeg,
 	'--disable-encoders', '--disable-muxers', '--disable-devices', '--disable-avdevice', '--disable-network', '--disable-protocols', '--enable-protocol=file')
 ```
+
+</div>
 
 FFmpeg in Fuji has no network and one protocol, files, so the playlist trick of [2016](#no-click-at-all-2015-to-2017), which used FFmpeg's other protocols to read a local file and send it to a web server, has no road. It carries no encoders and no muxers, the parts of FFmpeg that make a file. And Fuji builds mpv without Lua or JavaScript, so no script runs inside the player.
 
@@ -190,6 +206,8 @@ Fuji asks FFmpeg its questions in the sandbox process, which it builds from two 
 
 The main process starts it carrying nothing else of Fuji's. On the Mac it closes every file but those three streams in the new process, and points the new process's crash ports back at itself, in [`copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/copper/src/sandbox.rs):
 
+<div class="breakout">
+
 ```rust
 let set = [
 	libc::posix_spawn_file_actions_adddup2(&mut actions, stdin_read.as_raw_fd(), 0),
@@ -199,6 +217,8 @@ let set = [
 	posix_spawnattr_setexceptionports_np(&mut attributes, EXC_MASK_CRASH | EXC_MASK_CORPSE_NOTIFY, port, EXCEPTION_DEFAULT, THREAD_STATE_NONE),
 ].into_iter().find(|code| *code != 0).unwrap_or(0);
 ```
+
+</div>
 
 Linux closes everything else as the process starts, and on Windows the main process hands the new process a list naming those three handles, [the one way Windows has](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute) to say which handles a process gets.
 
@@ -231,11 +251,15 @@ The folder reaches the profile as a parameter rather than spliced into its text,
 
 On Linux the walls are two, both the kernel's own. [Landlock](https://docs.kernel.org/userspace-api/landlock.html) takes every right the process has over files and gives back one, reading under the folder. A [seccomp filter](https://docs.kernel.org/userspace-api/seccomp_filter.html), in the same file, refuses the system calls that reach past the process:
 
+<div class="breakout">
+
 ```rust
 for call in [libc::SYS_socket, libc::SYS_execve, libc::SYS_execveat, libc::SYS_ptrace, libc::SYS_process_vm_readv, libc::SYS_process_vm_writev, libc::SYS_pidfd_open, libc::SYS_tkill] { rules.insert(call, vec![]); }
 for call in [libc::SYS_io_uring_setup, libc::SYS_io_uring_enter, libc::SYS_io_uring_register] { rules.insert(call, vec![]); }
 for call in [libc::SYS_kill, libc::SYS_tgkill, libc::SYS_rt_sigqueueinfo, libc::SYS_rt_tgsigqueueinfo] { rules.insert(call, vec![others().map_err(|e| fail(&e))?]); }
 ```
+
+</div>
 
 The filter refuses a socket, so the process reaches neither the network nor the desktop's message bus. It refuses starting a program, attaching to another process or reading and writing its memory, and sending a signal to any process but itself. And it refuses io_uring, through which a process could open a socket inside the kernel, where, as [LWN explains](https://lwn.net/Articles/1054225/), seccomp has "no visibility into — and thus no way to control — operations requested via io_uring." Before either wall goes up, the sandbox process makes itself undumpable, so no other process of the user's can attach to it.
 
@@ -243,11 +267,15 @@ The filter refuses a socket, so the process reaches neither the network nor the 
 
 On Windows the walls are a job object and the Untrusted integrity level, two of the four Windows mechanisms [Chromium's sandbox](https://chromium.googlesource.com/chromium/src/+/main/docs/design/sandbox.md) relies on. The sandbox process makes a job for itself that [allows one process](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information), so any program it starts fails to start. The job also caps its committed memory at a gigabyte and [keeps it off the desktop](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_ui_restrictions): no clipboard, no window of another program's, no display settings, no desktop made or switched to. Its limits, in [`copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/copper/src/sandbox.rs):
 
+<div class="breakout">
+
 ```rust
 limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION | JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_PROCESS_MEMORY;
 limits.BasicLimitInformation.ActiveProcessLimit = 1;
 limits.ProcessMemoryLimit = MEMORY_LIMIT;
 ```
+
+</div>
 
 Then it lowers its own integrity level to Untrusted, the level [below Low](https://learn.microsoft.com/en-us/windows/win32/secauthz/well-known-sids). A process at Low already cannot write to most of the user's files or registry, as [Microsoft explains](https://learn.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960%28v=msdn.10%29). Below it, the sandbox process can write no file or registry key the user owns, and can neither read nor write another process's memory.
 
@@ -261,9 +289,13 @@ A second test, the walk in [`copper/walk.js`](https://github.com/zootella/fuji/b
 
 The check ships in every copy of Fuji, so anyone can try the walls on their own machine. Open a terminal in your home folder, and name a folder of pictures and any file outside it. On a Mac:
 
+<div class="breakout">
+
 ```sh
 /Applications/Fuji.app/Contents/MacOS/fuji --sandbox-check Pictures Documents/notes.txt
 ```
+
+</div>
 
 On Linux, with Fuji installed from its package:
 
@@ -272,6 +304,8 @@ fuji --sandbox-check Pictures Documents/notes.txt
 ```
 
 Each line says what a reach answered, allowed or refused, and begins with ok when that is the answer the walls should give. On the Mac mini it prints:
+
+<div class="breakout">
 
 ```
 ok allowed list the folder: 2 names
@@ -285,6 +319,8 @@ ok refused start a program: Operation not permitted (os error 1)
 ok refused look up a service of the system's: launchservicesd, refused with 1100
 ok refused signal the process that started it: Operation not permitted (os error 1)
 ```
+
+</div>
 
 The first two lines are the sandbox process reading the folder it was given. Every line after them is a reach that code from a file might make, for the user's other files, the disk, the network, a program, the system and Fuji itself, and each one meets a wall.
 

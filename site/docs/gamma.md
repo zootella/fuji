@@ -156,6 +156,8 @@ The first build's drag added 2 over the frame and made the user lift a wrist to 
 
 The mechanism is one SVG filter, one custom property, and one CSS rule. The filter is a single primitive, [feComponentTransfer](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feComponentTransfer) from the [Filter Effects specification](https://www.w3.org/TR/filter-effects-1/#feComponentTransferElement), whose gamma type computes amplitude × in<sup>exponent</sup> + offset on each channel scaled from 0 to 1, leaving alpha alone, so black stays black and white stays white while the shadows lift. The exponent is 1 ÷ *g*, so Fuji's setting reads in the same convention as a photo suite's.
 
+<div class="breakout">
+
 ```html
 <svg aria-hidden="true" width="0" height="0" class="absolute w-0 h-0">
 	<filter v-for="n in [0, 1]" :key="n" :id="`gammaFilter${n}`" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
@@ -168,6 +170,8 @@ The mechanism is one SVG filter, one custom property, and one CSS rule. The filt
 </svg>
 ```
 
+</div>
+
 The rule that applies it reaches every tile on the contact sheet and the picture on the light table through one custom property, and its fallback, when the property is unset, is no filter at all:
 
 ```css
@@ -177,6 +181,8 @@ The rule that applies it reaches every tile on the contact sheet and the picture
 ```
 
 And the watch that sets the property is where the two filters take turns, for the reason below:
+
+<div class="breakout">
 
 ```js
 let gammaFilter = 0
@@ -188,6 +194,8 @@ watch(gamma, value => {
 	root.style.setProperty('--gamma-filter', `url(#gammaFilter${gammaFilter})`)
 })
 ```
+
+</div>
 
 There are two filters rather than one, and they take turns, because of a bug with a clean symptom and a clean mechanism. The first smoke test of the drag, on a Mac, moved the number on the hud and left the picture exactly where it was, until leaving fullscreen forced a fresh draw and the right gamma appeared all at once. WebKit does not redraw an element when a filter it is already showing through changes underneath it. The fix is to write the new exponent into the filter nothing is using, and only then point the pictures at it through the custom property, so that every change is a new `filter` value, and a new filter value is something every engine has to rebuild for.
 

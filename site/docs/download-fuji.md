@@ -35,6 +35,8 @@ You can also fetch Fuji from the command line, which skips the warnings above an
 
 **macOS:** Click search in the upper right, and type **Terminal**. Copy and paste the command below, and hit the **Return** key. Keep the two spaces after the hash; the check needs them.
 
+<div class="breakout">
+
 <DownloadCommand file="fuji.dmg">
 
 ```bash
@@ -46,7 +48,11 @@ open fuji_setup.dmg
 
 </DownloadCommand>
 
+</div>
+
 **Windows:** Click the Start menu and type **PowerShell**. Copy and paste the command below, and hit the **Enter** key.
+
+<div class="breakout">
 
 <DownloadCommand file="fuji.exe">
 
@@ -57,6 +63,8 @@ if ((Get-FileHash fuji_setup.exe).Hash -eq '000000000000000000000000000000000000
 ```
 
 </DownloadCommand>
+
+</div>
 
 The macOS and Windows commands do the same three things. They save `fuji_setup.dmg` or `fuji_setup.exe` in your _Downloads_ folder. They compute the file's SHA-256 hash and make sure it is correct. Then they open the file, as a double-click would. On macOS the disk image appears, and you drag Fuji into _Applications_. On Windows the installer puts Fuji in place and starts it. Neither system shows its warning, because the warning comes from a mark browsers add to files they download, and a file fetched by <code>curl</code> carries none.
 

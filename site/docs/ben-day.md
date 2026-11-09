@@ -130,9 +130,13 @@ export function rasterToggle() {
 }
 ```
 
+<div class="breakout">
+
 ```html
 <div ref="cardRef" class="myCard myShadow myDry myWillChangeTransform bg-well" :class="{myRaster: raster}">
 ```
+
+</div>
 
 And the key is answered on the table, beside `I`, rather than in the shell where `G` is, because gamma is a way of looking at every view at once and this is a way of looking at the card:
 
@@ -152,6 +156,8 @@ Everything so far stops at the backing bitmap: the number keys count CSS pixels,
 
 The platform and the user's display settings decide the two ratios between the screen's three grids, and these are the common cases:
 
+<div class="breakout">
+
 | screen | backing per CSS | panel per backing |
 | :-- | --: | --: |
 | an ordinary monitor on a Mac, or on Windows at 100 percent | 1 | 1 |
@@ -159,6 +165,8 @@ The platform and the user's display settings decide the two ratios between the s
 | a Retina Mac at exactly half its panel, like the MacBook Air at "looks like" 1280 by 832 | 2 | 1 |
 | a Retina Mac in a scaled mode, like the MacBook Air at "looks like" 1710 by 1112 | 2 | about 0.75 |
 | a Windows monitor set below its own resolution, like 1920 by 1080 on a 2560 by 1440 panel | 1 | about 1.33 |
+
+</div>
 
 Wherever the last column is 1, the lights are in reach, and Fuji reaches them: with `R` on, a number key whose backing ratio is whole puts every image pixel on an exact square of lights in its own color, one light at `1` on an ordinary monitor, two by two at `1` on a Retina Mac at half its panel, and three by three at `2` on a Windows laptop at 150 percent. Wherever the last column is not 1, no size reaches them. Take a 256-pixel GIF on the MacBook Air at "looks like" 1710 by 1112. Painted 256 backing pixels across, it is clean in the backing store, and macOS delivers it to the glass 192 lights across and soft. Painted to reach the glass 256 lights across, its true size, it has to be 342 backing pixels across, so the paint blends its pixels before macOS resamples them a second time. Clean in the bitmap and the wrong size on the glass, or the right size and smoothed twice, and no program can choose a third way. The display settings can, and they are the user's: on a Mac the mode at exactly half the panel, and on Windows the panel's own resolution with a larger scale.
 

@@ -24,11 +24,15 @@ Before an imaging library decodes anything, Fuji reads the picture's size from t
 
 Which decoder a file goes to is written in one table in Fuji's source, by extension and by platform, and each view chooses from it in its own way:
 
+<div class="breakout">
+
 | | contact sheet, from the imaging library | contact sheet, from the engine | light table, from the imaging library |
 | --- | --- | --- | --- |
 | macOS | every raster format Fuji opens: JPEG, PNG, BMP, WebP, AVIF, HEIC, TIFF, Targa, PICT, Photoshop, and the camera raws DNG, CR2, NEF and ARW | none | Targa, PICT, Photoshop and the camera raws |
 | Windows | JPEG, PNG, BMP and TIFF | WebP, AVIF, and BMP named `.dib` | TIFF |
 | Linux | none | JPEG, PNG, BMP and WebP | none |
+
+</div>
 
 Everything else on a light table is the engine's `<img>`, and a GIF or an SVG is the engine's `<img>` on every view and every platform.
 
@@ -334,11 +338,15 @@ Fuji's answer has three parts, each in a different layer.
 
 Measured on the MacBook Air with three PNGs authored so that *Core Graphics* performed every conversion and nobody typed a value in by hand. The first two are split down the middle: on the left a primary that lies outside sRGB, on the right sRGB's own primary written in P3 coordinates, so one half is outside sRGB's gamut and the other inside it. On a correct pipeline the halves differ visibly; if anything clamps, they become identical.
 
+<div class="breakout">
+
 | image | what Rust returned | canvas read as `display-p3` | canvas read as `srgb` |
 | --- | --- | --- | --- |
 | P3 red halves | `(255,0,0)` / `(234,51,35)` | `(255,0,0)` / `(234,51,35)` | `(255,0,0)` / `(255,0,0)` |
 | P3 green halves | `(0,255,0)` / `(117,251,76)` | `(0,255,0)` / `(117,251,76)` | `(0,255,0)` / `(3,255,0)` |
 | sRGB red control | `(234,51,35)` both halves | `(234,51,35)` | `(255,0,0)` |
+
+</div>
 
 Every value matches the file exactly. The sRGB readings are what a correct pipeline gives: pure P3 red is outside sRGB, so it clips when asked for in sRGB, while the in-gamut half maps back to the `(255,0,0)` it was born as. The green pair round-trips three units off in one channel, which is the expected cost of two conversions at eight bits.
 

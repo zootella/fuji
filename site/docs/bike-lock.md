@@ -46,11 +46,15 @@ And a good design gets tested against an opponent before anyone trusts it. A *ta
 
 ***Bike Lock*** fits its five building blocks together in three steps. The dice words go in at the top, and a sealed file comes out at the bottom:
 
+<div class="breakout">
+
 ```
 dice words + bike lock salt  →  Argon2id  →  dice key            once a session    26 ms
 dice key   + file salt       →  HKDF      →  file key            once a file       0.27 µs
 file key   + nonce           →  AES-GCM   →  ciphertext and tag  for 3 MB          1 ms
 ```
+
+</div>
 
 The times are medians on an Apple M2 Mac mini, from the RustCrypto project's crates that Fuji builds on. The first step is slow by design and runs once a session. The other two are fast and run for every file. The slow step stands between the sophisticated adversary and every guess, and the fast steps are all the user waits for after it.
 
@@ -74,6 +78,8 @@ Turning dice words into a key takes a hash built to be expensive. [*Argon2*](htt
 
 Argon2 is *memory-hard*: every guess has to fill a large table in memory and move it through the processor, each block mixed from the one before it and one chosen from earlier in the table, and no shortcut skips the table. A graphics card that runs billions of fast hashes a second can hold only as many Argon2 guesses as its memory has room for tables, and runs them only as fast as its memory can move them. ***Bike Lock*** writes the table's settings down once, at the top of [`steel/src/lock.rs`](https://github.com/zootella/fuji/blob/main/steel/src/lock.rs), and hands them to RustCrypto's `argon2` crate:
 
+<div class="breakout">
+
 ```rust
 //rfc 9106's second recommended option, from its section 4, as the rfc gives it
 pub const MEMORY: u32 = (64 * size::MB / size::KB) as u32;//64 MiB in the KiB argon2 counts in: a table of 65,536 blocks of 1 KiB
@@ -90,6 +96,8 @@ pub fn key(passphrase: &str, label: &str) -> Option<Data> {
 	Some(Data::from_array(&out))
 }
 ```
+
+</div>
 
 `Data::from_text` turns the dice words into UTF-8 in Unicode Normalization Form C, so the same words typed two ways, an accent as one character or as a letter and a combining mark, make the same dice key.
 
@@ -109,6 +117,8 @@ Encryption hides what a file holds and not how big it is: the size is one of the
 
 Padmé treats a length like a floating-point number and allows its mantissa no more bits than its exponent takes to write, rounding everything below them up. The paper's Algorithm 1 is five lines, and the Rust follows it line for line, with every step checked:
 
+<div class="breakout">
+
 ```rust
 pub fn padme(length: u64) -> Option<u64> {
 	if length < 2 { return Some(length) }//no exponent to speak of; a sealed file's length field alone makes 8
@@ -119,6 +129,8 @@ pub fn padme(length: u64) -> Option<u64> {
 	Some(length.checked_add(m)? & !m)
 }
 ```
+
+</div>
 
 ***Bike Lock*** runs it on L, the file's length plus the 8 bytes that record that length. A file of 3,000,000 bytes has an L of 3,000,008, which rounds up to 3,014,656, the next multiple of 64 KB: 14,648 bytes of zeros, about half a percent more. Every file from 2,949,113 to 3,014,648 bytes, 65,536 sizes in all, locks to that same size.
 
@@ -153,6 +165,8 @@ The length is *little-endian*, an unsigned 64-bit number with its lowest byte fi
 
 Opening reads those bytes as bytes nobody vouched for, and checks every split before it trusts one:
 
+<div class="breakout">
+
 ```rust
 pub fn open(key: &Data, sealed: &Data) -> Option<Data> {
 	let (salt, rest) = sealed.array().split_at_checked(SALT)?;
@@ -168,6 +182,8 @@ pub fn open(key: &Data, sealed: &Data) -> Option<Data> {
 	Some(Data::from(plain))
 }
 ```
+
+</div>
 
 A wrong key, a changed byte, and bytes too short to be a locked file all come back as the same nothing.
 
