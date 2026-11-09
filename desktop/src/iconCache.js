@@ -21,7 +21,7 @@ Each icon is asked for once per window and kept while the window lives. A change
 
 const iconCss = 16//the square the list and the tree draw an icon in, css pixels on a side, as their styles size it
 const iconNumbers = new Map()//an icon to the number its squares carry: folder, image, video or audio, or an extension with its dot, so no extension is mistaken for the others
-let iconStyle = null//where each icon's rule goes, made when the first icon arrives rather than as this module loads, so it follows every component's own styles and its rules win over the square's cyan
+let iconSheet = null//where each icon's rule goes, made when the first icon arrives. A stylesheet made in script and adopted by the document rather than a style element the page makes, because an installed fuji on the Windows box gave such an element no sheet at all on 2026-11-09, every icon failing on a sheet of null after copper had answered, where the Mac's gave it one. An element gets no sheet when a content security policy refuses it, and fuji's names no style-src, so its default-src 'self' covers styles; a stylesheet made in script is the page's own object, which the policy does not govern. The document places adopted sheets after every sheet of its own, so these rules win over the square's cyan
 
 export function iconFor({folder = false, extension = ''}) {//the number a row carries on its icon square for a folder or a file of this extension, answered at once; the first time an icon is asked for, it is asked of the system, and every square with the number shows it when it comes
 	let lower = extension.toLowerCase()
@@ -44,8 +44,8 @@ async function iconAsk(number, kind, extension) {
 	try {
 		let png = await iconRender({kind, extension, css: iconCss, backingPerCss: devicePixelRatio})
 		let url = URL.createObjectURL(new Blob([png], {type: 'image/png'}))//never revoked, since the rule shows it for as long as the window lives
-		if (!iconStyle) { iconStyle = document.createElement('style'); document.head.append(iconStyle) }
-		iconStyle.sheet.insertRule(`[data-icon="${number}"] { background: url("${url}") center / 100% 100% no-repeat }`, iconStyle.sheet.cssRules.length)//the shorthand clears the cyan as it sets the picture
+		if (!iconSheet) { iconSheet = new CSSStyleSheet(); document.adoptedStyleSheets = [...document.adoptedStyleSheets, iconSheet] }
+		iconSheet.insertRule(`[data-icon="${number}"] { background: url("${url}") center / 100% 100% no-repeat }`, iconSheet.cssRules.length)//the shorthand clears the cyan as it sets the picture
 	} catch (error) {
 		logTrouble(`icon: asking for ${kind == 'file' ? `.${extension}` : kind}`, error)//and the square keeps its cyan
 	}

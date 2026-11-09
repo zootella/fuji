@@ -4,7 +4,7 @@ mod desktop;//compile desktop.rs as a module named desktop: text the page hands 
 mod dialog;//and dialog.rs: the system's boxes for opening files, choosing a folder, and saving a file, put up for the page, or on the Mac for the menu bar with no window
 mod disk;//and disk.rs: file commands, one line each over steel's disk, and the contract they keep
 mod find;//and find.rs: the command over steel's find, many folders read in one call, and why
-mod icon;//and icon.rs: the command over copper's icons, the system's icon for one kind of file at a time
+mod icon;//and icon.rs: the two commands over copper's icons, the system's icon for one kind of file at a time, and where windows keeps it
 mod inventory;//and inventory.rs: the inventory's commands, which start copper's loop over a folder's whole tree, read its counts and stop it
 mod launch;//and launch.rs: the two commands over copper's launch services
 mod locale;//and locale.rs: the command over copper's locale, how the user's system writes numbers
@@ -111,6 +111,7 @@ pub fn run() {
 				thumbnail::thumbnail_render,//and in thumbnail.rs
 				thumbnail::thumbnail_natural,
 				icon::icon_render,//and in icon.rs
+				icon::icon_location,
 				open::open_files,//and in open.rs
 				paths::paths_executable,//and in paths.rs
 				process::process_open,//and in process.rs

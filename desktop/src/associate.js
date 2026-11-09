@@ -1,13 +1,13 @@
 import {ref} from 'vue'
 import parse from 'path-browserify'
 import {processOpen} from './process.js'//Windows' Default apps settings, opened as a double-click would
-import {diskStat} from './disk.js'
+import {iconLocation} from './icon.js'//where windows keeps its own icon for each kind fuji registers
 import {registryGet, registrySet, registryDelete, registryNotify, registryOpens} from './registry.js'
 import {launchOpens, launchSet} from './launch.js'
 import {pathsExecutable} from './paths.js'
 import {brandName, brandDescription} from './brand.js'
 import {settings, settingsChanged} from './settings.js'
-import {log} from './log.js'
+import {log, logTrouble} from './log.js'
 import {backize, forwardize, platform} from './components/library.js'
 import {fileTypes, fileTypesAssociations} from './fileTypes.js'
 
@@ -22,6 +22,8 @@ Everything is per extension, since a person may want fuji for .webp and the edit
 
 The types are what fileTypesAssociations in fileTypes.js answers for the platform fuji is running on, the enabled kinds it has a road for there, so a kind only the Mac can show is never offered to Windows, where a double-click on one would open fuji on a file it cannot show; Info.plist and the Windows uninstaller's list in win-setup/registry.js type out the Mac's answer and the Windows one by hand, since neither can read that table, and Linux declares none yet. On Windows three layers decide what opens a type, and everything fuji writes is under HKEY_CURRENT_USER. The offer, written whatever the answer: a ProgID per extension, with its name, icon and command; that ProgID in the extension's OpenWithProgids; the executable's key under Applications, with the types it supports; and a Capabilities block named in RegisteredApplications, which lists fuji in Settings. The fallback, the extension's own default value, which decides where no choice is saved: the line an installer from 1999 writes at install and ActivationRegistrationManager leaves alone. Fuji writes it for a yes and takes it back for any other answer, but only while it still names fuji. Above both, the user's saved choice, UserChoice, which fuji only reads, by asking the shell what it would open, the lookup Explorer makes. The Mac has no fallback, since the only default a program can set there is the saved choice itself.
 
+The icon each ProgID names is Windows' own for its kind, a page with a picture, a strip of film or a note, at the location Windows gives for it, asked through icon.js on every pass. So a type fuji holds wears in Explorer and in the system's dialogs the icon it wears in fuji's own list, and the one the version of Windows draws, Windows 11's on Windows 11, since the location names the system's file rather than a copy. Taking a type changes how its files open and nothing about how they look, which is right for kinds a whole ecosystem of programs reads and writes, where a program planting its own icon on every JPEG belongs to the years of software sold in boxes. Fuji carries no icon file of its own for a document, and the uninstaller needs none taken back, since it removes each ProgID whole.
+
 The Mac is simpler, because there any application can set the user's saved choice itself, through Launch Services and with no dialog, which launch.rs has. Fuji can, so a choice made in fuji's settings is carried out at the click that makes it, once, and never again. Every other application can too, so what the Mac opens a type with is the whole answer, and fuji keeps none: the three lists in fuji.toml go unused there, the settings sort each type under whatever the Mac opens it with now, and Choose Fuji takes it. Taking a type away again is Get Info's, since fuji never chooses another application for the user. With no answer kept, none can disagree with the system, so nothing in the settings that helps the user finish a choice in the system's own screens is ever reached on the Mac. The code is the same on both; the table named system below is the one place that asks which platform it is on. And the Mac files its record by kind of file rather than by extension, so .jpg, .jpeg and .jpe, all public.jpeg, move together.
 
 Only the installed copy registers or acts on an answer, since everything registered names the running executable, and a build in target/ or a copy on the Desktop may move or vanish. On the Mac the installed copy is one in an Applications folder; on Windows it is the copy the installer recorded. The test is that the executable sits in the folder InstallLocation names under Software\Microsoft\Windows\CurrentVersion\Uninstall\Fuji, which every install writes and the uninstaller removes, under HKEY_CURRENT_USER because the installer installs for the user alone. Every copy shares fuji.toml, so a copy that fails the test cannot change an answer either.
@@ -31,8 +33,7 @@ What the platforms do, seen rather than read. Windows shows a one-time chooser o
 Two things elsewhere stay in step with this. bundle.fileAssociations stays out of tauri.conf.json, since Info.plist declares the Mac's types, pasted from what fileTypesAssociations answers for it, this file registers them with Windows at every launch, and Linux declares none yet. And the uninstaller takes back everything this writes, for the extensions win-setup/registry.js names and under the names this file gives them, Fuji.webp for a ProgID, Software\Fuji for the Capabilities block and fuji.exe under Applications, so a change to how this file names a key is a change to the rules there too. The installer never uninstalls first, so an install over an existing copy leaves every registration, and every choice the user saved in Windows' own screens, as it was.
 */
 
-const documentIcons = {image: 'document-image.ico', video: 'document-video.ico', audio: 'document-audio.ico'}//what a type fuji opens wears in Explorer, a document icon for its kind beside the executable; fuji's own icon would make a folder of pictures a folder of cyan discs
-const documentIconBlank = 'document-sheet.ico'//and the blank page for a kind with no icon of its own; every kind fuji registers today has one
+const iconKinds = ['image', 'video', 'audio']//the kinds windows keeps an icon of its own for, which a type fuji opens wears in Explorer; fuji's own icon would make a folder of pictures a folder of cyan discs
 const answerNames = ['yes', 'no', 'ask']//the three answers, which are also the three lists in fuji.toml, in the order the file shows them
 
 export const associateAnswers = ref({})//extension to yes, no, or ask; changed only by associateChoose and by following windows
@@ -158,8 +159,7 @@ async function register() {//tell windows what this copy can open, claim the fal
 	let icons = {}//where explorer finds the icon for each kind registered, looked for once a pass rather than once a type
 	for (let kind of new Set(associateExtensions.map(extension => fileTypes[extension].kind))) {
 		icons[kind] = `${windowsExecutable},0`//the executable's own icon, its first, which is still better than none
-		let beside = `${parse.dirname(executable)}/${documentIcons[kind] || documentIconBlank}`//joined by hand, since parse.join would fold a network path's leading // into one
-		try { await diskStat(beside); icons[kind] = `${backize(beside)},0` } catch {}//the document icon where it exists; unquoted is safe, since windows splits an icon location at its last comma
+		try { icons[kind] = await iconLocation(iconKinds.includes(kind) ? kind : 'file') } catch (error) { logTrouble(`associate: windows gave no icon location for ${kind}`, error) }//windows' own icon for the kind, and the blank page for a kind with none of its own; every kind fuji registers today has one
 	}
 
 	let application = `Software\\Classes\\Applications\\${file}`

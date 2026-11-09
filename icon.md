@@ -320,32 +320,11 @@ It was looked at **without installing**, which is worth recording because it mak
 
 ## The Windows document icons
 
-The first icons in this repository that nothing generates. Everything above is arithmetic on a disc; these are four drawn assets, delivered as finished `.ico` files, and the whole point is that no part of the pipeline above can reach them.
+**Fuji ships none, and names Windows' own.** `associate.js` writes a `DefaultIcon` on each ProgID, and it names the system's stock icon for the type's kind, a picture, a video or a sound, at the location Windows gives for it, asked again at every launch. So a type fuji holds wears the same icon in Explorer as in fuji's own list, and Windows 11's drawing on Windows 11. The essay in `associate.js` says why, and copper's `icon.rs` how the location is found and what it is on Windows 10.
 
-**Why there are any.** `associate.js` writes a `DefaultIcon` per ProgID. With nothing else to name it named fuji's own executable, and every picture a user let fuji open wore the application icon — a full-bleed cyan disc, identical on every file, most visible in Details view and with Explorer's thumbnails turned off. An application icon is meant to be unmistakable in a dock and a taskbar, which is exactly the wrong property on a document.
+**What came before.** Naming nothing put fuji's application icon on every document, a full-bleed cyan disc identical on every file, which is exactly the wrong property on a document. Then four `.ico` files beside `fuji.exe` stood in while fuji's own artwork was drawn, and they were copies of Windows 10's stock icons, identical at every size; naming the system's own replaced them. For a comparison they are in git history, where `git log -- desktop/src-tauri/icons/document` finds the commit that removed them, and Windows gives the same icons at any size, each version its own drawing of them.
 
-**Four, one for each kind fuji registers and a blank.** `documentIcons` in `associate.js` picks one by the kind `fileTypes.js` gives a type.
-
-    icons/document/document-image.ico    a page with a landscape, worn by every picture fuji registers
-    icons/document/document-video.ico    a page with a strip of film, worn by every video
-    icons/document/document-audio.ico    a page with a note, worn by every sound
-    icons/document/document-sheet.ico    a blank page, for a kind registered later with no icon of its own
-
-The blank page is inert until such a kind is registered, about 50 KB of artwork carried ahead of need, less inside the compressed installer. `sheet`, `image`, `video` and `audio` are all five characters, which is what keeps the resources map and the registry writes reading straight down.
-
-**Measured, by reading the directory at the front of each file.** All four are the same shape:
-
-    layers   256  64  48  40  32  24  20  16
-    depth    32bpp throughout
-    storage  the 256 is a PNG, the other seven are BMP
-
-That is **a richer set than `tauri icon` produces** for the application icon: our own `icon.ico` has six layers at 16, 24, 32, 48, 64 and 256 and stores every one as PNG, with no 20 and no 40 — the sizes Windows wants at 125% scaling, where a 16-pixel slot asks for 20 and a 32-pixel slot for 40. Neither file carries 96, which is what Explorer's *Large icons* view uses; Windows scales it from the 256, which is a downscale from the biggest layer and the least costly size to be missing. Nothing to fix on the application icon, which is a different artifact with a different job, but worth knowing that the generator's output is the thinner of the two.
-
-**The safe-area rule above does not apply here, and nobody should apply it.** The one sentence the platform sections keep restating — the circle touches the bounds, macOS excepted — is about an *application* icon sitting on a grid of other application icons. A document icon sits among other documents, has a shape of its own, and gets whatever margin its artwork wants. A later session finding these files inset should leave them alone.
-
-**How one reaches Explorer.** Three hops, and no new machinery in any of them. `bundle.resources` in `tauri.conf.json` maps each file to a bare filename, which Tauri lands beside the executable — the same mechanism, proven by the Start menu tile, that needs no installer template. `associate.js` builds the icon location from the program's folder, which `paths.rs` reads from `current_exe()`, and falls back to the application icon if the file is not there. And `SHChangeNotify` already fires whenever a value moves, so Explorer catches up without a sign-out.
-
-**What is not in the repository yet** is the artwork these were made from. The `.ico` files are committed artifacts like everything else here, and the lesson two sections up is that a committed artifact is frozen at whatever made it with nothing to report that it is stale — so the designer's PNG set belongs beside them, as the source of record, whenever it arrives.
+**Fuji's own document icons, if they come**, would go back beside `fuji.exe` through `bundle.resources` for `associate.js` to name in place of the system's, so whether a type fuji holds should look like fuji's or like the system's is the decision that comes with them.
 
 ## Linux — researched only as far as the current files
 

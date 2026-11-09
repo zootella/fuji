@@ -11,14 +11,8 @@ desktop/src-tauri/icons/app-icon-tile.svg                the disc inset further,
 desktop/src-tauri/icons/AppIcon.icon/Assets/disc.svg     the disc for Tahoe and later
 desktop/src-tauri/icons/AppIcon.icon/icon.json           how Tahoe draws it: on a white tile, flat, with no glass, sheen or shadow
 desktop/src-tauri/icons/tile/VisualElementsManifest.xml  the Start menu tile's manifest, written by hand
-desktop/src-tauri/icons/document/document-image.ico      a page with a landscape, on every picture type Fuji registers on Windows
-desktop/src-tauri/icons/document/document-video.ico      a page with a strip of film, on every video
-desktop/src-tauri/icons/document/document-audio.ico      a page with a note, on every sound
-desktop/src-tauri/icons/document/document-sheet.ico      a blank page, for a kind registered later with no icon of its own
 site/docs/public/favicon.svg                             the website's disc, written by hand, which pnpm icons never touches
 ```
-
-The four document icons are custom artwork, supplied as finished files, and nothing generates them.
 
 ## What pnpm icons makes
 
@@ -68,7 +62,6 @@ desktop/src-tauri/icons/icon.ico                         → fuji.exe's own icon
 desktop/src-tauri/icons/tile/VisualElementsManifest.xml  → beside fuji.exe as fuji.VisualElementsManifest.xml    bundle.resources in tauri.conf.json
 desktop/src-tauri/icons/tile/tile-medium.png             → beside fuji.exe
 desktop/src-tauri/icons/tile/tile-small.png              → beside fuji.exe
-desktop/src-tauri/icons/document/*.ico                   → beside fuji.exe, each named in the registry by desktop/src/associate.js for the types of its kind
 ```
 
 **Linux:**
@@ -81,7 +74,7 @@ desktop/src-tauri/icons/128x128@2x.png   → usr/share/icons/hicolor/256x256@2/a
 
 The flatpak takes those three from the deb and installs them under the app's identifier at 32x32, 128x128 and 512x512, in `linux/inside-flatpak.py`, since freedesktop has no folder named 256x256@2.
 
-**The Windows files go to every platform.** `bundle.resources` in `tauri.conf.json` applies everywhere, so the tile and the four document icons also ride inside `Fuji.app` and the Linux packages, unused there. They're small, and one list is simpler than a list per platform.
+**The Windows files go to every platform.** `bundle.resources` in `tauri.conf.json` applies everywhere, so the Start menu tile's three files also ride inside `Fuji.app` and the Linux packages, unused there. They're small, and one list is simpler than a list per platform.
 
 ## The sizes
 

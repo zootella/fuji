@@ -1,4 +1,4 @@
-//the icon command: the system's icon for a kind of file, from copper on the blocking pool, as a png for the page
+//the icon commands: the system's icon for a kind of file as a png for the page, and on windows where the system keeps the icon for a kind, both from copper on the blocking pool
 
 use tauri::ipc::Response;
 use crate::run_blocking;
@@ -13,4 +13,10 @@ pub async fn icon_render(kind: String, extension: String, css: u32, backing_per_
 		if css == 0 || css as f64 * backing_per_css > ICON_LARGEST { return Err(format!("icon_render: expected an icon from 1 to {ICON_LARGEST} backing pixels across, not {css} css pixels at {backing_per_css}")) }
 		copper::icon::render(&kind, &extension, css, backing_per_css).map(Response::new)//the bytes raw, as the thumbnail's cross
 	}).await
+}
+
+/// Where Windows keeps its own icon for a kind, which is folder, image, video or audio, or file for the blank page of a document of no kind, written the way a DefaultIcon in the registry takes one, which associate.js registers on each type fuji offers; on the blocking pool, since copper sets up com around the call. An error off windows
+#[tauri::command]
+pub async fn icon_location(kind: String) -> Result<String, String> {
+	run_blocking(move || copper::icon::location(&kind)).await
 }
