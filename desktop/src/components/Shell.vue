@@ -121,6 +121,7 @@ onMounted(async () => {
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
 	accentShow()//and the accent the settings name, on a selected row and a menu's row
 	if (platform() == 'mac') setCommandKey('metaKey')//and the components' chords on command, where control and a click is a right click; asked here so no component asks which platform it is on
+	document.documentElement.dataset.platform = platform()//and the platform on the root, for the stylesheet's few rules that match something the system draws, like a bar against the title bar above it; set here for the same reason
 	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
 	modelStart()//before any view is shown, so the first folder opened is already in the order the file names
 	await nextTick()//let vue place the right view before the window appears

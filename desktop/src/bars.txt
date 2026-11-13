@@ -1,0 +1,78 @@
+Every bar fuji draws, written as one text; bar.js reads it as fuji starts, and says how it is written.
+
+# Menu Bar
+menubar
+&File      [File Menu]
+&Edit      [Edit Menu]
+&View      [View Menu]
+&Window    [Window Menu]
+&Help      [Help Menu]
+
+# Toolbar
+toolbar
+Back        big  arrow-left
+Forward     big  arrow-right
+Up          big  arrow-up
+---
+Folders     big  folder-tree
+---
+Cut         big  scissors
+Copy        big  copy
+Paste       big  clipboard-paste
+---
+Delete      big  trash-2
+Undo        big  undo-2
+---
+Properties  big  info
+Views       big  layout-grid  [Views Panel]
+---
+Bench       big  wrench
+
+# Views Panel
+panel
+
+# Views Sort
+toolbar
+&Sort        arrow-down-up    [Sort Menu]
+
+# Sort Menu
+menu
+by &Name
+by &Date
+by Si&ze
+by &Type
+
+# File Menu
+menu
+New &Window
+&Open…
+---
+&Close
+
+# Edit Menu
+menu
+&Undo         undo-2
+&Redo
+---
+Cu&t          scissors
+&Copy         copy
+&Paste        clipboard-paste
+---
+Select &All
+
+# View Menu
+menu
+&Contact Sheet
+&Light Table
+---
+&Refresh
+
+# Window Menu
+menu
+&Minimize
+&Zoom
+
+# Help Menu
+menu
+Fuji &Help
+&About Fuji

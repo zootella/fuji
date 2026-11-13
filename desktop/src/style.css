@@ -120,11 +120,18 @@ A state that is a quieter version of its color is a share of it rather than a co
 	--color-fuji-window-button: light-dark(#000000, #ffffff); /* behind a window button fuji draws in a title bar of its own, minimize or maximize, which it does on Windows and Linux: the drawing's own black or white, a share of which shows under the pointer, taken from Windows 10 as Chromium copies it */
 	--color-fuji-close-red: #e81123; /* behind the close button of the same title bar, under the pointer: the bright red Windows 10 uses, taken from it */
 	--color-fuji-on-close-red: #ffffff; /* the drawing on that red, white in both */
+	--color-fuji-title-bar: light-dark(#ffffff, #000000); /* the title bar Windows 10 draws above a window in front, which a bar fuji draws right below it takes, so the two read as one surface with no seam between them: white in light, guessed from memory, and black in dark, matched by eye on the Windows box 2026-11-12. Windows 11's own title bar, and one in the user's accent color, are not matched */
+	--color-fuji-title-bar-behind: light-dark(#ffffff, #2b2b2b); /* and the same title bar while the window is behind another: white again in light, guessed, and a dark gray in dark, matched by eye the same day */
 
 	--color-accent: #0064e1; /* a list's selected row while it has the keyboard, and a menu's row under the pointer, on every platform: accent.color in fuji.toml, which accentShow in appearance.js puts on the root, and this its factory value for the moment before */
 	--color-on-accent: var(--color-fuji-on-deep); /* the text on it, which accentShow swaps for fuji-on-pale or fuji-on-deep, whichever reads on the user's color */
 	--color-select-quiet: light-dark(#dcdcdd, #454a56); /* a list's selected row while the keyboard is elsewhere, on every platform: Zed's background in One Light, the gray the Mac's and Explorer's own come nearest, and element.selected in One Dark */
 	--color-on-select-quiet: var(--color-zed-text); /* the text on it, Zed's, as on any row */
+}
+@layer base { /* the ground fuji's bars and their menus stand on, a theme of the bar's own rather than Zed's: on windows the title bar's color, which the bars sit right under, so the title bar, the bars and an open menu read as one surface, and elsewhere the content's own color, as a toolbar in Zed is, until each platform's title bar is looked at. Picked by the platform and the window's place, which the shell puts on the root */
+	:root { --bar-ground: var(--color-zed-editor-background) }
+	html[data-platform="windows"] { --bar-ground: var(--color-fuji-title-bar) }
+	html[data-platform="windows"][data-window="back"] { --bar-ground: var(--color-fuji-title-bar-behind) }
 }
 @layer base {
 	html { color-scheme: light dark } /* the page is drawn in both, so every light-dark() above, and the engine's own scrollbars and form controls, follow the window's theme */

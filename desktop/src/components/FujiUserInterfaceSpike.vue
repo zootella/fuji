@@ -1,4 +1,4 @@
-<script setup>//the bench fuji's list and tree are built on: the tree and the list side by side, as a file manager lays them out, each with mock data the page makes for it, a bar between them that sizes them, and how long the list takes to build, filter and scroll, on screen and in the log
+<script setup>//the bench fuji's bars, list and tree are built on: a menu bar and a toolbar across the top, and below them the tree and the list side by side, as a file manager lays them out, each with mock data the page makes for it, a bar between them that sizes them, and how long the list takes to build, filter and scroll, on screen and in the log
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
@@ -12,6 +12,7 @@ import {iconFor} from '../iconCache.js'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import FujiList from './FujiList.vue'
 import FujiTree from './FujiTree.vue'
+import FujiBar from './FujiBar.vue'
 import MockMenu from './MockMenu.vue'
 
 const counts   = [50, 200, 1000, 2000, 5000, 10000]
@@ -60,8 +61,18 @@ async function onFilter(e) {
 let pressed = 0, waited = 0//when the last press reached the bench, which hears it before the list does, and how long it sat in line before that, from the moment the event was made
 function press(e) { pressed = performance.now(); waited = pressed - e.timeStamp }
 function onKey(e) { press(e); if (!listKey(list, e)) treeKey(tree, e) }//every key the shell hands this view goes on to the list or the tree, whichever has the keyboard, timed like a press
-function onFocus(focused) { if (!focused) menuRef.value?.hide() }
+function onFocus(focused) { if (!focused) for (let menu of [menuRef, menuBarRef, toolbarRef]) menu.value?.hide() }//a menu closes when its window goes behind another, as the system's own do
 defineExpose({onKey, onFocus})
+
+const menuBarRef = ref(null), toolbarRef = ref(null)//the two bars across the top, which close what they have open as the window goes behind
+const command = ref('')//the word the bars sent last
+const viewsShown = ref('Thumbnails')//the mock Views panel's radio choice, which only the panel shows
+const benchShowing = ref(false)//whether the strip of the bench's own controls and readouts shows, which the toolbar's Bench button turns on and off; hidden at first, and forgotten when the bench closes
+function onCommand(word) {//every word from the bars, which the bench shows, and answers where it has an answer
+	command.value = word
+	log(`interface spike: command ${word}`)
+	if (word == 'Bench') benchShowing.value = !benchShowing.value
+}
 
 const menuRef = ref(null)
 function onMenu(at) {//the window to the front first, as the sheet's own right click does, since webkit follows the pointer only in the window in front
@@ -221,7 +232,18 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 <template>
 
 <div class="bg-zed-editor-background text-zed-text-muted w-full h-full flex flex-col" @pointerdown.capture="press">
-	<div class="mySans text-[11px] flex-none h-[28px] flex items-center gap-x-4 px-4 whitespace-nowrap overflow-hidden border-b border-zed-border [&>*]:flex-none"><!-- one line of a set height, so readouts that grow and shrink never move the tree and the list below; what runs past the right edge is cut off -->
+	<FujiBar ref="menuBarRef" name="Menu Bar" class="flex-none border-b border-zed-border" @command="onCommand" /><!-- on every platform while the bars are designed; at the very end the mac leaves this row out, for its own menu bar at the top of the screen -->
+	<FujiBar ref="toolbarRef" name="Toolbar" class="flex-none border-b border-zed-border" :pressed="benchShowing ? ['Bench'] : []" @command="onCommand">
+		<template #panel="{panel}">
+			<div v-if="panel == 'Views Panel'" class="flex items-start gap-4 p-3"><!-- the first panel, a mock: a radio group, which the page draws itself, beside a small toolbar of its own whose button opens a menu -->
+				<div class="flex flex-col gap-1">
+					<label v-for="view in ['Thumbnails', 'Tiles', 'Details']" :key="view" class="flex items-baseline gap-2"><input type="radio" name="viewsShown" :value="view" v-model="viewsShown"><span>{{view}}</span></label>
+				</div>
+				<FujiBar name="Views Sort" @command="onCommand" />
+			</div>
+		</template>
+	</FujiBar>
+	<div v-show="benchShowing" class="mySans text-[11px] flex-none h-[28px] flex items-center gap-x-4 px-4 whitespace-nowrap overflow-hidden border-b border-zed-border [&>*]:flex-none"><!-- one line of a set height, so readouts that grow and shrink never move the tree and the list below; what runs past the right edge is cut off -->
 		<span>Tree <span class="text-zed-text">{{treeMade}}</span></span>
 		<span>Selected <span class="text-zed-text">{{treeSaid}}</span></span>
 		<span class="flex gap-1"><button v-for="n in counts" :key="n" class="myButton" :aria-pressed="n == count" :disabled="building" @click="build(n).catch(trouble)">{{say(n)}}</button></span>
@@ -231,11 +253,12 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 		<span>Scroll <span class="text-zed-text">{{scrolled}}</span></span>
 		<span>Select <span class="text-zed-text">{{selected}}</span></span>
 		<span>Sort <span class="text-zed-text">{{sorted}}</span></span>
+		<span>Command <span class="text-zed-text">{{command}}</span></span>
 	</div>
-	<div class="myBench flex-1 min-h-0 flex p-4"><!-- the tree and the list set on a ground of their own, with room around them, so where each component ends shows -->
-		<FujiTree class="myBenchCard flex-none" :style="{width: `${treeWidth}px`}" :tree="tree" />
-		<div class="flex-none w-4 cursor-col-resize" @pointerdown="onSplit" @mousedown.prevent></div><!-- the bar, which is the gap between them; the press's default cancelled so a drag selects no text in the strip -->
-		<FujiList class="myBenchCard flex-1 min-w-0" :list="list" @scroll.capture.passive="onScroll" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
+	<div class="flex-1 min-h-0 flex"><!-- the tree and the list filling the rest of the window edge to edge, as a file manager lays them out -->
+		<FujiTree class="flex-none" :style="{width: `${treeWidth}px`}" :tree="tree" />
+		<div class="mySplit flex-none" @pointerdown="onSplit" @mousedown.prevent></div><!-- the bar between them; the press's default cancelled so a drag selects no text in the strip -->
+		<FujiList class="flex-1 min-w-0" :list="list" @scroll.capture.passive="onScroll" /><!-- the scroll heard on its way down, since the rows scroll inside the list and a scroll event does not bubble -->
 	</div>
 	<MockMenu ref="menuRef" />
 </div>
@@ -243,9 +266,7 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 </template>
 <style scoped>
 
-.myBench { /* tight diagonal stripes of two grays behind the components, so a component that paints no ground of its own, or paints past its edge, shows it */
-	background-image: repeating-linear-gradient(-45deg, var(--color-zed-border-variant) 0 3px, var(--color-zed-surface-background) 3px 6px);
-}
-.myBenchCard { box-shadow: 0 2px 8px var(--color-fuji-shade) } /* no border, so the shadow alone says where each component ends */
+.mySplit { position: relative; z-index: 1; width: 1px; background-color: var(--color-zed-border) } /* the bar between the tree and the list: a line one css pixel wide in Zed's border gray, as the list draws between its columns and Zed draws beside a panel. Raised, so the place to grab it below lies over the tree and the list rather than under them */
+.mySplit::before { content: ""; position: absolute; top: 0; bottom: 0; left: -4px; right: -4px; cursor: col-resize } /* the place to grab it, 4 css pixels either side of the line, as the list's column dividers have */
 
 </style>

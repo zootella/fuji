@@ -40,7 +40,7 @@ with `<FujiBar name="Sheet Bar" @command="onCommand" />` in the template. `barSh
 
 ## What the text says, and what it leaves out
 
-**Structure, wording and icons, never visual style.** FujiBar has one look out of the box, and what the text makes easy to change is structure, wording and iconography. For an item it says the words, the underlined letter, the Lucide icon by name, the keyboard shortcut, and whether a button is big or small. For a bar it says whether the bar runs sideways or top to bottom.
+**Structure, wording and icons, never visual style.** FujiBar has one look out of the box, and what the text makes easy to change is structure, wording and iconography. For an item it says the words, the underlined letter, the Lucide icon by name, the keyboard shortcut, and whether a button is big or small. For a bar it says which of four kinds it is, a menubar, a toolbar, a menu or a panel, and the kind says which way it runs.
 
 **No user customization and no vendor theming.** Many toolbar and menu systems let users rearrange their bars and vendors theme them, and FujiBar does neither, which keeps the language small. It is flexible and customizable for fuji itself, in the code.
 
@@ -53,54 +53,15 @@ with `<FujiBar name="Sheet Bar" @command="onCommand" />` in the template. `barSh
 **Icons by name have precedent.** Office's RibbonX names an icon from Office's own set with `imageMso`, VS Code writes a codicon as `$(book)`, freedesktop's Icon Naming Specification has names like `document-open` and `edit-copy`, and Lucide's names read like `folder-open` and `copy`.
 
 
-## The user's first ideas for the syntax
+## The syntax
 
-**Rough and conceptual, and the right design is still to be found.** From the user's notes:
+**Decided 2026-11-12, and `bar.js` says how the text is written**, with `bars.txt` as the text. The user's first notes were that names are markdown, tags make buttons big or small, nesting is `>>`, and the text starts by saying which way a bar runs. What came of them:
 
-- Names are markdown.
-- Tags define big buttons or small.
-- Nesting is `>>`.
-- The text starts by saying whether the bar is sideways or top to bottom.
-
-**A sketch from chat reading those notes**, made before the one text, so each bar is a literal of its own here:
-
-```js
-let sheetMenu = `
-down
-&Open                 folder-open   CmdOrCtrl+O
-Open &With
->> Preview
->> Another Program…
-Open in New &Window
----
-&Copy                 copy          CmdOrCtrl+C
-Copy &Path
-&Paste                clipboard     CmdOrCtrl+V
----
-Move to &Trash        trash-2
-`
-
-let sheetBar = `
-across
-Back      big   arrow-left
-Forward   big   arrow-right
----
-Open            folder-open
-`
-```
-
-- **Direction.** The first line says it, `down` for a menu and `across` for a toolbar.
-- **An item.** Each line after it is an item: its name with `&` before the underlined letter, then optional words for its size, its Lucide icon's name and its shortcut.
-- **Columns.** The parser can tell those words apart by their kind, since a Lucide name is lowercase with dashes and a shortcut has a `+` or is a function key, so the columns line up for the eye and the alignment means nothing. A shortcut of one key, like `Esc` or `Delete`, has neither mark, which this rule does not yet cover.
-- **Separator.** `---` separates groups, as in mdBook's `SUMMARY.md`.
-
-**What `>>` means is open.** The readings on the table:
-
-- **Depth.** `>> Preview` on its own line is a child of the item above it, and `>> >>` goes a level deeper. A submenu's items stay together as a block.
-- **A path.** `Open With >> Preview` on one line names the parent and the child together, as Vim writes `File.Open`. The parent repeats on every child line, and each line stands alone.
-- **A pointer.** An item points at another named section of the one text, which is how a shared submenu is reused.
-
-**"Names are markdown" has a reading in the one text**: each bar's name is a markdown heading over its lines, as `# Sheet Menu`.
+- **Names are markdown headings**, `# Views Panel`, nicknames for the code and the text that the user never sees.
+- **Four kinds rather than two directions.** A bar's first line is `menubar`, `toolbar`, `menu` or `panel`, and the kind fixes which way it runs and how its items look, so a context menu cannot be written running sideways. A `menu` is narrow rows down, whether a title, a button or a right click opens it.
+- **A name in brackets opens a bar.** An item ending in `[Sort Menu]` opens that menu or panel, as markdown links to a heading; this is the pointer reading of `>>`, spelled as a link, so a shared menu is written once and opened from anywhere by name. Depth and paths, the other readings, were set aside, and so was placing one bar inside another, since arranging controls is a panel's job.
+- **A panel is Vue.** The text only names it, so a button can point at it and a misspelled name fails at launch; the page draws its insides in `FujiBar.vue`'s panel slot, in the app's own styles, and a bar inside a panel is a small toolbar from the text placed with `FujiBar`.
+- **Big and drawings are told apart by their kind**, `big` and a Lucide name lowercase with dashes, so columns line up for the eye and the alignment means nothing. Shortcuts are still to come; the first sketch told them apart by a `+` or a function key, which a shortcut of one key, like `Esc` or `Delete`, does not have.
 
 **`&` marks the underlined letter** in Windows resource scripts, Qt, Electron, Vim and VS Code's menus. GTK writes `_Open`, and markdown already uses `_` for emphasis, so `&` sits more easily in a text that reads as markdown.
 
@@ -144,6 +105,8 @@ Open            folder-open
 - **Hand the state over.** The code passes the words that are off or checked when it shows a menu, and calls to update a toolbar already on screen.
 - **A toolbar has no moment before it shows**, since it is on screen all the time, so asking fits a menu as it opens, and a toolbar needs a call when the state changes or some other moment to ask.
 
+**The toolbar hands the state over, for now.** `FujiBar.vue` takes `pressed`, the words whose buttons show pressed in, and the bench's Bench button is the first to use it. Which way a menu learns its state is still open.
+
 
 ## The responder chain
 
@@ -172,15 +135,6 @@ Open            folder-open
 - **A toolbar that runs out of room.** Windows 7: "if a window is too narrow to display a toolbar, the toolbar displays what fits and makes everything else accessible through an overflow button" ([Win7 ribbons](https://learn.microsoft.com/en-us/windows/win32/uxguide/cmd-ribbons)), with the most used commands kept out of it. WinUI's command bar moves commands into a "see more" menu, VS Code's toolbars and menu bar into a More menu, and Apple says "Don't add an overflow menu manually," since the system adds one ([HIG toolbars](https://developer.apple.com/design/human-interface-guidelines/toolbars)).
 - **No open-source ribbon on the web is mature.** RibbonWeb, `@wieslawsoltes/ribbon-web` 0.1.1, MIT and 11 stars, has KeyTips on Alt or F10, small, medium and large controls, groups that collapse by priority into overflow, RibbonX import and a central command event, inside an open shadow root ([API](https://wieslawsoltes.github.io/RibbonWeb/docs/api.md.html)). Syncfusion's ribbon is under a community or commercial license, and DHTMLX's npm package is GPL-3.0 from 2018.
 - **A bar that stays up is what tear-off menus were.** From memory, Tk's menus tear off by default at the dashed line along their top, and HyperCard had tear-off palettes. Harris on Office 97: "Office 97 introduced 'command bars', an ultra-customizable user interface in which menus and toolbars were really the same thing. Every menu and toolbar could be dragged around to every side of the screen and floated or docked" ([Part 2](https://learn.microsoft.com/en-us/archive/blogs/jensenh/ye-olde-museum-of-office-past-why-the-ui-part-2)).
-
-
-## FujiBar in Vue
-
-**FujiBar is built in Vue, where FujiList and FujiTree draw their own elements in plain modules.** The list left Vue because rerunning a template over ten thousand rows lagged, which is a list's problem: a list can suddenly get ten thousand items that sort and filter, and a toolbar holds six or eight or twelve. What a bar has is many small parts, nested and repeated: buttons, groups, separators, menus inside menus. Vue's composability and reactivity suit that, and FujiBar may grow a subfolder of small `.vue` files of its own.
-
-**Reading the text stays a plain function**, as raised in chat: text in, a checked tree of bars out, which is pure and the easiest part to test, and the Vue files draw the tree.
-
-**`architecture.md` says the components that follow the list are built the way it is**, and FujiBar goes the other way, so that sentence changes when the bar is built, to give the reasons a component leaves Vue rather than a rule every component follows.
 
 
 ## One call gives an element its context menu

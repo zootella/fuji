@@ -119,7 +119,9 @@
 
 **Microsoft's trail, and its high points.** Microsoft's habit, per version of Windows and per version of Office, was to make the next version look different so people would see value in it, and the result over the years was a meandering and worsening design. The bar copies the high points that stand out from that trail.
 
-**The bar stands on the content's own color.** A toolbar in Zed is editor.background, the same as the content it sits over, divided from it by Zed's border rather than by a change of color.
+**The bar stands on the content's own color, and on Windows on the title bar's.** A toolbar in Zed is editor.background, the same as the content it sits over, divided from it by Zed's border rather than by a change of color. On Windows the bars sit right under the title bar Windows draws, so they and their menus take its color instead, as Windows 10's own programs do, and the title bar, the bars and an open menu read as one surface with no seam; that is the exception in How the components get built. So the bar has a ground of its own rather than Zed's, `--bar-ground` in `style.css`, set by platform, and `fuji-title-bar` there holds the colors and which of them are still guesses.
+
+**Square, while it is built.** Every edge in the bar is square, which is simpler and more exact to work against, and corners are easy to round at the end; the list and the tree keep their rounded selections.
 
 **The Internet Explorer 3 coolbar, from the mid-1990s.** Its buttons were flat until the pointer floated over one, and then an outline appeared around the button. The user could click the moment the border appeared, without even looking for the pointer, because the border said where the pointer was. That is the hover behavior for `FujiBar`'s buttons: flat at rest, outlined under the pointer, and really, really usable.
 
