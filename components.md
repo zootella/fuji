@@ -125,9 +125,13 @@
 
 **The Internet Explorer 3 coolbar, from the mid-1990s.** Its buttons were flat until the pointer floated over one, and then an outline appeared around the button. The user could click the moment the border appeared, without even looking for the pointer, because the border said where the pointer was. That is the hover behavior for `FujiBar`'s buttons: flat at rest, outlined under the pointer, and really, really usable.
 
-**The menus of Microsoft's software around 2003**, Visual Studio 2003 or Office 2003, for their appearance. Click a menu title and the title does not move. A card that is the menu, with its title still at the top, shaped like a skyscraper with a house on top, is set forward, drawn with a simple one-pixel outline, and casts a light shadow on everything behind it. The shape tells the user at once where they are and what they can choose next, and it looks really good. The user has a VM or screenshots to share, and the design is studied from those and copied: the card's shape, the outline, the shadow's weight, and how the open title joins the dropdown without a seam.
+**The menus of Microsoft's software around 2003**, Visual Studio 2003 or Office 2003, for their appearance. Click a menu title and the title does not move. A card that is the menu, with its title still at the top, shaped like a skyscraper with a house on top, is set forward, drawn with a simple one-pixel outline, and casts a light shadow on everything behind it. The shape tells the user at once where they are and what they can choose next, and it looks really good. The user's screenshots of Windows Explorer and Office 2003, on Windows XP in its classic look, were measured, and they inform the bar's arrangement, weight, size and capability rather than being copied as fixed rules; `FujiBar.vue` says what it took from them and where it departs, as the open title keeping the bar's color rather than darkening.
 
-**Research areas for the bar**: the coolbar as it shipped, so the hover outline is drawn from the real thing rather than from memory; the 2003 menu from screenshots, measured, so the card's outline, shadow and joined title come out right; what the web gives for the same effects, `box-shadow` for the shadow and a one-pixel border for the outline, and how to draw the house-on-a-skyscraper shape as one outlined card, since a title tab and a dropdown drawn as two boxes show a seam where they meet.
+**Heights are said as L plus css pixels.** L is the line height the UI font comes out at, and the rest is measured in css pixels: the menubar's row is L + 10, and a toolbar's row of big buttons L + 40.
+
+**A big button is square or wider, never narrow.** Most buttons share one aspect ratio, and a button with a long label gets wider, which is rare.
+
+**The command under the pointer lifts.** Beside its outline, its drawing moves up and to the left and casts a sharp shadow down onto a plane, as in the screenshots, so the user sees Cut or Folders or Undo or Delete lifted, ready to strike.
 
 
 ## A key and a menu item send the same word
@@ -145,7 +149,9 @@
 
 **Monochrome where fuji shows media.** The contact sheet, the light table and the video window keep their icons to one color, so nothing on screen competes with the pictures.
 
-**Color where fuji is a file manager.** With the toolbar, the path bar, the tree and the list on screen, color can help the user find a thing at a glance: a yellow folder, a red X on delete. Lucide's icons are lines in one color, so this means shopping for icon sets that come in color, under a license fuji's GPL can carry.
+**Color where fuji is a file manager.** When fuji is not showing thumbnails, the toolbar is colorful, and when it is showing them, the toolbar goes monochrome, as it is now, so color is present where it helps and not where it harms. Lucide is just a shape, unlike icon libraries with white sheets of paper, blue ink and manila folders, and that is liked: fuji should be more like the Mac, whose toolbar is not a circus, and less like Windows, where Microsoft assumes there is no color in the user's document and brings the fun itself. So some color on the drawings makes them expressive and shows their grouping: Delete red, Undo green, Back, Forward and Up blue, Folders manila yellow.
+
+**The drawings' palette, off the shelf or made.** Calm classroom tones, neither too saturated nor too muted. Crayons in a box: distinct colors that work mixed together in any combination, not five shades of one color, with at least two distinct colors of each named color, like three kinds of orange, a pumpkin, an amber and a sunflower. Eventually a whole family, one or two shades of all six primary colors, with alternatives for light and dark. Radix may be the best; nothing is chosen. `button-color.html` at the root lays out the candidates, each as a box of crayons, with the toolbar and a menu in its colors.
 
 
 ## Fuji's own icons

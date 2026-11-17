@@ -31,3 +31,12 @@ Read from Zed's theme file, `assets/themes/one/one.json`, on `main` at commit `a
 - **A toolbar** is `editor.background` in Zed, the same as the content it sits over, divided from it by `border` rather than by a change of color.
 - **A panel beside the content**, a tree or an inspector, is `panel.background`.
 - **The settings panel stays on the paper**, `editor.background`, since it takes the whole window in place of the sheet, as every other view does.
+
+## Not Zed all the way
+
+Notes and a concern, 2026-11-14, not a plan, and not being resolved or decided now.
+
+- **Fuji may not stick with Zed.** The user is no longer certain of it. If the user likes another palette better, GNOME's for instance, fuji might switch to that.
+- **Zed's tinted grays may not be right for fuji.** For a retro look, and to best showcase the user's media, neutral gray may be the right choice. There is already a clash with the browser's scrollbars around the tree and the list.
+- **Leaving Zed would keep its values.** If fuji leaves Zed behind, it takes the values, and may map them onto Tailwind style numbers.
+- **Numbers every 25, too**, which should be pretty easy.
