@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Color</title>
+</head>
+<body>
+<!--
+the color page, which pnpm color serves and opens in the browser: fuji's palette and the candidates for its colors, a tab for each, drawn with fuji's own stylesheet, faces, drawings and bar. Vite serves it at /color/ beside the app, and the app's build leaves it out, since vite's build starts from index.html
+-->
+<div id="app"></div>
+<script type="module">
+import {createApp} from 'vue'
+import '../src/style.css'//fuji's one stylesheet, as main.js loads it: the reset, the root's menu font, the bundled faces, the named classes and the palette
+import './palette.js'//and every color in it again, on the root as the stylesheet declares it, which palette.js says why
+import {platform} from '../src/components/library.js'
+import Color from './Color.vue'
+
+document.documentElement.dataset.platform = platform()//the platform on the root, as the shell puts it there, so a bar here stands on the ground it does in fuji on this machine
+createApp(Color).mount('#app')
+</script>
+</body>
+</html>

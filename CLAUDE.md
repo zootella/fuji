@@ -54,8 +54,9 @@ Roughly what a release build costs, so a long one does not read as a hang: on th
 ```bash
 pnpm dev          # Run Vite dev server without Tauri
 pnpm vite-build   # Build frontend only
+pnpm color        # the color page in the browser: fuji's palette and the candidates for its colors, a tab each
 ```
-These two are also Tauri's own before-commands, named in `tauri.conf.json`, which is why they keep those names instead of joining the list above.
+`dev` and `vite-build` are also Tauri's own before-commands, named in `tauri.conf.json`, which is why they keep those names instead of joining the list above. `color` serves `color/` on port 1430, beside the 1420 the app's dev server holds, so it runs while `pnpm local` does. Its tabs draw with fuji's own stylesheet, faces, lucide drawings and FujiBar, and write down a color only where the page is saying what someone else's color is, like a Radix hue or a brand color once proposed.
 
 ### The Linux Workspace
 

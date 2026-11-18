@@ -6,7 +6,7 @@ Where the FujiBar work stands, 2026-11-16, for the next session. The decisions a
 
 - **The bar.** `bars.txt` is the text, `bar.js` reads it and its essay says how it is written, and `FujiBar.vue` draws it, with an essay on menus and panels. The bench shows it: `u` from the sheet opens `FujiUserInterfaceSpike.vue`, with a menubar and a toolbar across the top, a Bench button that shows the bench's own strip, and a Views button that opens the first panel.
 - **The decisions.** components.md's FujiBar and Icons sections, `fuji-bar-dsl.md`'s section The syntax, architecture.md on when a component stays in Vue, `tabs.md`, and `theme.md`'s notes Not Zed all the way.
-- **The palettes.** `button-color.html` at the root opens from disk and lays out each candidate palette as a box of crayons, with the toolbar and a menu that answer the pointer as FujiBar's do.
+- **The palettes.** `pnpm color` in `desktop` opens the color page, whose Button Color tab lays out each candidate palette as a box of crayons, with FujiBar's own toolbar and the edit menu in its colors, answering the pointer as they do in fuji.
 - **The screenshots.** The user's green guides, Windows Explorer and Office 2003 on Windows XP in its classic look, are on the Windows box in `C:\Documents\with-claude\fuji-bar-guides`, a folder the user has opened to Claude, unlike the rest of the computer. Four other pictures there, a Chrome menu, a glass menu, a Windows 10 menu and list, and balloons, have not been looked at yet.
 
 ## Open, by name
