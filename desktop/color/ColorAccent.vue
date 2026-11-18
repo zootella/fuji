@@ -22,7 +22,7 @@ const buttons = [//the window buttons as VideoWindow.vue draws them, once for ea
 
 <div>
 	<h1>Accent Colors</h1>
-	<p>Where the accent paints, the same on every platform: a list's selected row while the list has the keyboard, filled in the accent, beside the quiet gray of a selection the keyboard is away from; and a menu's row under the pointer, outlined in the accent over the accent at 30 percent, as FujiBar lights one. The accent is the user's, <span class="myFixedWidth">accent.color</span> in <span class="myFixedWidth">fuji.toml</span>, and this is its factory value. Below them, the window buttons fuji draws in a title bar of its own, whose colors come from Windows 10.</p>
+	<p>Where the accent paints, the same on every platform: a list's selected row while the list has the keyboard, filled in the accent, beside the quiet gray of a selection the keyboard is away from; and a menu's row under the pointer, outlined in the accent over the accent at 30 percent, as FujiBar lights one. The accent is the user's, <span class="myFixedWidth">accent.color</span> in <span class="myFixedWidth">fuji.toml</span>, and this is its factory value. Below them, the window buttons fuji draws in a title bar of its own: the gray under the pointer from Windows 10, the red behind close from Windows 11, and pressed, fuji's own cyan.</p>
 	<div class="myPanes">
 		<div v-for="mode in modes" :key="mode" class="myPane" :data-mode="mode">
 			<h2>A list and a menu, on every platform</h2>
@@ -37,7 +37,7 @@ const buttons = [//the window buttons as VideoWindow.vue draws them, once for ea
 				<span class="myFixedWidth myValue">accent {{paletteValue('accent', mode)}}, at 30 percent over the bar's ground</span>
 			</div>
 
-			<h2>Fuji's window buttons, from Windows 10</h2>
+			<h2>Fuji's window buttons</h2>
 			<div class="myButtons">
 				<figure v-for="(b, i) in buttons" :key="i">
 					<div :style="{backgroundColor: b.fill, color: b.ink}">{{b.glyph}}</div>

@@ -119,7 +119,7 @@ A state that is a quieter version of its color is a share of it rather than a co
 	--color-fuji-on-pale: #000000; /* text on an accent of the user's that is light */
 	--color-fuji-on-deep: #ffffff; /* and on one that is dark */
 	--color-fuji-window-button: light-dark(#000000, #ffffff); /* behind a window button fuji draws in a title bar of its own, minimize or maximize, which it does on Windows and Linux: the drawing's own black or white, a share of which shows under the pointer, taken from Windows 10 as Chromium copies it */
-	--color-fuji-close-red: #e81123; /* behind the close button of the same title bar, under the pointer: the bright red Windows 10 uses, taken from it */
+	--color-fuji-close-red: #c42b1c; /* behind the close button of the same title bar, under the pointer: the red Windows 11 uses, which no Microsoft document states and three-video-window-spikes.md found in Windows Terminal's MinMaxCloseControl.xaml. It replaced Windows 10's brighter #e81123, and white reads on it at 5.7 to 1, where on that it read at 4.6 */
 	--color-fuji-on-close-red: #ffffff; /* the drawing on that red, white in both */
 	--color-fuji-title-bar: light-dark(#ffffff, #000000); /* the title bar Windows 10 draws above a window in front, which a bar fuji draws right below it takes, so the two read as one surface with no seam between them: white in light, guessed from memory, and black in dark, matched by eye on the Windows box 2026-11-12. Windows 11's own title bar, and one in the user's accent color, are not matched */
 	--color-fuji-title-bar-behind: light-dark(#ffffff, #2b2b2b); /* and the same title bar while the window is behind another: white again in light, guessed, and a dark gray in dark, matched by eye the same day */
