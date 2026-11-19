@@ -25,8 +25,8 @@ defineExpose({start, onKey, onResize})
 <style scoped>
 
 .myComic {
-	background-color: var(--color-zed-editor-background); /* the ground every view stands on */
-	color: var(--color-zed-text-placeholder);
+	background-color: var(--color-background); /* the ground every view stands on */
+	color: var(--color-text-placeholder);
 }
 
 </style>

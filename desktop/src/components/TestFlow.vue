@@ -240,7 +240,7 @@ function flowShrink(context, source, size, target) {//draw source, of size pixel
 .myCaption {
 	width: 0; min-width: 100%; /* as wide as the tile above it and never wider: no width of its own to give the cell, then stretched to the one the tile gave it, so the fit alone still sizes every cell */
 	padding-top: 6px; /* 4 css pixels of paper under the outline, which takes the first 2 */
-	color: var(--color-zed-text-placeholder);
+	color: var(--color-text-placeholder);
 	cursor: default; /* the arrow rather than the text beam, since the caption is clicked to copy rather than selected */
 }
 .myCaptionLine {

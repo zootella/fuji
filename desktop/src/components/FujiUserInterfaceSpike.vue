@@ -231,9 +231,9 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 </script>
 <template>
 
-<div class="bg-zed-editor-background text-zed-text-muted w-full h-full flex flex-col" @pointerdown.capture="press">
-	<FujiBar ref="menuBarRef" name="Menu Bar" class="flex-none border-b border-zed-border" @command="onCommand" /><!-- on every platform while the bars are designed; at the very end the mac leaves this row out, for its own menu bar at the top of the screen -->
-	<FujiBar ref="toolbarRef" name="Toolbar" class="flex-none border-b border-zed-border" :pressed="benchShowing ? ['Bench'] : []" @command="onCommand">
+<div class="bg-background text-text-muted w-full h-full flex flex-col" @pointerdown.capture="press">
+	<FujiBar ref="menuBarRef" name="Menu Bar" class="flex-none border-b border-border" @command="onCommand" /><!-- on every platform while the bars are designed; at the very end the mac leaves this row out, for its own menu bar at the top of the screen -->
+	<FujiBar ref="toolbarRef" name="Toolbar" class="flex-none border-b border-border" :pressed="benchShowing ? ['Bench'] : []" @command="onCommand">
 		<template #panel="{panel}">
 			<div v-if="panel == 'Views Panel'" class="flex items-start gap-4 p-3"><!-- the first panel, a mock: a radio group, which the page draws itself, beside a small toolbar of its own whose button opens a menu -->
 				<div class="flex flex-col gap-1">
@@ -243,17 +243,17 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 			</div>
 		</template>
 	</FujiBar>
-	<div v-show="benchShowing" class="mySans text-[11px] flex-none h-[28px] flex items-center gap-x-4 px-4 whitespace-nowrap overflow-hidden border-b border-zed-border [&>*]:flex-none"><!-- one line of a set height, so readouts that grow and shrink never move the tree and the list below; what runs past the right edge is cut off -->
-		<span>Tree <span class="text-zed-text">{{treeMade}}</span></span>
-		<span>Selected <span class="text-zed-text">{{treeSaid}}</span></span>
+	<div v-show="benchShowing" class="mySans text-[11px] flex-none h-[28px] flex items-center gap-x-4 px-4 whitespace-nowrap overflow-hidden border-b border-border [&>*]:flex-none"><!-- one line of a set height, so readouts that grow and shrink never move the tree and the list below; what runs past the right edge is cut off -->
+		<span>Tree <span class="text-text">{{treeMade}}</span></span>
+		<span>Selected <span class="text-text">{{treeSaid}}</span></span>
 		<span class="flex gap-1"><button v-for="n in counts" :key="n" class="myButton" :aria-pressed="n == count" :disabled="building" @click="build(n).catch(trouble)">{{say(n)}}</button></span>
-		<input class="px-2 border border-zed-border bg-zed-surface-background text-zed-text" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
-		<span>Build <span class="text-zed-text">{{built}}</span></span>
-		<span>Filter <span class="text-zed-text">{{filtered}}</span></span>
-		<span>Scroll <span class="text-zed-text">{{scrolled}}</span></span>
-		<span>Select <span class="text-zed-text">{{selected}}</span></span>
-		<span>Sort <span class="text-zed-text">{{sorted}}</span></span>
-		<span>Command <span class="text-zed-text">{{command}}</span></span>
+		<input class="px-2 border border-border bg-surface text-text" placeholder="Filter" :value="filter" @input="e => onFilter(e).catch(trouble)">
+		<span>Build <span class="text-text">{{built}}</span></span>
+		<span>Filter <span class="text-text">{{filtered}}</span></span>
+		<span>Scroll <span class="text-text">{{scrolled}}</span></span>
+		<span>Select <span class="text-text">{{selected}}</span></span>
+		<span>Sort <span class="text-text">{{sorted}}</span></span>
+		<span>Command <span class="text-text">{{command}}</span></span>
 	</div>
 	<div class="flex-1 min-h-0 flex"><!-- the tree and the list filling the rest of the window edge to edge, as a file manager lays them out -->
 		<FujiTree class="flex-none" :style="{width: `${treeWidth}px`}" :tree="tree" />
@@ -266,7 +266,7 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 </template>
 <style scoped>
 
-.mySplit { position: relative; z-index: 1; width: 1px; background-color: var(--color-zed-border) } /* the bar between the tree and the list: a line one css pixel wide in Zed's border gray, as the list draws between its columns and Zed draws beside a panel. Raised, so the place to grab it below lies over the tree and the list rather than under them */
+.mySplit { position: relative; z-index: 1; width: 1px; background-color: var(--color-border) } /* the bar between the tree and the list: a line one css pixel wide in the border gray, as the list draws between its columns and Zed draws beside a panel. Raised, so the place to grab it below lies over the tree and the list rather than under them */
 .mySplit::before { content: ""; position: absolute; top: 0; bottom: 0; left: -4px; right: -4px; cursor: col-resize } /* the place to grab it, 4 css pixels either side of the line, as the list's column dividers have */
 
 </style>

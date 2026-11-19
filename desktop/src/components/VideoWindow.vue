@@ -143,7 +143,7 @@ async function reportTrouble(work) {//a window event is where the platform start
 </script>
 <template>
 
-<div class="myVideo myMono bg-zed-editor-background text-zed-text relative w-full h-full flex flex-col overflow-hidden select-none" :style="{'--title-bar': `${titleBar}px`}" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu"><!-- hidden overflow, so a window too short for its text cuts the text off rather than growing a scroll bar -->
+<div class="myVideo myMono bg-background text-text relative w-full h-full flex flex-col overflow-hidden select-none" :style="{'--title-bar': `${titleBar}px`}" @mousedown="onPress" @mousemove="onMove" @mouseup="press = null" @mouseleave="press = null" @dblclick="onDouble" @contextmenu="onContextMenu"><!-- hidden overflow, so a window too short for its text cuts the text off rather than growing a scroll bar -->
 	<div v-if="buttonsShow && !fullscreenOurs" class="myButtons absolute top-0 right-0 flex" :class="{myAway: !focused}"><!-- the window's buttons fuji draws, at the top right over whatever the page shows there; each holds a drawing fuji bundles, never anything from outside, which is what lets it go in as markup -->
 		<button tabindex="-1" aria-label="Minimize" v-html="iconMinimize" @click="reportTrouble(minimizeWindow)"></button><!-- named for a screen reader, since a drawing says nothing to one, with the words Windows gives its own -->
 		<button tabindex="-1" :aria-label="maximized ? 'Restore' : 'Maximize'" v-html="maximized ? iconRestore : iconMaximize" @click="reportTrouble(maximizeWindow)"></button>
@@ -159,7 +159,7 @@ async function reportTrouble(work) {//a window event is where the platform start
 .myVideo {
 	padding: var(--title-bar); /* a margin as wide as the band across the top, which the page sets on this element */
 	container-type: size; /* so the room below can measure the window inside that margin */
-	background-image: radial-gradient(circle at center, var(--color-zed-border) 1px, transparent 1px); /* a spike, for now: small dots across the whole page, to show how far up under the title bar it reaches */
+	background-image: radial-gradient(circle at center, var(--color-border) 1px, transparent 1px); /* a spike, for now: small dots across the whole page, to show how far up under the title bar it reaches */
 	background-size: 8px 8px;
 }
 .myStage {

@@ -25,13 +25,13 @@ if (bar.kind != 'menu') throw new Error(`expected a menu to draw, and ${bar.name
 </template>
 <style scoped>
 
-.myCard { width: max-content; padding: 1px; border: 1px solid var(--color-gray-500); background-color: var(--bar-ground); background-image: linear-gradient(to right, var(--color-zed-elevated-surface-background) 26px, transparent 26px); color: var(--color-zed-text); user-select: none; cursor: default; filter: drop-shadow(2px 2px 2px var(--color-fuji-shade)) } /* FujiBar's myBarCard for a menu, on the bar's ground with its gutter shaded, and the shadow FujiBar casts from the card and its title together */
+.myCard { width: max-content; padding: 1px; border: 1px solid var(--color-gray-500); background-color: var(--bar-ground); background-image: linear-gradient(to right, var(--color-elevated-surface) 26px, transparent 26px); color: var(--color-text); user-select: none; cursor: default; filter: drop-shadow(2px 2px 2px var(--color-fuji-shade)) } /* FujiBar's myBarCard for a menu, on the bar's ground with its gutter shaded, and the shadow FujiBar casts from the card and its title together */
 .myItem { display: flex; align-items: center; height: calc(1rlh + 8px); padding-right: 24px; border: 1px solid transparent; white-space: nowrap } /* FujiBar's myBarItem */
 .myItem:hover, .myItem[data-lit] { border-color: var(--color-accent); background-color: color-mix(in srgb, var(--color-accent) 30%, var(--bar-ground)) }
 .myGutter { flex: none; width: 24px; margin-right: 8px; display: flex; justify-content: center } /* FujiBar's myBarGutter */
 .myIcon { display: flex }
 .myIcon :deep(svg) { width: 16px; height: 16px; stroke-width: 1.5 } /* a drawing in a menu, 16 css pixels square, its stroke a css pixel */
 .myItem:hover .myIcon :deep(svg), .myItem[data-lit] .myIcon :deep(svg) { position: relative; left: -1px; top: -1px; filter: drop-shadow(2px 2px 0 var(--color-fuji-lift)) } /* lifted over a sharp shadow, as FujiBar lifts the command under the pointer */
-.myCardLine { margin: 3px 0 3px 33px; border-top: 1px solid var(--color-zed-border) } /* FujiBar's myBarCardLine */
+.myCardLine { margin: 3px 0 3px 33px; border-top: 1px solid var(--color-border) } /* FujiBar's myBarCardLine */
 
 </style>

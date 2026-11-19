@@ -35,6 +35,6 @@ const taken = paletteValue('fuji-brand', 'light').toLowerCase()//fuji's cyan, th
 .myCircles { flex-direction: row; flex-wrap: wrap; justify-content: space-around; gap: 24px }
 .mySwatch { display: flex; flex-direction: column; align-items: center; gap: 2px }
 .myCircle { width: 120px; height: 120px; margin-bottom: 6px; border-radius: 50% }
-.myTaken { color: var(--color-zed-text-placeholder) }
+.myTaken { color: var(--color-text-placeholder) }
 
 </style>

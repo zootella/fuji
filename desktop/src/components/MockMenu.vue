@@ -75,19 +75,19 @@ defineExpose({show, hide})
 </template>
 <style scoped>
 
-.myMenu {/* its material, text, grayed items and separators in the colors of Zed's One Light and One Dark */
+.myMenu {/* its material, text, grayed items and separators in fuji's grays */
 	width: max-content;/* as wide as its widest item wherever it opens, since a fixed box near the window's right edge otherwise shrinks to the room left of it, and show would measure and place that narrower menu */
 	padding: 5px;
 	border-radius: 10px;
-	color: var(--color-zed-text);
-	background-color: color-mix(in srgb, var(--color-zed-elevated-surface-background) 95%, transparent);/* Zed's menu color, a little translucent */
+	color: var(--color-text);
+	background-color: color-mix(in srgb, var(--color-elevated-surface) 95%, transparent);/* the menu's gray, a little translucent */
 	backdrop-filter: blur(2px);
 	box-shadow: inset 0 0 0 1px var(--color-fuji-menu-rim), 0 0 0 1px var(--color-fuji-menu-edge), 0 4px 12px var(--color-fuji-menu-edge);/* the edge, from the inside out: a light rim, a dark hairline, and a soft shadow */
 }
 .myItem { height: 24px; padding: 0 11px; display: flex; align-items: center; border-radius: 5px }
 .myItem:hover:not(.myOff) { background-color: var(--color-accent); color: var(--color-on-accent) }
-.myOff { color: var(--color-zed-text-placeholder) }/* Zed's text.disabled, the same gray as its text.placeholder */
+.myOff { color: var(--color-text-placeholder) }/* the placeholder gray, which Zed gives its disabled text too */
 .myMore { margin-left: auto; padding-left: 24px }
-.myLine { margin: 5px 11px; border-top: 1px solid var(--color-zed-border) }
+.myLine { margin: 5px 11px; border-top: 1px solid var(--color-border) }
 
 </style>

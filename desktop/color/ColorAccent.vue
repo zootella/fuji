@@ -52,13 +52,13 @@ const buttons = [//the window buttons as VideoWindow.vue draws them, once for ea
 <style scoped>
 
 .myPane h2 { margin: 0 } /* the pane's own gap spaces its parts */
-.myList { border: 1px solid var(--color-zed-border); padding: 4px 0 }
+.myList { border: 1px solid var(--color-border); padding: 4px 0 }
 .myRow { display: flex; justify-content: space-between; align-items: center; gap: 16px; height: var(--row-height); margin: 0 4px; padding: 0 8px; border-radius: 6px } /* a row as tall as style.css says a list's row is, its fill inset from the list's sides and rounded, as FujiList draws a selected one */
 .myValue { opacity: 0.8 }
 .myBeside { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap }
 .myButtons { display: flex; flex-wrap: wrap; gap: 12px 20px }
 .myButtons figure { margin: 0 }
 .myButtons figure div { width: 46px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px }
-.myButtons figcaption { margin-top: 4px; font-size: 11px; line-height: 1.4; white-space: nowrap; color: var(--color-zed-text-placeholder) } /* each name whole on its line, the buttons wrapping instead */
+.myButtons figcaption { margin-top: 4px; font-size: 11px; line-height: 1.4; white-space: nowrap; color: var(--color-text-placeholder) } /* each name whole on its line, the buttons wrapping instead */
 
 </style>

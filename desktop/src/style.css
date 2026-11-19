@@ -69,41 +69,69 @@ The window's theme is the switch. Every window sets it from appearance.mode in f
 /*
 Where fuji's colors come from, and how each is named.
 
-Fuji's grays are Zed's, from the default themes Zed ships, One Light for light and One Dark for dark, and fuji follows the system between them as Zed does. Fuji is growing the parts Zed already has, toolbars and buttons and a tree of folders beside the content, and an interface like that needs lines that divide it and panels that tell one region from the next, while all of it steps back so the content is what the user looks at. In Zed the content is code and in fuji it is pictures, and Zed's themes get that balance right, so fuji takes their grays as they are rather than tuning a palette of its own. They lean slightly blue, One Dark's background with more blue in it than red, which is the slate look of that theme and no mismatch for fuji's cyan, and One Light is a theme of its own rather than a mirror of One Dark. Each was read from Zed's theme file, assets/themes/one/one.json, at commit a3f6ef2 of July 2026, and a gray changes by reading that file again, never by eye.
+Fuji's grays are neutral, and their lightness is Zed's. Fuji is growing the parts Zed already has, toolbars and buttons and a tree of folders beside the content, and an interface like that needs lines that divide it and panels that tell one region from the next, legible and calm, while all of it steps back so the content is what the user looks at. Zed's default themes, One Light for light and One Dark for dark, get that balance right, and fuji takes the balance from them: how far a border stands from the ground it is drawn on, and how quiet a line or a word can be and still read. All of that is in each gray's lightness, which fuji keeps. Zed's grays also lean blue, faintly in One Light's text and plainly all through One Dark, which suits an editor whose content is its own text, and fuji leaves the lean behind. Fuji's content is the user's pictures and video, and a gray beside a picture that leans any way shifts how the colors inside the picture read, which is why tools for images keep their own grays neutral. A neutral fuji is the one least likely to look wrong beside whatever the user is viewing, and it agrees with the platform around it as well, whose title bars and scrollbars are neutral. Fuji follows the system between light and dark as Zed does.
 
-Every color fuji paints is named here, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-zed-text or bg-zed-editor-background, and the scoped styles read the same variable, like var(--color-zed-editor-background). A name begins with where its color comes from. zed- is Zed's, named for Zed's key so it can be looked up there, unless that key would mean nothing here, when the name is one Zed does not use and the comment gives the key. fuji- is fuji's own. A name with no source, like the accent and the quiet selected row, says what a color is for. pnpm color draws every one of them in light and dark, on the color page's Theme tab.
+So each gray named for its job is one of Zed's keys at that key's own lightness, measured in OKLab, with its chroma taken to zero, which in sRGB is a gray whose red, green and blue are one number. Each was read from Zed's theme file, assets/themes/one/one.json, at commit a3f6ef2 of July 2026, which was still Zed's on 2026-11-18, and the key is the first thing in its comment. A gray changes by reading that file again and taking the tint out the same way, or by a choice of fuji's own, which its comment then gives.
 
-The numbered grays, gray-50 to gray-950, are for a line or a fill with no role a Zed name says, where a color with one, a border or the text, takes the Zed name. The number is a lightness and means the same in light and dark: each step is at the OKLCH lightness of Tailwind 4's neutral at that step, the ladder a reader of Tailwind already knows, so a rule that wants a different gray in each mode names two, bg-gray-200 dark:bg-gray-700 in a template and light-dark() in a style, and either mode can be tuned alone. Only the tint follows the theme: a step's light half leans the way One Light's grays do at that lightness, and its dark half the way One Dark's do, each read off a path in OKLab through the grays this palette takes from that theme, interpolated between the Zed grays on either side, faded to neutral toward white past the lightest and held past the darkest. One Dark's editor.line_number, a teal one-off, is left off its path. A step changes by computing it again from those grays, never by eye.
+Every color fuji paints is named here, and the templates and components use these names and never a hex value, so a color changes here and nowhere else. Tailwind makes each one a utility, like text-text-muted or bg-background, and the scoped styles read the same variable, like var(--color-background); where the utility's word and the color's are the same, the word comes twice, as in text-text and border-border, which still says exactly which. A name says either what a color is for or what it is, and two names may come to one color, since each says something different. A gray named for its job, like text or border, takes the word Zed uses for that job, unless Zed's word would mean nothing here, like the editor's background, its line numbers, or the variant of a border; Zed's own background key is the window behind everything in Zed, and its title bar and status bar, and has no name here. The accent and the quiet selected row are named for their jobs too. A numbered gray, like gray-500, is named for what it is, a lightness. fuji- is fuji's own, a color that is never gray. pnpm color draws every one of them in light and dark, on the color page's Theme tab.
 
-One color is the user's: the accent, which paints a list's selected row and a menu's row under the pointer, the same on every platform, from accent.color in fuji.toml, in any color CSS takes and with whichever of white or black text reads on it. Fuji carried each platform's own selection colors before this, read from AppKit on the Mac and from Windows 10's theme file, and set them aside because no platform keeps one standard to match: on Windows, Explorer, Paint, Notepad and the taskbar each select and highlight in colors of their own, and Linux's desktops differ again. The platforms' grays also clashed with Zed's, theirs neutral and Zed's leaning blue, so that Windows 10's dark menu row, #414141 on One Dark's menu at #2f343e, read as a second palette. The factory accent is #0064e1, the blue a Mac selects a row in under light mode, read from AppKit on the Mac mini. It carries white text at 5.4 to 1, past the 4.5 the accessibility guidelines ask of text the size of a list's or a menu's, where the Mac's brighter menu blue, #007aff, manages 4.0; and it reads in dark as well as in light, a shade brighter than the Mac's own dark selection, #0059d1. A selected row the keyboard is away from steps back into Zed's grays, with Zed's text.
+The numbered grays, gray-50 to gray-950 in steps of 25, are for a line or a fill with no job a named gray says. The number is a lightness, the one Tailwind 4's neutral has at that number, so it is the ladder a reader of Tailwind already knows, and a numbered gray is the same gray in light and dark. Tailwind's own eleven are its neutral exactly, at 50, every hundred from 100 to 900, and 950, written as the hex it comes to; every 25 between two of them is a gray whose lightness falls evenly between theirs, so between any two of Tailwind's the notches are even in OKLab, where an even step looks even, though Tailwind's own are not evenly spaced. A rule that wants a different gray in each mode names two, bg-gray-200 dark:bg-gray-700 in a template and light-dark() in a style. A gray named for its job need not fall on a notch of the ladder, since its lightness is Zed's; the notches are there for a gray fuji picks itself.
 
-Fuji's own colors are never gray. They are the warning's international orange in light and amber in dark, the icon's cyan, the pure white and black around a picture, which stay outside every theme, and the shadows and the hud's smoke, which stay dark in both modes, only lighter in light, since a light shadow is not one. A fuji color can still be taken from a platform on purpose and made fuji's, like the window buttons fuji draws in a title bar of its own on Windows and Linux, whose gray and red come from Windows 10, and then its comment says where it came from.
+One color is the user's: the accent, which paints a list's selected row and a menu's row under the pointer, the same on every platform, from accent.color in fuji.toml, in any color CSS takes and with whichever of white or black text reads on it. Fuji carried each platform's own selection colors before this, read from AppKit on the Mac and from Windows 10's theme file, and set them aside because no platform keeps one standard to match: on Windows, Explorer, Paint, Notepad and the taskbar each select and highlight in colors of their own, and Linux's desktops differ again. The platforms' grays also clashed with the ones fuji took from Zed at the time, theirs neutral and Zed's leaning blue, so that Windows 10's dark menu row, #414141 on One Dark's menu at #2f343e, read as a second palette. The factory accent is #0064e1, the blue a Mac selects a row in under light mode, read from AppKit on the Mac mini. It carries white text at 5.4 to 1, past the 4.5 the accessibility guidelines ask of text the size of a list's or a menu's, where the Mac's brighter menu blue, #007aff, manages 4.0; and it reads in dark as well as in light, a shade brighter than the Mac's own dark selection, #0059d1. A selected row the keyboard is away from steps back into the grays, with the text's own color.
 
-A state that is a quieter version of its color is a share of it rather than a color of its own, like a window button's gray under the pointer and a menu's Zed gray made a little translucent, each written as color-mix() with transparent in the rule that paints it. A state that should be seen to happen gets colors of its own instead: a window button fuji draws in a title bar of its own, minimize, maximize or close, flashes fuji's cyan with its drawing black for the moment it is pressed, so a click is seen to land. So the palette holds each color once, in light-dark() where the two modes differ, the rules stay short, and the reasons live here and in each color's comment.
+Fuji's own colors are never gray. They are the warning's international orange in light and amber in dark, the icon's cyan, the pure white and black around a picture, which stay outside every theme, and the shadows and the hud's smoke, which stay dark in both modes, only lighter in light, since a light shadow is not one. A fuji color can still be taken from a platform on purpose and made fuji's, like the window buttons fuji draws in a title bar of its own on Windows and Linux, whose gray comes from Windows 10 and whose red from Windows 11, or the title bar's own white, black and dark gray, which a bar under it takes to match the one Windows draws, and then its comment says where it came from. Such a color keeps the platform's value, even a gray, rather than moving to the nearest of fuji's.
+
+A state that is a quieter version of its color is a share of it rather than a color of its own, like a window button's gray under the pointer and a menu's gray made a little translucent, each written as color-mix() with transparent in the rule that paints it. A state that should be seen to happen gets colors of its own instead: a window button fuji draws in a title bar of its own, minimize, maximize or close, flashes fuji's cyan with its drawing black for the moment it is pressed, so a click is seen to land. So the palette holds each color once, in light-dark() where the two modes differ, the rules stay short, and the reasons live here and in each color's comment.
 
 */
 @theme {
-	--color-zed-editor-background: light-dark(#fafafa, #282c33); /* editor.background: the one background behind every view, from the sheet and the settings panel to the table's ground and the curtain across a change of fullscreen */
-	--color-zed-elevated-surface-background: light-dark(#ebebec, #2f343e); /* elevated_surface.background: a menu's material, which the menu makes a little translucent itself */
-	--color-zed-surface-background: light-dark(#ebebec, #2f343e); /* surface.background: the face of a box or a card */
-	--color-zed-text: light-dark(#242529, #dce0e5); /* text: a heading, a label, what a box holds */
-	--color-zed-text-muted: light-dark(#58585a, #a9afbc); /* text.muted: text that steps back, like the settings panel's */
-	--color-zed-text-placeholder: light-dark(#7e8086, #878a98); /* text.placeholder, the same gray as text.disabled: text that says something about a thing rather than being it, like the caption under each thumbnail, and an item that cannot be chosen */
-	--color-zed-text-faint: light-dark(#b4b4bb, #4e5a5f); /* the quietest text, like an empty list's None yet: Zed's editor.line_number, a key that would mean nothing here */
-	--color-zed-border: light-dark(#c9c9ca, #464b57); /* border: a border, a separator, and the small dots of the sheet's ground, which want this step to show at a pixel across */
-	--color-zed-border-variant: light-dark(#dfdfe0, #363c46); /* border.variant, the quieter line: the larger dots in the table's ground */
+	--color-background: light-dark(#fafafa, #2c2c2c); /* Zed's editor.background: the one background behind every view, from the sheet and the settings panel to the table's ground and the curtain across a change of fullscreen */
+	--color-elevated-surface: light-dark(#ebebeb, #343434); /* elevated_surface.background: a menu's material, which the menu makes a little translucent itself */
+	--color-surface: light-dark(#ebebeb, #343434); /* surface.background: the face of a box or a card */
+	--color-text: light-dark(#252525, #dfdfdf); /* text: a heading, a label, what a box holds */
+	--color-text-muted: light-dark(#585858, #afafaf); /* text.muted: text that steps back, like the settings panel's */
+	--color-text-placeholder: light-dark(#808080, #8b8b8b); /* text.placeholder, the same gray as text.disabled: text that says something about a thing rather than being it, like the caption under each thumbnail, and an item that cannot be chosen */
+	--color-text-faint: light-dark(#b5b5b5, #585858); /* editor.line_number, a key that would mean nothing here: the quietest text, like an empty list's None yet */
+	--color-border: light-dark(#c9c9c9, #4b4b4b); /* border: a border, a separator, and the small dots of the sheet's ground, which want this step to show at a pixel across */
+	--color-border-quiet: light-dark(#dfdfdf, #3c3c3c); /* border.variant, the quieter line: the larger dots in the table's ground */
 
-	--color-gray-50:  light-dark(#fafafa, #f9fafb);
-	--color-gray-100: light-dark(#f5f5f5, #f4f5f7);
-	--color-gray-200: light-dark(#e5e5e6, #e2e5ea);
-	--color-gray-300: light-dark(#d4d4d5, #d0d4db);
-	--color-gray-400: light-dark(#9fa0a7, #9ca1ae);
-	--color-gray-500: light-dark(#727378, #6f7380);
-	--color-gray-600: light-dark(#525254, #4d525e);
-	--color-gray-700: light-dark(#3f4043, #3a404b);
-	--color-gray-800: light-dark(#25262a, #22262d);
-	--color-gray-900: light-dark(#16171b, #14171e);
-	--color-gray-950: light-dark(#090a0d, #070a10);
+	--color-gray-50:  #fafafa; /* Tailwind's neutral-50 */
+	--color-gray-75:  #f7f7f7;
+	--color-gray-100: #f5f5f5; /* neutral-100 */
+	--color-gray-125: #f1f1f1;
+	--color-gray-150: #ededed;
+	--color-gray-175: #e9e9e9;
+	--color-gray-200: #e5e5e5; /* neutral-200 */
+	--color-gray-225: #e1e1e1;
+	--color-gray-250: #dcdcdc;
+	--color-gray-275: #d8d8d8;
+	--color-gray-300: #d4d4d4; /* neutral-300 */
+	--color-gray-325: #c7c7c7;
+	--color-gray-350: #bababa;
+	--color-gray-375: #adadad;
+	--color-gray-400: #a1a1a1; /* neutral-400 */
+	--color-gray-425: #959595;
+	--color-gray-450: #8a8a8a;
+	--color-gray-475: #7e7e7e;
+	--color-gray-500: #737373; /* neutral-500 */
+	--color-gray-525: #6b6b6b;
+	--color-gray-550: #626262;
+	--color-gray-575: #5a5a5a;
+	--color-gray-600: #525252; /* neutral-600 */
+	--color-gray-625: #4d4d4d;
+	--color-gray-650: #494949;
+	--color-gray-675: #444444;
+	--color-gray-700: #404040; /* neutral-700 */
+	--color-gray-725: #393939;
+	--color-gray-750: #333333;
+	--color-gray-775: #2c2c2c;
+	--color-gray-800: #262626; /* neutral-800 */
+	--color-gray-825: #222222;
+	--color-gray-850: #1e1e1e;
+	--color-gray-875: #1b1b1b;
+	--color-gray-900: #171717; /* neutral-900 */
+	--color-gray-925: #101010;
+	--color-gray-950: #0a0a0a; /* neutral-950 */
 
 	--color-fuji-frame: light-dark(#ffffff, #000000); /* the line right around a picture, the sheet's thumbnails and the table's card: pure white in light and pure black in dark, whatever the rest of fuji is drawn in. Both ends of every channel, so the gamma lens, which holds black and white where they are, leaves it alone on a thumbnail */
 	--color-fuji-warning: light-dark(#ff4f00, #fbbf24); /* for something to know or to do: international orange on white, the aerospace shade, which stands apart from every gray where a darker amber read as brown, and on black the amber fuji has always had */
@@ -126,17 +154,17 @@ A state that is a quieter version of its color is a share of it rather than a co
 
 	--color-accent: #0064e1; /* a list's selected row while it has the keyboard, and a menu's row under the pointer, on every platform: accent.color in fuji.toml, which accentShow in appearance.js puts on the root, and this its factory value for the moment before */
 	--color-on-accent: var(--color-fuji-on-deep); /* the text on it, which accentShow swaps for fuji-on-pale or fuji-on-deep, whichever reads on the user's color */
-	--color-select-quiet: light-dark(#dcdcdd, #454a56); /* a list's selected row while the keyboard is elsewhere, on every platform: Zed's background in One Light, the gray the Mac's and Explorer's own come nearest, and element.selected in One Dark */
-	--color-on-select-quiet: var(--color-zed-text); /* the text on it, Zed's, as on any row */
+	--color-select-quiet: light-dark(#dcdcdc, #4a4a4a); /* a list's selected row while the keyboard is elsewhere, on every platform: in light Zed's own background key, its window behind everything and a step darker than the background named here, taken because the Mac's and Explorer's own come nearest it, and in dark element.selected */
+	--color-on-select-quiet: var(--color-text); /* the text on it, as on any row */
 }
-@layer base { /* the ground fuji's bars and their menus stand on, a theme of the bar's own rather than Zed's: on windows the title bar's color, which the bars sit right under, so the title bar, the bars and an open menu read as one surface, and elsewhere the content's own color, as a toolbar in Zed is, until each platform's title bar is looked at. Picked by the platform and the window's place, which the shell puts on the root */
-	:root { --bar-ground: var(--color-zed-editor-background) }
+@layer base { /* the ground fuji's bars and their menus stand on, which is the bar's own rather than one of the palette's: on windows the title bar's color, which the bars sit right under, so the title bar, the bars and an open menu read as one surface, and elsewhere the content's own color, as a toolbar in Zed is, until each platform's title bar is looked at. Picked by the platform and the window's place, which the shell puts on the root */
+	:root { --bar-ground: var(--color-background) }
 	html[data-platform="windows"] { --bar-ground: var(--color-fuji-title-bar) }
 	html[data-platform="windows"][data-window="back"] { --bar-ground: var(--color-fuji-title-bar-behind) }
 }
 @layer base {
 	html { color-scheme: light dark } /* the page is drawn in both, so every light-dark() above, and the engine's own scrollbars and form controls, follow the window's theme */
-	input[type=radio], input[type=checkbox] { accent-color: var(--color-zed-text) } /* the engine draws these itself, light or dark with the page, and would fill a checked one with its own blue, a color from outside this palette */
+	input[type=radio], input[type=checkbox] { accent-color: var(--color-text) } /* the engine draws these itself, light or dark with the page, and would fill a checked one with its own blue, a color from outside this palette */
 }
 @media (prefers-color-scheme: light) { /* the same signal the theme sets, for a rule that is not a color */
 	@layer components {
@@ -226,17 +254,17 @@ Fuji's own type: the character-mode text of every hud, the help panel, the setti
 @layer components {
 	.myButton {
 		padding: 2px 10px;
-		color: var(--color-zed-text-muted);
-		background-color: var(--color-zed-surface-background);
-		border: 1px solid var(--color-zed-border);
+		color: var(--color-text-muted);
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
 		cursor: pointer;
 	}
 	.myButton[aria-pressed="true"] { /* the one in force in a row of choices */
-		color: var(--color-zed-text);
-		border-color: var(--color-zed-text);
+		color: var(--color-text);
+		border-color: var(--color-text);
 	}
 	.myButton:disabled { /* nothing for it to do yet: quieter, and no hand */
-		color: var(--color-zed-text-faint);
+		color: var(--color-text-faint);
 		cursor: default;
 	}
 }

@@ -10,7 +10,7 @@ function tailwindHue(name, step) { return tailwindText.match(new RegExp(`--color
 const palettes = [//each hue as name, light, dark, in order around the color wheel; role says which hue the named drawings take
 	{
 		name: 'Monochrome, as the bar is now',
-		about: "Zed's text color, zed-text in style.css.",
+		about: "Fuji's text color, text in style.css.",
 		hues: [],
 		role: {},
 	},
@@ -36,7 +36,7 @@ const palettes = [//each hue as name, light, dark, in order around the color whe
 	},
 	{
 		name: "Zed's One Light and One Dark",
-		about: "From assets/themes/one/one.json in Zed's repository, the file fuji's grays come from: its status colors, its terminal's yellow and its syntax colors, one of each hue, tuned for each mode against Zed's grays.",
+		about: "From assets/themes/one/one.json in Zed's repository, the file fuji's grays take their lightness from: its status colors, its terminal's yellow and its syntax colors, one of each hue, tuned for each mode against Zed's grays.",
 		hues: [
 			['red, error', '#d36151', '#d07277'], ['orange, number', '#ad6e25', '#bf956a'], ['amber, constant', '#c18401', '#dfc184'], ['yellow, terminal', '#d2b67c', '#e5c07b'],
 			['green, success', '#669f59', '#a1c181'], ['cyan, type', '#3882b7', '#6eb4bf'], ['blue, info', '#5c78e2', '#74ade8'], ['purple, keyword', '#a449ab', '#b477cf'],
