@@ -6,7 +6,7 @@ Where the FujiBar work stands, 2026-11-16, for the next session. The decisions a
 
 - **The bar.** `bars.txt` is the text, `bar.js` reads it and its essay says how it is written, and `FujiBar.vue` draws it, with an essay on menus and panels. The bench shows it: `u` from the sheet opens `FujiUserInterfaceSpike.vue`, with a menubar and a toolbar across the top, a Bench button that shows the bench's own strip, and a Views button that opens the first panel.
 - **The decisions.** components.md's FujiBar and Icons sections, `fuji-bar-dsl.md`'s section The syntax, architecture.md on when a component stays in Vue, `tabs.md`, and `theme.md`'s notes Not Zed all the way.
-- **The palettes.** `pnpm color` in `desktop` opens the color page, whose Button Color tab lays out each candidate palette as a box of crayons, with FujiBar's own toolbar and the edit menu in its colors, answering the pointer as they do in fuji.
+- **The palettes.** `pnpm color` in `desktop` opens the color page, whose Button Color tab lays out each candidate palette as a box of crayons, with FujiBar's own toolbar and the edit menu in its colors, answering the pointer as they do in fuji, all in light, since the drawings are monochrome in dark.
 - **The screenshots.** The user's green guides, Windows Explorer and Office 2003 on Windows XP in its classic look, are on the Windows box in `C:\Documents\with-claude\fuji-bar-guides`, a folder the user has opened to Claude, unlike the rest of the computer. Four other pictures there, a Chrome menu, a glass menu, a Windows 10 menu and list, and balloons, have not been looked at yet.
 
 ## Open, by name
@@ -18,7 +18,7 @@ Where the FujiBar work stands, 2026-11-16, for the next session. The decisions a
 - **"Not there yet."** Shortcuts beside a menu's rows, whose syntax is still to come; submenus opening from a menu's row; split buttons; a menu that would run past the window's right edge; and buttons with a drawing and no words.
 - **"MockMenu."** It still draws the right-click menus on the sheet, the light table and the bench's list. Claude suggested moving them to FujiBar's `menu` kind, opened from code as `barShow` in `fuji-bar-dsl.md` sketches, and then removing MockMenu.
 - **"Menubar off the Mac."** `menu.md` says the main window gets a toolbar on every platform, not a menu. The bench shows a menubar on every platform while the bars are designed, and leaves it out on the Mac at the end. Whether Windows and Linux get a menubar in the real window, and whether it takes Alt, was asked and not answered.
-- **"Palette."** Radix may be the best and nothing is chosen. Claude suggested checking Delete's red beside Undo's green with a colorblindness simulator, since red and green are the pair most often confused.
+- **"Palette."** Radix may be the best and nothing is chosen, for light alone: on 2026-11-19 the user decided the drawings are in color in light and monochrome in dark, components.md's Color in light, monochrome in dark. Claude suggested checking Delete's red beside Undo's green with a colorblindness simulator, since red and green are the pair most often confused.
 
 ## Seen in the screenshots, not asked for
 

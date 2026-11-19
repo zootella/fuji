@@ -1,7 +1,6 @@
-<script setup>//every color style.css names, in light and in dark, each on its mode's own ground with the stylesheet's own comment beside it, and the numbered grays beside tailwind's, step by step. It holds no color of its own: fuji's come from the stylesheet through palette.js, and tailwind's from the version installed here, read as text
+<script setup>//every color style.css names, in light and in dark, each on its mode's own ground with the stylesheet's own comment beside it, and beside every neutral gray that is not itself a numbered one, the number its lightness falls at on the numbered grays. It holds no color of its own: every one comes from the stylesheet through palette.js
 
-import tailwindText from 'tailwindcss/theme.css?raw'
-import {paletteColors, paletteHalf} from './palette.js'
+import {paletteColors, paletteHalf, paletteValue} from './palette.js'
 
 const modes = ['light', 'dark']
 const groups = [
@@ -9,32 +8,30 @@ const groups = [
 	{title: 'The numbered grays', test: name => name.startsWith('gray-')},
 	{title: "Fuji's own", test: name => name.startsWith('fuji-')},
 ]
-const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
-const tailwindGrays = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
-function tailwindStep(gray, step) {//one of tailwind's grays at one step, as its theme writes it, with its lightness, chroma and hue
-	let m = tailwindText.match(new RegExp(`--color-${gray}-${step}: (oklch\\(([\\d.]+)% ([\\d.]+) ([\\d.]+|none)\\))`))
-	return {background: m[1], l: +m[2], c: +m[3], h: +m[4]}
+function lightness(hex) {//the OKLab lightness of a neutral gray, in percent: with red, green and blue one number, OKLab's three cone responses are equal, so the lightness is the cube root of that one channel made linear
+	let v = parseInt(hex.slice(1, 3), 16) / 255
+	return 100 * Math.cbrt(v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
 }
-function fujiStep(step) {//one of fuji's numbered grays, painted by its name, with its lightness, chroma and hue worked out from the hex the stylesheet gives; the same gray in light and dark
-	let value = paletteColors.find(c => c.name == `gray-${step}`).value
-	return {background: `var(--color-gray-${step})`, ...oklchOfHex(value)}
+const ladder = paletteColors.filter(c => /^gray-\d+$/.test(c.name)).map(c => ({n: +c.name.slice(5), l: lightness(c.value)})).sort((a, b) => a.n - b.n)//the numbered grays, lightest first
+function ladderAt(c, mode) {//the number on the ladder this color's lightness falls at, for a neutral gray named for anything but its number, and none past either end of the ladder or for a color with a tint
+	if (/^gray-\d+$/.test(c.name)) return ''
+	let hex = paletteValue(c.name, mode).toLowerCase()
+	if (!/^#([0-9a-f]{2})\1\1$/.test(hex)) return ''
+	let l = lightness(hex)
+	for (let i = 1; i < ladder.length; i++) {
+		let above = ladder[i - 1], below = ladder[i]
+		if (l <= above.l + 0.05 && l >= below.l - 0.05) return Math.round(above.n + (below.n - above.n) * Math.min(1, Math.max(0, (above.l - l) / (above.l - below.l))))//a twentieth of a point of slack at each end, the rounding a hex value already has
+	}
+	return ''
 }
-function oklchOfHex(hex) {//lightness in percent, chroma, and hue in degrees, through oklab
-	let linear = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
-	let [red, green, blue] = [1, 3, 5].map(i => linear(parseInt(hex.slice(i, i + 2), 16)))
-	let l = Math.cbrt(0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue), m = Math.cbrt(0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue), s = Math.cbrt(0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue)
-	let a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
-	return {l: 100 * (0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s), c: Math.hypot(a, b), h: (Math.atan2(b, a) * 180 / Math.PI + 360) % 360}
-}
-function says({l, c, h}) { return `${l.toFixed(1)} / ${c.toFixed(3)} / ${c < 0.002 ? 'none' : Math.round(h)}` }//no hue where the chroma is too little to lean any way
 
 </script>
 <template>
 
 <div>
 	<h1>Theme</h1>
-	<p>Every color <span class="myFixedWidth">src/style.css</span> names, read from the stylesheet as this page loads, drawn in light and in dark, each on its mode's own ground. Every gray is neutral: a gray named for its job is one of Zed's from its One Light and One Dark themes, at its own lightness with its tint taken out, and a numbered gray is Tailwind's neutral at its number, the same in both modes, every 25 from 50 to 950. The notes are the stylesheet's own comments.</p>
+	<p>Every color <span class="myFixedWidth">src/style.css</span> names, read from the stylesheet as this page loads, drawn in light and in dark, each on its mode's own ground, with the stylesheet's own comment beside it. Every gray is neutral: a gray named for its job is one of Zed's from its One Light and One Dark themes, at its own lightness with its tint taken out, and a numbered gray is Tailwind's neutral at its number, the same in both modes, every 25 from 50 to 950. Beside every other neutral gray is the number its lightness falls at on the numbered grays, so each can be read against the same ladder.</p>
 	<div class="myTable">
 		<template v-for="group in groups" :key="group.title">
 			<div class="myGroup">{{group.title}}</div>
@@ -43,21 +40,10 @@ function says({l, c, h}) { return `${l.toFixed(1)} / ${c.toFixed(3)} / ${c < 0.0
 				<div v-for="mode in modes" :key="mode" class="myMode" :style="{colorScheme: mode}"><!-- a color in one mode, on that mode's own ground, which the cell's color-scheme picks -->
 					<div class="mySwatch" :style="{background: `var(--color-${c.name})`}"></div>
 					<span class="myFixedWidth">{{paletteHalf(c.value, mode)}}</span>
+					<span v-if="ladderAt(c, mode)" class="myFixedWidth myAt">{{ladderAt(c, mode)}}</span>
 				</div>
 				<div class="myNote">{{c.note}}</div>
 			</template>
-		</template>
-	</div>
-
-	<h2>The numbered grays beside Tailwind's</h2>
-	<p>Each row is one of Tailwind's eleven steps at one lightness: its grays from the version installed here, then fuji's numbered gray at the same number, which is its neutral as a hex value, the same in light and dark. Each cell reads its OKLCH lightness, chroma and hue, with no hue where the chroma is under 0.002, too little to lean any way.</p>
-	<div class="myLadder">
-		<div></div>
-		<div v-for="g in tailwindGrays" :key="g" class="myLadderHead">Tailwind {{g}}</div>
-		<div class="myLadderHead">fuji</div>
-		<template v-for="step in steps" :key="step">
-			<div class="myLadderHead">{{step}}</div>
-			<div v-for="(cell, i) in [...tailwindGrays.map(g => tailwindStep(g, step)), fujiStep(step)]" :key="i" class="myFixedWidth myStep" :data-ink="cell.l > 62 ? 'dark' : 'light'" :style="{background: cell.background}">{{says(cell)}}</div>
 		</template>
 	</div>
 </div>
@@ -70,11 +56,7 @@ function says({l, c, h}) { return `${l.toFixed(1)} / ${c.toFixed(3)} / ${c < 0.0
 .myGroup { grid-column: 1 / -1; padding-top: 20px; font-weight: 600 }
 .myMode { display: flex; align-items: center; gap: 10px; background-color: var(--color-background); color: var(--color-text) }
 .mySwatch { flex: none; width: 48px; height: 24px; border-radius: 4px; outline: 1px solid color-mix(in srgb, currentColor 25%, transparent) } /* outlined, so a color the same as the ground still shows where it is */
+.myAt { margin-left: auto; color: var(--color-text-placeholder) } /* the number at the cell's right end, quiet, since the hex is the value and this is where it falls */
 .myNote { color: var(--color-text-muted) }
-.myLadder { display: grid; grid-template-columns: repeat(7, max-content) }
-.myLadder > * { padding: 12px 14px; white-space: nowrap }
-.myLadderHead { align-self: end; font-weight: 600 }
-.myStep[data-ink="dark"] { color: black } /* the cell's reading in whichever of black or white shows on its gray; neither is one of fuji's colors, just ink that reads */
-.myStep[data-ink="light"] { color: white }
 
 </style>
