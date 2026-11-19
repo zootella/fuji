@@ -3,7 +3,7 @@ import {settings} from './settings.js'
 import {logTrouble} from './log.js'
 import {brandName} from './brand.js'
 
-//the look the settings name, put on the window and its page: light or dark and the faces, which every kind of window fuji makes puts on as it starts, before its reveal, and a browsing window again when its settings panel changes them; and the accent, which a browsing window puts on as it starts
+//the look the settings name, put on the window and its page: light or dark and the faces, which every kind of window fuji makes puts on as it starts, before its reveal, and a browsing window again when its settings panel changes them. The accent was a setting too, until 2026-11-19; it is style.css's alone now, with no setting, as every color of a selection is
 
 export async function themeShow() {//light or dark, for the window's title bar and the page inside, from the appearance setting. The theme on the window is the one switch, as the essay above the palette in style.css says: null follows the system, and keeps following it as it changes
 	await getCurrentWindow().setTheme(settings.appearance.mode == 'system' ? null : settings.appearance.mode)
@@ -15,18 +15,3 @@ export async function facesShow() {//put the page's text in the fonts the settin
 	document.documentElement.dataset.faces = settings.font.faces//read again after the wait, so a quick change back is never overwritten by the load it interrupted; the setting's own word, system, bundled or retro, which style.css keys its rules on
 }
 
-export function accentShow() {//the accent, the one color a list's selected row and a menu's row under the pointer are painted in on every platform, from the settings, with whichever of white or black text reads on it. The user's rather than the system's, since every engine fixes the Highlight color a page can ask for against fingerprinting, and Rust could read the real one only on the mac
-	let root = document.documentElement.style
-	root.setProperty('--color-accent', settings.accent.color)
-	root.setProperty('--color-on-accent', _colorPale(settings.accent.color) ? 'var(--color-fuji-on-pale)' : 'var(--color-fuji-on-deep)')
-}
-
-function _colorPale(color) {//whether black text contrasts more with this color than white does, by the relative luminance WCAG defines
-	let c = document.createElement('canvas').getContext('2d')
-	c.fillStyle = color
-	c.fillRect(0, 0, 1, 1)//painted and read back as srgb bytes, since fillStyle hands a color outside srgb, like an oklch() or a display-p3 one, back in its own notation rather than as hex
-	let [r, g, b] = c.getImageData(0, 0, 1, 1).data
-	let linear = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
-	let luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
-	return (luminance + 0.05) / 0.05 > 1.05 / (luminance + 0.05)//black's contrast with the color, weighed against white's
-}

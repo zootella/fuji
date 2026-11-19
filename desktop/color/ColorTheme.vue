@@ -31,7 +31,7 @@ function ladderAt(c, mode) {//the number on the ladder this color's lightness fa
 
 <div>
 	<h1>Theme</h1>
-	<p>Every color <span class="myFixedWidth">src/style.css</span> names, read from the stylesheet as this page loads, drawn in light and in dark, each on its mode's own ground, with the stylesheet's own comment beside it. Every gray is neutral: a gray named for its job is one of Zed's from its One Light and One Dark themes, at its own lightness with its tint taken out, and a numbered gray is Tailwind's neutral at its number, the same in both modes, every 25 from 50 to 950. Beside every other neutral gray is the number its lightness falls at on the numbered grays, so each can be read against the same ladder.</p>
+	<p>Every color <span class="myFixedWidth">src/style.css</span> names, read from the stylesheet as this page loads, drawn in light and in dark, each on its mode's own ground, with the stylesheet's own comment beside it. Every gray is neutral: a gray named for its job is one of Zed's from its One Light and One Dark themes, at its own lightness with its tint taken out, apart from a selection's grays, which start from the Mac's and Windows' own and are set on the ladder, and a numbered gray is Tailwind's neutral at its number, the same in both modes, every 25 from 50 to 950. Beside every other neutral gray is the number its lightness falls at on the numbered grays, so each can be read against the same ladder.</p>
 	<div class="myTable">
 		<template v-for="group in groups" :key="group.title">
 			<div class="myGroup">{{group.title}}</div>

@@ -22,6 +22,20 @@ export function paletteHalf(value, mode) {//the light or the dark half of a ligh
 	return value
 }
 
+export const palettePlatforms = {}//the colors each platform's rule in style.css points elsewhere, by the platform it names, and under a blank for the rule every platform has, read from the rules' one-line text
+for (let [, platform, body] of styleText.matchAll(/^\s*\[data-platform(?:="([a-z]+)")?\]\s*\{(.*)\}\s*$/gm)) {
+	let names = palettePlatforms[platform || ''] = {}
+	for (let [, name, value] of body.matchAll(/--color-([a-z0-9-]+):\s*([^;]+?)\s*(?:;|$)/g)) names[name] = value
+}
+
+export function paletteNotch(name, platform, mode) {//the numbered gray a color comes to on this platform in this mode, following the names it is written as, or blank where it ends at a value written out, so a page says gray-250 only where the stylesheet does
+	let value = palettePlatforms[platform]?.[name] ?? palettePlatforms['']?.[name] ?? paletteColors.find(c => c.name == name)?.value
+	if (!value) return ''
+	let named = paletteHalf(value, mode).match(/^var\(--color-([a-z0-9-]+)\)$/)
+	if (!named) return ''
+	return /^gray-\d+$/.test(named[1]) ? named[1] : paletteNotch(named[1], platform, mode)
+}
+
 export function paletteValue(name, mode) {//what the color of this name is in light or in dark, as the stylesheet writes it, following a color that names another to the value it ends at
 	let c = paletteColors.find(c => c.name == name)
 	if (!c) throw new Error(`no color named ${name} in style.css`)

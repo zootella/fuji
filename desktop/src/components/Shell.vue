@@ -23,7 +23,7 @@ import {processOpen} from '../process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew, windowQuit} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, to ask for a video window beside this one, and to end the program for the light table's Quit on the mac
 import {setCommandKey} from '../keyboard.js'//which modifier the components hold their chords with
-import {themeShow, facesShow, accentShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts, and the accent, which only a browsing window has lists and menus to need
+import {themeShow, facesShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import SettingsPanel from './SettingsPanel.vue'
@@ -119,7 +119,6 @@ onMounted(async () => {
 	logStart({label: `${whichTable.value.toLowerCase()}-${settings.flip.back}x${settings.flip.forward}`, record: settings.log.record, notes: [`flip.back ${settings.flip.back}, flip.forward ${settings.flip.forward}`]})//once, naming the run for the table and window it started with; the store reports loads from every view into this one file
 	for (let notice of notices) log(notice)//the lines from before there was a log to put them in, first in the file and in the order they happened
 	await facesShow()//before the reveal, so the first frame, the help panel included, is already in the faces the settings name
-	accentShow()//and the accent the settings name, on a selected row and a menu's row
 	if (platform() == 'mac') setCommandKey('metaKey')//and the components' chords on command, where control and a click is a right click; asked here so no component asks which platform it is on
 	document.documentElement.dataset.platform = platform()//and the platform on the root, for the stylesheet's few rules that match something the system draws, like a bar against the title bar above it; set here for the same reason
 	await themeShow().catch(error => logTrouble('shell: setting the theme', error))//and in its colors, light or dark, the title bar with it; a theme that will not take leaves the window as the system has it, which is still worth revealing
