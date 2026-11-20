@@ -44,8 +44,8 @@ const settingsSchema = [
 	}, {
 		section: 'sort',
 		key: 'order',
-		factory: 'Alphabet',
-		comment: `which order ${brandName} puts a folder in: Alphabet is the order javascript itself puts an array of names in, capitals before lowercase and page10 before page9, with no locale and no opinion; the sorts ${brandName} has are known to the model rather than here, so a name it does not recognize is reported there and Alphabet used instead`,
+		factory: 'StrcmpSort',
+		comment: `which order ${brandName} puts a folder in: StrcmpSort is the simple lexicographic order, each name compared by its characters' own numbers as javascript itself orders an array of names, capitals before lowercase and page10 before page9, with no locale and no opinion; WindowsSort is the order File Explorer shows a folder sorted by name, and MacSort the order Finder does, each on any platform; the sorts ${brandName} has are known to the model rather than here, so a name it does not recognize is reported there and StrcmpSort used instead`,
 	}, {
 		section: 'list',
 		key: 'sizes',

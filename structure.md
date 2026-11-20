@@ -29,7 +29,7 @@ The user calls the Sheet a contact sheet; the code calls it `Sheet`. A Table is 
 
 **One order, two consumers.** The Sheet lays its thumbnails out in that order, and a Table flips through the same order — so the picture after this one is the same picture whether the user is looking at a wall of thumbnails or at one image. Changing the Sort changes both at once, because there is one sequence and both are reading it. That is why the choice belongs below both of them rather than to the Sheet that offers it.
 
-**One is written.** `Alphabet` is javascript's own `sort()`, kept deliberately: no locale, no numeric guessing, no opinion. The other seven are planned.
+**Three are written.** `StrcmpSort` is javascript's own `sort()`, kept deliberately: no locale, no numeric guessing, no opinion. `WindowsSort` and `MacSort` are the orders Explorer and Finder give, on any platform. The other five are planned.
 
 ## Flows
 
@@ -73,7 +73,7 @@ More will follow, and the shape is meant to make that cheap: a new Table reads t
 
 ## Naming conventions
 
-**A member of a named set is Title Case**, so it is recognisable on sight: `Alphabet` is a member, `alphabet` would be a variable holding one. This covers Sorts, Fits, Flows, and the Tables.
+**A member of a named set is Title Case**, so it is recognisable on sight: `StrcmpSort` is a member, `strcmpSort` would be a variable holding one. This covers Sorts, Fits, Flows, and the Tables.
 
 **A family shares a leading noun** in code, so its parts sort and read together — `cacheNeed`, `cacheRelease`, `cacheFootprint`.
 

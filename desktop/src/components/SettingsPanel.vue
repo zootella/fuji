@@ -3,6 +3,7 @@
 import {ref} from 'vue'
 import {settings, settingsSet, settingsThumbnailBeams} from '../settings.js'
 import {fitNames, fitDescriptions} from '../fit.js'
+import {modelSort, modelSortSet, modelSortNames, modelSortLabels} from '../model.js'
 import {brandName} from '../brand.js'
 import {platform} from './library.js'
 import SettingsFileTypes from './SettingsFileTypes.vue'
@@ -23,6 +24,8 @@ const beam = ref(settings.thumbnail.beam)//which beam length every thumbnail is 
 function beamCommit() { settingsSet('thumbnail', 'beam', beam.value) }//the sheet reads it again when it comes back on screen and remakes every bucket, since a flow reads the beam once, as it is made
 const fit = ref(settings.thumbnail.fit)//how every thumbnail is sized against that beam, one of the fits fit.js lists
 function fitCommit() { settingsSet('thumbnail', 'fit', fit.value) }//the same way
+const sort = ref(modelSort.value)//which order a folder's names are in, one of the sorts the model keeps
+function sortCommit() { modelSortSet(sort.value) }//through the model, which puts its list in the new order and writes the setting itself
 
 const sizes = ref(settings.list.sizes)//how a list says a file's size; the buttons offer only the names the setting takes, so it never needs putting back
 function sizesCommit() { settingsSet('list', 'sizes', sizes.value) }//a list reads it as it makes its rows
@@ -82,6 +85,11 @@ defineExpose({onKey, onFocus, showAbout})//the calls of the shell's this view ha
 		</div>
 
 		<!-- a group of a few short choices sits on one line, wrapping only in a narrow window -->
+		<span>Sort</span>
+		<div role="radiogroup" aria-label="Sort" class="flex flex-wrap gap-x-6 gap-y-1">
+			<label v-for="name in modelSortNames" :key="name" class="flex items-baseline gap-2"><input type="radio" name="sort" :value="name" v-model="sort" @change="sortCommit" /><span>{{modelSortLabels[name]}}</span></label><!-- the model's word for each, Windows for WindowsSort and Simple lexicographic for the one the code calls StrcmpSort -->
+		</div>
+
 		<span>Sizes</span>
 		<div role="radiogroup" aria-label="Sizes" class="flex flex-wrap gap-x-6 gap-y-1">
 			<label class="flex items-baseline gap-2"><input type="radio" name="sizes" value="Bytes" v-model="sizes" @change="sizesCommit" /><span>Bytes</span></label>

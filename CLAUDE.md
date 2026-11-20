@@ -55,6 +55,8 @@ Roughly what a release build costs, so a long one does not read as a hang: on th
 pnpm dev          # Run Vite dev server without Tauri
 pnpm vite-build   # Build frontend only
 pnpm color        # the color page in the browser: fuji's palette and the candidates for its colors, a tab each
+pnpm sort-test    # WindowsSort and MacSort against what each platform was recorded saying, then against the platform this runs on; with record, folder, shell or explorer after it, the other jobs sort/test.js names
+pnpm sort-table   # pack Microsoft's sorting table into src/WindowsSortTable.js again, fetched and checked by its hash; only to move to a later table
 ```
 `dev` and `vite-build` are also Tauri's own before-commands, named in `tauri.conf.json`, which is why they keep those names instead of joining the list above. `color` serves `color/` on port 1430, beside the 1420 the app's dev server holds, so it runs while `pnpm local` does. Its tabs draw with fuji's own stylesheet, faces, lucide drawings and FujiBar, and write down a color only where the page is saying what someone else's color is, like a Radix hue or a brand color once proposed.
 
@@ -159,6 +161,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `model.js`, `settings.js`, `cache.js` — what the user is looking at, the one schema for `fuji.toml`, and the store of pictures
 - `pager.js` — every image on the volume as one list, never built, and the sheet's page as a window onto it
 - `associate.js` — file associations, starting from the values the design follows
+- `WindowsSort.js`, `MacSort.js` — the orders Explorer and Finder put names in, on any platform; `desktop/sort` holds their test against the platforms themselves, and `sort.md` what was found
 
 **Each Rust module with commands has a JavaScript file of the same name in `src/`** that wraps them for the page, one function per command, forwardizing a path where it crosses. `components/library.js` holds the small pure helpers, `forwardize`, `backize` and `xy` among them. `fileTypes.js` is the one table of every extension fuji knows and what each part of fuji does with it on each platform.
 

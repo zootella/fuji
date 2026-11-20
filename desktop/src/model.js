@@ -2,7 +2,9 @@ import {ref, shallowRef} from 'vue'
 import parse from 'path-browserify'
 import {listFolder} from './components/library.js'
 import {settings, settingsChanged} from './settings.js'
-import AlphabetSort from './AlphabetSort.js'
+import StrcmpSort from './StrcmpSort.js'
+import WindowsSort from './WindowsSort.js'
+import MacSort from './MacSort.js'
 import {log} from './log.js'//the shell starts the log before it starts the model, so a line from here always has somewhere to land
 
 /*
@@ -11,14 +13,31 @@ The model holds what the user is looking at, and no view owns it: the folder, th
 Two things shape the rest. The position is a path rather than an index, so changing the sort leaves the user on the picture they were looking at instead of on whatever is now forty-seventh; flipping is find where I am, step one, take that path. And the listing is kept unsorted, because it is what every sort reads from — which is what makes changing the order cost no disk.
 */
 
-const modelSorts = {//every order fuji can put a folder in, the way the shell keeps every table it can show
-	Alphabet: AlphabetSort,
+/*
+Why fuji carries Explorer's order and Finder's, both on every platform, written in the page.
+
+The user fuji imagines started on a Mac or on Windows and now uses both. The order their folders come in is one of the things their hands know, so fuji gives them the one they know as a choice, the same choice on either machine: a person who thinks in Explorer's order can have it on the Mac, and Finder's on Windows.
+
+The other design is for fuji to sort like the Mac on the Mac and like Windows on Windows, asking each system's own function, StrCmpLogicalW there and localizedStandardCompare here. It would be less code and exact by construction, and it is not what fuji does, on purpose: the same folder would then read two ways on a user's two machines, and neither machine could give the other's order at all, since each function exists on one platform only. Fuji is meant to be simple, uniform and familiar, and uniform is the one that decides this.
+
+So each order is fuji's own code, WindowsSort.js and MacSort.js, plain functions of two names that run the same in any web engine, and a sort is a decision about what the user sees, which is the page's to make and nothing the Rust beneath it needs to know. Each file's essay says what it follows and how it was held against the real thing.
+*/
+const modelSorts = {//every order fuji can put a folder in, the way the shell keeps every table it can show; each is named as its file is, with Sort on the end as a fit ends in Fit, so the word in fuji.toml cannot be read as anything but a sort
+	StrcmpSort,
+	WindowsSort,
+	MacSort,
+}
+export const modelSortNames = Object.keys(modelSorts)//for the settings panel, which offers them in this order
+export const modelSortLabels = {//and what it calls each, since the name the code knows a sort by is not always the word for a user
+	StrcmpSort:  'Simple lexicographic',
+	WindowsSort: 'Windows',
+	MacSort:     'Mac',
 }
 
 export const modelFolder = ref('')//the folder the user is in
 export const modelList = shallowRef([])//its images as paths, in the current order; shallow because it is replaced whole, never edited
 export const modelPath = ref('')//the image the user is on, and the durable answer to where they are
-export const modelSort = ref('Alphabet')//chosen in the sheet, read by every table
+export const modelSort = ref('StrcmpSort')//chosen in the settings panel, read by every table
 
 let modelFiles = []//the listing every sort orders, as it came off the disk; nothing renders it, so it stays out of vue
 let modelFilesByPath = new Map()//the same entries by path, for a view that holds a path and wants what the listing knows about it
@@ -50,8 +69,8 @@ export function modelFile(path) { return modelFilesByPath.get(path) || false }//
 
 export function modelSortSet(name) {//choose an order; the list is rebuilt from the listing already in hand, and every view is reading that list
 	if (!modelSorts[name]) {//a name settings cannot check, because the sorts fuji has are known here and not there
-		log(`settings: no sort named ${name}, using Alphabet instead`)
-		name = 'Alphabet'
+		log(`settings: no sort named ${name}, using StrcmpSort instead`)//which is also how a file from when this sort was called Alphabet comes right
+		name = 'StrcmpSort'
 	}
 	modelSort.value = name
 	modelList.value = modelOrder()

@@ -2,7 +2,7 @@
 
 The order fuji shows a folder in. One value, chosen in the sheet, used by every table — so it lives in the model, below both of them, rather than in either.
 
-This file has two halves. The first is prior art: how Windows and macOS actually sort and date files, researched rather than remembered, because fuji is going to reproduce some of it and deliberately depart from the rest. The second is the plan. `Alphabet` is written; the other seven are not.
+This file has two halves. The first is prior art: how Windows and macOS actually sort and date files, researched rather than remembered, because fuji is going to reproduce some of it and deliberately depart from the rest. The second is the plan. `StrcmpSort`, `WindowsSort` and `MacSort` are written; the other five are not.
 
 ---
 
@@ -27,7 +27,7 @@ The same strings under `StrCmpI`, which treats digits as text, come out `20strin
 Facts worth carrying:
 
 - **It arrived after Windows 2000.** Windows XP and Server 2003 onward sort this way; the older lexicographic order is what anyone's memory of Windows 98 is made of.
-- **ASCII digits only.** It recognises `0`–`9` and does not treat digits from other writing systems as numbers.
+- **ASCII digits only, once.** Before Windows 7 it recognised `0`–`9` and no other digits. Today the digits of every script count, each run in its own script's digits; the section on what was measured below has it.
 - **It can be turned off.** A Group Policy restriction (`REST_NOSTRCMPLOGICAL`) reverts Explorer to the old ordering, so "how Windows sorts" is not even uniform across Windows machines.
 - **Microsoft says not to rely on it.** The reference page carries this note: *"Behavior of this function, and therefore the results it returns, can change from release to release. It should not be used for canonical sorting applications."* That is Microsoft telling us that a fuji sort named after Explorer is aiming at a target that is allowed to move.
 
@@ -49,7 +49,7 @@ Facts worth carrying:
 
 `Array.prototype.sort()` with no comparator converts each element to a string and compares UTF-16 code units. That gives two behaviours users notice: every uppercase letter sorts before every lowercase one, because `Z` is 90 and `a` is 97; and `page10` sorts before `page9`, because the comparison stops at `1` versus `9`.
 
-This is what fuji ships as `Alphabet`, on purpose.
+This is what fuji ships as `StrcmpSort`, on purpose: the comparison is ECMAScript's, and the numbers compared are Unicode's and, for an English keyboard, ASCII's. Computing calls it lexicographic order, and C's `strcmp` is its oldest famous name.
 
 In the page, the closest thing to Finder is `Intl.Collator` with `numeric: true` and a base sensitivity. It is numeric-aware, case-insensitive and diacritic-insensitive, and it follows a locale. It is close to `localizedStandardCompare:` and is not the same function.
 
@@ -58,6 +58,30 @@ In the page, the closest thing to Finder is `Intl.Collator` with `numeric: true`
 Both shells compare digit runs by value. Neither documents what happens when two runs have the *same* value but different spellings — `01` and `1`, `007` and `7`. The numeric comparison is a tie, and every implementation invents its own tiebreak: shorter first, longer first, fall back to character comparison, or leave the order to whatever the sort algorithm happened to do. This is the seam where "natural sort" implementations visibly disagree with each other and with the shell they were trying to copy.
 
 It is also the case the user is most likely to have in a folder of scanned pages, where `page1`, `page01`, `page02` and `page2` sit together.
+
+### What was measured, November 2026
+
+The two functions were read and run rather than taken from their documentation, on Windows 11 and from CoreFoundation's published source, and both turned out to be something other than the natural sort the documentation suggests.
+
+**`StrCmpLogicalW` is one call to Windows' linguistic comparison.** On Windows 7 and later it is `CompareStringEx` in the user's locale with two flags, ignore case and digits as numbers, and nothing else: three hundred thousand random pairs through both agreed, and the function's disassembly shows the one call. So Explorer's order is Windows' collation, a table of four weights for every character which Microsoft publishes for each version of Windows, and what follows is that table's doing:
+
+- **Symbols, then digits, then letters**, the symbols in an order of Windows' own, with `+ < = >` after `~`.
+- **The hyphen and the apostrophe are set aside**, and only break a tie: `co-op` sorts beside `coop`, after it. Microsoft calls this a word sort.
+- **Leading zeros decide on the spot, more zeros first.** `001`, `01`, `1`, `02`, `2`, and `file01b` before `file1a`.
+- **A number is at most 19 digits.** A longer run is a second number after the first, so twenty nines sort after a one and twenty zeros.
+- **Some characters are the same as others, or as nothing.** `a` and `A`, `ß` and `ss`, `æ` and `ae`, `é` and `e` with a combining accent; a soft hyphen and a zero width joiner weigh nothing. The shell breaks those ties by the characters' own numbers with case ignored.
+- **The period before an extension is one more symbol**, and the whole name is compared, extension included.
+- **It follows the user's locale.** A Swedish Windows puts `å` after `z`.
+
+**Windows 10 and Windows 11 differ, outside ASCII.** Microsoft's two tables, NLS versions 0x00060305 and 0x00060502, give every ASCII character the same weights. They differ in Georgian, in the accent weights of voiced kana, and in 133 characters the newer table adds.
+
+**`localizedStandardCompare:` is a walk of CoreFoundation's own and then ICU.** It walks both names while they are the same, reading runs of ASCII digits itself, and hands what is left at the first difference to ICU's collation for the user's language:
+
+- **Leading zeros only break a tie, shorter first.** `1`, `01`, `001`, `2`, and `file1a` before `file01b`: the opposite of Explorer twice over.
+- **A number is kept in 64 bits**, so one past 18,446,744,073,709,551,615 wraps around.
+- **Every symbol has a place**, in CLDR's order, the hyphen and the apostrophe among them.
+- **Nothing is the same as anything else.** Small letters before capitals, and `ss` before `ß`, once all else is equal.
+- **It follows the user's first language**, and for English it is CLDR's root order.
 
 ## How the two systems date files
 
@@ -103,19 +127,27 @@ Almost never the one the filesystem is most confident about.
 
 ## The enumeration
 
-    Alphabet   Mac   Windows   Smart   Modified   Created   Size   Shuffled
+    StrcmpSort   MacSort   WindowsSort   SmartSort   ModifiedSort   CreatedSort   SizeSort   ShuffledSort
 
-**Enumerated values are Title Case throughout fuji**, so a named member of a set is recognizable on sight: `Alphabet` is a member, `alphabet` would be a variable holding one.
+**Enumerated values are Title Case throughout fuji**, so a named member of a set is recognizable on sight: `StrcmpSort` is a member, `strcmpSort` would be a variable holding one. **Each ends in Sort, as a fit ends in Fit**, because the word stands alone in `fuji.toml`, where `Windows` or `Mac` could mean the platform or anything about it; the settings panel, whose title already says Sort, has a word of its own for each, Windows, Mac, and Simple lexicographic for `StrcmpSort`. The prose below calls each by its first word.
 
 A separate boolean reverses whichever order is chosen. Reverse is not a member — every order has both directions, Shuffled included.
 
 ## The four name sorts
 
-**Alphabet** is JavaScript's own `sort()`, kept deliberately. It is the only order that is exactly predictable from the bytes, with no locale, no numeric guessing, and no opinion — the one to reach for when the clever orders have done something surprising and the user wants to see the folder plainly. It is written, in `AlphabetSort.js`.
+**Strcmp** is JavaScript's own `sort()`, kept deliberately, and was called Alphabet until it was plain that Zebra before apple is not alphabetical. It is the only order that is exactly predictable from the bytes, with no locale, no numeric guessing, and no opinion — the one to reach for when the clever orders have done something surprising and the user wants to see the folder plainly. It is written, in `StrcmpSort.js`.
 
-**Mac** and **Windows** reproduce the two shells, so a user who arranged a folder in Finder or Explorer can get the same arrangement in fuji. Both are ours to write: `localizedStandardCompare:` and `StrCmpLogicalW` are platform calls fuji cannot reach from the page, and reaching them from Rust would still leave each platform unable to produce the other's order.
+**Mac** and **Windows** reproduce the two shells, so a user who arranged a folder in Finder or Explorer can get the same arrangement in fuji. Both are ours to write: `localizedStandardCompare:` and `StrCmpLogicalW` are platform calls fuji cannot reach from the page, and reaching them from Rust would still leave each platform unable to produce the other's order. Both are written, in `WindowsSort.js` and `MacSort.js`, each with an essay on what it follows and where it stops.
 
-Both names make a promise fuji should be honest about. Microsoft says its function's results can change between releases and should not be used for canonical sorting. Apple's follows the user's locale, so there is no single Mac order to match. These sorts will be faithful in intent and close in practice, and the open question below asks whether the names should say so.
+**Windows is Windows' own table and Windows' own way of building a key from it.** `WindowsSortTable.js` is Microsoft's published table for Windows 11, packed to 51 KB by `sort/table.js`, and `WindowsSort.js` builds the key Windows builds, the same bytes. It is the order of an English Windows 11 on every platform, exact for every name tried but three corners its essay names, where Windows' own comparison is not an order at all or the text is malformed.
+
+**Mac is CoreFoundation's walk, written out, over the page's own `Intl.Collator`.** On the Mac the page's collator is the system's ICU, the one Finder uses, so the order there is Finder's for every character; elsewhere it is the web engine's ICU, the same for ASCII and accented Latin and able to differ for Chinese characters and characters newer than one side knows. It is the order of a Mac whose language is English.
+
+Both names make a promise fuji should be honest about. Microsoft says its function's results can change between releases and should not be used for canonical sorting, and each sort is one language's order where the shell follows the user's own.
+
+**Fuji carries the whole table, decided.** A table of Latin alone would be 3 KB against 69, and was measured: the same on ASCII, and wrong on a quarter to a third of random pairs in Greek, Cyrillic, kana and Chinese characters. Both are one constant the page imports, so the running cost is the same, both sizes are small, and the whole table is a copy where the small one is a set of choices about what to leave out. The table is Microsoft's, published without a license of its own as an input to the comparison, and Wine ships data built from the same file, which is the precedent fuji follows.
+
+**The walk's order of folders stays as it is, decided.** The pager orders a folder's images by the chosen sort, and the folders themselves come from steel's walk in the order of their names' bytes, whatever the sort, so `Photos 10` comes before `Photos 2` as the sheet pages across them. The walk is a test bed for the speed and integrity of fuji's four parts, and may go once fuji browses as a file manager does, so its order is left rudimentary and outside the sorts a user chooses.
 
 **Smart** is fuji's own, and it is the one worth the effort, because it is the only one not copying somebody. Both shells were reaching for the same thing — a person reading `page2` and `page10` means two and ten — and both left the same hole where digit runs tie: `page1`, `page01`, `page02`, `page2`. Smart is where that gets an answer, along with the other cases a folder of scanned pages actually contains.
 
@@ -145,18 +177,22 @@ Both names make a promise fuji should be honest about. Microsoft says its functi
 
 ## Where it lives
 
-Each sort is a pure function in a file of its own, named for the member so it reads as the swappable thing it is — `AlphabetSort.js`, and `SmartSort.js` beside it when that exists. Two entries in, which comes first out; no disk, no framework. The model keeps the register of them and is the only caller.
+Each sort is a pure function in a file of its own, named for the member so it reads as the swappable thing it is — `StrcmpSort.js`, `WindowsSort.js`, `MacSort.js`, and `SmartSort.js` beside them when that exists. Two entries in, which comes first out; no disk, no framework. The model keeps the register of them and is the only caller.
 
 **A sort is a comparator**, the language's own idiom, so a list places a row that arrives later by search instead of sorting everything again, and a column composes one to break its own ties. A sort whose key costs something to work out, a name split into runs of digits, works it out once per entry and compares the keys.
 
 They are the easiest thing in fuji to test, and the fixed list of filenames they are tested against is itself worth keeping, because it is the specification of what `Smart` means.
 
-The chosen sort is one value in the model, persisted through `fuji.toml`. The settings schema validates it against this enumeration, so a hand-edited file naming a sort that does not exist reports the problem and falls back to factory rather than ordering by nothing.
+**The platform sorts are tested against the platforms.** `desktop/sort` holds it: `names.js`, twenty-one small groups of names that each show one thing a shell does; `oracle.ps1` and `oracle.swift`, which ask Windows and the Mac; and `test.js`. `pnpm sort-test record` on each platform writes what it said about every pair of the names, `windows-sort.txt` and `mac-sort.txt`, which are tracked, so each machine checks the other's sort; `pnpm sort-test` checks both and then asks the platform it is on about random names by the hundred thousand; `pnpm sort-test folder` and a path makes the names into real files, a folder a group, with fuji's order beside them as `fuji-sort.txt`, to look at in Explorer or Finder, so the folder is made on each machine from `names.js` and never carried between them; `pnpm sort-test shell` and that path, on Windows, asks the shell's own folder object about those files; and `pnpm sort-test explorer` and that path opens each folder in a real Explorer window, sorts it by name, and reads back the order the window shows, which on Windows 11 on 2026-11-20 was fuji's in every folder but the one where Windows contradicts itself.
+
+The chosen sort is one value in the model, persisted through `fuji.toml` and chosen in the settings panel, beside the fits. The settings schema validates it against this enumeration, so a hand-edited file naming a sort that does not exist reports the problem and falls back to factory rather than ordering by nothing.
 
 ## Open
 
 - **There are two different "smart" ideas in the notes.** This file describes Smart as a name order. The user's private notes describe smart as a *date* order with numbered-sequence grouping, for the brochure feature. They may be two members, and if so the name order needs its own word.
-- **How faithful should Mac and Windows be, and should the names say so?** Neither target is fixed: Microsoft reserves the right to change its results, and Apple's answer depends on the user's language.
+- **Should Mac and Windows follow the user's language?** Each shell does, and each sort here is English's order. Windows' table carries every locale's exceptions, 440,000 lines of them, mostly Chinese, Japanese and Korean; the Mac's is a locale handed to the collator.
+- **Mac has not met a Mac.** `MacSort.js` follows CoreFoundation's source and matches the Finder orders others have published; `pnpm sort-test record` and the test folder on the Mac mini are what settle it, along with whether Finder sorts the name it shows or the name on disk when extensions are hidden.
+- **Windows 10 has not run the test, and need not.** Microsoft's tables give every ASCII character the same weights on both, which is the agreement that was wanted, so one sort serves every Windows; `pnpm sort-test` on a Windows 10 machine would say what that Windows itself does, should it ever matter.
 - **What `Smart` does with tied digit runs** — `page1` against `page01` — which is the hole both shells left and the reason this sort exists.
 - **What `Created` does where the filesystem has no answer:** sort those to one end, fall back to Modified, or refuse.
 - **Whether Date Added earns the Rust it costs, and Date Taken the read of every file's first bytes.** Probably yes for photographs, eventually.

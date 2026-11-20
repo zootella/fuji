@@ -160,7 +160,7 @@ async function _pagerList(folder) {//a folder's full listing, its images as entr
 	let images
 	try {
 		images = await listFolder(folder)
-		images.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)//the Alphabet sort's own order, by path within one folder; when fuji has a second sort the model should order these, as it orders the table's folder
+		images.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)//by path in the plainest order there is, within one folder, and on purpose not the sort the user chooses: the pager is a test bed for the walk and stays apart from the sorts, its folders coming from find in the same plain order
 	} catch (error) {
 		log(`pager: could not list a folder, ${error}`)
 		images = []

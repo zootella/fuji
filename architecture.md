@@ -128,7 +128,7 @@ Routing sells services that belong to the browser as a document-navigation shell
 
 **Shared state is an exported ref in a plain module, and that is the whole convention.**
 
-    export const sortOrder = ref('Alphabet')//application state: the sheet sets it, every table reads it
+    export const sortOrder = ref('StrcmpSort')//application state: the sheet sets it, every table reads it
 
 A module is already a singleton that outlives every component, `ref` already makes it watched, and an import is already how anything reaches it. A store library adds a devtools timeline, state kept across hot reloads, subscription hooks, and a name — worth having where a team needs the convention spelled out for it, and not worth a second way of doing things here. What matters is that the pattern is written down and followed, which is the part a library was doing for free.
 
@@ -358,7 +358,7 @@ The shell and its views are real: the sheet, the settings panel, the diamond tab
 
 The model holds the folder, the sort, the ordered list and the current path. Back is planned and not written, and no view has a use for it yet.
 
-`AlphabetSort` is one of the planned sorts, and it is javascript's own `sort()` kept deliberately. There is one flow, `TestFlow`, named by `Bucket.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of an experiment, and both were deleted once it had answered. The Image Fidelity page on the site is what the surviving flow does.
+`StrcmpSort` is one of the planned sorts, and it is javascript's own `sort()` kept deliberately; `WindowsSort` and `MacSort` are two more, the orders Explorer and Finder give, and `sort.md` says how each was made and measured. There is one flow, `TestFlow`, named by `Bucket.vue` rather than chosen from a register: `TagFlow` and `CanvasFlow` were the two halves of an experiment, and both were deleted once it had answered. The Image Fidelity page on the site is what the surviving flow does.
 
 There is no router and no store library. `App.vue` picks the window's root once, as the page mounts, from the note the window was made with and the files it was opened with: the shell for a browsing window, and `VideoWindow.vue` for a video window, asked for with the note Video or opened on a video, which shares none of a browsing window's state and stands beside one rather than taking its place. `main.js` titles the page and mounts the app, and does nothing else.
 
