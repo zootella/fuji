@@ -3,12 +3,14 @@
 import {ref, computed} from 'vue'
 import ColorTheme from './ColorTheme.vue'
 import ColorButtons from './ColorButtons.vue'
+import ColorCrayons from './ColorCrayons.vue'
 import ColorAccent from './ColorAccent.vue'
 import ColorBrand from './ColorBrand.vue'
 
 const tabs = [
 	{key: 'theme',   title: 'Theme',         page: ColorTheme},//every color style.css names
-	{key: 'buttons', title: 'Button Color',  page: ColorButtons},//candidate palettes for the bar's drawings
+	{key: 'buttons', title: 'Button Color',  page: ColorButtons},//the palettes other people made, each whole, for the bar's drawings
+	{key: 'crayons', title: 'Crayon Boxes',  page: ColorCrayons},//a sample box of crayons picked from each of them
 	{key: 'accent',  title: 'Accent Colors', page: ColorAccent},//where the accent paints, and the window buttons
 	{key: 'brand',   title: 'Brand Colors',  page: ColorBrand},//the brand colors first proposed, and the one fuji took
 ]
