@@ -1,4 +1,4 @@
-//the test of the two platform sorts, WindowsSort.js and MacSort.js in src, against the platforms themselves, which pnpm sort-test runs from the desktop folder with the same words after it. node test.js checks both against what each platform was recorded saying, on any machine, and then asks the platform it is running on about random names by the hundred thousand; node test.js record asks this platform about every pair of the names in names.js and writes what it said beside this file; node test.js folder and a path makes the names into a folder of empty files, a subfolder a group, to look at in Explorer or Finder beside the order fuji gives, written there as text; node test.js shell and that path, on Windows, asks the shell's own folder object about the files in it, pair by pair; node test.js explorer and that path opens each folder in a real Explorer window and reads back the order it shows
+//the test of the two platform sorts, WindowsSort.js and MacSort.js in src, against the platforms themselves, which pnpm sort-test runs from the desktop folder with the same words after it. node test.js checks both against what each platform was recorded saying, on any machine, and then asks the platform it is running on about random names by the hundred thousand; node test.js record asks this platform about every pair of the names in names.js and writes what it said beside this file; node test.js folder and a path makes the names into a folder of empty files, a subfolder a group, to look at in Explorer or Finder beside the order fuji gives, written there as text; node test.js shell and that path, on Windows, asks the shell's own folder object about the files in it, pair by pair; node test.js explorer on Windows, or finder on a Mac, and that path opens each folder in a real window of the file manager and reads back the order it shows
 import {writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync, mkdtempSync, rmSync} from 'node:fs'
 import {execFileSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
@@ -188,25 +188,26 @@ function shell(root) {//the files of a folder this made, every pair in each subf
 	return good
 }
 
-function explorer(root) {//the folder this made, shown in real Explorer windows, one a group, each sorted by name and read back top to bottom: the order a person would see, held against fuji's whole; true when every folder but the loose one comes out the same
-	if (platform != 'windows') throw new Error("Explorer is Windows' own, so this runs there")
+const manager = {windows: 'Explorer', mac: 'Finder'}[platform]//the file manager whose windows the order shown is read from
+function shown(root) {//the folder this made, shown in real windows of the platform's file manager, one a group, each sorted by name and read back top to bottom: the order a person would see, held against fuji's whole; true when every folder but the one Windows contradicts itself about comes out the same
 	if (!scratch) scratch = mkdtempSync(join(tmpdir(), 'fuji-sort-'))
 	let to = join(scratch, 'shown')
-	execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(here, 'oracle.ps1'), '-Mode', 'explorer', '-Folder', resolve(root), '-Out', to])
-	let shown = new Map()//a folder's name to the names Explorer showed in it, in order
+	if (platform == 'windows') execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(here, 'oracle.ps1'), '-Mode', 'explorer', '-Folder', resolve(root), '-Out', to])
+	else execFileSync('swift', [join(here, 'oracle.swift'), 'finder', resolve(root), to])
+	let seen = new Map()//a folder's name to the names the window showed in it, in order
 	for (let line of readFileSync(to, 'utf16le').replace(/^﻿/, '').split(/\r?\n/)) {
 		if (!line) continue
 		let tab = line.indexOf('\t')
-		if (!shown.has(line.slice(0, tab))) shown.set(line.slice(0, tab), [])
-		shown.get(line.slice(0, tab)).push(line.slice(tab + 1))
+		if (!seen.has(line.slice(0, tab))) seen.set(line.slice(0, tab), [])
+		seen.get(line.slice(0, tab)).push(line.slice(tab + 1))
 	}
 	let good = true
-	for (let [title, names] of shown) {
-		let mine = [...names].sort(sorts.windows)
+	for (let [title, names] of seen) {
+		let mine = [...names].sort(sorts[platform])
 		let at = names.findIndex((name, i) => name != mine[i])
-		let loose = sortGroups.find(group => title.endsWith(group.title))?.loose
+		let loose = platform == 'windows' && sortGroups.find(group => title.endsWith(group.title))?.loose
 		if (at == -1) { console.log(`${title}: all ${names.length} in fuji's order`); continue }
-		console.log(`${title}: differs at row ${at + 1} of ${names.length}, where Explorer shows [${show(names[at])}] and fuji has [${show(mine[at])}]${loose ? ', in the group where Windows contradicts itself' : ''}`)
+		console.log(`${title}: differs at row ${at + 1} of ${names.length}, where ${manager} shows [${show(names[at])}] and fuji has [${show(mine[at])}]${loose ? ', in the group where Windows contradicts itself' : ''}`)
 		if (!loose) good = false
 	}
 	return good
@@ -217,7 +218,10 @@ try {
 	if (verb == 'record') record()
 	else if (verb == 'folder') folder(process.argv[3])
 	else if (verb == 'shell') { if (!shell(process.argv[3])) process.exitCode = 1 }
-	else if (verb == 'explorer') { if (!explorer(process.argv[3])) process.exitCode = 1 }
+	else if (verb == 'explorer' || verb == 'finder') {
+		if ({explorer: 'windows', finder: 'mac'}[verb] != platform) throw new Error(`${verb} reads the windows of ${verb == 'explorer' ? "Windows' Explorer" : "the Mac's Finder"}, so it runs there`)
+		if (!shown(process.argv[3])) process.exitCode = 1
+	}
 	else {
 		let good = recorded('windows')
 		good = recorded('mac') && good

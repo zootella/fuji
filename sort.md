@@ -189,9 +189,8 @@ The chosen sort is one value in the model, persisted through `fuji.toml` and cho
 
 ## Open
 
-- **There are two different "smart" ideas in the notes.** This file describes Smart as a name order. The user's private notes describe smart as a *date* order with numbered-sequence grouping, for the brochure feature. They may be two members, and if so the name order needs its own word.
+- **There are two different "smart" ideas in the notes.** This file describes Smart as a name order. The other describes smart as a *date* order with numbered-sequence grouping, for the brochure feature. They may be two members, and if so the name order needs its own word.
 - **Should Mac and Windows follow the user's language?** Each shell does, and each sort here is English's order. Windows' table carries every locale's exceptions, 440,000 lines of them, mostly Chinese, Japanese and Korean; the Mac's is a locale handed to the collator.
-- **Mac has not met a Mac.** `MacSort.js` follows CoreFoundation's source and matches the Finder orders others have published; `pnpm sort-test record` and the test folder on the Mac mini are what settle it, along with whether Finder sorts the name it shows or the name on disk when extensions are hidden.
 - **Windows 10 has not run the test, and need not.** Microsoft's tables give every ASCII character the same weights on both, which is the agreement that was wanted, so one sort serves every Windows; `pnpm sort-test` on a Windows 10 machine would say what that Windows itself does, should it ever matter.
 - **What `Smart` does with tied digit runs** — `page1` against `page01` — which is the hole both shells left and the reason this sort exists.
 - **What `Created` does where the filesystem has no answer:** sort those to one end, fall back to Modified, or refuse.

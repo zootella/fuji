@@ -5,7 +5,7 @@ import {barGet, barIcons} from '../bar.js'
 
 const props = defineProps({
 	name: {type: String, required: true},
-	pressed: {type: Array, default: () => []},//the words whose buttons show pressed in, which the page hands over and changes as its state does, since a toolbar is on screen all the time and has no moment before it shows to ask; one of the ways fuji-bar-dsl.md keeps open, taken for now
+	pressed: {type: Array, default: () => []},//the words whose buttons show pressed in, which the page hands over and changes as its state does, since a toolbar is on screen all the time and has no moment before it shows to ask; taken for now, while how a bar learns its state is still open
 })
 const emit = defineEmits(['command'])
 const bar = barGet(props.name)//once, as the bar is made, since the text never changes while fuji runs
