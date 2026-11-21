@@ -20,7 +20,7 @@ function painted(value) {//one of fuji's own colors in light, where this element
 	probe.remove()
 	return rgb(color)
 }
-const ground = painted('var(--bar-ground)'), text = painted('var(--color-text)')//what a crayon is drawn on and what it must not be taken for: the bar's ground on this machine, and the text's color, which a drawing with no color of its own is in
+const ground = painted('var(--bar-ground)'), text = painted('var(--color-text)')//what a crayon is drawn on and what it must not be taken for: the bar's ground, and the text's color, which a drawing with no color of its own is in
 
 const boxes = upstreams.filter(p => p.colors.length).map(p => {//every palette's box, in the order upstream.js lists the palettes
 	let crayons = p.colors.flatMap(([name, ...shades]) => shades.map(([shade, color]) => ({name: shade ? `${name} ${shade}` : name, color, rgb: rgb(color)})))
@@ -101,7 +101,7 @@ const headings = {}//each box's heading on the page, by its palette's name, whic
 .myLink { cursor: pointer; text-align: left } /* a palette's name, which scrolls to its box */
 .myLink:hover { text-decoration: underline }
 .myQuiet { color: var(--color-text-placeholder) }
-.myOnBar { background-color: var(--bar-ground) } /* the bar's own ground, which style.css sets by platform, so the crayons are seen on what they will draw on */
+.myOnBar { background-color: var(--bar-ground) } /* the bar's own ground, which style.css sets, so the crayons are seen on what they will draw on */
 .myBox { display: flex; flex-wrap: wrap; gap: 16px 10px }
 .myColumn { display: flex; flex-direction: column; gap: 10px } /* one family's crayons, one above the next */
 .myFamily { font-weight: 600; text-align: center }
