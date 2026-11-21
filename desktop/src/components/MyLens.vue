@@ -58,7 +58,7 @@ async function loadImage(p) {
 	</feComponentTransfer></filter></defs>
 </svg>
 
-<div class="w-full h-full flex items-center justify-center bg-background overflow-hidden">
+<div class="w-full h-full flex items-center justify-center bg-face overflow-hidden">
 	<img
 		ref="imageRef"
 		v-if="sourceRef"

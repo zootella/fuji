@@ -28,4 +28,8 @@ Fuji will have tabs in two places, the video window and the main window, and the
 
 **Whether the tabs are a control of their own or a part of FujiBar.** The first thought was a control of its own, and it is not settled.
 
+**Whether the video window's tabs are a fifth kind in the text.** Claude suggested `tabs`, each tab naming the toolbar or panel it shows, with the browser-like tabs of the main window a control of their own, built from data the way the list is, since the user opens and closes them. Not decided.
+
+**Where a toolbar runs.** A palette beside a vertical video runs down, while the kinds fix a toolbar as running across, so where a toolbar runs may be the page's choice of where it places it and not the text's. Suggested, not decided.
+
 **Whether the video window's toolbars are FujiBar toolbars at all.** They may be custom enough to be Vue controls of their own, like the panel on the bench, with FujiBar buttons used within them, rather than being FujiBar toolbars themselves.

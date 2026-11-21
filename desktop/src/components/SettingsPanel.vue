@@ -136,7 +136,7 @@ defineExpose({onKey, onFocus, showAbout})//the calls of the shell's this view ha
 <style scoped>
 
 .mySettings {
-	background-color: var(--color-background); /* the sheet's, since this takes the sheet's place in the same window */
+	background-color: var(--color-face); /* the sheet's, since this takes the sheet's place in the same window */
 	color: var(--color-text-muted); /* which every section and popup inside inherits, along with the type myMono gives it */
 }
 .myBox {

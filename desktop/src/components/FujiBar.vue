@@ -94,8 +94,8 @@ function onChoose(item, e) {//a menu's row sends its word on the release, wherev
 <style scoped>
 
 .myBar { display: flex; padding: 2px 4px; user-select: none; color: var(--color-text) }
-.myBar { background-color: var(--bar-ground) } /* the bar's ground, which style.css sets: the face, the content's own color, on every platform, as a toolbar in Zed is. A border between the bar and the content is the page's to draw, since only the page knows what is below */
-.myBarOpen, .myBarCard { background-color: var(--color-menu-face) } /* a menu's face, which is the bar's own ground, the face, on every platform, and the button drawn again over itself as the menu's top with it, so the bar, the button and the card read as one surface with no seam */
+.myBar { background-color: var(--color-face) } /* the bar stands on the face, the content's own color, on every platform, as a toolbar in Zed does. A border between the bar and the content is the page's to draw, since only the page knows what is below */
+.myBarOpen, .myBarCard { background-color: var(--color-face) } /* a menu's card on the face too, and the button drawn again over itself as the menu's top with it, so the bar, the button and the card read as one surface with no seam */
 .myBarButton { display: flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid transparent } /* flat at rest, and square, as everything in the bar is while it is built: a square edge is simpler and more exact to work against, and rounding corners is easy to add at the end. The list and the tree keep their rounded selections */
 .myBarButton:hover { border-color: var(--color-border) } /* and outlined under the pointer, the coolbar's hover from Internet Explorer 3, so the outline says where the pointer is */
 .myBarButton[aria-pressed="true"] { border-color: var(--color-border); background-color: var(--color-select-quiet) } /* pressed in, a toggle that is on: outlined as under the pointer, and filled in the quiet gray of a selected row */

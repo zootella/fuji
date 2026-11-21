@@ -117,7 +117,7 @@ defineExpose({start, onKey, onResize, onFocus, onDrop, folderOpen})//the same ca
 <style scoped>
 
 .mySheet { /* the sheet's ground: the paper, with small dots that stay put as the thumbnails scroll over them, since a background on the element that scrolls holds still while its contents move. Through the transparent parts of a picture they show, as the table's dots do, which is the picture and which is the ground */
-	background-color: var(--color-background);
+	background-color: var(--color-face);
 	background-image: radial-gradient(circle at center, var(--color-border) 1px, transparent 1px);
 	background-size: 8px 8px;
 }

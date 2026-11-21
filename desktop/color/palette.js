@@ -1,4 +1,5 @@
 import styleText from '../src/style.css?raw'//the stylesheet as text, which vite hands over for any import marked raw
+import {platform} from '../src/components/library.js'
 
 /*
 Every color style.css names, read from its text as the color page loads.
@@ -27,6 +28,8 @@ for (let [, platform, body] of styleText.matchAll(/^\s*\[data-platform(?:="([a-z
 	let names = palettePlatforms[platform || ''] = {}
 	for (let [, name, value] of body.matchAll(/--color-([a-z0-9-]+):\s*([^;]+?)\s*(?:;|$)/g)) names[name] = value
 }
+
+for (let [name, value] of Object.entries({...palettePlatforms[''], ...palettePlatforms[platform()]})) document.documentElement.style.setProperty(`--color-${name}`, value)//and on the root, the colors this machine's platform points elsewhere, the face among them, since what was set on the root above would otherwise stand over the stylesheet's own rule for the platform there, and the page would stand on Windows' face on a Mac
 
 export function paletteNotch(name, platform, mode) {//the numbered gray a color comes to on this platform in this mode, following the names it is written as, or blank where it ends at a value written out, so a page says gray-250 only where the stylesheet does
 	let value = palettePlatforms[platform]?.[name] ?? palettePlatforms['']?.[name] ?? paletteColors.find(c => c.name == name)?.value

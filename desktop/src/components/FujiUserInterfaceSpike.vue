@@ -231,7 +231,7 @@ function seeded(seed) {//mulberry32, a small generator that starts from a seed, 
 </script>
 <template>
 
-<div class="bg-background text-text-muted w-full h-full flex flex-col" @pointerdown.capture="press">
+<div class="bg-face text-text-muted w-full h-full flex flex-col" @pointerdown.capture="press">
 	<FujiBar ref="menuBarRef" name="Menu Bar" class="flex-none border-b border-border" @command="onCommand" /><!-- on every platform while the bars are designed; at the very end the mac leaves this row out, for its own menu bar at the top of the screen -->
 	<FujiBar ref="toolbarRef" name="Toolbar" class="flex-none border-b border-border" :pressed="benchShowing ? ['Bench'] : []" @command="onCommand">
 		<template #panel="{panel}">

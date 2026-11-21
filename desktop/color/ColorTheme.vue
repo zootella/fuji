@@ -31,7 +31,7 @@ function ladderAt(c, mode) {//the number on the ladder this color's lightness fa
 
 <div>
 	<h1>Theme</h1>
-	<p>Every color <span class="myFixedWidth">src/style.css</span> names, read from the stylesheet as this page loads, drawn in light and in dark, each on its mode's own ground, with the stylesheet's own comment beside it. Every gray is neutral: a gray named for its job is one of Zed's from its One Light and One Dark themes, at its own lightness with its tint taken out, apart from a selection's grays, which start from the Mac's and Windows' own and are set on the ladder, and the background, the face under everything, which is the color the web engine on Windows paints a scrollbar's track in, and a numbered gray is Tailwind's neutral at its number, the same in both modes, every 25 from 50 to 950. Beside every other neutral gray is the number its lightness falls at on the numbered grays, so each can be read against the same ladder.</p>
+	<p>Every color <span class="myFixedWidth">src/style.css</span> names, read from the stylesheet as this page loads, drawn in light and in dark, each on its mode's own ground, with the stylesheet's own comment beside it. Every gray is neutral: a gray named for its job is one of Zed's from its One Light and One Dark themes, at its own lightness with its tint taken out, apart from a selection's grays, which start from the Mac's and Windows' own and are set on the ladder, and the face, the one color under everything, which follows the platforms, the web engine's scrollbar track on Windows in light and each platform's own file manager in dark, drawn here as this machine's, and a numbered gray is Tailwind's neutral at its number, the same in both modes, every 25 from 50 to 950. Beside every other neutral gray is the number its lightness falls at on the numbered grays, so each can be read against the same ladder.</p>
 	<div class="myTable">
 		<template v-for="group in groups" :key="group.title">
 			<div class="myGroup">{{group.title}}</div>
@@ -54,7 +54,7 @@ function ladderAt(c, mode) {//the number on the ladder this color's lightness fa
 .myTable { display: grid; grid-template-columns: max-content max-content max-content minmax(0, 1fr); border-top: 1px solid var(--color-border) }
 .myTable > * { padding: 6px 12px; border-bottom: 1px solid var(--color-border) }
 .myGroup { grid-column: 1 / -1; padding-top: 20px; font-weight: 600 }
-.myMode { display: flex; align-items: center; gap: 10px; background-color: var(--color-background); color: var(--color-text) }
+.myMode { display: flex; align-items: center; gap: 10px; background-color: var(--color-face); color: var(--color-text) }
 .mySwatch { flex: none; width: 48px; height: 24px; border-radius: 4px; outline: 1px solid color-mix(in srgb, currentColor 25%, transparent) } /* outlined, so a color the same as the ground still shows where it is */
 .myAt { margin-left: auto; color: var(--color-text-placeholder) } /* the number at the cell's right end, quiet, since the hex is the value and this is where it falls */
 .myNote { color: var(--color-text-muted) }

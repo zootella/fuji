@@ -518,7 +518,7 @@ Without this the only rule landing on an adopted image was tailwind's own img{ma
 .myWillChangeBackgroundPosition { will-change: background-position; } /* with the styles, you get 2 layers in dev tools Layers */
 
 .myDots { /* the ground the card pans over, the paper every view stands on, its dots a step lighter than it in dark and a step darker in light, from the palette in style.css */
-	background-color: var(--color-background);
+	background-color: var(--color-face);
 	background-image: radial-gradient(circle at center, var(--color-border-quiet) 6px, transparent 6px);
 	background-size: 60px 60px;
 	background-position: 0 0, 30px 30px;
@@ -530,9 +530,9 @@ Without this the only rule landing on an adopted image was tailwind's own img{ma
 	white-space: pre; /* honor \n and overflow the container */
 	color: var(--color-text-faint);
 	text-shadow: /* a glow in the paper's color, black in dark and white in light, which lifts the text off the dots */
-		-1px -1px 2px var(--color-background),
-		1px 1px 2px var(--color-background),
-		0 0 8px var(--color-background);
+		-1px -1px 2px var(--color-face),
+		1px 1px 2px var(--color-face),
+		0 0 8px var(--color-face);
 }
 
 </style>
