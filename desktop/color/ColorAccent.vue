@@ -75,7 +75,8 @@ function marks(i, list) {//the attributes list.js puts on a row
 		<h2>{{platform.title}}</h2>
 		<div class="myPanes">
 			<div v-for="mode in modes" :key="mode" class="myPane" :data-mode="mode" :data-platform="platform.key">
-				<div class="myQuadrant"><b>{{platform.quadrant[mode]}}</b> {{platform.title.replace('On ', 'on ')}}, in {{mode}}</div>
+				<div class="myQuadrant"><b>{{platform.quadrant[mode]}}</b> {{platform.title.replace('On ', 'on ')}}, in {{mode}} <span class="myFixedWidth myValue">face {{said('face', platform.key, mode)}}</span></div><!-- the pane's letter, and the face it stands on, the same on every platform, as the value the engine paints here and the numbered gray it is written as -->
+
 				<div class="myLists">
 					<figure v-for="list in lists" :key="list.title">
 						<div class="myListFrame myListBox">
