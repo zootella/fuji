@@ -1,8 +1,9 @@
-<script setup>//a selection and a menu's row under the pointer, in each platform's own look, in four quadrants, A and B the Mac in light and dark and C and D everywhere else: a list with the keyboard on a selected row, with it on a row that is not selected, and without it, and a row under the pointer in FujiBar's menu, and then at the bottom, apart, the same in MockMenu, the right-click menu, which looks the same on every platform. The list is drawn by FujiList's own rules, which are not scoped and so reach any element of the list's classes, here laid out in the markup list.js makes; the menus are ColorMenu and ColorMockMenu, copies of FujiBar's rules and MockMenu's, which each file says why. Under each menu, the styles that give it its edge, its shadow and any see-through fill, read from the menu's own component as text, since a pane has nothing behind a menu to show them. Every color here is fuji's, painted by its name in style.css and captioned with the value the engine paints in that pane, and the numbered gray it is written as, where it is one
+<script setup>//a selection, a toolbar and a menu in each platform's own look, a pane for each platform in each mode, with the right-click menu apart at the bottom. The list is drawn by FujiList's own rules, which are not scoped and so reach any element of the list's classes, here laid out in the markup list.js makes; the toolbar is FujiBar itself; the menus are ColorMenu and ColorMockMenu, copies of FujiBar's rules and MockMenu's, which each file says why. Under each menu, the styles that give it its edge, its shadow and any see-through fill, read from the menu's own component as text, since a pane has nothing behind a menu to show them. Every color here is fuji's, painted by its name in style.css and captioned with the value the engine paints in that pane, and the numbered gray it is written as, where it is one
 
 import {paletteValue, paletteNotch} from './palette.js'
 import ColorMenu from './ColorMenu.vue'
 import ColorMockMenu from './ColorMockMenu.vue'
+import FujiBar from '../src/components/FujiBar.vue'
 import FujiList from '../src/components/FujiList.vue'//never drawn here, and imported for its stylesheet alone, so the rows below are drawn by the rules fuji draws its list with rather than a copy of them
 import fujiBarText from '../src/components/FujiBar.vue?raw'//the two menus' components as text, so the styles below that make each one's edge, shadow and see-through fill are read from the components themselves
 import mockMenuText from '../src/components/MockMenu.vue?raw'
@@ -60,6 +61,9 @@ function said(name, platform, mode) {//a color as a caption gives it: the value 
 	let notch = paletteNotch(name, platform, mode)
 	return painted(name, platform, mode) + (notch ? `, ${notch}` : '')
 }
+function quadrants(name) {//a color in each of the four panes, by its letter, for a list of colors drawn outside them
+	return platforms.flatMap(p => modes.map(mode => `${p.quadrant[mode]} ${painted(name, p.key, mode)}`)).join(', ')
+}
 function marks(i, list) {//the attributes list.js puts on a row
 	let s = selected.includes(i)
 	return {'data-selected': s || null, 'data-join-up': (s && selected.includes(i - 1)) || null, 'data-join-down': (s && selected.includes(i + 1)) || null, 'data-focus': i == list.focus || null}
@@ -70,7 +74,7 @@ function marks(i, list) {//the attributes list.js puts on a row
 
 <div>
 	<h1>Accent Colors</h1>
-	<p>A selection and a menu's row under the pointer, each platform in its own look, in four quadrants: A, the Mac in light; B, the Mac in dark; C, Windows and Linux in light; and D, Windows and Linux in dark. The Mac's strong blue shows only in A and B, the same in both; Windows' pale blue only in C; and D has no color at all. Every value comes from a platform, its grays set on the ladder, as the captions' notches show. On the Mac, in A and B, a selection with the keyboard and a menu's row under the pointer are filled solid in the accent, the Mac's own blue, with white words. On Windows and Linux, a selection with the keyboard is Explorer's pale blue in C, and in D a gray two notches darker than Windows 11's, so its text reads, each with the text's own color; a menu's row under the pointer is white in C and black in D, across the menu's whole width with a gray line around it, so a menu there has no blue in it. Without the keyboard a selection is a quiet gray, the Mac's own, on every platform. A run of selected rows is one block with a score between its rows, and once a key has been used the row the keyboard is on has a solid line around it, black in light and white in dark, whether it is selected or not. The list is drawn by FujiList's own rules, in the markup list.js makes, and the menu by a copy of FujiBar's; each caption gives a color as the engine paints it in that pane. A menu's face is the same everywhere, the face the bar and the list stand on, so on Windows and Linux its row under the pointer is a purer white or black than the menu around it. MockMenu, the right-click menu, is apart at the bottom, as it was.</p>
+	<p>A selection, a toolbar and a menu in each platform's own look, in a pane for each platform in each mode, lettered at its top. Each pane names its platform as the shell names the window's, so <span class="myFixedWidth">style.css</span> picks that platform's colors for everything inside it, and each caption gives a color as the engine paints it there, with the numbered gray it is written as where it is one. The list is drawn by FujiList's own rules, in the markup <span class="myFixedWidth">list.js</span> makes, the toolbar by FujiBar itself, and the menu by a copy of FujiBar's rules, since a menu FujiBar opens is drawn at the end of the page, outside every pane.</p>
 	<template v-for="platform in platforms" :key="platform.key">
 		<h2>{{platform.title}}</h2>
 		<div class="myPanes">
@@ -91,22 +95,30 @@ function marks(i, list) {//the attributes list.js puts on a row
 					</figure>
 				</div>
 				<figure>
+					<div class="myBarFrame">
+						<FujiBar name="Toolbar" :pressed="['Folders']">
+							<template #panel><p class="myPanelNote">The bench draws this panel.</p></template>
+						</FujiBar>
+					</div>
+					<figcaption><b>FujiBar's toolbar, with Folders pressed in</b> <span class="myFixedWidth myValue">bar-pressed {{said('bar-pressed', platform.key, mode)}}, its edge bar-pressed-edge {{said('bar-pressed-edge', platform.key, mode)}}; under the pointer, bar-hot {{paletteValue('bar-hot', mode)}}, its edge bar-hot-edge {{said('bar-hot-edge', platform.key, mode)}}</span></figcaption>
+				</figure>
+				<figure>
 					<ColorMenu name="Edit Menu" lit="Copy" />
-					<figcaption><b>FujiBar's menu, a row under the pointer</b> <span class="myFixedWidth myValue">menu-hot {{said('menu-hot', platform.key, mode)}}; its edge {{said('menu-hot-edge', platform.key, mode)}}</span></figcaption>
+					<figcaption><b>FujiBar's menu, a row under the pointer</b> <span class="myFixedWidth myValue">menu-face {{said('menu-face', platform.key, mode)}}; menu-edge {{said('menu-edge', platform.key, mode)}}; menu-hot {{said('menu-hot', platform.key, mode)}}; its edge {{said('menu-hot-edge', platform.key, mode)}}</span></figcaption>
 				</figure>
 			</div>
 		</div>
 	</template>
 
 	<h2>How FujiBar's menu is drawn</h2>
-	<p>Opaque, so nothing behind it shows through, on the face the bar it drops from stands on, the same on every platform, with a gutter down its left in the gray named for a menu's material. Its shadow is a filter on the button drawn again and the card together, so the two cast one shadow, falling down and to the right. The styles as <span class="myFixedWidth">FujiBar.vue</span> writes them, read from it as this page loads, and the colors they name:</p>
+	<p>Opaque, so nothing behind it shows through, on the face its platform picks for it, with a gutter down its left in the gray named for a menu's material. Its shadow is a filter on the button drawn again and the card together, so the two cast one shadow, falling down and to the right. The styles as <span class="myFixedWidth">FujiBar.vue</span> writes them, read from it as this page loads, and the colors they name, as each quadrant paints them:</p>
 	<div class="myStyles">
 		<div v-for="(line, i) in fujiBarStyles.lines" :key="i" class="myStyleLine"><span>{{line.part}}</span><span class="myFixedWidth">{{line.property}}: {{line.value}}</span></div>
-		<div v-for="name in fujiBarStyles.colors" :key="name" class="myStyleLine"><span class="myFixedWidth">{{name}}</span><span class="myFixedWidth myValue">{{paletteValue(name, 'light')}} in light, {{paletteValue(name, 'dark')}} in dark</span></div>
+		<div v-for="name in fujiBarStyles.colors" :key="name" class="myStyleLine"><span class="myFixedWidth">{{name}}</span><span class="myFixedWidth myValue">{{quadrants(name)}}</span></div>
 	</div>
 
 	<h2>MockMenu, the right-click menu, on every platform</h2>
-	<p>The early menu in the Mac's look that still opens on a right click on the sheet, the light table and the list: translucent and rounded, its row under the pointer filled in the accent with white words. It looks the same on every platform, since nothing in it stands on the bar's ground, so it is the one place the accent still shows on Windows and Linux, until it becomes one of FujiBar's menus.</p>
+	<p>The early menu in the Mac's look that opens on a right click, drawn the same on every platform, so its row under the pointer shows the accent on Windows and Linux too, until it becomes one of FujiBar's menus.</p>
 	<div class="myPanes">
 		<div v-for="mode in modes" :key="mode" class="myPane" :data-mode="mode">
 			<figure>
@@ -115,7 +127,7 @@ function marks(i, list) {//the attributes list.js puts on a row
 			</figure>
 		</div>
 	</div>
-	<p class="myAfter">How it is drawn, which the panes above cannot show, since nothing is behind the menu but the pane: its fill is the menu's gray at a share short of whole, so a little of what is under it shows through, and that is blurred by a backdrop filter. Its edge is three shadows, from the inside out: a light rim just inside its edge, a dark hairline just outside it, and a soft shadow below it in the same dark. The styles as <span class="myFixedWidth">MockMenu.vue</span> writes them, read from it as this page loads, and the colors they name:</p>
+	<p class="myAfter">How it is drawn, which the panes above cannot show, since nothing is behind the menu but the pane: a fill a little short of whole, so what is under it shows through, blurred by a backdrop filter, and an edge of layered shadows. The styles as <span class="myFixedWidth">MockMenu.vue</span> writes them, read from it as this page loads, and the colors they name:</p>
 	<div class="myStyles">
 		<div v-for="(line, i) in mockMenuStyles.lines" :key="i" class="myStyleLine"><span>{{line.part}}</span><span class="myFixedWidth">{{line.property}}: {{line.value}}</span></div>
 		<div v-for="name in mockMenuStyles.colors" :key="name" class="myStyleLine"><span class="myFixedWidth">{{name}}</span><span class="myFixedWidth myValue">{{paletteValue(name, 'light')}} in light, {{paletteValue(name, 'dark')}} in dark</span></div>
@@ -136,6 +148,8 @@ figcaption { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 0 8px }
 .myStyleLine { display: contents }
 .myStyleLine > :last-child { overflow-wrap: anywhere }
 .myAfter { margin-top: 16px }
+.myBarFrame { overflow-x: auto; border: 1px solid var(--color-border) } /* the toolbar in a line, which the page that places a bar draws, scrolling across where the pane is narrower than the toolbar */
+.myPanelNote { padding: 8px 12px } /* the words in the views panel, which opens at the end of the page in the page's own light or dark, not the pane's */
 .myListBox { --list-columns: 1fr; border: 1px solid var(--color-border) } /* the list's one column, which list.js would set on the frame from its columns, and a line around it, which the page that places a list draws */
 
 </style>
