@@ -2,7 +2,7 @@
 
 import {upstreams} from './upstream.js'
 import {crayonBox, crayonLimits, crayonFamilies} from './crayon.js'
-import {barIcons} from '../../desktop/src/plastic/bar.js'
+import {barIcons} from '../../desktop/src/fuji-components/bar.js'
 
 const pixel = Object.assign(document.createElement('canvas'), {width: 1, height: 1}).getContext('2d', {willReadFrequently: true})//one pixel to paint a color on and read back
 function rgb(color) {//a color's red, green and blue as the engine paints it, whatever way css writes it, hex, hsl() or tailwind's oklch(); one outside sRGB comes back as the nearest color inside it, which is what a screen that is not wide shows

@@ -1,8 +1,8 @@
 <script setup>//a survey of the palettes other people made, for coloring the bar's lucide drawings in light, where fuji draws them in color: each laid out as a box of crayons, its hues in order around the color wheel and each hue's shades stacked, each crayon with a drawing in it, and then the toolbar and the edit menu in the palette's colors, at the sizes fuji draws them, 24 css pixels on a toolbar's big button and 16 in a menu's row. Above each box, who made the palette, when and what for, what people take it for, and where its values were read. In dark every drawing is in the text's own color, which the monochrome palette shows first, so the page draws every palette in light alone. The toolbar is FujiBar itself, from bars.txt, and the menu is PaletteMenu, which PaletteMenu.vue says why. The palettes and their colors are upstream.js's, which says what each is; everything else on the page is fuji's
 
 import {upstreams, upstreamGroups, upstreamLeftOut} from './upstream.js'
-import {barIcons} from '../../desktop/src/plastic/bar.js'
-import FujiBar from '../../desktop/src/components/FujiBar.vue'
+import {barIcons} from '../../desktop/src/fuji-components/bar.js'
+import FujiBar from '../../desktop/src/fuji-components/FujiBar.vue'
 import PaletteMenu from './PaletteMenu.vue'
 
 const groups = upstreamGroups.map(g => ({...g, palettes: upstreams.filter(p => p.group == g.title)}))//each group with its palettes, in the order upstream.js lists them

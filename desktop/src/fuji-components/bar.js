@@ -1,4 +1,4 @@
-import barsText from './bars.txt?raw'//the text as it is, which vite hands over for any import marked raw
+import barsText from '../plastic/bars.txt?raw'//the text as it is, which vite hands over for any import marked raw
 import arrowDownUp from 'lucide-static/icons/arrow-down-up.svg?raw'//the roster of lucide's drawings the bars name, below
 import arrowLeft from 'lucide-static/icons/arrow-left.svg?raw'
 import arrowRight from 'lucide-static/icons/arrow-right.svg?raw'

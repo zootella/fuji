@@ -1,5 +1,5 @@
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {isCommandOrControl} from './keyboard.js'
+import {isCommandOrControl} from '../plastic/keyboard.js'
 import {selectionEmpty, selectionClick, selectionMove, selectionFocus, selectionSmear, selectionAll} from './selection.js'
 import {labelPut} from './label.js'
 

@@ -16,7 +16,7 @@
 
 **Showcases and innovations.** Some features are in the art but rare, and fuji's list and tree showcase them. Others are interactions fuji's list adds beyond what Finder and Explorer do, which are built after the rest of the list, and then written up in the article on fuji's design choices or in the List and Tree article on the site. Each such item below says which it is.
 
-**Shipping on npm.** Whether the components ship on npm as `@zootella/components` is still to answer.
+**Sharing the Fuji components.** FujiBar, FujiList and FujiTree are likely to be used in other projects, which is where their name overlaps fuji's own: they are the Fuji components, used beyond fuji. How they go out is still to answer: an npm package, as `@zootella/components`, or a folder copied into each project in the pattern of shadcn/ui, which hands out components as source to copy rather than as a dependency to install. Either way the arrangement stays modest.
 
 
 ## The order of work

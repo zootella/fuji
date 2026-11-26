@@ -8,7 +8,7 @@ import {fitSize} from '../plastic/fit.js'
 import {thumbnailRender, thumbnailUnpack} from '../brass/thumbnail.js'
 import {logTrouble, logThumbnail, logBucket} from '../brass/log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
 import {xy, platform, sayCaptionDay, sayCaptionSize, sayDimensions, middleDot, thinSpace, backize} from '../plastic/library.js'
-import {labelPut} from '../plastic/label.js'
+import {labelPut} from '../fuji-components/label.js'
 import {fileTypesSheet} from '../plastic/fileTypes.js'
 
 /*

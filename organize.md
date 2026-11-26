@@ -1,5 +1,6 @@
 # Organize
 
-Moving folders into place. Every move has landed, and what is left is the run that checks them together.
+What is left of putting fuji's folders and their contents in place.
 
-- **End to end.** `pnpm compile`, `pnpm walk` in copper, `pnpm build` and `pnpm walk` in `linux` with Docker Desktop running, `pnpm build` in `site`, and the user looking at `pnpm local` with each sort and at `pnpm palette`. Then the review, and one commit, after which the site is published again, since its links to crate files changed. Then the Linux walk's containers get copper's packages before running walk.js, which has imported ergo since late October while the containers copy it without installing anything, and this file goes.
+- **The Linux walk.** Its containers copy `rust/copper/walk.js` without installing its packages, so the walk stops at once on `@zootella/ergo`, which walk.js has imported since commit `dc6e4c8`. The containers need copper's packages before the walk runs.
+- **TestFlow.vue's logic.** `TestFlow.vue` holds application logic in a Vue file: it decides per file whether a thumbnail comes from the operating system or from fuji's own JavaScript, runs its loops at different widths, and stops them when a bucket goes away. By the rule that a component is a thin view over plastic, look at moving that logic into plain JavaScript in `plastic`, leaving the Vue file to place and draw.

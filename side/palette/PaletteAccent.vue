@@ -3,9 +3,9 @@
 import {paletteValue, paletteNotch} from './palette.js'
 import PaletteMenu from './PaletteMenu.vue'
 import PaletteMockMenu from './PaletteMockMenu.vue'
-import FujiBar from '../../desktop/src/components/FujiBar.vue'
-import FujiList from '../../desktop/src/components/FujiList.vue'//never drawn here, and imported for its stylesheet alone, so the rows below are drawn by the rules fuji draws its list with rather than a copy of them
-import fujiBarText from '../../desktop/src/components/FujiBar.vue?raw'//the two menus' components as text, so the styles below that make each one's edge, shadow and see-through fill are read from the components themselves
+import FujiBar from '../../desktop/src/fuji-components/FujiBar.vue'
+import FujiList from '../../desktop/src/fuji-components/FujiList.vue'//never drawn here, and imported for its stylesheet alone, so the rows below are drawn by the rules fuji draws its list with rather than a copy of them
+import fujiBarText from '../../desktop/src/fuji-components/FujiBar.vue?raw'//the two menus' components as text, so the styles below that make each one's edge, shadow and see-through fill are read from the components themselves
 import mockMenuText from '../../desktop/src/components/MockMenu.vue?raw'
 
 function styled(text, parts) {//each part's declarations of the properties named, as the component's stylesheet writes them, from every rule whose selectors include the part's selector, and the palette's colors they name

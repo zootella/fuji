@@ -1,6 +1,6 @@
 <script setup>//a menu from bars.txt drawn in place, as FujiBar draws the card a menu opens in, for a pane on the palette. A menu FujiBar opens goes to the end of the page, so nothing a bar sits inside can clip it, and there it takes the page's light or dark rather than the pane's, so a pane that shows a menu in its mode draws this one. Its rules are FujiBar's own for the card and its rows, copied, and change when those do. A row lights under the pointer, and the row named lit is lit already
 
-import {barGet, barIcons} from '../../desktop/src/plastic/bar.js'
+import {barGet, barIcons} from '../../desktop/src/fuji-components/bar.js'
 
 const props = defineProps({
 	name: {type: String, required: true},//the menu's name in bars.txt
