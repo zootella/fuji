@@ -2,8 +2,8 @@
 
 //the text and its look; the shell decides where it sits and when it is up, over every view. A change to a key or a mouse action is a change here too
 
-import {backspaceCloses} from './library.js'
-import {brandName} from '../brand.js'
+import {backspaceCloses} from '../plastic/library.js'
+import {brandName} from '../plastic/brand.js'
 
 const closeKeys = backspaceCloses ? 'Esc|Backspace' : 'Esc'//backspace only where its key says Backspace, which library.js explains
 

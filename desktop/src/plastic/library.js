@@ -1,0 +1,321 @@
+
+//  _____       _ _ 
+// |  ___|   _ (_|_)
+// | |_ | | | || | |
+// |  _|| |_| || | |
+// |_|   \__,_|/ |_|
+//           |__/   
+
+//keep, this is the new unifed library to keep components short and tell what's a pure function in here
+
+import {invoke} from '@tauri-apps/api/core';
+import {getCurrentWindow, currentMonitor, primaryMonitor, cursorPosition} from '@tauri-apps/api/window'
+import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
+import {Data, Size, Time, hasTick, sayTick, saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
+import {diskRead, diskReadDir, diskPeek} from '../brass/disk.js'//our rust modules
+import {findFolders} from '../brass/find.js'
+import {panelResolution} from '../brass/panel.js'
+import {localeGrouping} from '../brass/locale.js'
+import {brandName} from './brand.js'
+import {fileTypesEnabled, fileTypesRender} from './fileTypes.js'
+
+const fileTypesListed = Object.fromEntries(Object.entries(fileTypesEnabled).filter(([extension, entry]) => entry.kind == 'image' && fileTypesRender(entry, platform()).length > 0))//the entries the image parts take on this platform: an enabled picture with a road here, its imaging library or its web engine, by the roads fileTypes.js keeps. Every listing and count below keeps these and nothing else, so a sound or a video never reaches the sheet or the table, and the shell hands it to the player instead; the kind is asked first, since a video's one road is the player's
+
+//promises
+
+export const raf = () => new Promise(resolve => requestAnimationFrame(resolve))//before next paint, synchronized with display refresh (~16ms)
+export function blobToDataUrl(blob) {//promisifed wrapper of FileReader's .readAsDataURL method
+	let reader = new FileReader()
+	let p = new Promise((resolve, reject) => {
+		reader.onload  = () => resolve(reader.result)
+		reader.onerror = () => reject(reader.error)
+	})
+	reader.readAsDataURL(blob)
+	return p
+}
+
+//arrows
+
+export function xy(a, o, b) {//use like xy(x, y) to set or xy(a, '+', b) to compute
+	if      (o == '+') { return {x: a.x + b.x, y: a.y + b.y} }//use with two {x, y} objects
+	else if (o == '-') { return {x: a.x - b.x, y: a.y - b.y} }
+	else if (o == '*') { return {x: a.x * b,   y: a.y * b  } }//use with ane xy object and a number, like 2
+	else if (o == '/') { return {x: a.x / b,   y: a.y / b  } }
+	else if (o == '==') { return   a.x == b.x && a.y == b.y  }//equals
+	else if (o == '!=') { return !(a.x == b.x && a.y == b.y) }
+	else { return {x: a, y: o} }
+}
+export function xySnap(a, backingPerCss) { return xy(Math.round(a.x * backingPerCss) / backingPerCss, Math.round(a.y * backingPerCss) / backingPerCss) }//an arrow in css pixels snapped to the backing grid, at backingPerCss backing pixels to the css pixel: whole numbers at 1, halves at 2, and always a whole number of backing pixels, for the moment real numbers become pixels
+
+//paths
+
+//forwardize all new paths that come into the system, then backize to show on the page
+export function forwardize(path) {
+	//rotate backslashes forward given what looks like a windows drive letter path; the forwardized path will still work with path-browserify and our rust io module code
+	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\\/g, '/') : path
+}
+export function backize(path) {
+	//but will look weird on windows, so use this in template code before showing to a Windows user
+	return /^[a-zA-Z]:[\\/]/.test(path) ? path.replace(/\//g, '\\') : path
+}
+export function sayList(items) {//items in a sentence: .png, then .gif and .png, then .bmp, .gif, and .png
+	if (items.length <= 2) return items.join(' and ')
+	return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`
+}
+
+export async function listFolder(folder) {//the image files in one folder, in whatever order the disk handed them over; a sort is what puts them in one
+	return _listImages(folder, await diskReadDir(folder))
+}
+export async function peekFolder(folder) {//how many images a folder holds and which subfolders it has, as paths, from one readdir in rust that stats nothing and answers a count and names rather than a record per file: what the pager needs to pass through a folder it will never show, and to count the buckets of one it will. The count follows the rule _listImages applies to a full listing, hidden names left out, symlinks neither files nor folders, and the extensions fileTypesListed names, so a folder counts here exactly what it lists there; disk.rs says the same beside its half of the rule
+	let peek = await diskPeek(folder, Object.keys(fileTypesListed))
+	return {images: peek.files, folders: peek.folders.map(name => parse.join(folder, name))}
+}
+export async function imageFolders(folder, forward, want, examine) {//the next folders after this one in sorted preorder, or before it, that hold an image fuji shows, up to want of them from at most examine folders read, each as {folder, images}, with where it stopped and whether the volume ended: one call into rust walks the stretch with the stack the textbook iterator has, so a thousand imageless folders cost a thousand directory reads and one trip across the bridge. The same rule as peekFolder for what counts, since it is the same reading of a folder underneath
+	let found = await findFolders(folder, forward, Object.keys(fileTypesListed), want, examine)
+	return {folders: found.folders.map(f => ({folder: f.path, images: f.files})), stopped: found.stopped, done: found.done, examined: found.examined, refused: found.refused}
+}
+function _listImages(folder, contents) {//the entries of a readdir that are image files fuji shows, each with its path, extension and mime beside what rust gave; peekFolder above counts by the same rule in rust, and the two must agree
+	let files = contents.filter(f => f.is_file && !f.is_dir && !f.is_symlink)//only include files
+	files = files.map(f => ({...f,
+		path: parse.join(folder, f.name),
+		extension: parse.extname(f.name).toLowerCase(),
+	}))
+	return files
+		.filter(f => !f.name.startsWith('.'))//skip the .name.ext files macos makes for every file on a removable drive
+		.filter(f => fileTypesListed[f.extension])//only the extensions the image parts take on this platform
+		.map(f => ({
+		...f,
+		mime: fileTypesListed[f.extension].mime,//include the mime type that goes with that extension; the filter above has already dropped anything the listing does not keep
+	}))
+}
+export async function listSiblings(path) {//the same listing, ordered and with the given path found in it; the retired experiments are the only callers left, because the model lists and sorts for itself
+	let images = await listFolder(parse.dirname(path))
+	let list = images.map(f => f.path).sort()
+	let index = list.indexOf(path)
+	if (index == -1) index = 0//ttd august
+	return {index, list}
+}
+
+//images
+
+export const errorImageData = `data:image/svg+xml;base64,${Data({text: `
+	<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+		<rect width="300" height="300" fill="none" stroke="#444" stroke-width="1" stroke-dasharray="2,1"/>
+		<line x1="140" y1="140" x2="160" y2="160" stroke="#444" stroke-width="1"/>
+		<line x1="160" y1="140" x2="140" y2="160" stroke="#444" stroke-width="1"/>
+	</svg>
+`}).base64()}`//a dashed box with a cross: what every view shows in place of a picture it could not read
+
+export async function readAndRenderImage(img, path) {
+	let details = await readImage(path)
+	return await renderImage(img, details)
+}
+export async function readImage(path) {//read the file at path and get a data url string ready to render
+	let details = {}
+	details.t1 = performance.now()//start time
+	details.path = path
+
+	//read file and convert to data url
+	let bytes = new Uint8Array(await diskRead(path))
+	details.t2 = performance.now()//time spent in io from disk
+	let blob = new Blob([bytes.buffer], {type: 'image/png'})
+	let data = await blobToDataUrl(blob)//alternatively, URL.createObjectURL saves memory, but creates a resource that could leak
+	details.t3 = performance.now()//time converting formats in memory
+	details.size = bytes.length//byte size of file
+	details.data = data//keep a reference to the data url even though we don't use it yet
+	return details
+}
+export async function renderImage(img, details) {//render the data url string details.data into the given hidden img tag
+
+	//load the data url into the given img tag and decode it
+	img.src = details.data//setting this should cause an earlier call awaiting decode to throw, and this new call to work fine
+	await img.decode()//throws on problem with the image data
+
+	//success if there wasn't an exception from that
+	details.t4 = performance.now()//time rendering image to bitmap
+	details.natural = xy(img.naturalWidth, img.naturalHeight)//and now we can get its pixel dimensions
+	details.note = `${Math.round(details.t2 - details.t1)}ms disk + ${Math.round(details.t3 - details.t2)}ms memory + ${Math.round(details.t4 - details.t3)}ms render`
+	return details
+}
+
+//resolution
+
+export function platform() {//mac, windows or linux
+	let p = navigator.platform//MacIntel on every mac, apple silicon included; Win32 on every windows
+	if (p.startsWith('Mac')) return 'mac'
+	if (p.startsWith('Win')) return 'windows'
+	return 'linux'
+}
+
+/*
+Whether backspace closes a table's window beside escape, which is a question about the keyboard, answered by the platform. The key at the top right that erases backward reports itself as Backspace on every keyboard, and a PC keyboard prints Backspace on it, but a Mac keyboard prints delete, and the page cannot tell which is plugged in. A key that says delete should never close anything, so that a delete fuji one day offers is never mistaken for a close, nor a close for a delete; so on the Mac, where nearly every keyboard says delete, backspace does nothing, and escape closes. The key a PC prints Del, and a Mac makes with fn and delete, reports itself as Delete, which is a different key again and closes nothing anywhere. An Apple keyboard on a PC still closes with its delete key, which is the one mix this cannot see, and it closes a window rather than deleting anything.
+*/
+export const backspaceCloses = platform() != 'mac'
+
+export function windowTitle(showing, path, folder) {//what the title bar says: the picture a table is showing or the video a video window is, the folder the sheet is showing, Settings or Audio on those panels, Video on a video window with no video, and fuji's own name when there is none of those
+	/*
+	The name alone, never a path: a title bar is narrow and a taskbar button narrower, and the leading half of a path is the half nobody needs.
+
+	The suffix is where the platforms genuinely differ, so this is one of the few places fuji does something different on each. Windows spells a document window 'name - App', which Notepad and Paint still do, and a taskbar button carries that string. macOS spells it just the name, because the application's own name is already in the menu bar an inch away and repeating it there reads as a mistake — Preview and TextEdit both show the bare filename. GNOME agrees with macOS and its file manager shows a bare folder name. KDE would rather have 'name — App' with an em dash, which is a third form and is not followed here.
+	*/
+	let name = path && parse.basename(path)//the picture, on a table, or the video, in a video window
+	if (showing == 'Sheet')          name = folder && parse.basename(folder)
+	if (showing == 'Settings')       name = 'Settings'//about fuji rather than about a folder or a picture
+	if (showing == 'Audio')          name = 'Audio'//the same
+	if (showing == 'Video' && !path) name = 'Video'//a video window v opened, with no video in it
+	if (!name) return brandName//nothing open yet, or a path with no last segment like a bare root; either way the application's own name and nothing else
+	return platform() == 'windows' ? `${name} - ${brandName}` : name
+}
+
+const sheetPreset = {width: 0.6, height: 0.85}//how big the sheet's window opens when settings have no size that fits, as portions of the work area's width and height. The window is the frame the user sees, which on windows leaves out the invisible resize borders; window.rs says how
+const sheetWidest = 16 / 9//but the preset is never wider than this for its height, so a super wide monitor gets a sheet rather than a banner. The portions above make about 1.2 to 1 on a 16:10 laptop, 1.3 on a 16:9 screen and 1.7 on a 21:9 one, so only the 32:9 screens meet this, which would otherwise open a sheet 2.6 to 1 and over three thousand css pixels wide. A size the user gave a sheet is theirs, and is never capped
+
+export async function screenAreas() {//the screen this window is on, whole and less the menu bar, dock or taskbar, each as {x, y, width, height} in css pixels; false when there is no monitor to ask
+	let m = await currentMonitor()
+	if (!m) return false
+	let backingPerCss = m.scaleFactor//tauri answers in backing pixels, which it calls physical, and every rectangle the page handles is css
+	let rect = (at, size) => ({x: at.x / backingPerCss, y: at.y / backingPerCss, width: size.width / backingPerCss, height: size.height / backingPerCss})
+	return {screen: rect(m.position, m.size), work: rect(m.workArea.position, m.workArea.size)}
+}
+export function rectSheet(work, saved) {//where the contact sheet's window goes, in css pixels: the size the user last gave a sheet if it fits the work area, or sheetPreset of the work area if not, and a random place inside it either way, so two sheets opened at once almost never land on each other. saved is the size from settings, a width of 0 meaning none, or a size of a window's own, as a video window passes its 800 by 600
+	let height = Math.round(work.height * sheetPreset.height)
+	let width = Math.min(Math.round(work.width * sheetPreset.width), Math.round(height * sheetWidest))
+	if (saved.width > 0 && saved.width <= Math.round(work.width) && saved.height <= Math.round(work.height)) { width = saved.width; height = saved.height }//a size from a bigger desktop, or from before the dock moved, gives way to the preset. Compared in whole css pixels, because settings keep whole css pixels and a work area at a fractional scale, 150 percent on windows, is fractional in css pixels, so a sheet stretched across the whole work area, saved at 1707, would otherwise fail to fit one 1706.67 wide
+	return {x: Math.round(work.x + Math.random() * (work.width - width)), y: Math.round(work.y + Math.random() * (work.height - height)), width, height}//the room left over along each axis, rolled evenly
+}
+export async function pointerPosition() {//where the pointer is, in the same css pixels as screenAreas, or false when the platform will not say
+	try {
+		let [p, m] = await Promise.all([cursorPosition(), platform() == 'mac' ? primaryMonitor() : currentMonitor()])//on the mac tao multiplies the pointer by the primary display's scale factor, in util::cursor_position, where every monitor and work area uses that monitor's own, so it comes back to css pixels, the unit screenAreas answers in there, only divided by the primary's. Windows reports the pointer in backing pixels, and linux on x11 has one scale factor for every monitor, so the window's own monitor is right for both
+		if (!m) return false
+		return {x: p.x / m.scaleFactor, y: p.y / m.scaleFactor}
+	} catch (error) {
+		return false//the platform would not say, and the preview centers instead. Linux on wayland does not land here: tao answers (0, 0) there rather than failing, which reads as the work area's corner, where the larger side is all of it, so the preview centers there too
+	}
+}
+
+const previewZoomMost = 2//the most a preview enlarges a small picture, in css pixels per raster pixel, the unit the table's number keys use, so a capped preview hands over a card the 2 key would give. A constant rather than a setting
+
+/*
+Where the preview goes, which is a picture sized to the work area and placed out from under the pointer.
+
+The size is the picture's own shape, as large as the work area allows, so a portrait on a wide screen meets the menu bar and the dock, and a landscape meets the sides. A small picture stops at previewZoomMost rather than filling the screen with enlarged pixels.
+
+The place is chosen one axis at a time, by one rule: the pointer splits the work area in two, and the picture centers in the larger side. A pointer over the menu bar, the dock or anywhere else past the work area's edge counts as at that edge, where the larger side is the whole work area and the picture simply centers. A picture too big for the larger side slides toward the far edge until it fits, and no further. Since the pointer is uncovered if the picture clears it on either axis, and the larger side is the only one worth trying on each, this leaves the pointer uncovered whenever any placement inside the work area could.
+*/
+export function rectPreview(natural, work, pointer) {//the preview's frame in css pixels: natural is the picture's raster size, work the work area, and pointer where the pointer is, or false to center
+	let scale = Math.min(work.width / natural.x, work.height / natural.y, previewZoomMost)//css pixels per image pixel: the tighter side meets the work area's edge, unless the picture would pass the most a preview enlarges first
+	let width = Math.round(natural.x * scale), height = Math.round(natural.y * scale)
+	return {x: _away(work.x, work.width, width, pointer ? pointer.x : false), y: _away(work.y, work.height, height, pointer ? pointer.y : false), width, height}
+}
+function _away(start, length, size, pointer) {//one axis of rectPreview: where along it a size goes, inside start to start plus length, and away from pointer
+	let end = start + length
+	let at = start + (length - size) / 2//centered, which is where a picture goes when the platform gives no pointer
+	if (pointer !== false) {//strict, because zero is a position
+		let p = Math.min(Math.max(pointer, start), end)//past either edge counts as at it
+		let [from, to] = end - p >= p - start ? [p, end] : [start, p]//the larger side, and on an exact tie the right or lower one
+		at = (from + to) / 2 - size / 2//centered in that side
+	}
+	return Math.round(Math.max(start, Math.min(at, end - size)))//kept inside the work area, sliding toward the far edge when the side is too small
+}
+
+export async function revealWindow() {//show the window, which rust built hidden and its page has placed
+	await getCurrentWindow().show()
+}
+
+export async function measureScreen() {//get the screen resolution as {x, y} in css, backing and panel pixels
+	const w = getCurrentWindow()
+	const m = await currentMonitor()
+	let q = {
+		windowDevicePixelRatio: window.devicePixelRatio,
+		tauriWindowScaleFactor: await w.scaleFactor(),
+		tauriMonitorScaleFactor: m.scaleFactor,//these tend to all be the same, and each is backing per css, never anything to do with the panel!
+
+		cssScreen: xy(screen.width, screen.height),
+		backingScreen: xy(m.size.width, m.size.height),
+		panelScreen: await panelResolution(),//custom Rust code we wrote to system APIs to get the panel's own pixel count
+	}
+	return q
+}
+let _screen//{when, panelScreen} ttd august, save here if not 0,0; report from here not api call if within 50ms
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export const thinSpace = '\u2009'//a narrow space for proportional text where room is short, like a thumbnail's caption, and never for fixed-width text: a fixed-width face draws it a full cell wide, or lacks it and borrows one from another font that sets the rest of the line off the grid; named rather than typed, because typed it looks like any other space
+export const multiplicationSign = '\u00d7'//the x of a size, which typed is easy to mistake for the letter
+export const middleDot = '\u00b7'//between things listed on one line, which typed is easy to mistake for a period
+
+export function sayDimensions(size) {//a picture's width by its height, like 1050×856, with no space around the sign, so the two numbers read as one size
+	return `${size.x}${multiplicationSign}${size.y}`
+}
+let grouping = ','//the separator between groups of digits in a size: the system's own once groupingLoad has asked, and the american comma before then or where the system will not say
+export async function groupingLoad() { let said = await localeGrouping(); if (said) grouping = said }//once as a window starts, so every size after it groups its digits the way the user's system does; a space counts, since Swedish and French group with one
+export function sayListSize(bytes, settings) {//a file's size as a list's size column says it, in the unit settings.list.sizes chooses, and in fuji's own look while settings.font.capitals is on, its digits grouped by spaces whatever the system's separator and its unit drawn small; handed the settings rather than importing them, since settings.js imports this file
+	let capitals = settings.font.capitals, sizes = settings.list.sizes
+	let separator = capitals ? ' ' : grouping
+	if (sizes == 'Bytes') return _sayGrouped(bytes, separator)//every digit, and no unit
+	if (sizes == 'Four') return capitals ? _markUnit(saySize4(bytes), {fixed: true}) : saySize4(bytes).replace(' ', thinSpace)//four digits at most, so nothing to group; a thin space before the unit in proportional text, where fuji's own look keeps an ordinary one, as it spaces everything evenly
+	let kilobytes = `${_sayGrouped(Math.ceil(bytes / Size.kb), separator)} KB`//as Explorer says a size, in whole kilobytes rounded up, so a file of one byte is 1 KB and every size is in one unit, its order of magnitude read from the width of its digits
+	return capitals ? _markUnit(kilobytes, {fixed: true}) : kilobytes
+}
+export function sayCaptionSize(bytes, settings) {//a file's size as runs, as a caption under a thumbnail says it, in four digits or fewer, and the unit drawn small while settings.font.capitals is on, like 117 MB
+	if (!settings.font.capitals) return [saySize4(bytes)]
+	return _markUnit(saySize4(bytes))
+}
+function _sayGrouped(n, separator) { return n.toLocaleString('en-US').replaceAll(',', () => separator) }//digits in groups of three, as american english groups them, with separator between the groups; handed over by a function, since a replacement given as text reads a $ in it as a pattern
+function _markUnit(text, {fixed = false} = {}) {//a size as runs, the unit after its last space drawn as small capitals, and bytes said as B. fixed where sizes stack down a column, which puts the unit in the fixed-width face and gives B a blank letter's room after it, so every unit is two letters wide and the digits before them line up
+	let at = text.lastIndexOf(' ')
+	let unit = text.slice(at + 1)
+	if (unit == 'byte' || unit == 'bytes') unit = 'B'
+	if (fixed) return [text.slice(0, at + 1), {small: unit, fixed: true, pad: unit.length == 1}]
+	return [text.slice(0, at + 1), {small: unit}]
+}
+
+/*
+A date or a time is said by the functions below, which take the clock the user chose, settings.time.clock, or the settings whole where the look reaches past the clock: Local12 or Local24 for this machine's time zone on a 12 or a 24 hour clock, or Utc, on a 24 hour clock. Fuji keeps every time as milliseconds since 1970 in utc, from the disk to the log, and turns one into a wall clock's reading only as it says it to the user, here, so the zone is chosen at that moment.
+*/
+export function sayDay(milliseconds, clock) {//the day a time falls on, year first like 2026 Oct 6, in ergo's english whatever the machine's language; blank for 0, which is how a listing says the file system had no answer, rather than a day in 1970, and blank too for a day outside 1970 through 9999, the years ergo writes, which on a file is a broken date
+	return _sayZoned(milliseconds, clock, 'YYYY Mmm D')
+}
+export function sayCaptionDay(milliseconds, settings) {//the same day as runs, as a caption under a thumbnail says it, the day never padded, since nothing in a caption lines up; while settings.font.capitals is on, the month in capitals drawn small in the caption's own face, like 2026 OCT 6
+	let say = template => _sayZoned(milliseconds, settings.time.clock, template)
+	if (!say('YYYY')) return []
+	if (!settings.font.capitals) return [sayDay(milliseconds, settings.time.clock)]
+	return [`${say('YYYY')} `, {small: say('MMM')}, ` ${say('D')}`]
+}
+export function sayListDate(milliseconds, settings) {//the day and the minute as a list's date column says them, on a 12 hour clock like 2026-Oct-06 2:45p or a 24 hour one like 2026-Oct-06 14:45; blank where sayDay is blank. While settings.font.capitals is on, they are runs in fuji's own look, each part apart from the next by a space, with the month and the AM or PM drawn small, like 2023 NOV 18 06:50 PM, the month in the fixed-width face too and the hour always two digits, so every date is one width and each part of it lines up down a column
+	let clock = settings.time.clock, say = template => _sayZoned(milliseconds, clock, template)
+	if (!settings.font.capitals) return say(`YYYY-Mmm-DD ${_sayClock(clock, 'h12:mma')}`)
+	if (!say('YYYY')) return []
+	let runs = [`${say('YYYY')} `, {small: say('MMM'), fixed: true}, ` ${say('DD')} ${say(_sayClock(clock, 'hh12:mm'))}`]
+	if (clock == 'Local12') runs.push(' ', {small: say('AA')})//AM or PM
+	return runs
+}
+function _sayClock(clock, twelve) { return clock == 'Local12' ? twelve : 'hh24:mm' }//the time's tags on the clock chosen, with twelve the tags the caller wants for a 12 hour one
+function _sayZoned(milliseconds, clock, template) {
+	if (typeof milliseconds != 'number' || milliseconds < 0) throw new Error(`expected milliseconds since 1970: ${milliseconds}`)
+	if (clock != 'Local12' && clock != 'Local24' && clock != 'Utc') throw new Error(`expected a clock of Local12, Local24 or Utc: ${clock}`)
+	if (milliseconds == 0) return ''
+	let shown = milliseconds//sayTick writes the utc fields of the tick it is handed
+	if (clock != 'Utc') shown = Math.floor(milliseconds - new Date(milliseconds).getTimezoneOffset() * Time.minute)//so for local time, the tick whose utc fields are this machine's clock then
+	if (!hasTick(shown)) return ''
+	return sayTick(shown, template)
+}

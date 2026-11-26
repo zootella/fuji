@@ -2,13 +2,13 @@
 
 import {computed, onMounted, onBeforeUnmount} from 'vue'
 import {Time, saySize4, sayDuration} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {inventoryProgress, inventoryStop, inventoryOptions, inventoryFolder, inventoryOutput, inventoryRunning, inventoryTrouble, inventoryCounts, inventoryTime, inventorySince, inventoryRun, sayCount, sayRate} from '../inventory.js'
-import {dialogOpen} from '../dialog.js'
-import {picturesFolder} from '../paths.js'
-import {modelFolder} from '../model.js'//the folder the sheet shows, where the open box starts
-import {logTrouble} from '../log.js'
-import {brandName, brandStem} from '../brand.js'
-import {backize, raf} from './library.js'
+import {inventoryProgress, inventoryStop, inventoryOptions, inventoryFolder, inventoryOutput, inventoryRunning, inventoryTrouble, inventoryCounts, inventoryTime, inventorySince, inventoryRun, sayCount, sayRate} from '../brass/inventory.js'
+import {dialogOpen} from '../brass/dialog.js'
+import {picturesFolder} from '../brass/paths.js'
+import {modelFolder} from '../plastic/model.js'//the folder the sheet shows, where the open box starts
+import {logTrouble} from '../brass/log.js'
+import {brandName, brandStem} from '../plastic/brand.js'
+import {backize, raf} from '../plastic/library.js'
 
 async function inventoryAsk() {
 	try {

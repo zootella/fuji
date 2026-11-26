@@ -92,7 +92,7 @@ By the Rule of 2, a reader in a safe language needs no sandbox. Chromium rewrote
 
 Fuji's code lives in four places, and each keeps a different promise. **Plastic** is the page, the JavaScript that decides everything: what to show, what to ask of the machine and when. The other three are Rust crates, named for metals. **Brass** is the crate Tauri builds the application from, and holds only what is tied to a window. **Copper** holds every call into C and the operating system's libraries away from a window, FFmpeg among them. **Steel** is the safe crate, and every reader Fuji writes for the bytes of a file lives in it.
 
-Steel is a crate of its own because a module can forbid unsafe code in itself and still call the rest of its crate, while a crate reaches only what it names, and steel names nothing of Fuji's. Its root, [`steel/src/lib.rs`](https://github.com/zootella/fuji/blob/main/steel/src/lib.rs), is two lines:
+Steel is a crate of its own because a module can forbid unsafe code in itself and still call the rest of its crate, while a crate reaches only what it names, and steel names nothing of Fuji's. Its root, [`rust/steel/src/lib.rs`](https://github.com/zootella/fuji/blob/main/rust/steel/src/lib.rs), is two lines:
 
 <div class="breakout">
 
@@ -129,7 +129,7 @@ The tip scan lives in steel, and five rules of its own make a hostile file harml
 - Every loop moves forward and stops after 256 steps, so the 128 KiB in hand bound the work, whatever the file holds.
 - Nothing can panic: the reader has no index, no unwrap, and no division before a check for zero.
 
-The helper is two short functions in [`steel/src/tip.rs`](https://github.com/zootella/fuji/blob/main/steel/src/tip.rs), and every byte the tip scan reads passes through them:
+The helper is two short functions in [`rust/steel/src/tip.rs`](https://github.com/zootella/fuji/blob/main/rust/steel/src/tip.rs), and every byte the tip scan reads passes through them:
 
 <div class="breakout">
 
@@ -151,7 +151,7 @@ fn read(&self, at: usize, n: usize) -> Step<&'a [u8]> {
 
 A read beyond the tip becomes the request for the second slice, a read past the end of the file says the file was cut short, and neither touches any memory outside the bytes in hand. So a hostile file gets one of two outcomes, no answer or a wrong one, and every stop says which of four kinds it was: a format named by its signature and read no further, the reader's own limit, the file corrupted, or the file chopped.
 
-Tests hold the tip scan's answers on 72 sample files in Fuji's repository, and [libFuzzer](https://llvm.org/docs/LibFuzzer.html) runs it through [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) on inputs grown from those samples, a corpus of more than 17,000, watching for a panic. Each input goes through twice, once as Fuji reads a file and once through a tip cut to half its length, so even a small input reaches the code that reads the second slice, in [`steel/fuzz/fuzz_targets/scout.rs`](https://github.com/zootella/fuji/blob/main/steel/fuzz/fuzz_targets/scout.rs):
+Tests hold the tip scan's answers on 72 sample files in Fuji's repository, and [libFuzzer](https://llvm.org/docs/LibFuzzer.html) runs it through [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) on inputs grown from those samples, a corpus of more than 17,000, watching for a panic. Each input goes through twice, once as Fuji reads a file and once through a tip cut to half its length, so even a small input reaches the code that reads the second slice, in [`rust/steel/fuzz/fuzz_targets/scout.rs`](https://github.com/zootella/fuji/blob/main/rust/steel/fuzz/fuzz_targets/scout.rs):
 
 ```rust
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
@@ -182,7 +182,7 @@ configure_make(folder, '--pkg-config-flags=--static', '--enable-static', '--disa
 
 FFmpeg in Fuji has no network and one protocol, files, so the playlist trick of [2016](#no-click-at-all-2015-to-2017), which used FFmpeg's other protocols to read a local file and send it to a web server, has no road. It carries no encoders and no muxers, the parts of FFmpeg that make a file. And Fuji builds mpv without Lua or JavaScript, so no script runs inside the player.
 
-Each question narrows what runs still further. Fuji makes a player for every question and destroys it after, so nothing carries over from one file to the next, and starts every player with five of [mpv's options](https://mpv.io/manual/stable/), in [`copper/src/media.rs`](https://github.com/zootella/fuji/blob/main/copper/src/media.rs):
+Each question narrows what runs still further. Fuji makes a player for every question and destroys it after, so nothing carries over from one file to the next, and starts every player with five of [mpv's options](https://mpv.io/manual/stable/), in [`rust/copper/src/media.rs`](https://github.com/zootella/fuji/blob/main/rust/copper/src/media.rs):
 
 ```rust
 const ASK_ALWAYS: [(&str, &str); 5] = [
@@ -204,7 +204,7 @@ Fuji asks FFmpeg its questions in the sandbox process, which it builds from two 
 
 ***Twinning*** is Fuji's own executable started a second time to do the reading. The main process starts it with a switch on its command line, and the program's first lines hand it the work before Tauri starts, so it opens no window and runs only copper and steel, the same code the main process runs. The two talk over the three standard streams: the request goes down, the answers come up, and the main process reads every answer as it would read a stranger's file.
 
-The main process starts it carrying nothing else of Fuji's. On the Mac it closes every file but those three streams in the new process, and points the new process's crash ports back at itself, in [`copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/copper/src/sandbox.rs):
+The main process starts it carrying nothing else of Fuji's. On the Mac it closes every file but those three streams in the new process, and points the new process's crash ports back at itself, in [`rust/copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/rust/copper/src/sandbox.rs):
 
 <div class="breakout">
 
@@ -236,7 +236,7 @@ The sandbox process puts the walls on itself once, after the main process has na
 
 #### On the Mac
 
-On the Mac the wall is Apple's sandbox, which the kernel enforces. The sandbox process hands it a profile through `sandbox_init_with_parameters`, the call [Firefox's sandbox makes](https://github.com/mozilla-firefox/firefox/blob/main/security/sandbox/mac/Sandbox.mm), and the profile in [`copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/copper/src/sandbox.rs) denies everything, then allows reading under one folder:
+On the Mac the wall is Apple's sandbox, which the kernel enforces. The sandbox process hands it a profile through `sandbox_init_with_parameters`, the call [Firefox's sandbox makes](https://github.com/mozilla-firefox/firefox/blob/main/security/sandbox/mac/Sandbox.mm), and the profile in [`rust/copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/rust/copper/src/sandbox.rs) denies everything, then allows reading under one folder:
 
 ```rust
 const PROFILE: &str = "(version 1)
@@ -265,7 +265,7 @@ The filter refuses a socket, so the process reaches neither the network nor the 
 
 #### On Windows
 
-On Windows the walls are a job object and the Untrusted integrity level, two of the four Windows mechanisms [Chromium's sandbox](https://chromium.googlesource.com/chromium/src/+/main/docs/design/sandbox.md) relies on. The sandbox process makes a job for itself that [allows one process](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information), so any program it starts fails to start. The job also caps its committed memory at a gigabyte and [keeps it off the desktop](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_ui_restrictions): no clipboard, no window of another program's, no display settings, no desktop made or switched to. Its limits, in [`copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/copper/src/sandbox.rs):
+On Windows the walls are a job object and the Untrusted integrity level, two of the four Windows mechanisms [Chromium's sandbox](https://chromium.googlesource.com/chromium/src/+/main/docs/design/sandbox.md) relies on. The sandbox process makes a job for itself that [allows one process](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information), so any program it starts fails to start. The job also caps its committed memory at a gigabyte and [keeps it off the desktop](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_ui_restrictions): no clipboard, no window of another program's, no display settings, no desktop made or switched to. Its limits, in [`rust/copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/rust/copper/src/sandbox.rs):
 
 <div class="breakout">
 
@@ -281,9 +281,9 @@ Then it lowers its own integrity level to Untrusted, the level [below Low](https
 
 ### Tested from inside
 
-Fuji tries each wall with code running inside it. `fuji --sandbox-check`, in [`copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/copper/src/sandbox.rs), takes a folder and a file outside it, puts on itself the walls the sandbox process puts on, and tries every reach in turn. It lists the folder and reads a file in it, which the walls allow. Then it reads the file outside, lists the folder above, writes in the folder and in the temporary folder, connects to the machine itself, starts a program, reaches for a service of the system's and signals the process that started it, along with the reaches each platform adds: io_uring and a crash reporter's core on Linux, and the registry, another process's memory, the job's memory limit and Windows Error Reporting on Windows. It prints a line for each, the answer beside the one the walls should give.
+Fuji tries each wall with code running inside it. `fuji --sandbox-check`, in [`rust/copper/src/sandbox.rs`](https://github.com/zootella/fuji/blob/main/rust/copper/src/sandbox.rs), takes a folder and a file outside it, puts on itself the walls the sandbox process puts on, and tries every reach in turn. It lists the folder and reads a file in it, which the walls allow. Then it reads the file outside, lists the folder above, writes in the folder and in the temporary folder, connects to the machine itself, starts a program, reaches for a service of the system's and signals the process that started it, along with the reaches each platform adds: io_uring and a crash reporter's core on Linux, and the registry, another process's memory, the job's memory limit and Windows Error Reporting on Windows. It prints a line for each, the answer beside the one the walls should give.
 
-A second test, the walk in [`copper/walk.js`](https://github.com/zootella/fuji/blob/main/copper/walk.js), drives a built Fuji through what ***Twinning*** promises. It reads the same folder in the main process and in the sandbox process, which must write the same answers line for line, and again with the folder named through a link, since the kernel judges a path by the place it resolves to. It stops a sandbox process partway. It crashes one partway and counts the crash reports the platform keeps before and after, a count that must not move. It holds one still, the way a read stuck in the kernel would hold it, and Fuji must still end it. And it kills the main process, which must take its sandbox process with it. The walk runs on the Mac and on Windows, and on Linux it runs in containers of Debian 12, Ubuntu 24.04 and Fedora 40 from one build, through [`linux/build.js`](https://github.com/zootella/fuji/blob/main/linux/build.js), so each distribution's own libraries load beneath the same walls.
+A second test, the walk in [`rust/copper/walk.js`](https://github.com/zootella/fuji/blob/main/rust/copper/walk.js), drives a built Fuji through what ***Twinning*** promises. It reads the same folder in the main process and in the sandbox process, which must write the same answers line for line, and again with the folder named through a link, since the kernel judges a path by the place it resolves to. It stops a sandbox process partway. It crashes one partway and counts the crash reports the platform keeps before and after, a count that must not move. It holds one still, the way a read stuck in the kernel would hold it, and Fuji must still end it. And it kills the main process, which must take its sandbox process with it. The walk runs on the Mac and on Windows, and on Linux it runs in containers of Debian 12, Ubuntu 24.04 and Fedora 40 from one build, through [`linux/build.js`](https://github.com/zootella/fuji/blob/main/linux/build.js), so each distribution's own libraries load beneath the same walls.
 
 ### Run it yourself
 
@@ -354,7 +354,7 @@ Every address below was fetched on October 26, 2026.
 - Evans, Chris. "[Redux: Compromising Linux Using... SNES Ricoh 5A22 Processor Opcodes?!](https://scarybeastsecurity.blogspot.com/2016/12/redux-compromising-linux-using-snes.html)" *Security*, December 13, 2016.
 - FFmpeg. "[FFmpeg Security](https://ffmpeg.org/security.html)." ffmpeg.org.
 - FFmpeg. [*FFmpeg*](https://github.com/FFmpeg/FFmpeg). Source repository and commit history, mirrored on GitHub.
-- Fuji. [*Fuji*](https://github.com/zootella/fuji). Source repository on GitHub, from which this page quotes `copper/src/media.rs`, `copper/src/sandbox.rs`, `copper/walk.js`, `desktop/libmpv/build.py`, `desktop/src-tauri/tauri.conf.json`, `linux/build.js`, `steel/fuzz/fuzz_targets/scout.rs`, `steel/src/lib.rs`, and `steel/src/tip.rs`.
+- Fuji. [*Fuji*](https://github.com/zootella/fuji). Source repository on GitHub, from which this page quotes `rust/copper/src/media.rs`, `rust/copper/src/sandbox.rs`, `rust/copper/walk.js`, `desktop/libmpv/build.py`, `desktop/src-tauri/tauri.conf.json`, `linux/build.js`, `rust/steel/fuzz/fuzz_targets/scout.rs`, `rust/steel/src/lib.rs`, and `rust/steel/src/tip.rs`.
 - Fuji. "[fuji.dmg.json](https://fujidesktop.app/fuji.dmg.json)." Release record of the Mac download, fujidesktop.app.
 - GNOME. "[gnome-desktop-thumbnail-script.c](https://gitlab.gnome.org/GNOME/gnome-desktop/-/raw/master/libgnome-desktop/gnome-desktop-thumbnail-script.c)." gnome-desktop source code.
 - GNOME. "[tracker-1.11.2.changes](https://download.gnome.org/sources/tracker/1.11/tracker-1.11.2.changes)." Tracker release notes, December 8, 2016.

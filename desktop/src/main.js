@@ -1,6 +1,6 @@
 import {createApp} from 'vue'
 import App from './App.vue'
-import {brandName} from './brand.js'
+import {brandName} from './plastic/brand.js'
 import './style.css'
 
 document.title = brandName//the page's own title, which no window shows, since rust and the shell title the window; set here so index.html never spells the name

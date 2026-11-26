@@ -2,10 +2,10 @@
 
 import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
 import {saySize4, Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {memoryReport} from '../memory.js'
-import {logTrouble} from '../log.js'
-import {platform} from './library.js'
-import {brandName} from '../brand.js'
+import {memoryReport} from '../brass/memory.js'
+import {logTrouble} from '../brass/log.js'
+import {platform} from '../plastic/library.js'
+import {brandName} from '../plastic/brand.js'
 
 //the numbers a user compares when choosing how many buckets and how many thumbnails to run: what the machine was bought with, what everything on it is using, what fuji's processes take of that, and what the thumbnails take of fuji, each as a share of the shell outside it. The outer three come from memory.rs, read every memoryEvery milliseconds and only while this box is on screen, which is what the IntersectionObserver answers: a sheet hidden behind the table, or scrolled up past this box, asks nothing. The innermost is the sheet's own count, exact, since every thumbnail is a canvas fuji sized, and the sheet sums what every bucket's caption shows
 

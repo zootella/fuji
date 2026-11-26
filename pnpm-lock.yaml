@@ -12,12 +12,6 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0
 
-  copper:
-    dependencies:
-      '@zootella/ergo':
-        specifier: ^0.3.0
-        version: 0.3.0
-
   desktop:
     dependencies:
       '@tauri-apps/api':
@@ -61,6 +55,32 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0
 
+  rust/copper:
+    dependencies:
+      '@zootella/ergo':
+        specifier: ^0.3.0
+        version: 0.3.0
+
+  rust/steel: {}
+
+  side:
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.2.2(jiti@2.7.0)(yaml@2.9.0))
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.8
+        version: 6.0.8(vite@8.2.2(jiti@2.7.0)(yaml@2.9.0))(vue@3.5.42)
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(jiti@2.7.0)(yaml@2.9.0)
+      vue:
+        specifier: ^3.5.41
+        version: 3.5.42
+
   site:
     devDependencies:
       '@zootella/ergo':
@@ -72,8 +92,6 @@ importers:
       vue:
         specifier: ^3.5.42
         version: 3.5.42
-
-  steel: {}
 
 packages:
 
@@ -2033,6 +2051,12 @@ snapshots:
       '@rolldown/pluginutils': 1.0.1
       vite: 8.2.2(jiti@2.7.0)(yaml@2.9.0)
       vue: 3.5.41
+
+  '@vitejs/plugin-vue@6.0.8(vite@8.2.2(jiti@2.7.0)(yaml@2.9.0))(vue@3.5.42)':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.2.2(jiti@2.7.0)(yaml@2.9.0)
+      vue: 3.5.42
 
   '@vue/compiler-core@3.5.41':
     dependencies:

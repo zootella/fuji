@@ -16,7 +16,7 @@ const brandStem = parseToml(readFileSync(new URL('../src-tauri/Cargo.toml', impo
 /*
 The file extensions uninstall cleans up, with their dot. Setup registers none of them; the installed app does that itself, in associate.js, while it runs, so this list matters only on the way out, so that everything the app wrote for these types is taken back.
 
-These are what fileTypesAssociations in src/fileTypes.js answers for Windows, pasted from its answer and checked against it rather than worked out: src-tauri/Info.plist holds its answer for the Mac, made the same way. Info.plist cannot read that table, and this file does not, since pasting two short lists in the same commit as the table's change costs less than a build step. Fuji only ever turns a type on, and never back off, so both lists only grow.
+These are what fileTypesAssociations in src/plastic/fileTypes.js answers for Windows, pasted from its answer and checked against it rather than worked out: src-tauri/Info.plist holds its answer for the Mac, made the same way. Info.plist cannot read that table, and this file does not, since pasting two short lists in the same commit as the table's change costs less than a build step. Fuji only ever turns a type on, and never back off, so both lists only grow.
 */
 const uninstallAssociations = [
 	'.bmp',

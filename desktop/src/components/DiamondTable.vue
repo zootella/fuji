@@ -5,14 +5,14 @@ import {saySize4, Time} from '@zootella/ergo'//small helpers from the ergo proje
 import {
 xy, xySnap, raf, errorImageData,
 sayDay, sayDimensions, middleDot, backize,
-} from './library.js'//our javascript library
-import {modelList, modelPath, modelOpen, modelIndex, modelStand, modelFile} from '../model.js'//the folder, the order it is in, and where the user is; no view owns any of it
-import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../flipCache.js'//which images this table keeps, and the store beneath it
-import {cacheFootprint} from '../cache.js'//for the hud line saying what the store is holding
-import {log, logFlip, logTrouble} from '../log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
-import {settings, settingsChanged} from '../settings.js'//fuji.toml, read by the shell before this view starts
-import {gamma, gammaStep, gammaDrag} from '../gamma.js'//the lens the shell draws every picture through, which shift with the wheel or a right drag here sets
-import {raster, rasterToggle} from '../raster.js'//whether the card shows a picture's own pixels as blocks, which r toggles here and nothing else reads
+} from '../plastic/library.js'//our javascript library
+import {modelList, modelPath, modelOpen, modelIndex, modelStand, modelFile} from '../plastic/model.js'//the folder, the order it is in, and where the user is; no view owns any of it
+import {flipCacheWindow, flipCacheImage, flipCacheClose} from '../plastic/flipCache.js'//which images this table keeps, and the store beneath it
+import {cacheFootprint} from '../plastic/cache.js'//for the hud line saying what the store is holding
+import {log, logFlip, logTrouble} from '../brass/log.js'//the log, which writes a file instead of painting a number; the shell starts it, this only adds rows
+import {settings, settingsChanged} from '../plastic/settings.js'//fuji.toml, read by the shell before this view starts
+import {gamma, gammaStep, gammaDrag} from '../plastic/gamma.js'//the lens the shell draws every picture through, which shift with the wheel or a right drag here sets
+import {raster, rasterToggle} from '../plastic/raster.js'//whether the card shows a picture's own pixels as blocks, which r toggles here and nothing else reads
 import MockMenu from './MockMenu.vue'
 
 //                       _   

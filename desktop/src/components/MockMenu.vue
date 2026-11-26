@@ -1,7 +1,7 @@
 <script setup>//context menus in the look fuji's menus will take, by name; show hands back the item chosen, which the caller of a mock menu, like Files, ignores
 
 import {ref, nextTick, onBeforeUnmount} from 'vue'
-import {platform} from './library.js'
+import {platform} from '../plastic/library.js'
 
 const menus = {//menus a file manager might show, by name: a blank for a separator, a ~ before an item that cannot be chosen, and a > after one with a submenu
 	Thumbnail: ['Open', 'Open With >', 'Show in Folder', '', 'Copy', 'Copy Path', '', 'Rename', 'Move to Trash', '', 'Get Info'],//for the thumbnail clicked on the contact sheet

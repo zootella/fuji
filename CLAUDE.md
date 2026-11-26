@@ -16,7 +16,7 @@ The application displays images in an infinite pannable/zoomable space with keyb
 
 ### The repository is a pnpm monorepo
 
-The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. `site` is the VitePress website and documentation for fujidesktop.app, built to static files that our own reverse proxy serves. `linux` builds fuji's linux packages in docker containers on the mac — its one dependency is ergo, for how its output says a size, and everything else it does is drive containers whose toolchains live inside them. `steel` is fuji's safe Rust, the scout, its reader of a file's first bytes, and the walker of a folder tree, a crate fuji's Rust depends on by path; its `package.json` has no dependencies and names its cargo commands. `copper` is fuji's Rust that needs neither Tauri nor a window and cannot be safe Rust, every call into C and the operating system's libraries away from a window, which fuji's Rust also depends on by path. The Rust crates are one Cargo workspace: the root `Cargo.toml` names them, one `Cargo.lock` at the root pins every version for all of them, and `.cargo/config.toml` there keeps the target folder at `desktop/src-tauri/target`, where the pipeline expects it.
+The application lives in the `desktop` workspace. The planning documents and the repository's own files stay at the root, where they describe the project rather than belonging to one part of it. `pnpm-workspace.yaml` names the workspaces, and the rule is that a directory holding a `package.json` is one — `notes/`, which holds the raw material the planning documents were written from, has none and is therefore just a folder. `site` is the VitePress website and documentation for fujidesktop.app, built to static files that our own reverse proxy serves. `linux` builds fuji's linux packages in docker containers on the mac — its one dependency is ergo, for how its output says a size, and everything else it does is drive containers whose toolchains live inside them. `side` holds what doesn't ship, tools beside the app like the palette and the sort tests, each in a folder with a README of its own, which reach into `desktop` by path for what they draw or test. `rust` holds the crates fuji authors, which stand alone and which fuji's Rust depends on by path: `rust/steel` is fuji's safe Rust, the scout, its reader of a file's first bytes, and the walker of a folder tree, whose `package.json` has no dependencies and names its cargo commands; and `rust/copper` is fuji's Rust that needs neither Tauri nor a window and cannot be safe Rust, every call into C and the operating system's libraries away from a window. The Rust crates are one Cargo workspace: the root `Cargo.toml` names them, one `Cargo.lock` at the root pins every version for all of them, and `.cargo/config.toml` there keeps the target folder at `desktop/src-tauri/target`, where the pipeline expects it.
 
 The root has no scripts, deliberately. `pnpm install` runs there and installs every workspace; everything else runs from inside the workspace it belongs to, so `cd desktop` comes first. **Throughout this document a path written `src/` or `src-tauri/` is relative to `desktop/`**, which is how the code refers to itself; only paths written from the root, like the build outputs below, carry the `desktop/` prefix.
 
@@ -54,10 +54,17 @@ Roughly what a release build costs, so a long one does not read as a hang: on th
 ```bash
 pnpm dev          # Run Vite dev server without Tauri
 pnpm vite-build   # Build frontend only
-pnpm color        # the color page in the browser: fuji's palette and the candidates for its colors, a tab each
-pnpm sort-test    # WindowsSort and MacSort against what each platform was recorded saying, then against the platform this runs on; with a word after it, one of the other jobs sort/test.js names
 ```
-`dev` and `vite-build` are also Tauri's own before-commands, named in `tauri.conf.json`, which is why they keep those names instead of joining the list above. `color` serves `color/` on port 1430, beside the 1420 the app's dev server holds, so it runs while `pnpm local` does. Its tabs draw with fuji's own stylesheet, faces, lucide drawings and FujiBar, and write down a color only where the page is saying what someone else's color is, like a Radix hue or a brand color once proposed.
+`dev` and `vite-build` are also Tauri's own before-commands, named in `tauri.conf.json`, which is why they keep those names instead of joining the list above.
+
+### The Side Workspace
+```bash
+cd side
+pnpm palette      # fuji's colors in the browser, on each platform and in light and dark at once, beside the candidates weighed for them
+pnpm sort-test    # fuji's sorts against what each platform was recorded saying, then against the platform this runs on, then WindowsSort against WindowsTableSort; with a word after it, one of the other jobs sort/test.js names
+pnpm sort-table   # remake WindowsTableSort's table from Microsoft's file
+```
+`palette` serves on port 1430, beside the 1420 the app's dev server holds, so it runs while `pnpm local` does. Its tabs draw with fuji's own stylesheet, faces, lucide drawings and FujiBar, and write down a color only where the palette is saying what someone else's color is, like a Radix hue or a brand color once proposed. `side/README.md` is the guide, and each tool's folder has a README of its own.
 
 ### The Linux Workspace
 
@@ -97,20 +104,20 @@ That is the third arrangement, and the two it replaced are worth knowing. **Copy
 
 ### The Steel Workspace
 ```bash
-cd steel
+cd rust/steel
 pnpm test         # cargo test: the scout's tests, pinned to the files in samples/, the walker's and find's on trees they build, the disk's in a folder of their own, the fits' against the numbers fit.js gives, the reads', and the lock's on files made in memory
 pnpm fuzz         # libFuzzer on the reader, seeded from samples/, until stopped; pnpm fuzz -- -max_total_time=60 runs a minute
 pnpm fit-table    # write fit-table.txt, fitSize from fit.js over a grid, which the fits' test reads; run it when the arithmetic changes in both files at once
 ```
-`steel/README.md` is the guide: what the crate is, its files, and how fuji uses it.
+`rust/steel/README.md` is the guide: what the crate is, its files, and how fuji uses it.
 
 ### The Copper Workspace
 ```bash
-cd copper
+cd rust/copper
 pnpm test         # cargo test: the crate alone, with nothing of Tauri compiled; the registry's test runs only on Windows, and the Mac's launch services' only there
 pnpm walk         # the sandbox process walked on this machine through a built fuji, each step saying what it saw; pnpm walk crash runs one step
 ```
-`copper/README.md` is the guide.
+`rust/copper/README.md` is the guide.
 
 ### The Root Script
 
@@ -139,7 +146,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 ### Rust Backend (desktop/src-tauri/src/)
 
-**Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what the page can ask Rust to do. No plugin is granted to the page: `capabilities/default.json` holds Tauri's core set and the calls the page makes on its own window, and anything past the window, an address opened in the browser or the system's file dialog, is a command here. Each module is declared in `lib.rs` with a line saying what it answers and opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
+**Entry point**: `main.rs` → `lib.rs::run()`. **The handler list in `lib.rs` is the complete list of commands**, and the whole of what fuji's JavaScript can ask Rust to do. No plugin is granted to the JavaScript: `capabilities/default.json` holds Tauri's core set and the calls it makes on its own window, and anything past the window, an address opened in the browser or the system's file dialog, is a command here. Each module is declared in `lib.rs` with a line saying what it answers and opens with an essay on what it offers and why, and each command carries a doc comment, so the code is where to read what a command takes and answers; this file does not repeat it.
 
 **Important Architecture Notes**:
 - File I/O uses synchronous `std::fs` calls inside `#[command(async)]`, so they run on Tauri's thread pool rather than the thread that runs the window; `disk_read()` loads entire files into memory (suitable for images, not large files). `lib.rs` has the rule for which commands are async
@@ -150,9 +157,9 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 
 **Entry point**: `main.js` → `App.vue` → `Shell.vue` for a browsing window, which shows one view at a time, or `VideoWindow.vue` for a video window.
 
-`main.js` titles the page and mounts the app, and does nothing else; `App.vue` picks the window's root once, as the page mounts, from the note the window was made with and the files it was opened with. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
+`main.js` titles the window's document and mounts the app, and does nothing else; `App.vue` picks the window's root once, as it mounts, from the note the window was made with and the files it was opened with. Fuji has no router and no store library — shared state is an exported `ref` in a plain module. Read `architecture.md` before adding a view, a part of one, or a new home for state: it carries the layers, the views, why each thing sits where it does, and the tests for when a router would earn its place.
 
-**Where to read before changing something.** Every component in `src/components/` and every module in `src/` opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
+**Where to read before changing something.** Every component in `src/components/` and every module in `src/plastic/` and `src/brass/` opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
 - `Shell.vue` — a browsing window, which view is showing, and fuji's two fullscreens
 - `VideoWindow.vue` — a video window, a native window of its own beside a browsing window or without one
 - `TestFlow.vue` — how a path becomes a thumbnail
@@ -160,16 +167,16 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - `model.js`, `settings.js`, `cache.js` — what the user is looking at, the one schema for `fuji.toml`, and the store of pictures
 - `pager.js` — every image on the volume as one list, never built, and the sheet's page as a window onto it
 - `associate.js` — file associations, starting from the values the design follows
-- `WindowsSort.js`, `MacSort.js` — the orders Explorer and Finder put names in, on any platform; `desktop/sort` holds their test against the platforms themselves
+- `sort/WindowsSort.js`, `sort/MacSort.js` — the orders Explorer and Finder put names in, on any platform; `side/sort` holds their test against the platforms themselves
 
-**Each Rust module with commands has a JavaScript file of the same name in `src/`** that wraps them for the page, one function per command, forwardizing a path where it crosses. `components/library.js` holds the small pure helpers, `forwardize`, `backize` and `xy` among them. `fileTypes.js` is the one table of every extension fuji knows and what each part of fuji does with it on each platform.
+**Each brass module with commands has a JavaScript file of the same name in `src/brass/`**, brass's JavaScript side, which wraps them for plastic, one function per command, forwardizing a path where it crosses. `plastic/library.js` holds the small helpers, `forwardize`, `backize` and `xy` among them. `fileTypes.js` is the one table of every extension fuji knows and what each part of fuji does with it on each platform.
 
 **Key Patterns**:
 - All paths are "forwardized" on entry (backslashes → forward slashes) and "backized" for Windows display
 - Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed. A picture only the operating system's imaging library reads on this platform, a TIFF on Windows or a Photoshop file on the Mac, reaches it instead as the library's pixels at the picture's own size, painted once onto a canvas the store holds in the img's place; `fileTypesTable` in `fileTypes.js` says which
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
-- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from the page where not; a GIF or an SVG is an img. `TestFlow.vue` is the code, and the Image Fidelity page on the site is why it is shaped that way
+- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from fuji's own JavaScript where not; a GIF or an SVG is an img. `TestFlow.vue` is the code, and the Image Fidelity page on the site is why it is shaped that way
 - A canvas is sized to its box in backing pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one backing pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `TestFlow.vue` hold this; the Image Fidelity page on the site has the measurement
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 
@@ -243,11 +250,11 @@ Always use the path normalization functions from `library.js`:
 
 **Three units, and one name each.** The code, its comments, the planning documents and the site all use these three names and no others.
 
-- **CSS** pixels are the page's unit and the user's: what CSS lays out in, what the user sizes things in, and what settings record. macOS calls them points and lists them in its display settings as the "looks like" resolution; Tauri calls them logical.
+- **CSS** pixels are the web view's unit and the user's: what CSS lays out in, what the user sizes things in, and what settings record. macOS calls them points and lists them in its display settings as the "looks like" resolution; Tauri calls them logical.
 - **backing** pixels are the grid fuji paints into. On the Mac that is the backing bitmap. On Windows, which has no separate backing store, it is the display resolution. Tauri calls these physical, in `PhysicalSize` and `PhysicalPosition`, and so is every rectangle Win32 hands fuji, which is DPI aware.
 - **panel** pixels are the display's own lights. On the Mac they are always the physical panel, and macOS resamples backing onto them whenever the two differ. On Windows they are the physical panel only while the display runs at its native resolution. Many users lower the resolution to make things bigger, because that setting is older and better known than "Change the size of text, apps, and other items"; the monitor or the graphics card then stretches backing onto the lights, invisibly to every API, and fuji neither detects that nor adjusts for it.
 
-**A ratio always says which one it is**, because there are several. Backing per CSS is the one `devicePixelRatio` answers in the page, Tauri's `scale_factor` answers in Rust, and Windows calls its scale setting: only ever 1 or 2 on the Mac, and on Windows 1.25 at 125 percent, 1.5 at 150, and so on, so often fractional. Prose calls it by whichever of those names its reader already knows, or says it outright — each CSS pixel two backing pixels across — and never leaves a bare *the ratio* for the reader to resolve. Panel per backing is the Mac's resample. A picture's own pixels are not a screen unit at all, and a picture's size on screen is CSS per image pixel. In code, backing per CSS is held as `backingPerCss` in the page and `backing_per_css` in Rust, never as a bare `ratio` or `scale`, and any other ratio names both of its units where it is declared.
+**A ratio always says which one it is**, because there are several. Backing per CSS is the one `devicePixelRatio` answers in JavaScript, Tauri's `scale_factor` answers in Rust, and Windows calls its scale setting: only ever 1 or 2 on the Mac, and on Windows 1.25 at 125 percent, 1.5 at 150, and so on, so often fractional. Prose calls it by whichever of those names its reader already knows, or says it outright — each CSS pixel two backing pixels across — and never leaves a bare *the ratio* for the reader to resolve. Panel per backing is the Mac's resample. A picture's own pixels are not a screen unit at all, and a picture's size on screen is CSS per image pixel. In code, backing per CSS is held as `backingPerCss` in JavaScript and `backing_per_css` in Rust, never as a bare `ratio` or `scale`, and any other ratio names both of its units where it is declared.
 
 **Five words stay out of the unit names.** *Physical*, because Tauri means backing by it and this codebase used it for panel. *Display*, because the Mac's display settings list CSS resolutions and Windows' list backing ones. *Device pixel*, *native* and *hardware*, which were three more names for units that already have one.
 
@@ -255,8 +262,8 @@ Always use the path normalization functions from `library.js`:
 
 1. Define function in appropriate module (e.g., `disk.rs`) with `#[tauri::command]` attribute
 2. Add to `generate_handler![]` in `lib.rs::run()`
-3. Create JavaScript wrapper in corresponding JS file (e.g., `disk.js`)
-4. Import and use in Vue components
+3. Create its JavaScript wrapper in brass's JavaScript side, the file of the same name in `src/brass/` (e.g., `brass/disk.js`)
+4. Import and use it from plastic, or from a Vue component
 
 ## Platform-Specific Code
 

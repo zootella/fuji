@@ -119,7 +119,7 @@ Fuji's Edit menu carries a file manager's commands, cut, copy and paste among th
 
 ### One pass, flushed, then the name
 
-Delete writes over every byte of the file once with random bytes, makes sure they have reached the drive, writes over the file's name, and removes it. The heart of it is in [`copper/src/erase.rs`](https://github.com/zootella/fuji/blob/main/copper/src/erase.rs):
+Delete writes over every byte of the file once with random bytes, makes sure they have reached the drive, writes over the file's name, and removes it. The heart of it is in [`rust/copper/src/erase.rs`](https://github.com/zootella/fuji/blob/main/rust/copper/src/erase.rs):
 
 <div class="breakout">
 
@@ -203,7 +203,7 @@ Every address below was fetched on October 27, 2026.
 - Fedora Project. "[Changes/BtrfsByDefault](https://fedoraproject.org/wiki/Changes/BtrfsByDefault)." Fedora Project Wiki.
 - Fedora Project. "[Changes/BtrfsTransparentCompression](https://fedoraproject.org/wiki/Changes/BtrfsTransparentCompression)." Fedora Project Wiki.
 - Feenberg, Daniel. "[Can Intelligence Agencies Read Overwritten Data? A Response to Gutmann](https://www.nber.org/sys-admin/overwritten-data-gutmann.html)." National Bureau of Economic Research, July 21, 2003, revised.
-- Fuji. [*Fuji*](https://github.com/zootella/fuji). Source repository on GitHub, from which this page quotes `copper/src/erase.rs`.
+- Fuji. [*Fuji*](https://github.com/zootella/fuji). Source repository on GitHub, from which this page quotes `rust/copper/src/erase.rs`.
 - Garfinkel, Simson L., and Abhi Shelat. "[Remembrance of Data Passed: A Study of Disk Sanitization Practices](https://simson.net/clips/academic/2003.IEEE.DiskDriveForensics.pdf)." *IEEE Security & Privacy*, January/February 2003, 17–27.
 - GNU Project. "[NEWS](https://raw.githubusercontent.com/coreutils/coreutils/master/NEWS)." GNU Coreutils source repository.
 - GNU Project. "[shred invocation](https://www.gnu.org/software/coreutils/manual/html_node/shred-invocation.html)." In *GNU Coreutils*.

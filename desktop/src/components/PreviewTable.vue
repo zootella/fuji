@@ -1,8 +1,8 @@
 <script setup>//the picture fuji was opened on, as large as the desktop allows, and nothing to do but look
 
 import {ref, onBeforeUnmount} from 'vue'
-import {cacheNeed, cacheRelease} from '../cache.js'
-import {log} from '../log.js'
+import {cacheNeed, cacheRelease} from '../plastic/cache.js'
+import {log} from '../brass/log.js'
 
 /*
 The first thing fuji shows when a picture is double-clicked in the file manager. The shell takes the title bar off and fits the window around this picture, in the part of the desktop the menu bar, dock and taskbar leave free and away from the pointer, so the window is the picture and nothing else. There is no flipping, no panning and no zoom, which is why this is a table of its own rather than a mode of DiamondTable: nothing here can reach the diamond table's code, and nothing done there can break this.

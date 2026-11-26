@@ -2,11 +2,11 @@
 
 import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {associateAnswers, associateOpens, associateActive, associateExtensions, associateChoose, associateLook, associateDiffers, associateProgram, associateFinish} from '../associate.js'
-import {logTrouble} from '../log.js'
-import {brandName} from '../brand.js'
-import {platform, sayList} from './library.js'
-import {fileTypes} from '../fileTypes.js'
+import {associateAnswers, associateOpens, associateActive, associateExtensions, associateChoose, associateLook, associateDiffers, associateProgram, associateFinish} from '../plastic/associate.js'
+import {logTrouble} from '../brass/log.js'
+import {brandName} from '../plastic/brand.js'
+import {platform, sayList} from '../plastic/library.js'
+import {fileTypes} from '../plastic/fileTypes.js'
 import SettingsFileTypeCard from './SettingsFileTypeCard.vue'
 
 /*

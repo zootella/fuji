@@ -1,6 +1,6 @@
 # ============================================================================
 # .gitignore for this pnpm monorepo
-# Workspaces: desktop (Tauri), site (VitePress), linux and apple
+# Workspaces: desktop (Tauri), site (VitePress), linux, side, rust/steel and rust/copper
 # One file at the root covers every workspace; there are no nested ignore files
 # ============================================================================
 

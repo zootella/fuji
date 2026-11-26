@@ -3,7 +3,7 @@
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {
 xy, measureScreen,
-} from './library.js'//our javascript library
+} from '../plastic/library.js'//our javascript library
 
 onMounted(async () => {
 	let s = await measureScreen()

@@ -2,10 +2,10 @@
 
 import {ref, onMounted} from 'vue'
 import parse from 'path-browserify'
-import {windowNote} from './window.js'
-import {openFiles} from './open.js'
-import {forwardize} from './components/library.js'
-import {fileTypesWindow} from './fileTypes.js'
+import {windowNote} from './brass/window.js'
+import {openFiles} from './brass/open.js'
+import {forwardize} from './plastic/library.js'
+import {fileTypesWindow} from './plastic/fileTypes.js'
 import Shell from './components/Shell.vue'
 import VideoWindow from './components/VideoWindow.vue'
 

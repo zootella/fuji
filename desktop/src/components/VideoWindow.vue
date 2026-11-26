@@ -3,14 +3,14 @@
 import {ref, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
-import {platform, backize, revealWindow, windowTitle, screenAreas, rectSheet} from './library.js'
-import {settings, settingsLoad} from '../settings.js'
-import {log, logStart, logTrouble, sayTrouble} from '../log.js'
-import {themeShow, facesShow} from '../appearance.js'
-import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowTitleHide, windowConstraintLift, windowDrag, windowNew} from '../window.js'
-import {menuAnswer, menuEnable} from '../menu.js'//the mac's menu bar, which sends this window Fuji Help alone, and whose Edit items this window grays
-import {processOpen} from '../process.js'
-import {urlHelp, brandName} from '../brand.js'
+import {platform, backize, revealWindow, windowTitle, screenAreas, rectSheet} from '../plastic/library.js'
+import {settings, settingsLoad} from '../plastic/settings.js'
+import {log, logStart, logTrouble, sayTrouble} from '../brass/log.js'
+import {themeShow, facesShow} from '../plastic/appearance.js'
+import {windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowTitleHide, windowConstraintLift, windowDrag, windowNew} from '../brass/window.js'
+import {menuAnswer, menuEnable} from '../brass/menu.js'//the mac's menu bar, which sends this window Fuji Help alone, and whose Edit items this window grays
+import {processOpen} from '../brass/process.js'
+import {urlHelp, brandName} from '../plastic/brand.js'
 import iconMinimize from 'lucide-static/icons/minus.svg?raw'//the window buttons' drawings, as lucide drew them, each a file of markup the page holds as text
 import iconMaximize from 'lucide-static/icons/square.svg?raw'
 import iconRestore  from 'lucide-static/icons/copy.svg?raw'

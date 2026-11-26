@@ -5,10 +5,10 @@
 import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWindow, currentMonitor} from '@tauri-apps/api/window'
 import parse from 'path-browserify'//naming this parse instead of path so we can have variables named path
-import {diskRead, diskReadDir} from '../disk.js'//our rust module
+import {diskRead, diskReadDir} from '../brass/disk.js'//our rust module
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage} from './library.js'//our javascript library
+import {xy, raf, blobToDataUrl, forwardize, backize, listSiblings, readAndRenderImage} from '../plastic/library.js'//our javascript library
 
 const frameRef = ref(null)//frame around boundaries of this component, likely the whole window full screen
 const cardRef = ref(null)//a rectangle in space the user can drag to pan around, anywhere including far outside the frame viewport

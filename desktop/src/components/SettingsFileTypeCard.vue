@@ -1,11 +1,11 @@
 <script setup>//the card for one kind of file in fuji's settings, beside its chip: what it is and where it came from, where it stands, and the button that changes it
 
 import {ref, computed, watch, onMounted, nextTick} from 'vue'
-import {associateAnswers, associateActive, associateExtensions, associateChoose, associateDiffers, associateFinish, associateProgram, associateSiblings} from '../associate.js'
-import {sayList} from './library.js'
-import {logTrouble} from '../log.js'
-import {brandName} from '../brand.js'
-import {fileTypes} from '../fileTypes.js'
+import {associateAnswers, associateActive, associateExtensions, associateChoose, associateDiffers, associateFinish, associateProgram, associateSiblings} from '../plastic/associate.js'
+import {sayList} from '../plastic/library.js'
+import {logTrouble} from '../brass/log.js'
+import {brandName} from '../plastic/brand.js'
+import {fileTypes} from '../plastic/fileTypes.js'
 
 /*
 The section decides which card is up and whether it is pinned; the card is everything about one kind of file, and how it sits on the page.

@@ -27,7 +27,7 @@ Reproducibility is what makes "clean" mean something. pnpm-lock.yaml and Cargo.l
 
 The whitelist below names what goes in, and nothing else does. The list is stated positively rather than as a set of exclusions, because a whitelist fails closed. The concrete thing it keeps out is the .env at the repository root, which holds the deploy host, both account names and the path to the installer upload key; that file has no business inside a container or baked into an image layer. .git goes the same way.
 
-The other workspaces stay out, and nothing misses them. pnpm-workspace.yaml names every workspace and pnpm-lock.yaml has an importer for each, and pnpm simply does not find the missing directories and carries on, verified with --frozen-lockfile. So the shared lockfile gives reproducibility without dragging the website's dependency tree, or this workspace's own commands, into a build that wants neither.
+The other workspaces stay out, the site, the tools in side and this one, and nothing misses them. pnpm-workspace.yaml names every workspace and pnpm-lock.yaml has an importer for each, and pnpm simply does not find the missing directories and carries on, verified with --frozen-lockfile. So the shared lockfile gives reproducibility without dragging the website's dependency tree, or this workspace's own commands, into a build that wants neither.
 
 Source is mounted read only. A container cannot write into the working tree on the mac; the one writable thing it is given is release/.
 
@@ -77,9 +77,9 @@ const images = {
 	[`${brandStem}-flatpak:amd64`]: {file: 'Dockerfile.flatpak', platform: 'linux/amd64'},
 }
 
-//what goes into a container, said positively. desktop/, steel/ and copper/ are copied whole except for the names below, which are all things a build makes rather than things a build needs
-const whitelist = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'Cargo.toml', 'Cargo.lock', '.cargo', 'desktop', 'steel', 'copper']//steel and copper because fuji's rust depends on them by path, and the three root files because the three crates are one cargo workspace whose lock and target folder are set there
-const leaveBehind = ['node_modules', 'target', 'dist', 'release', '.DS_Store', 'corpus', 'artifacts']//corpus and artifacts are what pnpm fuzz leaves in steel/fuzz, thousands of small files a build never reads
+//what goes into a container, said positively. desktop/ and rust/ are copied whole except for the names below, which are all things a build makes rather than things a build needs
+const whitelist = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'Cargo.toml', 'Cargo.lock', '.cargo', 'desktop', 'rust']//rust because fuji's rust depends on the crates there by path, and the three root files because the three crates are one cargo workspace whose lock and target folder are set there
+const leaveBehind = ['node_modules', 'target', 'dist', 'release', '.DS_Store', 'corpus', 'artifacts']//corpus and artifacts are what pnpm fuzz leaves in rust/steel/fuzz, thousands of small files a build never reads
 
 function run(args, options = {}) {//one place that shells out, so every docker invocation looks the same
 	execFileSync('docker', args, {stdio: 'inherit', ...options})
@@ -263,8 +263,8 @@ async function walk() {
 			`{ ${install}; } >/dev/null 2>&1 || { echo 'the packages did not install'; exit 1; }`,
 			`. /etc/os-release && echo "$PRETTY_NAME, glibc $(ldd --version | head -1 | awk '{print $NF}'), node $(node --version)"`,
 			'useradd -m walker',
-			'mkdir -p /work/copper /work/steel && cp /src/copper/walk.js /src/copper/package.json /work/copper/ && cp -r /src/steel/samples /work/steel/ && chown -R walker /work',
-			`su walker -s /bin/bash -c 'cd /work && LD_LIBRARY_PATH=/library FUJI=/target/debug/${brandStem} WALK_MANY=/usr/share WALK_BIG=/target node copper/walk.js'`,//the container's own files for the walk's two big trees, since the stage carries no node_modules
+			'mkdir -p /work/rust/copper /work/rust/steel && cp /src/rust/copper/walk.js /src/rust/copper/package.json /work/rust/copper/ && cp -r /src/rust/steel/samples /work/rust/steel/ && chown -R walker /work',
+			`su walker -s /bin/bash -c 'cd /work && LD_LIBRARY_PATH=/library FUJI=/target/debug/${brandStem} WALK_MANY=/usr/share WALK_BIG=/target node rust/copper/walk.js'`,//the container's own files for the walk's two big trees, since the stage carries no node_modules
 		].join(' && ')
 		let seccomp = distribution.landlock === false ? `seccomp=${profile}` : 'seccomp=unconfined'
 		return container(`${brandStem}-walk-${distribution.name}-${process.pid}`, distribution.name.padEnd(6), ['--platform', 'linux/arm64', '--security-opt', seccomp,

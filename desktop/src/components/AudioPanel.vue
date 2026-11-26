@@ -3,14 +3,14 @@
 import {ref, nextTick, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {Time, sayTimeRace} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {mediaVersion, mediaStart, mediaSend, mediaRead, mediaStop, mediaProbe, mediaFrame, mediaFrameUnpack} from '../media.js'
-import {windowVideoMake, windowVideoPlace, windowVideoDrop} from '../window.js'
-import {dialogOpen} from '../dialog.js'
-import {picturesFolder} from '../paths.js'
-import {modelFolder} from '../model.js'//the folder the sheet shows, where the open box starts
-import {log, logTrouble} from '../log.js'
-import {brandName} from '../brand.js'
-import {backize, xy, raf, sayDimensions, middleDot} from './library.js'
+import {mediaVersion, mediaStart, mediaSend, mediaRead, mediaStop, mediaProbe, mediaFrame, mediaFrameUnpack} from '../brass/media.js'
+import {windowVideoMake, windowVideoPlace, windowVideoDrop} from '../brass/window.js'
+import {dialogOpen} from '../brass/dialog.js'
+import {picturesFolder} from '../brass/paths.js'
+import {modelFolder} from '../plastic/model.js'//the folder the sheet shows, where the open box starts
+import {log, logTrouble} from '../brass/log.js'
+import {brandName} from '../plastic/brand.js'
+import {backize, xy, raf, sayDimensions, middleDot} from '../plastic/library.js'
 
 /*
 The shell trades this with the sheet when either asks with a, and brings it from the settings panel the same way; which view is showing is the shell's, so this only asks. A view in the sheet's window rather than a window of its own, so the library and the builds can be worked on before fuji's windows are.

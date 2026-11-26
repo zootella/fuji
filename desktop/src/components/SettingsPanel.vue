@@ -1,11 +1,11 @@
 <script setup>//the settings panel: what a user changes from inside fuji, shown in the contact sheet's window in place of the sheet
 
 import {ref} from 'vue'
-import {settings, settingsSet, settingsThumbnailBeams} from '../settings.js'
-import {fitNames, fitDescriptions} from '../fit.js'
-import {modelSort, modelSortSet, modelSortNames, modelSortLabels} from '../model.js'
-import {brandName} from '../brand.js'
-import {platform} from './library.js'
+import {settings, settingsSet, settingsThumbnailBeams} from '../plastic/settings.js'
+import {fitNames, fitDescriptions} from '../plastic/fit.js'
+import {modelSort, modelSortSet, modelSortNames, modelSortLabels} from '../plastic/model.js'
+import {brandName} from '../plastic/brand.js'
+import {platform} from '../plastic/library.js'
 import SettingsFileTypes from './SettingsFileTypes.vue'
 import SettingsAbout from './SettingsAbout.vue'
 

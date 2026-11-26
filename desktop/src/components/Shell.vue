@@ -4,26 +4,26 @@ import {ref, watch, nextTick, onMounted, onBeforeUnmount} from 'vue'
 import {getCurrentWindow} from '@tauri-apps/api/window'
 import {getCurrentWebview} from '@tauri-apps/api/webview'
 import {Time} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
-import {dialogOpen} from '../dialog.js'//the system's open box, which rust puts up
-import {picturesFolder} from '../paths.js'//where that box opens when no folder is on the sheet
-import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet, groupingLoad} from './library.js'
-import {settings, settingsLoad, settingsChanged} from '../settings.js'
-import {menuText, menuWaiting, menuEnable} from '../menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, which item a new window was made to answer, and which Edit items are lit
-import {modelStart, modelPath, modelFolder} from '../model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
-import {diskStat} from '../disk.js'//whether a path chosen in the open box or handed over at launch is a folder, which decides the view it opens on
-import {log, logStart, logTrouble, sayTrouble} from '../log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
-import {uptimeProcess} from '../uptime.js'//how long the launch took, for the log's line at the first frame
-import {memoryReport} from '../memory.js'//what fuji's processes take at rest, for the log's line a moment after it
-import {fileTypes, fileTypesRender} from '../fileTypes.js'//to tell a sound handed over at launch, or a sound or a video dropped, from a picture, by its extension
-import {associateStart} from '../associate.js'//and what fuji tells the operating system it can open in return
-import {touchBlock} from '../touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
-import {gamma, gammaToggle, gammaStep} from '../gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
-import {brandName, urlHelp} from '../brand.js'//for the log lines that say what it did, and the address Fuji Help opens
-import {processOpen} from '../process.js'//that address in the system's browser
-import {cacheNeed, cacheRelease} from '../cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
-import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew, windowQuit} from '../window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, to ask for a video window beside this one, and to end the program for the light table's Quit on the mac
-import {setCommandKey} from '../keyboard.js'//which modifier the components hold their chords with
-import {themeShow, facesShow} from '../appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts
+import {dialogOpen} from '../brass/dialog.js'//the system's open box, which rust puts up
+import {picturesFolder} from '../brass/paths.js'//where that box opens when no folder is on the sheet
+import {raf, forwardize, platform, backspaceCloses, revealWindow, windowTitle, screenAreas, pointerPosition, rectPreview, rectSheet, groupingLoad} from '../plastic/library.js'
+import {settings, settingsLoad, settingsChanged} from '../plastic/settings.js'
+import {menuText, menuWaiting, menuEnable} from '../brass/menu.js'//what the page asks of the mac's menu bar: that the View item read where it goes, which changes with the view, which item a new window was made to answer, and which Edit items are lit
+import {modelStart, modelPath, modelFolder} from '../plastic/model.js'//the sort comes out of the settings file the same way the table below does; the path and the folder are here for the title bar, which is the shell's because the window is
+import {diskStat} from '../brass/disk.js'//whether a path chosen in the open box or handed over at launch is a folder, which decides the view it opens on
+import {log, logStart, logTrouble, sayTrouble} from '../brass/log.js'//the log belongs to the run rather than to any one view, and the run is what the shell owns
+import {uptimeProcess} from '../brass/uptime.js'//how long the launch took, for the log's line at the first frame
+import {memoryReport} from '../brass/memory.js'//what fuji's processes take at rest, for the log's line a moment after it
+import {fileTypes, fileTypesRender} from '../plastic/fileTypes.js'//to tell a sound handed over at launch, or a sound or a video dropped, from a picture, by its extension
+import {associateStart} from '../plastic/associate.js'//and what fuji tells the operating system it can open in return
+import {touchBlock} from '../brass/touch.js'//and whether a trackpad's scrolls reach this window at all, which depends on which view is showing
+import {gamma, gammaToggle, gammaStep} from '../plastic/gamma.js'//the lens every picture is shown through, which the shell draws and its keys step, and a table can wheel and drag
+import {brandName, urlHelp} from '../plastic/brand.js'//for the log lines that say what it did, and the address Fuji Help opens
+import {processOpen} from '../brass/process.js'//that address in the system's browser
+import {cacheNeed, cacheRelease} from '../plastic/cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
+import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew, windowQuit} from '../brass/window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, to ask for a video window beside this one, and to end the program for the light table's Quit on the mac
+import {setCommandKey} from '../plastic/keyboard.js'//which modifier the components hold their chords with
+import {themeShow, facesShow} from '../plastic/appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'
 import SettingsPanel from './SettingsPanel.vue'

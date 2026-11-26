@@ -112,14 +112,15 @@ Fuji's Linux packages are built in Docker containers by the `linux` workspace, w
 
 ### Workspaces
 
-This repository is a pnpm monorepo: the application, the website, the Linux packaging, and steel and copper, two Rust crates the application depends on, the three Rust crates one Cargo workspace. The planning documents stay at the root.
+This repository is a pnpm monorepo: the application, the website, the Linux packaging, the tools beside the application that don't ship, and steel and copper, two Rust crates the application depends on, the three Rust crates one Cargo workspace. The planning documents stay at the root.
 
 ```
 ./desktop           the Fuji desktop application, made with Tauri
 ./site              the website and documentation, made with VitePress
 ./linux             Fuji's Linux packages, built on a Mac through Docker
-./steel             Fuji's safe Rust: the scout, its reader of a file's first bytes, and the walker of a folder tree
-./copper            Fuji's Rust that needs neither Tauri nor a window and cannot be safe Rust: the calls into C and the operating system's libraries
+./side              tools beside the application that don't ship, like the palette and the sort tests
+./rust/steel        Fuji's safe Rust: the scout, its reader of a file's first bytes, and the walker of a folder tree
+./rust/copper       Fuji's Rust that needs neither Tauri nor a window and cannot be safe Rust: the calls into C and the operating system's libraries
 ```
 
 ### Scripts
@@ -153,11 +154,11 @@ $ pnpm build        build the Linux packages in Docker containers, from the libr
 $ pnpm hash         stage them and write the sidecars, building nothing
 $ pnpm upload       send what is staged to the server
 
-$ cd steel
+$ cd rust/steel
 $ pnpm test         run the scout's tests against its sample files and the walker's on the trees it builds
 $ pnpm fuzz         run libFuzzer on the scout, seeded from the samples, until stopped
 
-$ cd copper
+$ cd rust/copper
 $ pnpm test         run copper's tests, with nothing of Tauri compiled
 ```
 
@@ -182,7 +183,7 @@ And through the Linux commands:
 
 Steel and copper are the two workspaces that are Rust rather than JavaScript: crates of their own, which the application depends on by path and nothing publishes, and their commands are cargo's. Through them:
 
-- **test / fuzz** — run its tests against its sample files and the folder trees they build, then let libFuzzer try millions of mutated files on it. `./steel/README.md` is the guide.
+- **test / fuzz** — run its tests against its sample files and the folder trees they build, then let libFuzzer try millions of mutated files on it. `./rust/steel/README.md` is the guide.
 
 `pnpm icons` is separate from all of this. It rebuilds every platform's icons from the SVG sources. Run it by hand after you change the artwork, and after you upgrade the Tauri CLI, since the icons are committed files that an upgrade never regenerates.
 
@@ -282,11 +283,11 @@ To rename the app, or to make a fork of it your own, set them in two files:
 - **`desktop/src-tauri/tauri.conf.json`** — `productName` is `brandName`. Beside it are the other fields a fork changes. `identifier`, `app.fujidesktop.Fuji`, is a third name with jobs of its own: it's what the Mac knows the app by, the folder WebView2 keeps its data in on Windows, and the Flatpak's name. Then `bundle.publisher`, `copyright`, `homepage`, and the two descriptions. And in `bundle.resources`, the Start tile's manifest is copied out as `fuji.VisualElementsManifest.xml`. That's `brandStem` written out, because Windows only finds the file under the executable's name, and a JSON file can't read it.
 - **`desktop/src-tauri/Cargo.toml`** — the package `name` is `brandStem`, since Cargo names the executable from it. Beside it are `description`, and `authors`, which becomes the maintainer listed in the Linux packages. The library's name, `fuji_lib`, is `brandStem` written out again, and `src/main.rs` calls it, so change the two together.
 
-Everything else reads those two files. Tauri names every build from them. The Rust code has both in its package info, as `name` and `crate_name`. The page reads both in `desktop/src/brand.js`, which has the long version. The build scripts, `desktop/dmg.js`, `desktop/win-setup/win-setup.js`, `scripts.js` and `linux/build.js`, read them for themselves; `win-setup.js` compiles both into the Windows setup program, and `linux/build.js` hands them to the Flatpak container, which can't see either file. `Cargo.lock` follows on the next build.
+Everything else reads those two files. Tauri names every build from them. The Rust code has both in its package info, as `name` and `crate_name`. The page reads both in `desktop/src/plastic/brand.js`, which has the long version. The build scripts, `desktop/dmg.js`, `desktop/win-setup/win-setup.js`, `scripts.js` and `linux/build.js`, read them for themselves; `win-setup.js` compiles both into the Windows setup program, and `linux/build.js` hands them to the Flatpak container, which can't see either file. `Cargo.lock` follows on the next build.
 
 After a rename, search `desktop`, `linux` and `scripts.js` for the old name, leaving out `node_modules`, `target` and `dist`. What turns up should be comments, the prose of `linux/README.md`, and the sidecars of past releases in the two `release` folders, which a fork deletes rather than renames. The website is separate: it says Fuji in its own words, and spells the published installer names out in its own code.
 
-Two addresses go with the names, both written bare, with no scheme. **`urlHome`** is the site, `fujidesktop.app`, read from `bundle.homepage`. **`urlHelp`** is where Fuji Help in the Help menu sends a person, `fujidesktop.app/help`. That's a page on the site, `site/docs/help/index.md`, which forwards to wherever help lives. A copy of the app in the field may never update, so it keeps this address for good, and the site decides where it leads. Both are set in `desktop/src/brand.js`, and a fork whose help lives somewhere else writes its own address there.
+Two addresses go with the names, both written bare, with no scheme. **`urlHome`** is the site, `fujidesktop.app`, read from `bundle.homepage`. **`urlHelp`** is where Fuji Help in the Help menu sends a person, `fujidesktop.app/help`. That's a page on the site, `site/docs/help/index.md`, which forwards to wherever help lives. A copy of the app in the field may never update, so it keeps this address for good, and the site decides where it leads. Both are set in `desktop/src/plastic/brand.js`, and a fork whose help lives somewhere else writes its own address there.
 
 ### The Windows installer
 

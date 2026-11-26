@@ -2,12 +2,12 @@
 
 import {ref, onMounted, version as vueVersion} from 'vue'
 import {getTauriVersion} from '@tauri-apps/api/app'//the framework asked for its own version, which the page may do for its own window
-import {brandName, brandVersion, urlHome} from '../brand.js'
-import {windowEngine} from '../window.js'
-import {mediaVersion} from '../media.js'
-import {processOpen} from '../process.js'//the site in the system's browser, rather than in the web view
-import {logTrouble} from '../log.js'
-import {platform} from './library.js'
+import {brandName, brandVersion, urlHome} from '../plastic/brand.js'
+import {windowEngine} from '../brass/window.js'
+import {mediaVersion} from '../brass/media.js'
+import {processOpen} from '../brass/process.js'//the site in the system's browser, rather than in the web view
+import {logTrouble} from '../brass/log.js'
+import {platform} from '../plastic/library.js'
 
 //the parts fuji runs on, each with its version asked of the part itself where it can answer at runtime, and read as this copy was built where it cannot: the framework and the web engine answer through rust, the media library answers for itself and for the FFmpeg beneath it, and vue's is the one its package exports. A line per part, the name quiet and the version strong, so the numbers read down the lines. The engine's name is fuji's word, since the framework answers only the number and which engine it is never changes on a platform
 

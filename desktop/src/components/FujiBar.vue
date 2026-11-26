@@ -1,7 +1,7 @@
 <script setup>//a menubar or a toolbar from bars.txt, by its name, which sends the word of the item chosen to the one command handler of the page that places it, from a button or from the menu a button opens; bar.js reads the text and says how it is written
 
 import {ref, provide, inject} from 'vue'
-import {barGet, barIcons} from '../bar.js'
+import {barGet, barIcons} from '../plastic/bar.js'
 
 const props = defineProps({
 	name: {type: String, required: true},

@@ -1,15 +1,15 @@
 <script setup>//every thumbnail sized by a fit, and the tiles flow like words; the pixels come from the operating system or from the page, decided per file
 
 import {ref, onMounted, onBeforeUnmount} from 'vue'
-import {cacheNeed, cacheRelease} from '../cache.js'
-import {governorRun} from '../governor.js'
-import {settings, settingsThumbnailBeam} from '../settings.js'
-import {fitSize} from '../fit.js'
-import {thumbnailRender, thumbnailUnpack} from '../thumbnail.js'
-import {logTrouble, logThumbnail, logBucket} from '../log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
-import {xy, platform, sayCaptionDay, sayCaptionSize, sayDimensions, middleDot, thinSpace, backize} from './library.js'
-import {labelPut} from '../label.js'
-import {fileTypesSheet} from '../fileTypes.js'
+import {cacheNeed, cacheRelease} from '../plastic/cache.js'
+import {governorRun} from '../plastic/governor.js'
+import {settings, settingsThumbnailBeam} from '../plastic/settings.js'
+import {fitSize} from '../plastic/fit.js'
+import {thumbnailRender, thumbnailUnpack} from '../brass/thumbnail.js'
+import {logTrouble, logThumbnail, logBucket} from '../brass/log.js'//the log, off unless fuji.toml says otherwise; every thumbnail and every bucket is a row in it
+import {xy, platform, sayCaptionDay, sayCaptionSize, sayDimensions, middleDot, thinSpace, backize} from '../plastic/library.js'
+import {labelPut} from '../plastic/label.js'
+import {fileTypesSheet} from '../plastic/fileTypes.js'
 
 /*
 The one flow, and the whole of how a file becomes a tile. A bucket hands this its files, the listing's entries, which carry the name, the size and the modified time the caption reads. fileTypesSheet in fileTypes.js says from the extension what kind of tile each gets on this platform: one whose contactSheet is img, a GIF or an SVG, is an img, so a GIF animates and an SVG is painted by the engine inside the sandbox an img is; everything else is a canvas fuji sized, which is memory the sheet can count, and a file nothing on this platform can draw is left out, counted in the bucket's caption. A canvas gets its pixels one of two ways. A file this platform's imaging library reads goes down to Rust, and the operating system's thumbnail comes back small and goes on with one putImageData; the store never hears about the file. Anything else, and everything on linux, the store reads and decodes and the page halves down into the canvas, at a cost to the main thread.

@@ -19,8 +19,6 @@
 		"notarize-hash-upload-reveal": "pnpm notarize && pnpm hash && pnpm upload && pnpm reveal",
 		"certificate": "node ../scripts.js certificate",
 		"icons": "tauri icon src-tauri/icons/app-icon.svg && tauri icon src-tauri/icons/app-icon-mac.svg -o src-tauri/icons/.mac && tauri icon src-tauri/icons/app-icon-tile.svg -o src-tauri/icons/.tile && node ../scripts.js icons-collect",
-		"color": "vite --port 1430 --open /color/",
-		"sort-test": "node sort/test.js",
 		"dev": "vite",
 		"vite-build": "vite build",
 		"tauri": "tauri"

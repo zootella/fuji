@@ -3,7 +3,7 @@
 import {ref, computed} from 'vue'
 import {saySize4} from '@zootella/ergo'//small helpers from the ergo project, the same in every language fuji is written in
 import TestFlow from './TestFlow.vue'
-import {backize, middleDot, thinSpace} from './library.js'
+import {backize, middleDot, thinSpace} from '../plastic/library.js'
 
 //the bucket stays simple and the flow does the work: this takes a width from whatever contains it, hands its images to the flow, and takes back whatever height the flow needed. The bucket exists so the sheet has something it can count — a bucket totals what its canvases cost, and a limit on buckets is what turns that into a real ceiling on the sheet. Named bucket rather than card, which is the table's word for the box around its picture
 //there is one flow, so this names it directly; a register and a prop come back when there is a second one to choose between
