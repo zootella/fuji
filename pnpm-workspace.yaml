@@ -20,7 +20,7 @@ packages:
   - linux
 
   # Steel, fuji's safe Rust: the scout, its reader of a file's first bytes, and the walker of a folder tree, a crate
-  # fuji's Rust depends on by path. Its package.json has no dependencies and names two cargo commands, test and fuzz,
+  # fuji's Rust depends on by path. Its package.json has no dependencies and names its cargo commands,
   # so it answers to pnpm the way every other folder does
   - rust/steel
 

@@ -29,7 +29,7 @@ A need says which steps it wants. The read is always taken, and the decode is a 
 const cacheEntries = new Map()//path to entry, and the only place fuji keeps images
 let cacheBlobBytes = 0//running totals rather than a walk, because the hud reads them from the pan path
 let cachePixelBytes = 0
-const cacheGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space a native picture's canvas is made in, asked of the screen exactly as flowGamut in TestFlow.vue asks it, whose comment says why the screen and not the engine; read once, and stale on a change of monitor as devicePixelRatio is
+const cacheGamut = matchMedia('(color-gamut: p3)').matches ? 'display-p3' : 'srgb'//the color space a native picture's canvas is made in, asked of the screen exactly as flowMake in flow.js asks it, whose comment says why the screen and not the engine; read once, and stale on a change of monitor as devicePixelRatio is
 
 export function cacheNeed(path, holder, steps = {}) {//take a reference and get the image; asking and holding are the same act, so nothing can be had without saying who wants it. steps lets a caller leave out work it has no use for: {decode: false} answers with the bytes and the url and never builds an element, for a view that hands the engine an img of its own
 	let entry = cacheEntries.get(path)

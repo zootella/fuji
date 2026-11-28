@@ -22,7 +22,7 @@ import {brandName, urlHelp} from '../plastic/brand.js'//for the log lines that s
 import {processOpen} from '../brass/process.js'//that address in the system's browser
 import {cacheNeed, cacheRelease} from '../plastic/cache.js'//only to hold a picture across the swap from the preview to the diamond table, which neither table can do for itself
 import {windowFrame, windowFrameSet, windowFullscreenEnter, windowFullscreenLeave, windowNew, windowQuit} from '../brass/window.js'//to place the window before it is revealed, to read the size the user has given the sheet, to go into fuji's fullscreen and leave it without showing a hidden window, to ask for a video window beside this one, and to end the program for the light table's Quit on the mac
-import {setCommandKey} from '../plastic/keyboard.js'//which modifier the components hold their chords with
+import {setCommandKey} from '../fuji-components/keyboard.js'//which modifier the components hold their chords with
 import {themeShow, facesShow} from '../plastic/appearance.js'//the light or dark and the faces the settings name, which every kind of window puts on as it starts
 import HelpPanel from './HelpPanel.vue'
 import Sheet from './Sheet.vue'

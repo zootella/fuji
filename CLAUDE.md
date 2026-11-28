@@ -162,7 +162,7 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 **Where to read before changing something.** Every component in `src/components/` and `src/fuji-components/`, and every module in `src/plastic/` and `src/brass/`, opens with a comment saying what it is, and the ones that carry a subject open with an essay on it:
 - `Shell.vue` — a browsing window, which view is showing, and fuji's two fullscreens
 - `VideoWindow.vue` — a video window, a native window of its own beside a browsing window or without one
-- `TestFlow.vue` — how a path becomes a thumbnail
+- `flow.js` — how a path becomes a thumbnail, which `TestFlow.vue` draws
 - `DiamondTable.vue` — the quiver, and why a flip shows first and loads last
 - `model.js`, `settings.js`, `cache.js` — what the user is looking at, the one schema for `fuji.toml`, and the store of pictures
 - `pager.js` — every image on the volume as one list, never built, and the sheet's page as a window onto it
@@ -176,8 +176,8 @@ There are deliberately no cleanup scripts. The old `wash`/`upgrade-wash` pair we
 - Images reach the screen as: disk → Rust bytes → Blob → object url → `<img>` → `decode()`, held by `cache.js`, and the url is kept until the entry is freed. A picture only the operating system's imaging library reads on this platform, a TIFF on Windows or a Photoshop file on the Mac, reaches it instead as the library's pixels at the picture's own size, painted once onto a canvas the store holds in the img's place; `fileTypesTable` in `fileTypes.js` says which
 - A table shows the store's own element rather than pointing one of its own at the same picture, which was measured to cost the whole decode again
 - A flip shows first and asks the store for anything new last, because a read or decode started before the paint blocks the frame it was meant to help. `DiamondTable.vue` carries the essay
-- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from fuji's own JavaScript where not; a GIF or an SVG is an img. `TestFlow.vue` is the code, and the Image Fidelity page on the site is why it is shaped that way
-- A canvas is sized to its box in backing pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one backing pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `TestFlow.vue` hold this; the Image Fidelity page on the site has the measurement
+- A thumbnail is a canvas fuji sized, its pixels from the operating system through `thumbnail.rs` where the platform's allow list permits and from fuji's own JavaScript where not; a GIF or an SVG is an img. `flow.js` is the code, and the Image Fidelity page on the site is why it is shaped that way
+- A canvas is sized to its box in backing pixels — whole CSS pixels times `devicePixelRatio` — and never to whatever size the thumbnail came back at. A canvas even one backing pixel short of its box is resampled by the compositor on every row, and a fractional CSS size does not fix it. `flowSnap` and `flowEdge` in `flow.js` hold this; the Image Fidelity page on the site has the measurement
 - The "quiver" system separates state (A), calculation (B), and rendering (C) for efficient DOM updates
 
 ### Styling

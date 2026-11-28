@@ -1,4 +1,4 @@
-import {isCommandOrControl} from '../plastic/keyboard.js'
+import {isCommandOrControl} from './keyboard.js'
 import {labelPut} from './label.js'
 
 /*
